@@ -5,7 +5,7 @@
       "name": "trad-web-client",
       "dependencies": {
         "buefy": "^3.0.3",
-        "dockview-core": "^4.7.1",
+        "dockview-vue": "^4.7.1",
         "pinia": "^3.0.3",
         "vue": "^3.5.18",
         "vue-router": "^4.5.1",
@@ -384,6 +384,8 @@
     "detect-libc": ["detect-libc@2.1.0", "", {}, "sha512-vEtk+OcP7VBRtQZ1EJ3bdgzSfBjgnEalLTp5zjJrS+2Z1w2KZly4SBdac/WDU3hhsNAZ9E8SC96ME4Ey8MZ7cg=="],
 
     "dockview-core": ["dockview-core@4.7.1", "", {}, "sha512-Tia3vYHtqACMZTiZv86yQOabwKj5KrBhQqlSr7qXV0qmmRSZ8dNbaU63LIHYFprST7JgHupIm9JVES+OhqMoTQ=="],
+
+    "dockview-vue": ["dockview-vue@4.7.1", "", { "dependencies": { "dockview-core": "^4.7.1" }, "peerDependencies": { "vue": "^3.4.0" } }, "sha512-U/Pf5RDveXnsEOX5kQONTC24U43jEFT8hhMF7RF3caeBmi4JjNqGo9y7sq8c7fZB6Gd/8/9WzJkwCMN2PDDYtQ=="],
 
     "electron-to-chromium": ["electron-to-chromium@1.5.222", "", {}, "sha512-gA7psSwSwQRE60CEoLz6JBCQPIxNeuzB2nL8vE03GK/OHxlvykbLyeiumQy1iH5C2f3YbRAZpGCMT12a/9ih9w=="],
 

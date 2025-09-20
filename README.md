@@ -26,6 +26,33 @@ Layout is implemented with CSS Grid in `views/TradingTerminal.vue` and styled vi
 - Persist command history and support keyboard shortcuts (ArrowUp / ArrowDown).
 - Add theming (high-contrast, light) via CSS variable toggles.
 
+## Docking Layout (Dockview)
+
+The trading terminal uses `dockview-vue` for a flexible docking layout. Panels are programmatically created in `views/TradingTerminal.vue` inside the `onReady` handler.
+
+Panels added (ids): `log`, `tree`, `chart`, `details`, `entries`, `cmd`.
+
+Layout logic (approximation of original fixed grid):
+
+- `log` starts the layout (top-left)
+- `tree` placed below `log`
+- `chart` to the right of `log`
+- `details` to the right of `chart`
+- `entries` below `chart`
+- `cmd` tabbed with `entries`
+
+### Custom Theme
+
+A dark theme override is defined via the `.dockview-theme-trad` class in `src/assets/main.css`.
+
+### Resetting Layout
+
+Future enhancement: store and load serialized layout. For now, refresh page to reset.
+
+### Static Fallback
+
+The previous non-docking, pure CSS grid version is preserved as `TradingTerminalStatic.vue` for reference or fallback if docking issues arise.
+
 ## Recommended IDE Setup
 
 [VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).

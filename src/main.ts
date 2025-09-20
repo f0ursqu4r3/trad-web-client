@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 
 import Buefy from 'buefy'
 import 'buefy/dist/css/buefy.css'
+import 'dockview-vue/dist/styles/dockview.css'
 import './assets/main.css'
 
 import App from './App.vue'

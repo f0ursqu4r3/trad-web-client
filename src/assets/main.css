@@ -60,3 +60,29 @@ body,
 .panel-header {
   background: var(--panel-header-bg);
 }
+
+.dockview-theme-trad {
+  --dv-activegroup-background: var(--panel-bg);
+  --dv-group-view-background: var(--panel-bg);
+  --dv-tabs-container-background: var(--panel-header-bg);
+  --dv-paneview-header-background: var(--panel-header-bg);
+  --dv-color: var(--color-text-dim);
+  --dv-separator-color: var(--border-color);
+  --dv-floatingbox-shadow: 0 0 0 1px var(--border-color), 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+.dockview-theme-trad .dv-tabs-and-actions-container {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.dockview-theme-trad .dv-tab {
+  padding: 2px 8px;
+}
+.dockview-theme-trad .dv-tab.dockview-active {
+  color: var(--color-text);
+  background: #222a31;
+}
+.dockview-theme-trad .dv-paneview-header {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 11px;
+}

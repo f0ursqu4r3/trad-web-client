@@ -9,7 +9,5 @@
 <style scoped>
 .app-root {
   height: 100vh;
-  background: var(--color-bg);
-  color: var(--color-text);
 }
 </style>
