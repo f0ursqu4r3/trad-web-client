@@ -7,6 +7,7 @@ This project is a Vue 3 + Vite client for the trading platform. It now includes 
 Navigate to `http://localhost:5173/terminal` (root `/` redirects there) to view the terminal.
 
 Current panels (placeholder data):
+
 - Log (`TerminalLogPanel`)
 - Price Chart (`TerminalChartPanel`)
 - Order/Device Execution Tree (`TerminalOrderTree`)
@@ -17,6 +18,7 @@ Current panels (placeholder data):
 Layout is implemented with CSS Grid in `views/TradingTerminal.vue` and styled via dark theme variables in `src/assets/main.css`.
 
 ### Next Steps / Ideas
+
 - Replace placeholder reactive arrays with Pinia stores fed by a WebSocket to the trading server.
 - Implement real-time chart (e.g. lightweight-charts or custom canvas) with execution markers.
 - Add selection & focus state: clicking rows updates `DeviceDetails` panel.

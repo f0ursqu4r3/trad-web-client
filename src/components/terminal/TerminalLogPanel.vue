@@ -13,13 +13,26 @@ const lines = ref<string[]>([
   <section class="panel log-panel">
     <header class="panel-header">Log</header>
     <div class="log-lines">
-      <div v-for="(l,i) in lines" :key="i" class="log-line">{{ l }}</div>
+      <div v-for="(l, i) in lines" :key="i" class="log-line">{{ l }}</div>
     </div>
   </section>
 </template>
 
 <style scoped>
-.log-panel { overflow: hidden; display: flex; flex-direction: column; }
-.log-lines { font-family: var(--font-mono); font-size: 12px; line-height: 1.2; overflow-y: auto; white-space: pre-wrap; padding: 4px 6px; }
-.log-line { color: var(--color-text-dim); }
+.log-panel {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.log-lines {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.2;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  padding: 4px 6px;
+}
+.log-line {
+  color: var(--color-text-dim);
+}
 </style>

@@ -2,9 +2,21 @@
 // Placeholder trailing entries (devices)
 import { reactive } from 'vue'
 
-interface Entry { id: string; direction: 'LONG' | 'SHORT'; activationPrice: number; status: 'Triggered' | 'Armed'; entryPrice?: number }
+interface Entry {
+  id: string
+  direction: 'LONG' | 'SHORT'
+  activationPrice: number
+  status: 'Triggered' | 'Armed'
+  entryPrice?: number
+}
 const entries = reactive<Entry[]>([
-  { id: 'f3152000', direction: 'LONG', activationPrice: 600.25, status: 'Triggered', entryPrice: 599.7 },
+  {
+    id: 'f3152000',
+    direction: 'LONG',
+    activationPrice: 600.25,
+    status: 'Triggered',
+    entryPrice: 599.7,
+  },
   { id: '540a0396', direction: 'LONG', activationPrice: 600.7, status: 'Armed' },
 ])
 </script>
@@ -36,8 +48,22 @@ const entries = reactive<Entry[]>([
 </template>
 
 <style scoped>
-.entries-panel { display: flex; flex-direction: column; }
-.entries-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11px; }
-.entries-table th, .entries-table td { padding: 2px 4px; border-bottom: 1px solid var(--border-color); }
-.entries-table thead { background: var(--panel-header-bg); }
+.entries-panel {
+  display: flex;
+  flex-direction: column;
+}
+.entries-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.entries-table th,
+.entries-table td {
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--border-color);
+}
+.entries-table thead {
+  background: var(--panel-header-bg);
+}
 </style>

@@ -10,6 +10,17 @@
 </template>
 
 <style scoped>
-.chart-panel { position: relative; display: flex; flex-direction: column; }
-.chart-placeholder { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--color-text-dim); }
+.chart-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.chart-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--color-text-dim);
+}
 </style>

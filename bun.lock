@@ -5,6 +5,7 @@
       "name": "trad-web-client",
       "dependencies": {
         "buefy": "^3.0.3",
+        "dockview-core": "^4.7.1",
         "pinia": "^3.0.3",
         "vue": "^3.5.18",
         "vue-router": "^4.5.1",
@@ -381,6 +382,8 @@
     "define-lazy-prop": ["define-lazy-prop@3.0.0", "", {}, "sha512-N+MeXYoqr3pOgn8xfyRPREN7gHakLYjhsHhWGT3fWAiL4IkAt0iDw14QiiEm2bE30c5XX5q0FtAA3CK5f9/BUg=="],
 
     "detect-libc": ["detect-libc@2.1.0", "", {}, "sha512-vEtk+OcP7VBRtQZ1EJ3bdgzSfBjgnEalLTp5zjJrS+2Z1w2KZly4SBdac/WDU3hhsNAZ9E8SC96ME4Ey8MZ7cg=="],
+
+    "dockview-core": ["dockview-core@4.7.1", "", {}, "sha512-Tia3vYHtqACMZTiZv86yQOabwKj5KrBhQqlSr7qXV0qmmRSZ8dNbaU63LIHYFprST7JgHupIm9JVES+OhqMoTQ=="],
 
     "electron-to-chromium": ["electron-to-chromium@1.5.222", "", {}, "sha512-gA7psSwSwQRE60CEoLz6JBCQPIxNeuzB2nL8vE03GK/OHxlvykbLyeiumQy1iH5C2f3YbRAZpGCMT12a/9ih9w=="],
 
