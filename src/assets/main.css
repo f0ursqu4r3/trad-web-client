@@ -1,0 +1,24 @@
+/* existing imports if any */
+:root {
+  --color-bg: #121417;
+  --color-bg-alt: #1a1d21;
+  --panel-bg: #16191d;
+  --panel-header-bg: #20252b;
+  --panel-border-inner: #232a31;
+  --border-color: #2a3139;
+  --color-text: #d0d7de;
+  --color-text-dim: #8b949e;
+  --accent-color: #2f81f7;
+  --font-mono: "SFMono-Regular", ui-monospace, "JetBrains Mono", "Source Code Pro", Menlo, Consolas, monospace;
+}
+html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; background: var(--color-bg); color: var(--color-text); }
+body, #app { height: 100vh; }
+
+/* Scrollbars subtle */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a3037; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #343c45; }
+
+.panel { /* fallback if used outside scope */ background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 4px; }
+.panel-header { background: var(--panel-header-bg); }
