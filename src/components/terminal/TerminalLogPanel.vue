@@ -18,7 +18,7 @@ const { logs } = storeToRefs(terminal)
 
 <style scoped>
 .log-panel {
-  overflow: hidden;
+  overflow: auto;
   display: flex;
   flex-direction: column;
 }

@@ -15,6 +15,20 @@ const { priceSeries, lastPrice } = storeToRefs(useTerminalStore())
 const containerEl = ref<HTMLDivElement | null>(null)
 let chart: IChartApi | null = null
 let series: ISeriesApi<'Area'> | null = null
+let resizeObserver: ResizeObserver | null = null
+
+function resizeChart() {
+  if (!chart || !containerEl.value) return
+  const { clientWidth: width, clientHeight: height } = containerEl.value
+  if (width === 0 || height === 0) return
+  chart.applyOptions({ width, height })
+  // Keep timescale fitted after a structural resize
+  try {
+    chart.timeScale().fitContent()
+  } catch {
+    /* noop */
+  }
+}
 
 function toTs(ms: number): UTCTimestamp {
   return Math.floor(ms / 1000) as UTCTimestamp
@@ -25,8 +39,17 @@ onMounted(() => {
   chart = createChart(containerEl.value, {
     layout: { background: { color: 'transparent' }, textColor: '#b9c2cc' },
     grid: { vertLines: { color: '#1f2429' }, horzLines: { color: '#1f2429' } },
-    rightPriceScale: { borderColor: '#2a3139' },
+    rightPriceScale: {
+      borderColor: '#2a3139',
+      scaleMargins: {
+        top: 0.1,
+        bottom: 0.2,
+      },
+    },
     timeScale: { borderColor: '#2a3139' },
+    // Width/height will be set explicitly via resizeChart
+    width: containerEl.value.clientWidth,
+    height: containerEl.value.clientHeight,
   })
   series = chart.addSeries(AreaSeries, {
     lineColor: '#2f81f7',
@@ -36,22 +59,38 @@ onMounted(() => {
     pointMarkersVisible: false,
   })
   const initial: AreaData[] = priceSeries.value.map((p) => ({ time: toTs(p.time), value: p.value }))
-  if (initial.length && series) series.setData(initial)
+  if (initial.length && series) {
+    series.setData(initial)
+    chart.timeScale().fitContent()
+  }
+
+  // Observe container resize
+  resizeObserver = new ResizeObserver(() => resizeChart())
+  resizeObserver.observe(containerEl.value)
+  window.addEventListener('resize', resizeChart)
+  // Initial explicit resize
+  resizeChart()
 })
 
-watch(priceSeries, (pts) => {
-  if (!series || !pts.length) return
-  const last = pts[pts.length - 1]
-  series.update({ time: toTs(last.time), value: last.value })
-})
+// Watch only the length so pushes trigger updates (array ref itself isn't replaced)
+watch(
+  () => priceSeries.value.length,
+  (len, prev) => {
+    if (!series || len === 0 || len === prev) return
+    const last = priceSeries.value[len - 1]
+    series.update({ time: toTs(last.time), value: last.value })
+  },
+)
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', resizeChart)
+  resizeObserver?.disconnect()
   chart?.remove()
 })
 </script>
 
 <template>
-  <section class="panel chart-panel">
+  <section class="chart-panel">
     <header class="panel-header">
       Chart <span class="last">{{ lastPrice.toFixed(2) }}</span>
     </header>
@@ -64,10 +103,17 @@ onBeforeUnmount(() => {
   position: relative;
   display: flex;
   flex-direction: column;
+  /* Allow panel to expand within parent flex layout */
+  flex: 1 1 auto;
+  min-height: 0; /* prevents flex overflow clipping in some browsers */
+
+  height: 100%;
+  width: 100%;
 }
 .chart-container {
-  flex: 1;
-  min-height: 100px;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
 }
 .panel-header .last {
   margin-left: 8px;
