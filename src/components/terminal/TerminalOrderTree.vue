@@ -1,27 +1,27 @@
 <script setup lang="ts">
-// Placeholder order tree; will represent device execution tree
-import { reactive } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useTerminalStore } from '@/stores/terminal'
 
-interface Node {
-  id: string
-  label: string
-  status: 'done' | 'pending' | 'not-sent'
+const store = useTerminalStore()
+const { devices, selectedDeviceId } = storeToRefs(store)
+
+function select(id: string) {
+  store.selectDevice(id)
+  store.pushLog(`Tree selected ${id}`)
 }
-const nodes = reactive<Node[]>([
-  { id: 'te', label: 'TE', status: 'done' },
-  { id: 'sg', label: 'SG', status: 'done' },
-  { id: 'split', label: 'Split', status: 'done' },
-  { id: 'mo1', label: 'MO', status: 'not-sent' },
-])
 </script>
 
 <template>
-  <section class="panel order-tree-panel">
-    <header class="panel-header">Order Tree</header>
+  <section class="order-tree-panel">
     <ul class="tree">
-      <li v-for="n in nodes" :key="n.id" :class="['node', n.status]">
-        <span class="label">{{ n.label }}</span>
-        <span class="status">{{ n.status }}</span>
+      <li
+        v-for="d in devices"
+        :key="d.id"
+        :class="['node', d.id === selectedDeviceId ? 'active' : '']"
+        @click="select(d.id)"
+      >
+        <span class="label">{{ d.id.slice(0, 4) }}</span>
+        <span class="status">{{ d.status }}</span>
       </li>
     </ul>
   </section>
@@ -45,14 +45,13 @@ const nodes = reactive<Node[]>([
   display: flex;
   justify-content: space-between;
 }
-.node.done {
-  background: rgba(100, 200, 100, 0.08);
+.node.active {
+  background: #233041;
+  outline: 1px solid var(--accent-color);
 }
-.node.pending {
-  background: rgba(200, 200, 100, 0.08);
-}
-.node.not-sent {
-  background: rgba(200, 100, 100, 0.08);
+.node:hover {
+  background: #1f2730;
+  cursor: pointer;
 }
 .label {
   font-weight: 600;

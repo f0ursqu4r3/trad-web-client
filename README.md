@@ -6,7 +6,7 @@ This project is a Vue 3 + Vite client for the trading platform. It now includes 
 
 Navigate to `http://localhost:5173/terminal` (root `/` redirects there) to view the terminal.
 
-Current panels (placeholder data):
+Current panels (live mock data via Pinia store):
 
 - Log (`TerminalLogPanel`)
 - Price Chart (`TerminalChartPanel`)
@@ -15,43 +15,65 @@ Current panels (placeholder data):
 - Device Details (`TerminalDeviceDetails`)
 - Command Input (`TerminalCommandInput`)
 
-Layout is implemented with CSS Grid in `views/TradingTerminal.vue` and styled via dark theme variables in `src/assets/main.css`.
+Layout uses `dockview-vue` docking manager in `views/TradingTerminal.vue` (the earlier CSS Grid prototype was replaced). Theme variables live in `src/assets/main.css`.
 
-### Next Steps / Ideas
+### Current Features Summary
 
-- Replace placeholder reactive arrays with Pinia stores fed by a WebSocket to the trading server.
-- Implement real-time chart (e.g. lightweight-charts or custom canvas) with execution markers.
-- Add selection & focus state: clicking rows updates `DeviceDetails` panel.
-- Add contextual actions in a right-hand panel slot (currently placeholder).
-- Persist command history and support keyboard shortcuts (ArrowUp / ArrowDown).
-- Add theming (high-contrast, light) via CSS variable toggles.
+- Docking layout with persistence & reset
+- Live mock streaming ticks & logs (Pinia)
+- Device selection sync across tree/table/details
+- Lightweight charts area series updating in real-time
+- Command input with simple commands (`select`, `log`)
+- Multi-theme support (dark + light) with OS preference detection & persistence
 
-## Docking Layout (Dockview)
+## Docking Layout (Dockview) & Persistence
 
-The trading terminal uses `dockview-vue` for a flexible docking layout. Panels are programmatically created in `views/TradingTerminal.vue` inside the `onReady` handler.
+The terminal composes panels through `dockview-vue`. On first load a default arrangement is created; thereafter the layout is serialized every few seconds (and on unload) to `localStorage` under the key `terminalLayoutV1` and restored automatically.
 
 Panels added (ids): `log`, `tree`, `chart`, `details`, `entries`, `cmd`.
 
-Layout logic (approximation of original fixed grid):
+Reset the layout with the `Reset Layout` button in the top-right toolbar (this clears persisted state and rebuilds the default arrangement).
 
-- `log` starts the layout (top-left)
-- `tree` placed below `log`
-- `chart` to the right of `log`
-- `details` to the right of `chart`
-- `entries` below `chart`
-- `cmd` tabbed with `entries`
+### Themes (Dark / Light)
 
-### Custom Theme
+A light theme has been added via CSS variable overrides scoped by the `theme-light` class on `<html>`. The active theme is stored in `localStorage` (`ui.theme.v1`) and defaults to the user's OS preference on first load.
 
-A dark theme override is defined via the `.dockview-theme-trad` class in `src/assets/main.css`.
+Toolbar button toggles between themes (`Light Theme` / `Dark Theme`).
 
-### Resetting Layout
+You can also toggle manually in dev tools:
 
-Future enhancement: store and load serialized layout. For now, refresh page to reset.
+```js
+localStorage.setItem('ui.theme.v1', 'light'); location.reload();
+// or
+localStorage.setItem('ui.theme.v1', 'dark'); location.reload();
+```
 
-### Static Fallback
+### Data & State (Pinia)
 
-The previous non-docking, pure CSS grid version is preserved as `TradingTerminalStatic.vue` for reference or fallback if docking issues arise.
+`src/stores/terminal.ts` hosts a Pinia store that simulates:
+
+- Streaming price ticks (random walk) feeding the chart (`priceSeries` + `lastPrice`).
+- Log lines (capped at 500) generated from ticks and user commands.
+- Entry devices list with selection synchronization across panels (Entries table, Details panel, Tree panel).
+
+### Chart
+
+Implemented with `lightweight-charts@5` using an Area series. Data updates incrementally (`series.update`) for efficient rendering.
+
+### Command Input
+
+Basic commands (extendable):
+
+- `select <deviceId>` – selects a device.
+- `log <message>` – appends a custom log line.
+
+### Future Ideas
+
+- WebSocket integration for real market & device events.
+- Device CRUD via commands (`add`, `remove`).
+- Execution markers and trade overlays on chart.
+- Persist command history & keyboard navigation.
+- High-contrast / additional colorblind-friendly themes.
 
 ## Recommended IDE Setup
 

@@ -1,19 +1,17 @@
 <script setup lang="ts">
-// Placeholder props & state; will later fetch log lines via store or websocket
-import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useTerminalStore } from '@/stores/terminal'
 
-const lines = ref<string[]>([
-  'MarketOrder d36bf6c-03b8-4309-8947-a77b82dc900a rejected: -2015',
-  'MarketOrder 1f27ee1b-304a-43cd-a9ac-07659dc2d3c2 rejected: -2015',
-  'Split device 5f4e30a0-6ad4-4d29-bb6c-872e87287ae7 is complete',
-])
+const terminal = useTerminalStore()
+const { logs } = storeToRefs(terminal)
 </script>
 
 <template>
-  <section class="panel log-panel">
-    <header class="panel-header">Log</header>
+  <section class="log-panel">
     <div class="log-lines">
-      <div v-for="(l, i) in lines" :key="i" class="log-line">{{ l }}</div>
+      <div v-for="l in logs" :key="l.id" class="log-line">
+        {{ new Date(l.ts).toLocaleTimeString() }} - {{ l.text }}
+      </div>
     </div>
   </section>
 </template>

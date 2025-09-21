@@ -12,6 +12,43 @@
   --font-mono:
     'SFMono-Regular', ui-monospace, 'JetBrains Mono', 'Source Code Pro', Menlo, Consolas, monospace;
 }
+/* Light theme overrides */
+.theme-light {
+  --color-bg: #f5f7fa;
+  --color-bg-alt: #ffffff;
+  --panel-bg: #ffffff;
+  --panel-header-bg: #eef1f5;
+  --panel-border-inner: #dfe3e8;
+  --border-color: #cfd6dd;
+  --color-text: #1f2328;
+  --color-text-dim: #57606a;
+  --accent-color: #0969da;
+}
+
+html.theme-light,
+.theme-light body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Optional smooth swap */
+body,
+.dockview-wrapper {
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
+}
+
+/* Dockview adjustments for light */
+.theme-light .dockview-theme-trad {
+  --dv-activegroup-background: var(--panel-bg);
+  --dv-group-view-background: var(--panel-bg);
+  --dv-tabs-container-background: var(--panel-header-bg);
+  --dv-paneview-header-background: var(--panel-header-bg);
+  --dv-color: var(--color-text-dim);
+  --dv-separator-color: var(--border-color);
+  --dv-floatingbox-shadow: 0 0 0 1px var(--border-color), 0 4px 16px rgba(0, 0, 0, 0.1);
+}
 html,
 body {
   margin: 0;
@@ -74,15 +111,56 @@ body,
   font-family: var(--font-mono);
   font-size: 11px;
 }
-.dockview-theme-trad .dv-tab {
-  padding: 2px 8px;
+.dockview-theme-trad .dv-tab,
+.dockview-theme-trad .dv-default-tab {
+  align-content: center;
+  padding: 0px 4px;
 }
 .dockview-theme-trad .dv-tab.dockview-active {
   color: var(--color-text);
   background: #222a31;
+  position: relative;
+}
+.dockview-theme-trad .dv-tab.dockview-active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--accent-color);
 }
 .dockview-theme-trad .dv-paneview-header {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: 11px;
+}
+
+/* Hover & focus states */
+.dockview-theme-trad .dv-tab:hover:not(.dockview-active) {
+  background: #1e252b;
+  color: var(--color-text);
+}
+.dockview-theme-trad .dv-tab:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -2px;
+}
+
+/* Drag overlay */
+.dockview-theme-trad .dv-drop-target-overlay {
+  box-shadow:
+    0 0 0 1px var(--accent-color),
+    0 0 0 3px rgba(47, 129, 247, 0.35);
+  border-radius: 4px;
+}
+
+/* Resize handle emphasis */
+.dockview-theme-trad .dv-sash {
+  background: transparent;
+}
+.dockview-theme-trad .dv-sash:hover {
+  background: #2a323a;
+}
+.dockview-theme-trad .dv-sash.active {
+  background: var(--accent-color);
 }
