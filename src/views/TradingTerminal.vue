@@ -3,6 +3,7 @@ import { DockviewVue, type DockviewReadyEvent, themeDark, themeLight } from 'doc
 import { createApp, h, type Component, ref, onBeforeUnmount, computed, onMounted } from 'vue'
 import { useUiStore } from '@/stores/ui'
 import { useWsStore } from '@/stores/ws'
+import { useAuthStore } from '@/stores/auth'
 
 const LAYOUT_KEY = 'terminalLayoutV1'
 type DockviewApi = DockviewReadyEvent['api']
@@ -11,6 +12,7 @@ let saveInterval: number | null = null
 
 const ui = useUiStore()
 const ws = useWsStore()
+const auth = useAuthStore()
 const themeLabel = computed(() => (ui.theme === 'dark' ? '☀️' : '🌙'))
 const currentTheme = computed(() => (ui.theme === 'dark' ? themeDark : themeLight))
 
@@ -271,19 +273,20 @@ onBeforeUnmount(() => {
   <div class="terminal-view">
     <div class="toolbar" :data-theme="ui.theme">
       <div class="left-group">
+        <div class="button" @click="auth.logout">Logout</div>
         <span> Trading Terminal </span>
       </div>
 
       <div class="right-group">
         <div v-if="missingPanels.length" class="add-pane-wrapper" style="position: relative">
-          <button
-            class="add-pane-button"
+          <div
+            class="button"
             @click.stop="togglePanelMenu"
             title="Add a panel"
             :data-theme="ui.theme"
           >
             + Panel
-          </button>
+          </div>
           <div
             v-if="panelMenuOpen && missingPanels.length"
             class="panel-menu"
@@ -385,61 +388,6 @@ onBeforeUnmount(() => {
   padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
-}
-
-/* Add Pane Button Themed */
-.add-pane-button {
-  font-weight: 500;
-  letter-spacing: 0.5px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  position: relative;
-  background: linear-gradient(var(--btn-bg-start, #444), var(--btn-bg-end, #333));
-  color: var(--btn-fg, #eee);
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.4),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--btn-border, #555);
-}
-.add-pane-button:hover:not(:disabled) {
-  filter: brightness(1.15);
-}
-.add-pane-button:active:not(:disabled) {
-  filter: brightness(0.9);
-  transform: translateY(1px);
-}
-.add-pane-button:focus-visible {
-  outline: 2px solid #42a5f5;
-  outline-offset: 2px;
-}
-
-/* Dark theme variables */
-[data-theme='dark'] .add-pane-button,
-.add-pane-button[data-theme='dark'] {
-  --btn-bg-start: #3e3e3e;
-  --btn-bg-end: #2a2a2a;
-  --btn-border: #555;
-  --btn-fg: #e8e8e8;
-}
-
-/* Light theme variables */
-[data-theme='light'] .add-pane-button,
-.add-pane-button[data-theme='light'] {
-  --btn-bg-start: #efefef;
-  --btn-bg-end: #d9d9d9;
-  --btn-border: #c2c2c2;
-  --btn-fg: #222;
-}
-
-/* Emphasize when there ARE missing panels */
-[data-theme='light'] .add-pane-wrapper:not(:has(.panel-menu)) .add-pane-button {
-  animation: none; /* disable pulse on light theme */
-}
-
-.add-pane-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .panel-menu {

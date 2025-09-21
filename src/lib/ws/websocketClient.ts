@@ -13,6 +13,10 @@ export type TradWebClientOptions = {
   build?: string
   authToken?: string | null
   reconnectDelayMs?: number
+  /** Maximum delay (ms) between reconnect attempts when using exponential backoff. If omitted, delay stays constant. */
+  maxReconnectDelayMs?: number
+  /** When true, use exponential backoff (capped by maxReconnectDelayMs) for reconnect attempts. */
+  exponentialBackoff?: boolean
   pingIntervalMs?: number
   logger?: Pick<Console, 'debug' | 'info' | 'warn' | 'error'>
 }
@@ -31,6 +35,7 @@ export class TradWebClient {
   private reconnectTimer: number | null = null
   private pingTimer: number | null = null
   private stopped = false
+  private reconnectAttempts = 0
   private readonly outboundQueue: Array<{
     payload: ClientToServerMessagePayload
     commandId: Uuid
@@ -49,6 +54,7 @@ export class TradWebClient {
   connect(): void {
     this.stopped = false
     this.clearReconnectTimer()
+    this.reconnectAttempts = 0
     this.openSocket()
   }
 
@@ -86,6 +92,7 @@ export class TradWebClient {
 
   private openSocket(): void {
     this.clearPingTimer()
+    this.logInfo(`Opening WebSocket to ${this.options.url}`)
     const ws = new WebSocket(this.options.url)
     ws.binaryType = 'arraybuffer'
 
@@ -228,8 +235,22 @@ export class TradWebClient {
     if (this.reconnectTimer !== null) {
       return
     }
-    const delay = this.options.reconnectDelayMs ?? DEFAULT_RECONNECT_DELAY_MS
-    this.logInfo(`Reconnecting in ${delay}ms`)
+    this.reconnectAttempts += 1
+    const base = this.options.reconnectDelayMs ?? DEFAULT_RECONNECT_DELAY_MS
+    let delay = base
+    if (this.options.exponentialBackoff) {
+      // exponential backoff: base * 2^(attempt-1)
+      delay = base * Math.pow(2, this.reconnectAttempts - 1)
+      const max = this.options.maxReconnectDelayMs ?? base * 32
+      if (delay > max) delay = max
+      // small jitter (+/- up to 10%) to avoid thundering herd if multiple clients
+      const jitter = delay * 0.1
+      delay = Math.round(delay + (Math.random() * 2 - 1) * jitter)
+      if (delay < base) delay = base
+    }
+    this.logInfo(
+      `Reconnecting in ${delay}ms (attempt #${this.reconnectAttempts}$${'{'}this.options.exponentialBackoff ? ', backoff' : ''}${'}'}`,
+    )
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null
       this.openSocket()

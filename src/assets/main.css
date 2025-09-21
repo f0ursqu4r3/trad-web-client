@@ -164,3 +164,62 @@ body,
 .dockview-theme-trad .dv-sash.active {
   background: var(--accent-color);
 }
+
+/* --------------------------------------------------
+   Button (global themed)
+   -------------------------------------------------- */
+.button {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  background: linear-gradient(var(--btn-bg-start, #444), var(--btn-bg-end, #333));
+  color: var(--btn-fg, #eee);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--btn-border, #555);
+  border-radius: 4px;
+  padding: 2px 4px;
+  cursor: pointer;
+  transition:
+    filter 0.25s ease,
+    background 0.3s ease,
+    color 0.3s ease;
+}
+.button:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+.button:active:not(:disabled) {
+  filter: brightness(0.9);
+  transform: translateY(1px);
+}
+.button:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Dark theme */
+[data-theme='dark'] .button,
+.button[data-theme='dark'] {
+  --btn-bg-start: #3e3e3e;
+  --btn-bg-end: #2a2a2a;
+  --btn-border: #555;
+  --btn-fg: #e8e8e8;
+}
+/* Light theme */
+[data-theme='light'] .button,
+.button[data-theme='light'] {
+  --btn-bg-start: #efefef;
+  --btn-bg-end: #d9d9d9;
+  --btn-border: #c2c2c2;
+  --btn-fg: #222;
+}

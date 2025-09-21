@@ -39,23 +39,28 @@ export const useWsStore = defineStore('ws', () => {
     build: import.meta.env.VITE_APP_BUILD || 'dev',
     logger: console,
     reconnectDelayMs: 1000,
+    exponentialBackoff: true,
+    maxReconnectDelayMs: 30_000,
     pingIntervalMs: 10_000,
   })
 
   function connect() {
     if (status.value === 'ready' || status.value === 'connecting') return
     lastError.value = null
+    console.info('[ws] connect() invoked, status -> connecting, url=', url)
     status.value = 'connecting'
     client.setServerMessageHandler(onServerMessage)
     client.setFatalErrorHandler((err) => {
       lastError.value = err
       status.value = 'error'
+      console.error('[ws] fatal error', err)
     })
     client.connect()
   }
 
   function disconnect() {
     client.disconnect()
+    console.info('[ws] disconnect() invoked, status -> idle')
     status.value = 'idle'
   }
 
@@ -95,6 +100,7 @@ export const useWsStore = defineStore('ws', () => {
           .data
         protocolVersion.value = data.protocol_version
         status.value = 'ready'
+        console.info('[ws] ServerHello received. status -> ready, protocol=', data.protocol_version)
         break
       }
       case 'AuthAccepted': {
@@ -123,6 +129,7 @@ export const useWsStore = defineStore('ws', () => {
         ).data
         lastError.value = data.error
         status.value = 'error'
+        console.error('[ws] FatalServerError received. status -> error', data.error)
         break
       }
       default:
