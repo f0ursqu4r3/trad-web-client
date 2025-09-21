@@ -61,6 +61,19 @@ export type ServerToClientPayload =
       }
     }
   | {
+      kind: 'AuthAccepted'
+      data: {
+        client_id: Uuid
+        token_hash?: string | null
+      }
+    }
+  | {
+      kind: 'AuthRejected'
+      data: {
+        reason: string
+      }
+    }
+  | {
       kind: 'Pong'
       data: {
         server_send_time: number

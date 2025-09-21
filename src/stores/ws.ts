@@ -26,6 +26,8 @@ export const useWsStore = defineStore('ws', () => {
   const inbound = ref<RawInboundRecord[]>([])
   const outboundCount = ref(0)
   const reconnectCount = ref(0)
+  const authAccepted = ref<boolean | null>(null)
+  const authError = ref<string | null>(null)
   let lastPingSend: number | null = null
 
   // Build from env (fallback to same host /ws)
@@ -57,6 +59,15 @@ export const useWsStore = defineStore('ws', () => {
     status.value = 'idle'
   }
 
+  function setAuthToken(token: string | null) {
+    // Update token and if already connected or connecting, force a reconnect so Hello carries new token
+    client.setAuthToken(token)
+    if (status.value === 'ready' || status.value === 'connecting') {
+      disconnect()
+      connect()
+    }
+  }
+
   function sendSystemPing() {
     lastPingSend = performance.now()
     client.send({
@@ -84,6 +95,19 @@ export const useWsStore = defineStore('ws', () => {
           .data
         protocolVersion.value = data.protocol_version
         status.value = 'ready'
+        break
+      }
+      case 'AuthAccepted': {
+        authAccepted.value = true
+        authError.value = null
+        break
+      }
+      case 'AuthRejected': {
+        authAccepted.value = false
+        const data = (
+          payload as Extract<ServerToClientMessage['payload'], { kind: 'AuthRejected' }>
+        ).data
+        authError.value = data.reason
         break
       }
       case 'Pong': {
@@ -133,11 +157,14 @@ export const useWsStore = defineStore('ws', () => {
     inbound,
     outboundCount,
     reconnectCount,
+    authAccepted,
+    authError,
     // getters
     isConnected,
     // actions
     connect,
     disconnect,
     sendSystemPing,
+    setAuthToken,
   }
 })

@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { DockviewVue, type DockviewReadyEvent, themeDark, themeLight } from 'dockview-vue'
-import { createApp, h, type Component, ref, onBeforeUnmount, computed } from 'vue'
+import { createApp, h, type Component, ref, onBeforeUnmount, computed, onMounted } from 'vue'
 import { useUiStore } from '@/stores/ui'
 import { useWsStore } from '@/stores/ws'
-import { onMounted } from 'vue'
 
 const LAYOUT_KEY = 'terminalLayoutV1'
 type DockviewApi = DockviewReadyEvent['api']
@@ -14,6 +13,133 @@ const ui = useUiStore()
 const ws = useWsStore()
 const themeLabel = computed(() => (ui.theme === 'dark' ? '☀️' : '🌙'))
 const currentTheme = computed(() => (ui.theme === 'dark' ? themeDark : themeLight))
+
+interface PanelDef {
+  id: string
+  component: string
+  title: string
+}
+
+// List of all panels that can exist in the terminal layout
+const ALL_PANELS: PanelDef[] = [
+  { id: 'log', component: 'LogPanel', title: 'Log' },
+  { id: 'tree', component: 'OrderTree', title: 'Tree' },
+  { id: 'chart', component: 'ChartPanel', title: 'Chart' },
+  { id: 'details', component: 'DeviceDetails', title: 'Details' },
+  { id: 'entries', component: 'EntriesPanel', title: 'Entries' },
+  { id: 'inbound', component: 'InboundDebug', title: 'Inbound' },
+  { id: 'cmd', component: 'CommandInput', title: 'Command' },
+]
+
+const panelMenuOpen = ref(false)
+// reactive list of open panel ids so that computed missingPanels updates when user closes/adds panels
+const openPanelIds = ref<string[]>([])
+let layoutDisposer: (() => void) | null = null
+
+function togglePanelMenu() {
+  panelMenuOpen.value = !panelMenuOpen.value
+}
+
+function closePanelMenu() {
+  panelMenuOpen.value = false
+}
+
+interface InternalPanelLike {
+  id: string
+}
+interface InternalApiLike {
+  panels?: unknown
+  toJSON?: () => { panels?: { id: string }[] } | unknown
+}
+
+function extractIdsFromPanelsContainer(container: unknown): string[] {
+  const ids: string[] = []
+  if (!container) return ids
+  if (Array.isArray(container)) {
+    for (const p of container) {
+      if (p && typeof p === 'object' && 'id' in p) ids.push((p as InternalPanelLike).id)
+    }
+    return ids
+  }
+  if (typeof container === 'object') {
+    // Map-like structure detection without using any
+    const mapCandidate = container as { values?: () => Iterable<unknown> }
+    if (typeof mapCandidate.values === 'function') {
+      try {
+        for (const p of mapCandidate.values()) {
+          if (p && typeof p === 'object' && 'id' in p) ids.push((p as InternalPanelLike).id)
+        }
+        return ids
+      } catch {
+        /* ignore */
+      }
+    }
+    for (const p of Object.values(container as Record<string, unknown>)) {
+      if (p && typeof p === 'object' && 'id' in p) ids.push((p as InternalPanelLike).id)
+    }
+  }
+  return ids
+}
+
+function safeGetOpenPanelIds(): string[] {
+  if (!apiRef.value) return []
+  const api = apiRef.value as unknown as InternalApiLike
+  try {
+    const direct = extractIdsFromPanelsContainer(api.panels)
+    if (direct.length) return direct
+    if (api.toJSON) {
+      const json = api.toJSON() as unknown
+      if (
+        json &&
+        typeof json === 'object' &&
+        'panels' in json &&
+        Array.isArray((json as { panels?: unknown }).panels)
+      ) {
+        return extractIdsFromPanelsContainer((json as { panels: unknown }).panels)
+      }
+    }
+  } catch (e) {
+    console.warn('[safeGetOpenPanelIds] failed', e)
+  }
+  return []
+}
+
+function updateOpenPanelIds() {
+  openPanelIds.value = safeGetOpenPanelIds()
+}
+
+const missingPanels = computed(() => ALL_PANELS.filter((p) => !openPanelIds.value.includes(p.id)))
+
+function addPanelById(id: string) {
+  if (!apiRef.value) return
+  const def = ALL_PANELS.find((p) => p.id === id)
+  if (!def) return
+  try {
+    apiRef.value.addPanel({ id: def.id, component: def.component, title: def.title })
+    // schedule update after next tick to allow dockview internal state to settle
+    requestAnimationFrame(updateOpenPanelIds)
+  } catch (e) {
+    console.warn('[addPanelById] failed', e)
+  } finally {
+    // Close menu after adding
+    closePanelMenu()
+  }
+}
+
+// Close the panel menu if the user clicks outside of it
+function onGlobalClick(ev: MouseEvent) {
+  if (!panelMenuOpen.value) return
+  const target = ev.target as HTMLElement
+  if (!target.closest('.add-pane-wrapper')) {
+    closePanelMenu()
+  }
+}
+onMounted(() => {
+  document.addEventListener('click', onGlobalClick)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onGlobalClick)
+})
 
 function mountComponent(componentName: string) {
   return () => {
@@ -81,6 +207,12 @@ function buildDefaultLayout(event: DockviewReadyEvent) {
       position: { referencePanel: 'chart', direction: 'below' },
     })
     event.api.addPanel({
+      id: 'inbound',
+      component: 'InboundDebug',
+      title: 'Inbound',
+      position: { referencePanel: 'log', direction: 'right' },
+    })
+    event.api.addPanel({
       id: 'cmd',
       component: 'CommandInput',
       title: 'Command',
@@ -91,33 +223,86 @@ function buildDefaultLayout(event: DockviewReadyEvent) {
   }
 }
 
+function bindLayoutListeners(api: unknown) {
+  const disposers: Array<() => void> = []
+  const candidate = api as Record<string, unknown>
+  const register = (name: string) => {
+    const maybe = candidate[name]
+    if (maybe && typeof maybe === 'function') {
+      try {
+        const disposable = (maybe as (cb: () => void) => { dispose?: () => void } | void)(() => {
+          updateOpenPanelIds()
+        })
+        if (disposable && typeof disposable === 'object' && 'dispose' in disposable) {
+          disposers.push(() => (disposable as { dispose: () => void }).dispose())
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  ;['onDidAddPanel', 'onDidRemovePanel', 'onDidLayoutChange'].forEach(register)
+  return () => disposers.forEach((d) => d())
+}
+
 function onReady(event: DockviewReadyEvent) {
   apiRef.value = event.api
   const restored = loadSavedLayout(event)
   if (!restored) buildDefaultLayout(event)
+  // initialize open panels list
+  updateOpenPanelIds()
+  // bind layout events (best effort)
+  layoutDisposer = bindLayoutListeners(event.api)
   saveInterval = window.setInterval(persistLayout, 3000)
   window.addEventListener('beforeunload', persistLayout)
 }
 
 onMounted(() => {
-  // Lazy connect when terminal view mounts
   ws.connect()
 })
-
 onBeforeUnmount(() => {
   if (saveInterval) window.clearInterval(saveInterval)
   window.removeEventListener('beforeunload', persistLayout)
+  if (layoutDisposer) layoutDisposer()
 })
 </script>
 
 <template>
   <div class="terminal-view">
-    <div class="toolbar">
+    <div class="toolbar" :data-theme="ui.theme">
       <div class="left-group">
         <span> Trading Terminal </span>
       </div>
 
       <div class="right-group">
+        <div v-if="missingPanels.length" class="add-pane-wrapper" style="position: relative">
+          <button
+            class="add-pane-button"
+            @click.stop="togglePanelMenu"
+            title="Add a panel"
+            :data-theme="ui.theme"
+          >
+            + Panel
+          </button>
+          <div
+            v-if="panelMenuOpen && missingPanels.length"
+            class="panel-menu"
+            role="menu"
+            aria-label="Add Panel Menu"
+          >
+            <div
+              v-for="p in missingPanels"
+              :key="p.id"
+              class="panel-menu-item"
+              role="menuitem"
+              @click.stop="addPanelById(p.id)"
+            >
+              {{ p.title }}
+            </div>
+            <div v-if="!missingPanels.length" class="panel-menu-empty">No panels available</div>
+          </div>
+        </div>
+
         <span
           :title="
             `WS Status: ${ws.status}` +
@@ -125,8 +310,7 @@ onBeforeUnmount(() => {
           "
           class="ws-indicator"
           :data-status="ws.status"
-        >
-        </span>
+        ></span>
         <button
           @click="ui.toggleTheme()"
           :style="{
@@ -142,7 +326,6 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </div>
-
     <div class="dockview-wrapper dockview-theme-trad">
       <DockviewVue
         class="dv-instance"
@@ -156,6 +339,7 @@ onBeforeUnmount(() => {
           EntriesPanel: mountComponent('EntriesPanel'),
           CommandInput: mountComponent('CommandInput'),
           DeviceDetails: mountComponent('DeviceDetails'),
+          InboundDebug: mountComponent('TerminalInboundDebug'),
         }"
       />
     </div>
@@ -201,6 +385,91 @@ onBeforeUnmount(() => {
   padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
+}
+
+/* Add Pane Button Themed */
+.add-pane-button {
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  background: linear-gradient(var(--btn-bg-start, #444), var(--btn-bg-end, #333));
+  color: var(--btn-fg, #eee);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--btn-border, #555);
+}
+.add-pane-button:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+.add-pane-button:active:not(:disabled) {
+  filter: brightness(0.9);
+  transform: translateY(1px);
+}
+.add-pane-button:focus-visible {
+  outline: 2px solid #42a5f5;
+  outline-offset: 2px;
+}
+
+/* Dark theme variables */
+[data-theme='dark'] .add-pane-button,
+.add-pane-button[data-theme='dark'] {
+  --btn-bg-start: #3e3e3e;
+  --btn-bg-end: #2a2a2a;
+  --btn-border: #555;
+  --btn-fg: #e8e8e8;
+}
+
+/* Light theme variables */
+[data-theme='light'] .add-pane-button,
+.add-pane-button[data-theme='light'] {
+  --btn-bg-start: #efefef;
+  --btn-bg-end: #d9d9d9;
+  --btn-border: #c2c2c2;
+  --btn-fg: #222;
+}
+
+/* Emphasize when there ARE missing panels */
+[data-theme='light'] .add-pane-wrapper:not(:has(.panel-menu)) .add-pane-button {
+  animation: none; /* disable pulse on light theme */
+}
+
+.add-pane-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.panel-menu {
+  position: absolute;
+  top: 110%;
+  right: 0;
+  background: var(--panel-menu-bg, #222);
+  color: #eee;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  min-width: 140px;
+  padding: 4px 0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  z-index: 50;
+  font-size: 0.85rem;
+}
+
+.panel-menu-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.panel-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.panel-menu-empty {
+  padding: 6px 10px;
+  opacity: 0.7;
 }
 
 .dockview-wrapper {

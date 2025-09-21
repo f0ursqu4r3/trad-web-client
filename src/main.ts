@@ -13,6 +13,8 @@ import TerminalOrderTree from '@/components/terminal/TerminalOrderTree.vue'
 import TerminalEntriesPanel from '@/components/terminal/TerminalEntriesPanel.vue'
 import TerminalCommandInput from '@/components/terminal/TerminalCommandInput.vue'
 import TerminalDeviceDetails from '@/components/terminal/TerminalDeviceDetails.vue'
+import TerminalInboundDebug from './components/terminal/TerminalInboundDebug.vue'
+
 import { useUiStore } from '@/stores/ui'
 
 const app = createApp(App)
@@ -26,6 +28,7 @@ app.component('OrderTree', TerminalOrderTree)
 app.component('EntriesPanel', TerminalEntriesPanel)
 app.component('CommandInput', TerminalCommandInput)
 app.component('DeviceDetails', TerminalDeviceDetails)
+app.component('InboundDebug', TerminalInboundDebug)
 
 app.mount('#app')
 
