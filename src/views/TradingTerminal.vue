@@ -2,6 +2,8 @@
 import { DockviewVue, type DockviewReadyEvent, themeDark, themeLight } from 'dockview-vue'
 import { createApp, h, type Component, ref, onBeforeUnmount, computed } from 'vue'
 import { useUiStore } from '@/stores/ui'
+import { useWsStore } from '@/stores/ws'
+import { onMounted } from 'vue'
 
 const LAYOUT_KEY = 'terminalLayoutV1'
 type DockviewApi = DockviewReadyEvent['api']
@@ -9,6 +11,7 @@ const apiRef = ref<DockviewApi | null>(null)
 let saveInterval: number | null = null
 
 const ui = useUiStore()
+const ws = useWsStore()
 const themeLabel = computed(() => (ui.theme === 'dark' ? '☀️' : '🌙'))
 const currentTheme = computed(() => (ui.theme === 'dark' ? themeDark : themeLight))
 
@@ -96,6 +99,11 @@ function onReady(event: DockviewReadyEvent) {
   window.addEventListener('beforeunload', persistLayout)
 }
 
+onMounted(() => {
+  // Lazy connect when terminal view mounts
+  ws.connect()
+})
+
 onBeforeUnmount(() => {
   if (saveInterval) window.clearInterval(saveInterval)
   window.removeEventListener('beforeunload', persistLayout)
@@ -110,6 +118,15 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="right-group">
+        <span
+          :title="
+            `WS Status: ${ws.status}` +
+            (ws.latencyMs != null ? ` (lat ${ws.latencyMs.toFixed(0)}ms)` : '')
+          "
+          class="ws-indicator"
+          :data-status="ws.status"
+        >
+        </span>
         <button
           @click="ui.toggleTheme()"
           :style="{
@@ -192,8 +209,57 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   user-select: none;
 }
+
 .dv-instance {
   width: 100%;
   height: 100%;
+}
+
+.ws-indicator {
+  user-select: none;
+  width: 0.8em;
+  height: 0.8em;
+  display: inline-flex;
+  border-radius: 50%;
+  /* we are using a rounded div instead of emoji so we can animate it */
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  transition: background-color 0.3s;
+  background-color: #9e9e9e; /* Grey */
+  border: 1px solid rgba(158, 158, 158, 0.25);
+  box-shadow:
+    0 0 0 4px rgba(158, 158, 158, 0.14),
+    0 3px 8px rgba(0, 0, 0, 0.4);
+  font-size: 1em;
+}
+
+.ws-indicator[data-status='ready'] {
+  background-color: #00c853; /* vivid green */
+  border: 1px solid rgba(0, 200, 83, 0.2);
+  box-shadow:
+    0 0 0 4px rgba(0, 200, 83, 0.12),
+    0 3px 8px rgba(0, 0, 0, 0.35);
+}
+.ws-indicator[data-status='connecting'] {
+  background-color: #ffb300; /* bold amber */
+  border: 1px solid rgba(255, 179, 0, 0.2);
+  box-shadow:
+    0 0 0 4px rgba(255, 179, 0, 0.12),
+    0 3px 8px rgba(0, 0, 0, 0.25);
+}
+.ws-indicator[data-status='reconnecting'] {
+  background-color: #ff6d00; /* strong orange */
+  border: 1px solid rgba(255, 109, 0, 0.2);
+  box-shadow:
+    0 0 0 4px rgba(255, 109, 0, 0.12),
+    0 3px 8px rgba(0, 0, 0, 0.28);
+}
+.ws-indicator[data-status='error'] {
+  background-color: #d50000; /* vivid red */
+  border: 1px solid rgba(213, 0, 0, 0.25);
+  box-shadow:
+    0 0 0 4px rgba(213, 0, 0, 0.14),
+    0 3px 8px rgba(0, 0, 0, 0.4);
 }
 </style>
