@@ -99,7 +99,7 @@ export class TradWebClient {
     ws.onopen = () => {
       this.socket = ws
       this.handshakeComplete = false
-      this.clientId = NULL_UUID
+      this.clientId = this.clientId ?? NULL_UUID
       this.logInfo('WebSocket open')
       this.sendHello()
       this.startPingTimer()
@@ -118,7 +118,7 @@ export class TradWebClient {
       this.clearPingTimer()
       this.socket = null
       this.handshakeComplete = false
-      this.clientId = NULL_UUID
+      this.clientId = this.clientId ?? NULL_UUID
       if (!this.stopped) {
         this.scheduleReconnect()
       }
@@ -182,7 +182,7 @@ export class TradWebClient {
 
   private sendHello(): void {
     const message: ClientToServerMessage = {
-      client_id: NULL_UUID,
+      client_id: this.clientId ?? NULL_UUID,
       command_id: NULL_UUID,
       payload: {
         kind: 'System',
