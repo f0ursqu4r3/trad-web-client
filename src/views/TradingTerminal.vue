@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { DockviewVue, type DockviewReadyEvent, themeDark, themeLight } from 'dockview-vue'
 import { createApp, h, type Component, ref, onBeforeUnmount, computed, onMounted } from 'vue'
+import { SunIcon, MoonIcon } from '@/components/icons'
+
 import { useUiStore } from '@/stores/ui'
 import { useWsStore } from '@/stores/ws'
 import { useAuthStore } from '@/stores/auth'
@@ -13,8 +15,12 @@ let saveInterval: number | null = null
 const ui = useUiStore()
 const ws = useWsStore()
 const auth = useAuthStore()
-const themeLabel = computed(() => (ui.theme === 'dark' ? '☀️' : '🌙'))
 const currentTheme = computed(() => (ui.theme === 'dark' ? themeDark : themeLight))
+// Choose which icon component to render based on current ui.theme
+const themeIcon = computed(() => (ui.theme === 'dark' ? SunIcon : MoonIcon))
+const themeToggleLabel = computed(() =>
+  ui.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
+)
 
 interface PanelDef {
   id: string
@@ -271,7 +277,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="terminal-view">
-    <div class="toolbar" :data-theme="ui.theme">
+    <div class="toolbar">
       <div class="left-group">
         <div class="button" @click="auth.logout">Logout</div>
         <span> Trading Terminal </span>
@@ -279,14 +285,7 @@ onBeforeUnmount(() => {
 
       <div class="right-group">
         <div v-if="missingPanels.length" class="add-pane-wrapper" style="position: relative">
-          <div
-            class="button"
-            @click.stop="togglePanelMenu"
-            title="Add a panel"
-            :data-theme="ui.theme"
-          >
-            + Panel
-          </div>
+          <div class="button" @click.stop="togglePanelMenu" title="Add a panel">+ Panel</div>
           <div
             v-if="panelMenuOpen && missingPanels.length"
             class="panel-menu"
@@ -316,16 +315,11 @@ onBeforeUnmount(() => {
         ></span>
         <button
           @click="ui.toggleTheme()"
-          :style="{
-            backgroundColor: ui.theme === 'dark' ? '#444' : '#ddd',
-            color: ui.theme === 'dark' ? '#ddd' : '#444',
-            border: 'none',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-          }"
+          class="theme-toggle"
+          :aria-label="themeToggleLabel"
+          :title="themeToggleLabel"
         >
-          {{ themeLabel }}
+          <component :is="themeIcon" :size="16" />
         </button>
       </div>
     </div>
@@ -478,5 +472,39 @@ onBeforeUnmount(() => {
   box-shadow:
     0 0 0 4px rgba(213, 0, 0, 0.14),
     0 3px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Theme toggle button */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  background: linear-gradient(var(--btn-bg-start, #efefef), var(--btn-bg-end, #d9d9d9));
+  color: var(--btn-fg, #222);
+  border: 1px solid var(--btn-border, #c2c2c2);
+  transition: filter 0.25s ease;
+}
+[data-theme='dark'] .theme-toggle {
+  background: linear-gradient(var(--btn-bg-start, #3e3e3e), var(--btn-bg-end, #2a2a2a));
+  color: var(--btn-fg, #e8e8e8);
+  border-color: var(--btn-border, #555);
+}
+.theme-toggle:hover {
+  filter: brightness(1.1);
+}
+.theme-toggle:active {
+  filter: brightness(0.9);
+}
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+.theme-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 </style>

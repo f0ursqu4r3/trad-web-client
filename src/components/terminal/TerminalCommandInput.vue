@@ -24,6 +24,7 @@ function submit() {
   gap: 6px;
   padding: 4px;
 }
+
 .input {
   flex: 1;
   background: var(--color-bg-alt);
@@ -32,6 +33,7 @@ function submit() {
   font-family: var(--font-mono);
   font-size: 12px;
 }
+
 .button {
   background: var(--accent-color);
   color: #fff;

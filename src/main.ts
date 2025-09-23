@@ -36,7 +36,7 @@ app.mount('#app')
 const ui = useUiStore()
 const rootEl = document.documentElement
 function applyTheme() {
-  rootEl.classList.toggle('theme-light', ui.theme === 'light')
+  rootEl.setAttribute('data-theme', ui.theme)
 }
 applyTheme()
 ui.$subscribe(() => applyTheme())

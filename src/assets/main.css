@@ -1,19 +1,6 @@
 /* existing imports if any */
+/* Base (light) theme */
 :root {
-  --color-bg: #121417;
-  --color-bg-alt: #1a1d21;
-  --panel-bg: #16191d;
-  --panel-header-bg: #20252b;
-  --panel-border-inner: #232a31;
-  --border-color: #2a3139;
-  --color-text: #d0d7de;
-  --color-text-dim: #8b949e;
-  --accent-color: #2f81f7;
-  --font-mono:
-    'SFMono-Regular', ui-monospace, 'JetBrains Mono', 'Source Code Pro', Menlo, Consolas, monospace;
-}
-/* Light theme overrides */
-.theme-light {
   --color-bg: #f5f7fa;
   --color-bg-alt: #ffffff;
   --panel-bg: #ffffff;
@@ -23,10 +10,24 @@
   --color-text: #1f2328;
   --color-text-dim: #57606a;
   --accent-color: #0969da;
+  --font-mono:
+    'SFMono-Regular', ui-monospace, 'JetBrains Mono', 'Source Code Pro', Menlo, Consolas, monospace;
+}
+/* Dark theme override (activated via [data-theme='dark']) */
+[data-theme='dark'] {
+  --color-bg: #121417;
+  --color-bg-alt: #1a1d21;
+  --panel-bg: #16191d;
+  --panel-header-bg: #20252b;
+  --panel-border-inner: #232a31;
+  --border-color: #2a3139;
+  --color-text: #d0d7de;
+  --color-text-dim: #8b949e;
+  --accent-color: #2f81f7;
 }
 
-html.theme-light,
-.theme-light body {
+/* Ensure body inherits when dark attribute set at root */
+[data-theme='dark'] body {
   background: var(--color-bg);
   color: var(--color-text);
 }
@@ -39,15 +40,20 @@ body,
     color 0.25s ease;
 }
 
-/* Dockview adjustments for light */
-.theme-light .dockview-theme-trad {
+/* Dockview adjustments (base light) */
+.dockview-theme-trad {
   --dv-activegroup-background: var(--panel-bg);
   --dv-group-view-background: var(--panel-bg);
   --dv-tabs-container-background: var(--panel-header-bg);
   --dv-paneview-header-background: var(--panel-header-bg);
   --dv-color: var(--color-text-dim);
   --dv-separator-color: var(--border-color);
+  /* lighter shadow for light theme */
   --dv-floatingbox-shadow: 0 0 0 1px var(--border-color), 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+/* Dark theme Dockview overrides */
+[data-theme='dark'] .dockview-theme-trad {
+  --dv-floatingbox-shadow: 0 0 0 1px var(--border-color), 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 html,
 body {
@@ -68,6 +74,7 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
 }
+
 body,
 #app {
   height: 100vh;
@@ -77,13 +84,16 @@ body,
 ::-webkit-scrollbar {
   width: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #2a3037;
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #343c45;
 }
@@ -94,33 +104,30 @@ body,
   border: 1px solid var(--border-color);
   border-radius: 4px;
 }
+
 .panel-header {
   background: var(--panel-header-bg);
 }
 
-.dockview-theme-trad {
-  --dv-activegroup-background: var(--panel-bg);
-  --dv-group-view-background: var(--panel-bg);
-  --dv-tabs-container-background: var(--panel-header-bg);
-  --dv-paneview-header-background: var(--panel-header-bg);
-  --dv-color: var(--color-text-dim);
-  --dv-separator-color: var(--border-color);
-  --dv-floatingbox-shadow: 0 0 0 1px var(--border-color), 0 4px 16px rgba(0, 0, 0, 0.4);
-}
+/* (Removed original dark-as-default Dockview block; now overridden above for dark) */
+
 .dockview-theme-trad .dv-tabs-and-actions-container {
   font-family: var(--font-mono);
   font-size: 11px;
 }
+
 .dockview-theme-trad .dv-tab,
 .dockview-theme-trad .dv-default-tab {
   align-content: center;
   padding: 0px 4px;
 }
+
 .dockview-theme-trad .dv-tab.dockview-active {
   color: var(--color-text);
   background: #222a31;
   position: relative;
 }
+
 .dockview-theme-trad .dv-tab.dockview-active::after {
   content: '';
   position: absolute;
@@ -130,6 +137,7 @@ body,
   height: 2px;
   background: var(--accent-color);
 }
+
 .dockview-theme-trad .dv-paneview-header {
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -141,6 +149,7 @@ body,
   background: #1e252b;
   color: var(--color-text);
 }
+
 .dockview-theme-trad .dv-tab:focus-visible {
   outline: 2px solid var(--accent-color);
   outline-offset: -2px;
@@ -158,9 +167,11 @@ body,
 .dockview-theme-trad .dv-sash {
   background: transparent;
 }
+
 .dockview-theme-trad .dv-sash:hover {
   background: #2a323a;
 }
+
 .dockview-theme-trad .dv-sash.active {
   background: var(--accent-color);
 }
@@ -191,17 +202,21 @@ body,
     background 0.3s ease,
     color 0.3s ease;
 }
+
 .button:hover:not(:disabled) {
   filter: brightness(1.15);
 }
+
 .button:active:not(:disabled) {
   filter: brightness(0.9);
   transform: translateY(1px);
 }
+
 .button:focus-visible {
   outline: 2px solid var(--accent-color);
   outline-offset: 2px;
 }
+
 .button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -214,12 +229,4 @@ body,
   --btn-bg-end: #2a2a2a;
   --btn-border: #555;
   --btn-fg: #e8e8e8;
-}
-/* Light theme */
-[data-theme='light'] .button,
-.button[data-theme='light'] {
-  --btn-bg-start: #efefef;
-  --btn-bg-end: #d9d9d9;
-  --btn-border: #c2c2c2;
-  --btn-fg: #222;
 }

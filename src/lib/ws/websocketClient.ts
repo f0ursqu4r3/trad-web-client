@@ -181,22 +181,37 @@ export class TradWebClient {
   }
 
   private sendHello(): void {
+    /*
+     Send a hello message to the server
+
+     Rust server-side code for reference:
+     let hello = ClientToServerMessage {
+       client_id: uuid::Uuid::new_v4(),
+       command_id: uuid::Uuid::new_v4(),
+       payload: ClientToServerMessagePayload::System(SystemMessagePayload::Hello(HelloData {
+           protocol_version: PROTOCOL_VERSION,
+           client_name: "trad-client".to_string(),
+           build: None,
+       })),
+     };
+    */
     const message: ClientToServerMessage = {
       client_id: this.clientId ?? NULL_UUID,
-      command_id: NULL_UUID,
+      command_id: this.generateUuid(),
       payload: {
         kind: 'System',
         data: {
           kind: 'Hello',
           data: {
             protocol_version: PROTOCOL_VERSION,
-            client_name: this.options.clientName ?? 'trad-web',
-            build: this.options.build ?? 'dev',
-            auth_token: this.options.authToken ?? undefined,
+            client_name: this.options.clientName ?? 'trad-client',
+            build: this.options.build ?? null,
+            auth_token: this.options.authToken ?? null,
           },
         },
       },
     }
+    this.logDebug('Sending Hello message', message)
     this.sendRaw(message)
   }
 

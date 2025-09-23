@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useWsStore } from '@/stores/ws'
+import StickyScroller from '@/components/general/StickyScroller.vue'
 
 const ws = useWsStore()
-const messages = computed(() => [...ws.inbound].slice(-200).reverse())
+const messages = computed(() => [...ws.inbound].slice(-200))
 </script>
 
 <template>
@@ -15,14 +16,14 @@ const messages = computed(() => [...ws.inbound].slice(-200).reverse())
       <span class="meta" v-else-if="ws.authAccepted === false">Auth: ❌</span>
       <span class="meta" v-if="ws.authError">Err: {{ ws.authError }}</span>
     </div>
-    <div class="list">
+    <StickyScroller class="list" :trigger="messages.length" :smooth="true" :showButton="true">
       <div v-for="m in messages" :key="m.ts + '-' + m.kind" class="row">
         <span class="time">{{ new Date(m.ts).toLocaleTimeString() }}</span>
         <span class="kind">{{ m.kind }}</span>
         <pre class="payload">{{ formatPayload(m.payload) }}</pre>
       </div>
       <div v-if="messages.length === 0" class="empty">No messages yet.</div>
-    </div>
+    </StickyScroller>
   </div>
 </template>
 
