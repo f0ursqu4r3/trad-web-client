@@ -37,7 +37,7 @@ function toTs(ms: number): UTCTimestamp {
 onMounted(() => {
   if (!containerEl.value) return
   chart = createChart(containerEl.value, {
-    layout: { background: { color: 'transparent' }, textColor: '#b9c2cc' },
+    layout: { background: { color: 'transparent' }, textColor: '#b9c2cc', attributionLogo: false },
     grid: { vertLines: { color: '#1f2429' }, horzLines: { color: '#1f2429' } },
     rightPriceScale: {
       borderColor: '#2a3139',

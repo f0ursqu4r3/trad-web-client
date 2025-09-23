@@ -68,16 +68,21 @@ function formatPayload(p: unknown): string {
   grid-template-columns: 70px 120px 1fr;
   gap: 4px;
   padding: 2px 0;
-  border-bottom: 1px dotted #3334;
 }
 .row:nth-child(odd) {
-  background: #0002;
+  background: #0001;
+}
+[data-theme='dark'] .row:nth-child(odd) {
+  background: #fff1;
 }
 .time {
   opacity: 0.6;
 }
 .kind {
   font-weight: 600;
+  color: rgb(35, 155, 247);
+}
+[data-theme='dark'] .kind {
   color: #8cf;
 }
 .payload {

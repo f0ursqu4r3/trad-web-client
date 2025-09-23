@@ -12,6 +12,11 @@
   --accent-color: #0969da;
   --font-mono:
     'SFMono-Regular', ui-monospace, 'JetBrains Mono', 'Source Code Pro', Menlo, Consolas, monospace;
+  --btn-bg-start: #3e3e3e;
+  --btn-bg-start: #ffffff;
+  --btn-bg-end: #f1f4f8;
+  --btn-border: #dfe3e8;
+  --btn-fg: #1f2328;
 }
 /* Dark theme override (activated via [data-theme='dark']) */
 [data-theme='dark'] {
@@ -24,6 +29,10 @@
   --color-text: #d0d7de;
   --color-text-dim: #8b949e;
   --accent-color: #2f81f7;
+  --btn-bg-start: #3e3e3e;
+  --btn-bg-end: #2a2a2a;
+  --btn-border: #555;
+  --btn-fg: #e8e8e8;
 }
 
 /* Ensure body inherits when dark attribute set at root */
@@ -188,8 +197,9 @@ body,
   align-items: center;
   gap: 4px;
   position: relative;
-  background: linear-gradient(var(--btn-bg-start, #444), var(--btn-bg-end, #333));
-  color: var(--btn-fg, #eee);
+  background: linear-gradient(var(--btn-bg-start, #3e3e3e), var(--btn-bg-end, #2a2a2a));
+  color: var(--btn-fg, #e8e8e8);
+  border-color: var(--btn-border, #555);
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.4),
     inset 0 0 0 1px rgba(255, 255, 255, 0.05);
@@ -223,8 +233,7 @@ body,
 }
 
 /* Dark theme */
-[data-theme='dark'] .button,
-.button[data-theme='dark'] {
+[data-theme='dark'] .button {
   --btn-bg-start: #3e3e3e;
   --btn-bg-end: #2a2a2a;
   --btn-border: #555;

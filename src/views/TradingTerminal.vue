@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { DockviewVue, type DockviewReadyEvent, themeDark, themeLight } from 'dockview-vue'
 import { createApp, h, type Component, ref, onBeforeUnmount, computed, onMounted } from 'vue'
-import { SunIcon, MoonIcon } from '@/components/icons'
+import { SunIcon, MoonIcon, LogoutIcon } from '@/components/icons'
 
 import { useUiStore } from '@/stores/ui'
 import { useWsStore } from '@/stores/ws'
@@ -279,7 +279,9 @@ onBeforeUnmount(() => {
   <div class="terminal-view">
     <div class="toolbar">
       <div class="left-group">
-        <div class="button" @click="auth.logout">Logout</div>
+        <div class="button" @click="auth.logout">
+          <LogoutIcon />
+        </div>
         <span> Trading Terminal </span>
       </div>
 
@@ -486,11 +488,6 @@ onBeforeUnmount(() => {
   color: var(--btn-fg, #222);
   border: 1px solid var(--btn-border, #c2c2c2);
   transition: filter 0.25s ease;
-}
-[data-theme='dark'] .theme-toggle {
-  background: linear-gradient(var(--btn-bg-start, #3e3e3e), var(--btn-bg-end, #2a2a2a));
-  color: var(--btn-fg, #e8e8e8);
-  border-color: var(--btn-border, #555);
 }
 .theme-toggle:hover {
   filter: brightness(1.1);
