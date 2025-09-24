@@ -6,7 +6,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/login', component: () => import('@/views/Login.vue') },
   {
     path: '/terminal',
-    component: () => import('@/views/TradingTerminal.vue'),
+    component: () => import('@/views/TradingTerminalSplitView.vue'),
     meta: { requiresAuth: true },
   },
   { path: '/:pathMatch(.*)*', redirect: '/terminal' },

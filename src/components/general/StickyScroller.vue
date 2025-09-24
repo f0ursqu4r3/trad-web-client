@@ -21,7 +21,7 @@ const props = defineProps<Props>()
 const containerRef = ref<HTMLElement | null>(null)
 const atBottom = ref(true)
 
-const threshold = () => props.bottomThreshold ?? 24
+const threshold = () => props.bottomThreshold ?? 12
 
 function computeAtBottom(el: HTMLElement) {
   return el.scrollTop + el.clientHeight >= el.scrollHeight - threshold()

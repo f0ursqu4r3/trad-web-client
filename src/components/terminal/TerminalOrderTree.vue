@@ -1,29 +1,48 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTerminalStore } from '@/stores/terminal'
+import { useUiStore } from '@/stores/ui'
+import type { DagNode } from '@/components/general/DagViewer.vue'
+
+import DagViewer from '@/components/general/DagViewer.vue'
 
 const store = useTerminalStore()
-const { devices, selectedDeviceId } = storeToRefs(store)
+const theme = useUiStore()
 
-function select(id: string) {
-  store.selectDevice(id)
-  store.pushLog(`Tree selected ${id}`)
+const { selectedDeviceId } = storeToRefs(store)
+
+const themeVars = computed(() => ({
+  bg: theme.getVar('color-bg-secondary'),
+  ink: theme.getVar('color-text'),
+  chipBg: theme.getVar('color-bg-tertiary'),
+  done: theme.getVar('color-success'),
+  pending: theme.getVar('color-error'),
+  lineStrong: theme.getVar('color-border-strong'),
+}))
+
+function select(device: DagNode) {
+  store.selectDevice(device.id)
+  store.pushLog(`Tree selected ${device.id}`)
 }
 </script>
 
 <template>
   <section class="order-tree-panel">
-    <ul class="tree">
-      <li
-        v-for="d in devices"
-        :key="d.id"
-        :class="['node', d.id === selectedDeviceId ? 'active' : '']"
-        @click="select(d.id)"
-      >
-        <span class="label">{{ d.id.slice(0, 4) }}</span>
-        <span class="status">{{ d.status }}</span>
-      </li>
-    </ul>
+    <dag-viewer
+      class="tree"
+      node-key="id"
+      :theme-vars="themeVars"
+      :selected-node-id="selectedDeviceId"
+      @node-click="select"
+    >
+      <template #node="{ node, isSelected }">
+        <div :class="['node', { active: isSelected }]">
+          <span class="label">{{ node.name || node.id }}</span>
+          <span class="status">{{ node.status }}</span>
+        </div>
+      </template>
+    </dag-viewer>
   </section>
 </template>
 
@@ -31,32 +50,8 @@ function select(id: string) {
 .order-tree-panel {
   display: flex;
   flex-direction: column;
-}
-.tree {
-  list-style: none;
-  margin: 0;
-  padding: 4px 6px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-}
-.node {
-  padding: 2px 4px;
-  border-radius: 3px;
-  display: flex;
-  justify-content: space-between;
-}
-.node.active {
-  background: #233041;
-  outline: 1px solid var(--accent-color);
-}
-.node:hover {
-  background: #1f2730;
-  cursor: pointer;
-}
-.label {
-  font-weight: 600;
-}
-.status {
-  opacity: 0.6;
+  position: relative;
+  width: 100%;
+  height: 100%;
 }
 </style>

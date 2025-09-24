@@ -21,6 +21,7 @@ const { logs } = storeToRefs(terminal)
   overflow: auto;
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 .log-lines {
   font-family: var(--font-mono);
