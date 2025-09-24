@@ -251,16 +251,3 @@ body,
   --btn-border: #555;
   --btn-fg: #e8e8e8;
 }
-
-/* --------------------------------------------------
-   SplitView custom theme example
-   -------------------------------------------------- */
-
-.my-split {
-  --sv-bg: var(--panel-bg);
-  --sv-border: var(--border-color);
-  --sv-gutter-size: 8px;
-  --sv-gutter: color-mix(in srgb, var(--sv-border) 70%, transparent);
-  --sv-gutter-hover: color-mix(in srgb, var(--sv-border) 95%, transparent);
-  --sv-gutter-active: var(--accent-color);
-}

@@ -1,12 +1,18 @@
 <template>
-  <SplitView orientation="horizontal" storage-key="trading-terminal-split">
-    <template #right>
-      <div class="pane">left-panel</div>
+  <SplitView storage-key="trading-terminal-split-horizontal">
+    <template #left> left-panel </template>
+
+    <template #center>
+      <SplitView orientation="vertical" storage-key="trading-terminal-split-vertical">
+        <template #cleft> center-left-panel </template>
+
+        <template #ccenter> center-center-panel </template>
+
+        <template #cright> center-right-panel </template>
+      </SplitView>
     </template>
 
-    <template #left>
-      <div class="pane">right-panel</div>
-    </template>
+    <template #right> right-panel </template>
   </SplitView>
 </template>
 

@@ -3,11 +3,11 @@ import { useAuthStore } from '@/stores/auth'
 
 const routes: RouteRecordRaw[] = [
   { path: '/', redirect: '/terminal' },
-  { path: '/login', component: () => import('@/views/Login.vue') },
+  { path: '/login', component: () => import('@/views/Login.vue'), meta: { layout: 'blank' } },
   {
     path: '/terminal',
     component: () => import('@/views/TradingTerminalSplitView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, layout: 'authenticated' },
   },
   { path: '/:pathMatch(.*)*', redirect: '/terminal' },
 ]
