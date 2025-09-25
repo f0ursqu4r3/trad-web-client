@@ -1,7 +1,7 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="login-view">
-    <div class="terminal">
+    <div class="terminal crt-overlay">
       <div class="titlebar">
         <div class="traffic">
           <span class="dot red"></span>
@@ -122,37 +122,9 @@ onMounted(() => {
   border-radius: 10px;
   box-shadow: var(--term-shadow);
   width: min(720px, 92vw);
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  /* font-family inherited from global monospace base */
   position: relative;
   overflow: hidden;
-}
-
-.terminal::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.03),
-    rgba(255, 255, 255, 0.03) 1px,
-    transparent 1px,
-    transparent 2px
-  );
-  mix-blend-mode: overlay;
-  opacity: 0.12;
-  animation: crt-flicker 8s infinite ease-in-out;
-}
-
-@keyframes crt-flicker {
-  0%,
-  100% {
-    opacity: 0.1;
-  }
-  50% {
-    opacity: 0.16;
-  }
 }
 
 .titlebar {
@@ -208,37 +180,7 @@ onMounted(() => {
   color: var(--term-dim);
 }
 
-.prompt-line {
-  display: grid;
-  grid-template-columns: 1.25rem auto 1fr;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0;
-}
-.prompt-line .chevron {
-  color: var(--term-accent);
-}
-.prompt-line label {
-  color: var(--term-dim);
-  font-size: 13px;
-}
-.prompt-line input {
-  background: transparent;
-  border: none;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.12);
-  padding: 4px 2px 3px 2px;
-  color: var(--term-fg);
-  caret-color: var(--term-accent);
-  font-family: inherit;
-  font-size: 13px;
-}
-.prompt-line input:focus {
-  outline: none;
-  border-bottom: 1px solid var(--term-accent);
-}
-.prompt-line input:disabled {
-  opacity: 0.6;
-}
+/* prompt-line now uses global utility styles from main.css */
 
 .actions {
   display: flex;
