@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 import { ref, computed, onUnmounted } from 'vue'
 import { TradWebClient } from '@/lib/ws/websocketClient'
 import type {
-  ClientToServerMessage,
   ClientToServerMessagePayload,
   ServerToClientMessage,
   UserCommandPayload,
@@ -27,6 +26,7 @@ export const useWsStore = defineStore('ws', () => {
   const lastError = ref<string | null>(null)
   const latencyMs = ref<number | null>(null)
   const clientId = ref<string | null>(null)
+  const username = ref<string>('anonymous')
   const protocolVersion = ref<number | null>(null)
   const inbound = ref<RawInboundRecord[]>([])
   const outboundCount = ref(0)
@@ -69,15 +69,6 @@ export const useWsStore = defineStore('ws', () => {
     status.value = 'idle'
   }
 
-  function setAuthToken(token: string | null) {
-    // Update token and if already connected or connecting, force a reconnect so Hello carries new token
-    client.setAuthToken(token)
-    if (status.value === 'ready' || status.value === 'connecting') {
-      disconnect()
-      connect()
-    }
-  }
-
   function sendSystemPing() {
     lastPingSend = performance.now()
     client.send({
@@ -88,14 +79,32 @@ export const useWsStore = defineStore('ws', () => {
   }
 
   function sendAuthenticate(username: string, password: string) {
-    const passwordHash = password
     client.send({
       kind: 'UserCommand',
       data: {
-        kind: 'Login',
-        data: { username, password_hash: passwordHash },
-      } as UserCommandPayload,
+        raw_text: `/login ${username} ********`,
+        command: {
+          kind: 'Login',
+          data: { username, password },
+        } as UserCommandPayload,
+      },
     } as ClientToServerMessagePayload)
+  }
+
+  function sendLogout() {
+    client.send({
+      kind: 'UserCommand',
+      data: {
+        raw_text: `/logout`,
+        command: {
+          kind: 'Logout',
+          data: {
+            all_sessions: false,
+          },
+        } as UserCommandPayload,
+      },
+    } as ClientToServerMessagePayload)
+    outboundCount.value++
   }
 
   function onServerMessage(msg: ServerToClientMessage) {
@@ -119,17 +128,20 @@ export const useWsStore = defineStore('ws', () => {
         console.info('[ws] ServerHello received. status -> ready, protocol=', data.protocol_version)
         break
       }
-      case 'AuthAccepted': {
+      case 'SetUser': {
         authAccepted.value = true
         authError.value = null
+        username.value = (
+          payload as Extract<ServerToClientMessage['payload'], { kind: 'SetUser' }>
+        ).data.username
+        console.info('[ws] SetUser received. authAccepted -> true, username=', username.value)
         break
       }
-      case 'AuthRejected': {
+      case 'UnsetUser': {
         authAccepted.value = false
-        const data = (
-          payload as Extract<ServerToClientMessage['payload'], { kind: 'AuthRejected' }>
-        ).data
-        authError.value = data.reason
+        username.value = 'anonymous'
+        console.info('[ws] UnsetUser received. authAccepted -> false, username -> anonymous')
+        // Keep existing authError if any; UnsetUser is not necessarily an error.
         break
       }
       case 'Pong': {
@@ -146,6 +158,14 @@ export const useWsStore = defineStore('ws', () => {
         lastError.value = data.error
         status.value = 'error'
         console.error('[ws] FatalServerError received. status -> error', data.error)
+        break
+      }
+      case 'ServerError': {
+        // If a ServerError arrives immediately after a Login attempt, surface it as authError
+        const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'ServerError' }>)
+          .data
+        authAccepted.value = false
+        authError.value = data.error
         break
       }
       default:
@@ -176,6 +196,7 @@ export const useWsStore = defineStore('ws', () => {
     lastError,
     latencyMs,
     clientId,
+    username,
     protocolVersion,
     inbound,
     outboundCount,
@@ -188,7 +209,7 @@ export const useWsStore = defineStore('ws', () => {
     connect,
     disconnect,
     sendSystemPing,
-    setAuthToken,
     sendAuthenticate,
+    sendLogout,
   }
 })

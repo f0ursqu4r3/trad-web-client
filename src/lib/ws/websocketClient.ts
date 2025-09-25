@@ -11,7 +11,6 @@ export type TradWebClientOptions = {
   url: string
   clientName?: string
   build?: string
-  authToken?: string | null
   reconnectDelayMs?: number
   /** Maximum delay (ms) between reconnect attempts when using exponential backoff. If omitted, delay stays constant. */
   maxReconnectDelayMs?: number
@@ -74,10 +73,6 @@ export class TradWebClient {
 
   setFatalErrorHandler(handler: FatalErrorHandler): void {
     this.onFatalError = handler
-  }
-
-  setAuthToken(token: string | null | undefined): void {
-    this.options.authToken = token ?? null
   }
 
   send(payload: ClientToServerMessagePayload, commandId?: Uuid): void {
@@ -162,6 +157,11 @@ export class TradWebClient {
         this.flushOutboundQueue()
         break
       }
+      case 'SetUser': {
+        const data = (payload as Extract<ServerToClientPayload, { kind: 'SetUser' }>).data
+        this.logInfo(`Authenticated as user ${data.username} (${data.user_id})`)
+        break
+      }
       case 'FatalServerError': {
         const data = (payload as Extract<ServerToClientPayload, { kind: 'FatalServerError' }>).data
         this.logError(`Fatal error from server: ${data.error}`)
@@ -193,7 +193,6 @@ export class TradWebClient {
             protocol_version: PROTOCOL_VERSION,
             client_name: this.options.clientName ?? 'trad-client',
             build: this.options.build ?? null,
-            auth_token: this.options.authToken ?? null,
           },
         },
       },

@@ -112,7 +112,13 @@ export type ClientToServerMessage = {
 }
 
 export type ClientToServerMessagePayload =
-  | { kind: 'UserCommand'; data: UserCommandPayload }
+  | {
+      kind: 'UserCommand'
+      data: {
+        raw_text: string
+        command: UserCommandPayload
+      }
+    }
   | { kind: 'System'; data: SystemMessagePayload }
 
 // System/internal messages
@@ -125,8 +131,6 @@ export type SystemMessagePayload =
   | { kind: 'ListCommandDevicesRequest'; data: ListCommandDevicesRequest }
   | { kind: 'CancelCommand'; data: CancelCommandRequest }
   | { kind: 'Hello'; data: HelloData }
-  // Legacy/compat (not in Rust snippet): allow optional Auth system message
-  | { kind: 'Auth'; data: { username: string; password: string } }
 
 export type CancelCommandRequest = {
   command_id: Uuid
@@ -136,15 +140,13 @@ export type HelloData = {
   protocol_version: number
   client_name: string
   build?: string | null
-  // Optional extension for clients that send tokens (ignored by server if unsupported)
-  auth_token?: string | null
 }
 
 // Command structs (anonymous + authenticated)
 export type PingData = { client_send_time: number }
 export type EchoCommand = { message: string }
-export type CreateUserCommand = { username: string; password_hash: string }
-export type LoginCommand = { username: string; password_hash: string }
+export type CreateUserCommand = { username: string; password: string }
+export type LoginCommand = { username: string; password: string }
 export type TestCommand = { test_type: TestType }
 export type GetPriceCommand = { symbol: string }
 export type LogoutCommand = { all_sessions: boolean }
@@ -217,41 +219,41 @@ export type ListCommandDevicesRequest = { command_id: Uuid }
 
 // User-submitted commands
 export type UserCommandPayload =
-  | { kind: 'Echo'; data: EchoCommand }
-  | { kind: 'ListUsers'; data?: undefined }
-  | { kind: 'CreateUser'; data: CreateUserCommand }
-  | { kind: 'Login'; data: LoginCommand }
-  | { kind: 'Test'; data: TestCommand }
-  | { kind: 'GetPrice'; data: GetPriceCommand }
-  | { kind: 'Logout'; data: LogoutCommand }
-  | { kind: 'GetUserInfo'; data?: undefined }
-  | { kind: 'CreateTradeWatch'; data: CreateTradeWatchCommand }
-  | { kind: 'GetBalance'; data?: undefined }
-  | { kind: 'SetLeverage'; data: SetLeverageCommand }
-  | { kind: 'MarketOrder'; data: MarketOrderCommand }
-  | { kind: 'SplitMarketOrder'; data: SplitMarketOrderCommand }
-  | { kind: 'LimitOrder'; data: LimitOrderCommand }
-  | { kind: 'TrailingEntryOrder'; data: TrailingEntryOrderCommand }
-  | { kind: 'ListAccounts'; data: ListAccountsCommand }
+  | { kind: 'CancelAllDevicesCommand'; data?: undefined }
+  | { kind: 'CancelDevice'; data: CancelDeviceCommand }
+  | { kind: 'CancelPosition'; data: CancelPositionCommand }
+  | { kind: 'ControlSimMarket'; data: ControlSimMarketCommand }
   | { kind: 'CreateAccount'; data: CreateAccountCommand }
+  | { kind: 'CreateHistoricSimMarket'; data: CreateHistoricSimMarketCommand }
+  | { kind: 'CreateSimMarket'; data: CreateSimMarketCommand }
+  | { kind: 'CreateTestDeviceA'; data?: undefined }
+  | { kind: 'CreateTradeWatch'; data: CreateTradeWatchCommand }
+  | { kind: 'CreateUser'; data: CreateUserCommand }
   | { kind: 'DeleteAccount'; data: DeleteAccountCommand }
+  | { kind: 'DeleteSimMarket'; data: DeleteSimMarketCommand }
+  | { kind: 'Echo'; data: EchoCommand }
+  | { kind: 'GetBalance'; data?: undefined }
+  | { kind: 'GetDeviceTree'; data: GetDeviceTreeCommand }
+  | { kind: 'GetPrice'; data: GetPriceCommand }
+  | { kind: 'GetSymbolPrecision'; data: GetSymbolPrecisionCommand }
+  | { kind: 'GetUserInfo'; data?: undefined }
+  | { kind: 'LimitOrder'; data: LimitOrderCommand }
+  | { kind: 'ListAccounts'; data: ListAccountsCommand }
+  | { kind: 'ListDevices'; data: ListDevicesCommand }
+  | { kind: 'ListHistoricMarkets'; data?: undefined }
+  | { kind: 'ListPositions'; data?: undefined }
+  | { kind: 'ListSimMarkets'; data?: undefined }
+  | { kind: 'ListUsers'; data?: undefined }
+  | { kind: 'Login'; data: LoginCommand }
+  | { kind: 'Logout'; data: LogoutCommand }
+  | { kind: 'MarketOrder'; data: MarketOrderCommand }
+  | { kind: 'SetHedgeMode'; data: SetHedgeModeCommand }
+  | { kind: 'SetLeverage'; data: SetLeverageCommand }
+  | { kind: 'SplitMarketOrder'; data: SplitMarketOrderCommand }
+  | { kind: 'Test'; data: TestCommand }
+  | { kind: 'TrailingEntryOrder'; data: TrailingEntryOrderCommand }
   | { kind: 'UseBinance'; data: UseBinanceCommand }
   | { kind: 'UseSimMarket'; data: UseSimMarketCommand }
-  | { kind: 'CreateTestDeviceA'; data?: undefined }
-  | { kind: 'ListDevices'; data: ListDevicesCommand }
-  | { kind: 'GetDeviceTree'; data: GetDeviceTreeCommand }
-  | { kind: 'CancelDevice'; data: CancelDeviceCommand }
-  | { kind: 'SetHedgeMode'; data: SetHedgeModeCommand }
-  | { kind: 'ListPositions'; data?: undefined }
-  | { kind: 'CancelPosition'; data: CancelPositionCommand }
-  | { kind: 'GetSymbolPrecision'; data: GetSymbolPrecisionCommand }
-  | { kind: 'ListHistoricMarkets'; data?: undefined }
-  | { kind: 'CreateHistoricSimMarket'; data: CreateHistoricSimMarketCommand }
-  | { kind: 'ListSimMarkets'; data?: undefined }
-  | { kind: 'CreateSimMarket'; data: CreateSimMarketCommand }
-  | { kind: 'ControlSimMarket'; data: ControlSimMarketCommand }
-  | { kind: 'DeleteSimMarket'; data: DeleteSimMarketCommand }
-  | { kind: 'CancelAllDevicesCommand'; data?: undefined }
 
 // ==============================================================================================
 // Server → Client
@@ -263,31 +265,28 @@ export type ServerToClientMessage = {
 }
 
 export type ServerToClientPayload =
-  | { kind: 'ClientIdAssignment'; data: ClientIdAssignmentData }
-  | { kind: 'Welcome'; data: WelcomeData }
-  | { kind: 'ClientJoined'; data: ClientJoinedData }
-  | { kind: 'ClientLeft'; data: ClientLeftData }
-  | { kind: 'CommandResponse'; data: CommandResponseData }
-  | { kind: 'Message'; data: MessageData }
   | { kind: 'Alert'; data: AlertData }
   | { kind: 'ChatMessage'; data: ChatMessageData }
-  | { kind: 'ServerError'; data: ServerErrorData }
-  | { kind: 'FatalServerError'; data: FatalServerErrorData }
-  | { kind: 'Pong'; data: PongData }
-  | { kind: 'ServerHello'; data: ServerHelloData }
-  | { kind: 'SetUser'; data: SetUserData }
-  | { kind: 'UnsetUser'; data: UnsetUserData }
-  | { kind: 'SetActiveMarketContext'; data: SetActiveMarketContextData }
-  | { kind: 'DeviceMarketInfoResponse'; data: DeviceMarketInfoResponseData }
-  | { kind: 'InspectCommandResponse'; data: InspectCommandResponseData }
-  | { kind: 'DeviceSnapshotLite'; data: DeviceSnapshotLiteData }
-  | { kind: 'TePointsPage'; data: TePointsPageData }
+  | { kind: 'ClientIdAssignment'; data: ClientIdAssignmentData }
+  | { kind: 'ClientJoined'; data: ClientJoinedData }
+  | { kind: 'ClientLeft'; data: ClientLeftData }
   | { kind: 'CommandDevicesList'; data: CommandDevicesListData }
-  | { kind: 'SetCommandStatus'; data: SetCommandStatusData }
   | { kind: 'CommandHistory'; data: CommandHistoryData }
-  // Legacy/compat with current web client store (not present in Rust snippet)
-  | { kind: 'AuthAccepted'; data: { client_id: Uuid; token_hash?: string | null } }
-  | { kind: 'AuthRejected'; data: { reason: string } }
+  | { kind: 'CommandResponse'; data: CommandResponseData }
+  | { kind: 'DeviceMarketInfoResponse'; data: DeviceMarketInfoResponseData }
+  | { kind: 'DeviceSnapshotLite'; data: DeviceSnapshotLiteData }
+  | { kind: 'FatalServerError'; data: FatalServerErrorData }
+  | { kind: 'InspectCommandResponse'; data: InspectCommandResponseData }
+  | { kind: 'Message'; data: MessageData }
+  | { kind: 'Pong'; data: PongData }
+  | { kind: 'ServerError'; data: ServerErrorData }
+  | { kind: 'ServerHello'; data: ServerHelloData }
+  | { kind: 'SetActiveMarketContext'; data: SetActiveMarketContextData }
+  | { kind: 'SetCommandStatus'; data: SetCommandStatusData }
+  | { kind: 'SetUser'; data: SetUserData }
+  | { kind: 'TePointsPage'; data: TePointsPageData }
+  | { kind: 'UnsetUser'; data: UnsetUserData }
+  | { kind: 'Welcome'; data: WelcomeData }
 
 // Payload structs (Server → Client)
 export type ClientIdAssignmentData = { new_client_id: Uuid }

@@ -1,21 +1,4 @@
 <!-- eslint-disable vue/multi-word-component-names -->
-<script setup lang="ts">
-import { computed } from 'vue'
-import { SunIcon, MoonIcon, LogoutIcon } from '@/components/icons'
-import { useUiStore } from '@/stores/ui'
-import { useAuthStore } from '@/stores/auth'
-
-import WsIndicator from '@/components/general/WsIndicator.vue'
-
-const ui = useUiStore()
-const auth = useAuthStore()
-
-const themeIcon = computed(() => (ui.theme === 'dark' ? SunIcon : MoonIcon))
-const themeToggleLabel = computed(() =>
-  ui.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
-)
-</script>
-
 <template>
   <div class="layout">
     <div class="toolbar">
@@ -40,6 +23,35 @@ const themeToggleLabel = computed(() =>
     <slot></slot>
   </div>
 </template>
+
+<script setup lang="ts">
+import { computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { SunIcon, MoonIcon, LogoutIcon } from '@/components/icons'
+import { useUiStore } from '@/stores/ui'
+import { useAuthStore } from '@/stores/auth'
+
+import WsIndicator from '@/components/general/WsIndicator.vue'
+
+const ui = useUiStore()
+const auth = useAuthStore()
+const router = useRouter()
+
+const themeIcon = computed(() => (ui.theme === 'dark' ? SunIcon : MoonIcon))
+const themeToggleLabel = computed(() =>
+  ui.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
+)
+
+watch(
+  () => auth.isAuthenticated,
+  (isAuth) => {
+    if (!isAuth) {
+      router.push({ path: '/login' })
+    }
+  },
+  { immediate: true },
+)
+</script>
 
 <style scoped>
 .layout {

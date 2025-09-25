@@ -5,29 +5,15 @@ import { useWsStore } from '@/stores/ws'
 // Simple auth token management. In a fuller implementation this would exchange
 // credentials for a token, refresh it, etc. Here we just store and propagate.
 
-const TOKEN_KEY = 'trad.auth.token'
-
 export type AuthStatus = 'anonymous' | 'authenticating' | 'authenticated'
 
 export const useAuthStore = defineStore('auth', () => {
   const ws = useWsStore()
-  const token = ref<string | null>(localStorage.getItem(TOKEN_KEY) || null)
-  const status = ref<AuthStatus>(token.value ? 'authenticated' : 'anonymous')
+  const username = ref<string | null>(null)
+  const status = ref<AuthStatus>(username.value ? 'authenticated' : 'anonymous')
   const lastError = ref<string | null>(null)
 
-  const isAuthenticated = computed(() => status.value === 'authenticated' && !!token.value)
-
-  function setToken(newToken: string | null) {
-    token.value = newToken
-    if (newToken) {
-      localStorage.setItem(TOKEN_KEY, newToken)
-      status.value = 'authenticated'
-    } else {
-      localStorage.removeItem(TOKEN_KEY)
-      status.value = 'anonymous'
-    }
-    ws.setAuthToken(newToken)
-  }
+  const isAuthenticated = computed(() => status.value === 'authenticated' && !!username.value)
 
   // For now a mock login that just accepts any supplied token string.
   async function login(username: string, password: string) {
@@ -75,18 +61,27 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout() {
-    setToken(null)
+  async function logout() {
+    ws.sendLogout()
+    await new Promise<void>((resolve) => {
+      const stopAuthAccepted = watch(
+        () => ws.authAccepted,
+        (val) => {
+          if (val === false) {
+            stopAuthAccepted()
+            resolve()
+          }
+        },
+      )
+    })
   }
-
-  // Keep ws token in sync if it changes early
-  watch(token, (t) => ws.setAuthToken(t))
 
   // React to websocket-level auth acknowledgments
   watch(
     () => ws.authAccepted,
     (val) => {
       if (val === true) {
+        username.value = ws.username || 'anonymous'
         status.value = 'authenticated'
         lastError.value = null
       } else if (val === false) {
@@ -107,16 +102,11 @@ export const useAuthStore = defineStore('auth', () => {
     },
   )
 
-  // Initialize ws store with existing token
-  if (token.value) ws.setAuthToken(token.value)
-
   return {
-    token,
     status,
     lastError,
     isAuthenticated,
     login,
     logout,
-    setToken,
   }
 })

@@ -84,8 +84,6 @@ async function submit() {
   if (!usernameInput.value.trim() || !passwordInput.value.trim()) return
   await auth.login(usernameInput.value, passwordInput.value)
   if (auth.isAuthenticated) {
-    // Connect WS with token then navigate
-    ws.setAuthToken(auth.token)
     if (ws.status === 'idle') ws.connect()
     router.push('/terminal')
   }
