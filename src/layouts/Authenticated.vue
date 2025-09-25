@@ -1,5 +1,6 @@
+<!-- eslint-disable vue/multi-word-component-names -->
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
 import { SunIcon, MoonIcon, LogoutIcon } from '@/components/icons'
 import { useUiStore } from '@/stores/ui'
 import { useWsStore } from '@/stores/ws'
@@ -13,8 +14,6 @@ const themeIcon = computed(() => (ui.theme === 'dark' ? SunIcon : MoonIcon))
 const themeToggleLabel = computed(() =>
   ui.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
 )
-
-onMounted(() => ws.connect())
 </script>
 
 <template>

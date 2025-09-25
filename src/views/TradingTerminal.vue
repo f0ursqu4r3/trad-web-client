@@ -265,9 +265,6 @@ function onReady(event: DockviewReadyEvent) {
   window.addEventListener('beforeunload', persistLayout)
 }
 
-onMounted(() => {
-  ws.connect()
-})
 onBeforeUnmount(() => {
   if (saveInterval) window.clearInterval(saveInterval)
   window.removeEventListener('beforeunload', persistLayout)

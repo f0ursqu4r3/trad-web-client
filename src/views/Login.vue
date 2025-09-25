@@ -1,21 +1,88 @@
 <!-- eslint-disable vue/multi-word-component-names -->
+<template>
+  <div class="login-view">
+    <div class="terminal">
+      <div class="titlebar">
+        <div class="traffic">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+        </div>
+        <div class="title">trad login — tty1</div>
+        <div class="right">
+          <WsIndicator />
+        </div>
+      </div>
+
+      <div class="screen">
+        <pre class="banner">TRAD v0.1 — secure login</pre>
+        <p v-if="!ws.isConnected" class="hint">waiting for server connection…</p>
+
+        <div class="prompt-line">
+          <span class="chevron">❯</span>
+          <label for="username">username</label>
+          <input
+            id="username"
+            v-model="usernameInput"
+            type="text"
+            placeholder=""
+            @keyup.enter="submit"
+            :disabled="submitting"
+            autofocus
+          />
+        </div>
+
+        <div class="prompt-line">
+          <span class="chevron">❯</span>
+          <label for="password">password</label>
+          <input
+            id="password"
+            v-model="passwordInput"
+            type="password"
+            placeholder=""
+            @keyup.enter="submit"
+            :disabled="submitting"
+          />
+        </div>
+
+        <div class="actions">
+          <button
+            class="button submit"
+            :disabled="submitting || !usernameInput || !passwordInput || !ws.isConnected"
+            @click="submit"
+          >
+            {{ submitting ? 'authenticating…' : '⏎ login' }}
+          </button>
+          <span class="hint">Press Enter to submit</span>
+        </div>
+
+        <p v-if="error" class="error">✖ {{ error }}</p>
+        <p v-if="auth.isAuthenticated" class="ok">✔ Already authenticated.</p>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import { useWsStore } from '@/stores/ws'
 
+import WsIndicator from '@/components/general/WsIndicator.vue'
+
 const auth = useAuthStore()
 const ws = useWsStore()
 const router = useRouter()
 
-const tokenInput = ref('')
+const usernameInput = ref('')
+const passwordInput = ref('')
 const submitting = computed(() => auth.status === 'authenticating')
 const error = computed(() => auth.lastError)
 
 async function submit() {
-  if (!tokenInput.value.trim()) return
-  await auth.login(tokenInput.value)
+  if (!usernameInput.value.trim() || !passwordInput.value.trim()) return
+  await auth.login(usernameInput.value, passwordInput.value)
   if (auth.isAuthenticated) {
     // Connect WS with token then navigate
     ws.setAuthToken(auth.token)
@@ -29,29 +96,6 @@ onMounted(() => {
 })
 </script>
 
-<template>
-  <div class="login-view">
-    <div class="card">
-      <h1>Login</h1>
-      <label class="field">
-        <span>Auth Token</span>
-        <input
-          v-model="tokenInput"
-          placeholder="Paste token"
-          @keyup.enter="submit"
-          :disabled="submitting"
-          autofocus
-        />
-      </label>
-      <button class="submit" :disabled="submitting || !tokenInput" @click="submit">
-        {{ submitting ? 'Authenticating…' : 'Login' }}
-      </button>
-      <p v-if="error" class="error">{{ error }}</p>
-      <p v-if="auth.isAuthenticated" class="ok">Already authenticated.</p>
-    </div>
-  </div>
-</template>
-
 <style scoped>
 .login-view {
   display: flex;
@@ -60,65 +104,166 @@ onMounted(() => {
   height: 100%;
   padding: 2rem;
 }
-.card {
-  background: #1e1f24;
-  border: 1px solid #333;
-  padding: 2rem 2.5rem;
-  border-radius: 12px;
-  width: 340px;
-  box-shadow: 0 4px 18px -4px rgba(0, 0, 0, 0.6);
-  font-family: ui-sans-serif, system-ui;
+
+.terminal {
+  /* local terminal palette */
+  --term-bg: #0b0f14;
+  --term-fg: #e6edf3;
+  --term-dim: #8b949e;
+  --term-accent: var(--accent-color, #2f81f7);
+  --term-border: #1f2630;
+  --term-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  --term-ok: var(--color-success, #4ade80);
+  --term-err: var(--color-error, #f87171);
+
+  background: var(--term-bg);
+  color: var(--term-fg);
+  border: 1px solid var(--term-border);
+  border-radius: 10px;
+  box-shadow: var(--term-shadow);
+  width: min(720px, 92vw);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  position: relative;
+  overflow: hidden;
 }
-.card h1 {
-  margin: 0 0 1.25rem;
-  font-size: 1.4rem;
-  font-weight: 600;
+
+.terminal::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.03),
+    rgba(255, 255, 255, 0.03) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  mix-blend-mode: overlay;
+  opacity: 0.12;
+  animation: crt-flicker 8s infinite ease-in-out;
 }
-.field {
+
+@keyframes crt-flicker {
+  0%,
+  100% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.16;
+  }
+}
+
+.titlebar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--term-border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.15));
+}
+.traffic {
+  display: inline-flex;
+  gap: 6px;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    inset 0 0 6px rgba(0, 0, 0, 0.65);
+}
+.dot.red {
+  background: #ff5f56;
+}
+.dot.yellow {
+  background: #ffbd2e;
+}
+.dot.green {
+  background: #27c93f;
+}
+.title {
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--term-dim);
+}
+.titlebar .right {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.screen {
+  padding: 1rem 1.25rem 1.25rem 1.25rem;
+}
+
+.banner {
+  margin: 0 0 1rem 0;
+  font-size: 12px;
+  color: var(--term-dim);
+}
+
+.prompt-line {
+  display: grid;
+  grid-template-columns: 1.25rem auto 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+}
+.prompt-line .chevron {
+  color: var(--term-accent);
+}
+.prompt-line label {
+  color: var(--term-dim);
+  font-size: 13px;
+}
+.prompt-line input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.12);
+  padding: 4px 2px 3px 2px;
+  color: var(--term-fg);
+  caret-color: var(--term-accent);
+  font-family: inherit;
+  font-size: 13px;
+}
+.prompt-line input:focus {
+  outline: none;
+  border-bottom: 1px solid var(--term-accent);
+}
+.prompt-line input:disabled {
+  opacity: 0.6;
+}
+
+.actions {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 1rem;
-  font-size: 0.85rem;
-}
-.field input {
-  padding: 0.6rem 0.7rem;
-  border-radius: 6px;
-  border: 1px solid #444;
-  background: #25272d;
-  color: #eee;
-  font-family: monospace;
-}
-.field input:focus {
-  outline: 2px solid #3a7afe;
-  border-color: #3a7afe;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
 }
 .submit {
-  width: 100%;
-  padding: 0.7rem 0.9rem;
-  border-radius: 6px;
-  border: none;
-  background: #3a7afe;
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
+  padding: 4px 8px;
+  font-size: 12px;
+  text-transform: lowercase;
 }
-.submit:disabled {
-  opacity: 0.5;
-  cursor: default;
+.hint {
+  font-size: 12px;
+  color: var(--term-dim);
 }
-.submit:not(:disabled):hover {
-  background: #2866e3;
-}
+
 .error {
-  color: #ff5252;
-  font-size: 0.75rem;
+  color: var(--term-err);
+  font-size: 12px;
   margin-top: 0.75rem;
 }
 .ok {
-  color: #4caf50;
-  font-size: 0.75rem;
+  color: var(--term-ok);
+  font-size: 12px;
   margin-top: 0.75rem;
 }
 </style>

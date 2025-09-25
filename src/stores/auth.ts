@@ -30,15 +30,45 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // For now a mock login that just accepts any supplied token string.
-  async function login(raw: string) {
+  async function login(username: string, password: string) {
     lastError.value = null
     status.value = 'authenticating'
     try {
-      const trimmed = raw.trim()
-      if (!trimmed) throw new Error('Empty token')
+      const trimmed = username.trim()
+      if (!trimmed) throw new Error('Empty username not allowed')
+      const passwordTrimmed = password.trim()
+      if (!passwordTrimmed) throw new Error('Empty password not allowed')
       // In a real flow we might call an HTTP endpoint to validate.
-      await new Promise((r) => setTimeout(r, 150))
-      setToken(trimmed)
+      ws.sendAuthenticate(trimmed, passwordTrimmed)
+      // Wait for ws store to acknowledge or reject
+      await new Promise<void>((resolve, reject) => {
+        const stopAuthAccepted = watch(
+          () => ws.authAccepted,
+          (val) => {
+            if (val === true) {
+              stopAuthAccepted()
+              stopAuthError()
+              resolve()
+            }
+          },
+        )
+        const stopAuthError = watch(
+          () => ws.authError,
+          (err) => {
+            if (err) {
+              stopAuthAccepted()
+              stopAuthError()
+              reject(new Error(err))
+            }
+          },
+        )
+        // Timeout after 10s
+        setTimeout(() => {
+          stopAuthAccepted()
+          stopAuthError()
+          reject(new Error('Login timed out'))
+        }, 10_000)
+      })
     } catch (e: unknown) {
       lastError.value = e instanceof Error ? e.message : String(e)
       status.value = 'anonymous'

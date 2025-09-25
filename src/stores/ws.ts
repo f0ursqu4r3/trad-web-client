@@ -1,7 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed, onUnmounted } from 'vue'
 import { TradWebClient } from '@/lib/ws/websocketClient'
-import type { ServerToClientMessage } from '@/lib/ws/protocol'
+import type {
+  ClientToServerMessage,
+  ClientToServerMessagePayload,
+  ServerToClientMessage,
+  UserCommandPayload,
+} from '@/lib/ws/protocol'
 
 // Connection phases
 // 'idle' -> not yet attempted
@@ -80,6 +85,17 @@ export const useWsStore = defineStore('ws', () => {
       data: { kind: 'Ping', data: { client_send_time: Date.now() } },
     })
     outboundCount.value++
+  }
+
+  function sendAuthenticate(username: string, password: string) {
+    const passwordHash = password
+    client.send({
+      kind: 'UserCommand',
+      data: {
+        kind: 'Login',
+        data: { username, password_hash: passwordHash },
+      } as UserCommandPayload,
+    } as ClientToServerMessagePayload)
   }
 
   function onServerMessage(msg: ServerToClientMessage) {
@@ -173,5 +189,6 @@ export const useWsStore = defineStore('ws', () => {
     disconnect,
     sendSystemPing,
     setAuthToken,
+    sendAuthenticate,
   }
 })
