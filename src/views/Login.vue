@@ -53,7 +53,7 @@
           >
             {{ submitting ? 'authenticating…' : '⏎ login' }}
           </button>
-          <span class="hint">Press Enter to submit</span>
+          <span v-if="!submitting" class="hint">Press Enter to submit</span>
         </div>
 
         <p v-if="error" class="error">✖ {{ error }}</p>
@@ -102,7 +102,6 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  padding: 2rem;
 }
 
 .terminal {

@@ -13,7 +13,16 @@ function submit() {
 
 <template>
   <form class="command-input" @submit.prevent="submit">
-    <input v-model="command" class="input" placeholder="Type a command (e.g. select f3152000)" />
+    <div class="prompt-line" style="flex: 1">
+      <span class="chevron">❯</span>
+      <label for="terminal-cmd" class="dim">command</label>
+      <input
+        id="terminal-cmd"
+        v-model="command"
+        class="mono"
+        placeholder="Type a command (e.g. select f3152000)"
+      />
+    </div>
     <button class="button is-small" type="submit">Send</button>
   </form>
 </template>
@@ -21,17 +30,9 @@ function submit() {
 <style scoped>
 .command-input {
   display: flex;
+  align-items: center;
   gap: 6px;
   padding: 4px;
-}
-
-.input {
-  flex: 1;
-  background: var(--color-bg-alt);
-  color: var(--color-text);
-  border: 1px solid var(--border-color);
-  font-family: var(--font-mono);
-  font-size: 12px;
 }
 
 .button {

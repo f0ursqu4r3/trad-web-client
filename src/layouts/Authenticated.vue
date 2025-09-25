@@ -3,11 +3,11 @@
 import { computed } from 'vue'
 import { SunIcon, MoonIcon, LogoutIcon } from '@/components/icons'
 import { useUiStore } from '@/stores/ui'
-import { useWsStore } from '@/stores/ws'
 import { useAuthStore } from '@/stores/auth'
 
+import WsIndicator from '@/components/general/WsIndicator.vue'
+
 const ui = useUiStore()
-const ws = useWsStore()
 const auth = useAuthStore()
 
 const themeIcon = computed(() => (ui.theme === 'dark' ? SunIcon : MoonIcon))
@@ -26,14 +26,7 @@ const themeToggleLabel = computed(() =>
         <span> Trading Terminal </span>
       </div>
       <div class="right-group">
-        <span
-          :title="
-            `WS Status: ${ws.status}` +
-            (ws.latencyMs != null ? ` (lat ${ws.latencyMs.toFixed(0)}ms)` : '')
-          "
-          class="ws-indicator"
-          :data-status="ws.status"
-        ></span>
+        <WsIndicator />
         <button
           @click="ui.toggleTheme()"
           class="theme-toggle"
