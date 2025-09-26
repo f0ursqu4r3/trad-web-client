@@ -3,8 +3,11 @@ import { ref, computed, onUnmounted } from 'vue'
 import { TradWebClient } from '@/lib/ws/websocketClient'
 import type {
   ClientToServerMessagePayload,
+  CommandHistoryItem,
+  CommandDevicesListData,
   ServerToClientMessage,
   UserCommandPayload,
+  Uuid,
 } from '@/lib/ws/protocol'
 
 // Connection phases
@@ -34,6 +37,11 @@ export const useWsStore = defineStore('ws', () => {
   const authAccepted = ref<boolean | null>(null)
   const authError = ref<string | null>(null)
   let lastPingSend: number | null = null
+
+  const commandHistory = ref<CommandHistoryItem[]>([])
+  const commandDevices = ref<Record<Uuid, CommandDevicesListData>>(
+    {} as Record<Uuid, CommandDevicesListData>,
+  )
 
   // Build from env (fallback to same host /ws)
   const url = import.meta.env.VITE_WS_URL || location.origin.replace(/^http/, 'ws') + '/ws'
@@ -107,6 +115,22 @@ export const useWsStore = defineStore('ws', () => {
     outboundCount.value++
   }
 
+  function listCommandDevices(commandId: Uuid) {
+    client.send({
+      kind: 'System',
+      data: { kind: 'ListCommandDevicesRequest', data: { command_id: commandId } },
+    })
+    outboundCount.value++
+  }
+
+  function sendCancelCommand(commandId: Uuid) {
+    client.send({
+      kind: 'System',
+      data: { kind: 'CancelCommand', data: { command_id: commandId } },
+    })
+    outboundCount.value++
+  }
+
   function onServerMessage(msg: ServerToClientMessage) {
     const payload = msg.payload
     inbound.value.push({ ts: Date.now(), kind: payload.kind, payload: payload.data })
@@ -168,6 +192,32 @@ export const useWsStore = defineStore('ws', () => {
         authError.value = data.error
         break
       }
+      case 'CommandHistory': {
+        const data = (
+          payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandHistory' }>
+        ).data
+        commandHistory.value = data.items
+        break
+      }
+      case 'SetCommandStatus': {
+        const data = (
+          payload as Extract<ServerToClientMessage['payload'], { kind: 'SetCommandStatus' }>
+        ).data
+        const idx = commandHistory.value.findIndex((item) => item.command_id === data.command_id)
+        if (idx !== -1) {
+          commandHistory.value[idx].status = data.status
+          // Force update
+          commandHistory.value = [...commandHistory.value]
+        }
+        break
+      }
+      case 'CommandDevicesList': {
+        const data = (
+          payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandDevicesList' }>
+        ).data
+        commandDevices.value[data.command_id] = data
+        break
+      }
       default:
         break
     }
@@ -203,6 +253,8 @@ export const useWsStore = defineStore('ws', () => {
     reconnectCount,
     authAccepted,
     authError,
+    commandHistory,
+    commandDevices,
     // getters
     isConnected,
     // actions
@@ -211,5 +263,7 @@ export const useWsStore = defineStore('ws', () => {
     sendSystemPing,
     sendAuthenticate,
     sendLogout,
+    listCommandDevices,
+    sendCancelCommand,
   }
 })

@@ -1,0 +1,42 @@
+<template>
+  <StickyScroller :trigger="commands.length" :smooth="true" :showButton="true">
+    <div class="command-history-panel">
+      <template v-for="(cmd, index) in commands" :key="index">
+        <template v-if="cmd.name === 'te-long'">
+          <TELongCommand :command="cmd" />
+        </template>
+        <CommandHistoryItem v-else :command="cmd" />
+      </template>
+    </div>
+  </StickyScroller>
+</template>
+
+<script setup lang="ts">
+import StickyScroller from '@/components/general/StickyScroller.vue'
+import { useCommandStore } from '@/stores/command'
+import { computed } from 'vue'
+
+import CommandHistoryItem from '@/components/terminal/commands/CommandHistoryItem.vue'
+import TELongCommand from '@/components/terminal/commands/TELongCommand.vue'
+
+const interestingCommandNames = ['te-long']
+
+const commandStore = useCommandStore()
+
+const commands = computed(() =>
+  commandStore.history.filter(
+    (cmd) => cmd.name !== undefined && interestingCommandNames.includes(cmd.name),
+  ),
+)
+
+console.log('commandStore', commandStore)
+</script>
+
+<style scoped>
+.command-history-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  gap: 0.5rem;
+}
+</style>

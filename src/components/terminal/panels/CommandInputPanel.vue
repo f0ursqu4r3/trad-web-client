@@ -20,24 +20,20 @@ function submit() {
         id="terminal-cmd"
         v-model="command"
         class="mono"
+        autocomplete="off"
+        autocorrect="off"
+        aria-autocomplete="none"
         placeholder="Type a command (e.g. select f3152000)"
       />
     </div>
-    <button class="button is-small" type="submit">Send</button>
   </form>
 </template>
 
 <style scoped>
 .command-input {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px;
-}
-
-.button {
-  background: var(--accent-color);
-  color: #fff;
-  border: none;
+  padding: 0.5rem;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
 }
 </style>

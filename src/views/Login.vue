@@ -47,7 +47,7 @@
 
         <div class="actions">
           <button
-            class="button submit"
+            class="btn submit"
             :disabled="submitting || !usernameInput || !passwordInput || !ws.isConnected"
             @click="submit"
           >

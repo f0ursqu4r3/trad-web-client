@@ -22,6 +22,7 @@ const { logs } = storeToRefs(terminal)
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
 }
 .log-lines {
   font-size: 12px;

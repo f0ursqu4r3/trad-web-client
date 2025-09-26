@@ -40,6 +40,9 @@ const { selectedDevice } = storeToRefs(useTerminalStore())
 .device-details {
   font-family: var(--font-mono);
   font-size: 11px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
 }
 .device-details dl {
   margin: 0;

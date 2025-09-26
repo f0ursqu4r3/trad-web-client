@@ -1,3 +1,79 @@
+<template>
+  <div
+    class="tiny-table-wrapper"
+    :class="{ dense: props.dense, striped: props.striped, hover: props.hover }"
+    :style="{ '--tt-header-offset': props.stickyHeaderOffset + 'px' }"
+  >
+    <div class="tiny-table-scroll" :style="{ height: bodyHeight, maxHeight: bodyMaxHeight }">
+      <table class="tiny-table">
+        <thead>
+          <tr>
+            <th
+              v-for="col in props.columns"
+              :key="col.key"
+              :title="col.headerTitle || col.label"
+              :style="{
+                width: col.width
+                  ? typeof col.width === 'number'
+                    ? col.width + 'px'
+                    : col.width
+                  : undefined,
+                textAlign: col.align || 'left',
+                left: col.stickyLeft != null ? col.stickyLeft + 'px' : undefined,
+                position: col.stickyLeft != null ? 'sticky' : undefined,
+                zIndex: col.stickyLeft != null ? 3 : undefined,
+              }"
+              :class="{ 'is-sticky-left': col.stickyLeft != null }"
+            >
+              <slot :name="`header-${col.key}`">{{ col.label }}</slot>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="!props.rows.length" class="empty">
+            <td :colspan="props.columns.length">
+              <slot name="empty">{{ props.emptyText }}</slot>
+            </td>
+          </tr>
+          <tr
+            v-for="(row, rIdx) in props.rows"
+            :key="getRowKey(row, rIdx)"
+            :aria-selected="isRowSelected(row, rIdx) ? 'true' : 'false'"
+            :tabindex="props.selectable ? 0 : undefined"
+            :class="{
+              selected: isRowSelected(row, rIdx),
+              selectable: props.selectable,
+            }"
+            @click="handleRowClick(row, rIdx)"
+            @keydown="handleRowKeydown($event, row, rIdx)"
+          >
+            <td
+              v-for="col in props.columns"
+              :key="col.key"
+              :style="{
+                textAlign: col.align || 'left',
+                left: col.stickyLeft != null ? col.stickyLeft + 'px' : undefined,
+                position: col.stickyLeft != null ? 'sticky' : undefined,
+                zIndex: col.stickyLeft != null ? 2 : undefined,
+              }"
+              :class="{ 'is-sticky-left': col.stickyLeft != null }"
+            >
+              <slot
+                :name="`cell-${col.key}`"
+                :row="row"
+                :value="col.accessor ? col.accessor(row, rIdx) : (row as any)[col.key]"
+                :rowIndex="rIdx"
+              >
+                {{ col.accessor ? col.accessor(row, rIdx) : (row as any)[col.key] }}
+              </slot>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
 /**
  * TinyTable - lightweight, flexible table with a sticky header & scrollable body.
@@ -190,82 +266,6 @@ function handleRowKeydown(e: KeyboardEvent, row: unknown, idx: number) {
   }
 }
 </script>
-
-<template>
-  <div
-    class="tiny-table-wrapper"
-    :class="{ dense: props.dense, striped: props.striped, hover: props.hover }"
-    :style="{ '--tt-header-offset': props.stickyHeaderOffset + 'px' }"
-  >
-    <div class="tiny-table-scroll" :style="{ height: bodyHeight, maxHeight: bodyMaxHeight }">
-      <table class="tiny-table">
-        <thead>
-          <tr>
-            <th
-              v-for="col in props.columns"
-              :key="col.key"
-              :title="col.headerTitle || col.label"
-              :style="{
-                width: col.width
-                  ? typeof col.width === 'number'
-                    ? col.width + 'px'
-                    : col.width
-                  : undefined,
-                textAlign: col.align || 'left',
-                left: col.stickyLeft != null ? col.stickyLeft + 'px' : undefined,
-                position: col.stickyLeft != null ? 'sticky' : undefined,
-                zIndex: col.stickyLeft != null ? 3 : undefined,
-              }"
-              :class="{ 'is-sticky-left': col.stickyLeft != null }"
-            >
-              <slot :name="`header-${col.key}`">{{ col.label }}</slot>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="!props.rows.length" class="empty">
-            <td :colspan="props.columns.length">
-              <slot name="empty">{{ props.emptyText }}</slot>
-            </td>
-          </tr>
-          <tr
-            v-for="(row, rIdx) in props.rows"
-            :key="getRowKey(row, rIdx)"
-            :aria-selected="isRowSelected(row, rIdx) ? 'true' : 'false'"
-            :tabindex="props.selectable ? 0 : undefined"
-            :class="{
-              selected: isRowSelected(row, rIdx),
-              selectable: props.selectable,
-            }"
-            @click="handleRowClick(row, rIdx)"
-            @keydown="handleRowKeydown($event, row, rIdx)"
-          >
-            <td
-              v-for="col in props.columns"
-              :key="col.key"
-              :style="{
-                textAlign: col.align || 'left',
-                left: col.stickyLeft != null ? col.stickyLeft + 'px' : undefined,
-                position: col.stickyLeft != null ? 'sticky' : undefined,
-                zIndex: col.stickyLeft != null ? 2 : undefined,
-              }"
-              :class="{ 'is-sticky-left': col.stickyLeft != null }"
-            >
-              <slot
-                :name="`cell-${col.key}`"
-                :row="row"
-                :value="col.accessor ? col.accessor(row, rIdx) : (row as any)[col.key]"
-                :rowIndex="rIdx"
-              >
-                {{ col.accessor ? col.accessor(row, rIdx) : (row as any)[col.key] }}
-              </slot>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</template>
 
 <style scoped>
 .tiny-table-wrapper {

@@ -1,3 +1,27 @@
+<template>
+  <div
+    ref="containerRef"
+    class="sticky-scroller"
+    :class="{
+      'is-pinned': atBottom,
+      'has-button': (props.showButton ?? true) && !atBottom,
+      'smooth-active': props.smooth && atBottom,
+    }"
+    @scroll="onScroll"
+  >
+    <slot />
+    <div
+      v-if="(props.showButton ?? true) && !atBottom"
+      class="btn scroll-button"
+      title="Scroll to latest"
+      @click="scrollToBottom({ smooth: true })"
+    >
+      <DownIcon class="icon" />
+      <span class="sr-only">Scroll to latest</span>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted, defineProps, defineExpose } from 'vue'
 
@@ -55,14 +79,13 @@ watch(
 )
 
 onMounted(() => {
-  if (props.stickOnMount !== false) {
-    nextTick().then(() => {
+  nextTick().then(() => {
+    if (props.stickOnMount) {
       updateAtBottom()
-      if (atBottom.value) scrollToBottom()
-    })
-  } else {
-    updateAtBottom()
-  }
+    } else {
+      scrollToBottom()
+    }
+  })
 })
 
 function onScroll() {
@@ -72,30 +95,6 @@ function onScroll() {
 defineExpose({ scrollToBottom, atBottom })
 </script>
 
-<template>
-  <div
-    ref="containerRef"
-    class="sticky-scroller"
-    :class="{
-      'is-pinned': atBottom,
-      'has-button': (props.showButton ?? true) && !atBottom,
-      'smooth-active': props.smooth && atBottom,
-    }"
-    @scroll="onScroll"
-  >
-    <slot />
-    <div
-      v-if="(props.showButton ?? true) && !atBottom"
-      class="button scroll-button"
-      title="Scroll to latest"
-      @click="scrollToBottom({ smooth: true })"
-    >
-      <DownIcon class="icon" />
-      <span class="sr-only">Scroll to latest</span>
-    </div>
-  </div>
-</template>
-
 <style scoped>
 .sticky-scroller {
   position: relative;
@@ -103,9 +102,11 @@ defineExpose({ scrollToBottom, atBottom })
   height: 100%;
   scrollbar-width: thin;
 }
+
 .sticky-scroller.smooth-active {
   scroll-behavior: smooth;
 }
+
 .scroll-button {
   position: sticky;
   left: 100%;
@@ -117,12 +118,15 @@ defineExpose({ scrollToBottom, atBottom })
   transition: opacity 0.15s;
   z-index: 10;
 }
+
 .scroll-button:hover {
   opacity: 1;
 }
+
 .scroll-button .icon {
   display: block;
 }
+
 .sr-only {
   position: absolute;
   width: 1px;

@@ -1,25 +1,38 @@
 <template>
-  <section class="orders-column">
-    <DockviewVue :theme="currentTheme" @ready="onReady" />
-  </section>
+  <SplitView orientation="vertical" :sizes="[70, 30, 10]">
+    <template #inbound-debug>
+      <div class="panel">
+        <div class="panel-header dim">messages</div>
+        <InboundDebugPanel />
+      </div>
+    </template>
+    <template #device-details>
+      <div class="panel">
+        <div class="panel-header dim">command history</div>
+        <CommandHistory />
+      </div>
+    </template>
+    <template #command-input>
+      <div class="panel">
+        <div class="panel-header dim">command input</div>
+        <CommandInput />
+      </div>
+    </template>
+  </SplitView>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { DockviewVue, type DockviewReadyEvent, themeDark, themeLight } from 'dockview-vue'
-
-import { useUiStore } from '@/stores/ui'
-
-type DockviewApi = DockviewReadyEvent['api']
-const apiRef = ref<DockviewApi | null>(null)
-
-const ui = useUiStore()
-
-const currentTheme = computed(() => (ui.theme === 'dark' ? themeDark : themeLight))
-
-function onReady(event: DockviewReadyEvent) {
-  apiRef.value = event.api
-  // You can use the api to add/remove/move components
-  // api.addComponent('my-component', { title: 'My Component' });
-}
+import SplitView from '@/components/general/SplitView.vue'
+import InboundDebugPanel from '@/components/terminal/panels/InboundDebugPanel.vue'
+import CommandHistory from '@/components/terminal/panels/CommandHistoryPanel.vue'
+import CommandInput from '@/components/terminal/panels/CommandInputPanel.vue'
 </script>
+
+<style scoped>
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+</style>

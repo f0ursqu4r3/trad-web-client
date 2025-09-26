@@ -3,10 +3,11 @@
   <div class="layout">
     <div class="toolbar">
       <div class="left-group">
-        <div class="button" @click="auth.logout">
+        <div class="btn" @click="auth.logout">
           <LogoutIcon />
         </div>
-        <span> Trading Terminal </span>
+        <span class="logged-in-as"> logged in as </span>
+        <span class="username">{{ username }}</span>
       </div>
       <div class="right-group">
         <WsIndicator />
@@ -37,6 +38,7 @@ const ui = useUiStore()
 const auth = useAuthStore()
 const router = useRouter()
 
+const username = computed(() => auth.username || 'anonymous')
 const themeIcon = computed(() => (ui.theme === 'dark' ? SunIcon : MoonIcon))
 const themeToggleLabel = computed(() =>
   ui.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
@@ -82,6 +84,15 @@ watch(
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.logged-in-as {
+  color: var(--dim-text-color);
+  font-size: 0.8em;
+}
+
+.username {
+  color: var(--accent-color);
 }
 
 .ws-indicator {

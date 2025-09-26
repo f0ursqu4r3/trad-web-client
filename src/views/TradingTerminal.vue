@@ -276,7 +276,7 @@ onBeforeUnmount(() => {
   <div class="terminal-view">
     <div class="toolbar">
       <div class="left-group">
-        <div class="button" @click="auth.logout">
+        <div class="btn" @click="auth.logout">
           <LogoutIcon />
         </div>
         <span> Trading Terminal </span>
@@ -284,7 +284,7 @@ onBeforeUnmount(() => {
 
       <div class="right-group">
         <div v-if="missingPanels.length" class="add-pane-wrapper" style="position: relative">
-          <div class="button" @click.stop="togglePanelMenu" title="Add a panel">+ Panel</div>
+          <div class="btn" @click.stop="togglePanelMenu" title="Add a panel">+ Panel</div>
           <div
             v-if="panelMenuOpen && missingPanels.length"
             class="panel-menu"
@@ -373,7 +373,7 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
-.toolbar button {
+.toolbar btn {
   transition:
     background-color 0.3s,
     color 0.3s;
