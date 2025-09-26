@@ -1,19 +1,19 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="layout">
-    <div class="toolbar">
-      <div class="left-group">
-        <div class="btn" @click="auth.logout">
+    <div class="toolbar-row">
+      <div class="toolbar-section mr-auto">
+        <button class="icon-btn" @click="auth.logout" title="Logout" aria-label="Logout">
           <LogoutIcon />
-        </div>
-        <span class="logged-in-as"> logged in as </span>
-        <span class="username">{{ username }}</span>
+        </button>
+        <span class="muted">logged in as</span>
+        <span class="text-term-accent">{{ username }}</span>
       </div>
-      <div class="right-group">
+      <div class="toolbar-section">
         <WsIndicator />
         <button
           @click="ui.toggleTheme()"
-          class="theme-toggle"
+          class="icon-btn"
           :aria-label="themeToggleLabel"
           :title="themeToggleLabel"
         >
@@ -63,112 +63,5 @@ watch(
   overflow: hidden;
   display: flex;
   flex-direction: column;
-}
-
-.toolbar {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 4px;
-  padding: 4px;
-}
-
-.toolbar .left-group {
-  margin-right: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.toolbar .right-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.logged-in-as {
-  color: var(--dim-text-color);
-  font-size: 0.8em;
-}
-
-.username {
-  color: var(--accent-color);
-}
-
-.ws-indicator {
-  user-select: none;
-  width: 0.8em;
-  height: 0.8em;
-  display: inline-flex;
-  border-radius: 50%;
-  /* we are using a rounded div instead of emoji so we can animate it */
-  justify-content: center;
-  align-items: center;
-  font-weight: bold;
-  transition: background-color 0.3s;
-  background-color: #9e9e9e; /* Grey */
-  border: 1px solid rgba(158, 158, 158, 0.25);
-  box-shadow:
-    0 0 0 4px rgba(158, 158, 158, 0.14),
-    0 3px 8px rgba(0, 0, 0, 0.4);
-  font-size: 1em;
-}
-
-.ws-indicator[data-status='ready'] {
-  background-color: #00c853; /* vivid green */
-  border: 1px solid rgba(0, 200, 83, 0.2);
-  box-shadow:
-    0 0 0 4px rgba(0, 200, 83, 0.12),
-    0 3px 8px rgba(0, 0, 0, 0.35);
-}
-.ws-indicator[data-status='connecting'] {
-  background-color: #ffb300; /* bold amber */
-  border: 1px solid rgba(255, 179, 0, 0.2);
-  box-shadow:
-    0 0 0 4px rgba(255, 179, 0, 0.12),
-    0 3px 8px rgba(0, 0, 0, 0.25);
-}
-.ws-indicator[data-status='reconnecting'] {
-  background-color: #ff6d00; /* strong orange */
-  border: 1px solid rgba(255, 109, 0, 0.2);
-  box-shadow:
-    0 0 0 4px rgba(255, 109, 0, 0.12),
-    0 3px 8px rgba(0, 0, 0, 0.28);
-}
-.ws-indicator[data-status='error'] {
-  background-color: #d50000; /* vivid red */
-  border: 1px solid rgba(213, 0, 0, 0.25);
-  box-shadow:
-    0 0 0 4px rgba(213, 0, 0, 0.14),
-    0 3px 8px rgba(0, 0, 0, 0.4);
-}
-
-/* Theme toggle button */
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  background: linear-gradient(var(--btn-bg-start, #efefef), var(--btn-bg-end, #d9d9d9));
-  color: var(--btn-fg, #222);
-  border: 1px solid var(--btn-border, #c2c2c2);
-  transition: filter 0.25s ease;
-}
-.theme-toggle:hover {
-  filter: brightness(1.1);
-}
-.theme-toggle:active {
-  filter: brightness(0.9);
-}
-.theme-toggle:focus-visible {
-  outline: 2px solid var(--accent-color);
-  outline-offset: 2px;
-}
-.theme-icon {
-  display: block;
-  width: 16px;
-  height: 16px;
 }
 </style>

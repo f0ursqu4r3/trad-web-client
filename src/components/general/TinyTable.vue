@@ -4,8 +4,11 @@
     :class="{ dense: props.dense, striped: props.striped, hover: props.hover }"
     :style="{ '--tt-header-offset': props.stickyHeaderOffset + 'px' }"
   >
-    <div class="tiny-table-scroll" :style="{ height: bodyHeight, maxHeight: bodyMaxHeight }">
-      <table class="tiny-table">
+    <div
+      class="tiny-table-scroll scroll-area"
+      :style="{ height: bodyHeight, maxHeight: bodyMaxHeight }"
+    >
+      <table class="tiny-table table-tiny" :class="{ 'table-compact': props.hover }">
         <thead>
           <tr>
             <th
@@ -32,7 +35,9 @@
         <tbody>
           <tr v-if="!props.rows.length" class="empty">
             <td :colspan="props.columns.length">
-              <slot name="empty">{{ props.emptyText }}</slot>
+              <slot name="empty"
+                ><span class="muted">{{ props.emptyText }}</span></slot
+              >
             </td>
           </tr>
           <tr

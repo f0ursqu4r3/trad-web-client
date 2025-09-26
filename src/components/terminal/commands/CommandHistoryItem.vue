@@ -1,25 +1,23 @@
 <template>
-  <div class="command-history-item">
-    <div>{{ command.command_id }}</div>
-    <div>{{ command.name }}</div>
-    <div>{{ command.status }}</div>
-    <div>{{ command.text }}</div>
+  <div class="panel-card p-2">
+    <div class="panel-header-row">
+      <div class="inline-flex items-center gap-2">
+        <span class="badge">Other</span>
+        <span class="mono text-[11px]">{{ command.name }}</span>
+        <span class="mono dim text-[10px]">#{{ shortId }}</span>
+      </div>
+      <span class="pill-info">{{ command.status }}</span>
+    </div>
+    <div class="mt-2 text-[12px] whitespace-pre-wrap break-words">{{ command.text }}</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { CommandHistoryItem } from '@/lib/ws'
+import { computed } from 'vue'
+import type { CommandHistoryItem } from '@/lib/ws/protocol'
 
-defineProps<{
-  command: CommandHistoryItem
-}>()
+const props = defineProps<{ command: CommandHistoryItem }>()
+const shortId = computed(() => props.command.command_id.slice(0, 8))
 </script>
 
-<style scoped>
-.command-history-item {
-  display: flex;
-  flex-direction: column;
-  padding: 8px;
-  border-bottom: 1px solid #444;
-}
-</style>
+<style scoped></style>

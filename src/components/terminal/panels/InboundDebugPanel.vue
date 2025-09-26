@@ -50,7 +50,7 @@ function formatPayload(p: unknown): string {
   align-items: center;
   gap: 8px;
   padding: 4px 6px;
-  font-size: 12px;
+  font-size: 10pt;
   border-bottom: 1px solid #4446;
 }
 .meta {
@@ -59,7 +59,7 @@ function formatPayload(p: unknown): string {
 .list {
   flex: 1;
   overflow: auto;
-  font-size: 11px;
+  font-size: 8pt;
   line-height: 1.2;
   padding: 4px;
 }

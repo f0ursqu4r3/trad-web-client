@@ -1,26 +1,34 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
-  <div class="login-view">
-    <div class="terminal crt-overlay">
-      <div class="titlebar">
-        <div class="traffic">
-          <span class="dot red"></span>
-          <span class="dot yellow"></span>
-          <span class="dot green"></span>
+  <div class="min-h-screen flex items-center justify-center p-4">
+    <div class="terminal-card">
+      <!-- Titlebar -->
+      <div
+        class="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-3 py-2 border-b border-slate-800 bg-gradient-to-b from-white/5 to-black/20"
+      >
+        <div class="inline-flex gap-1.5">
+          <span
+            v-for="color in ['#ff5f56', '#ffbd2e', '#27c93f']"
+            :key="color"
+            class="inline-block h-2.5 w-2.5 rounded-full ring-1 ring-black/60 [box-shadow:inset_0_0_6px_rgba(0,0,0,0.65)]"
+            :style="{ backgroundColor: color }"
+          ></span>
         </div>
-        <div class="title">trad login — tty1</div>
-        <div class="right">
+        <div class="text-center text-[12px] tracking-wider text-slate-400">trad login — tty1</div>
+        <div class="inline-flex items-center gap-2">
           <WsIndicator />
         </div>
       </div>
 
-      <div class="screen">
-        <pre class="banner">TRAD v0.1 — secure login</pre>
-        <p v-if="!ws.isConnected" class="hint">waiting for server connection…</p>
+      <!-- Screen -->
+      <div class="p-5 pt-4">
+        <pre class="m-0 mb-4 text-[12px] text-term-dim">TRAD v0.1 — secure login</pre>
+        <p v-if="!ws.isConnected" class="mb-2 muted">waiting for server connection…</p>
 
-        <div class="prompt-line">
-          <span class="chevron">❯</span>
-          <label for="username">username</label>
+        <!-- Username -->
+        <div class="prompt-row">
+          <span class="prompt-chevron">❯</span>
+          <label for="username" class="prompt-label">username</label>
           <input
             id="username"
             v-model="usernameInput"
@@ -29,12 +37,14 @@
             @keyup.enter="submit"
             :disabled="submitting"
             autofocus
+            class="input-term"
           />
         </div>
 
-        <div class="prompt-line">
-          <span class="chevron">❯</span>
-          <label for="password">password</label>
+        <!-- Password -->
+        <div class="prompt-row">
+          <span class="prompt-chevron">❯</span>
+          <label for="password" class="prompt-label">password</label>
           <input
             id="password"
             v-model="passwordInput"
@@ -42,22 +52,26 @@
             placeholder=""
             @keyup.enter="submit"
             :disabled="submitting"
+            class="input-term"
           />
         </div>
 
-        <div class="actions">
+        <!-- Actions -->
+        <div class="mt-3 flex items-center gap-3">
           <button
-            class="btn submit"
+            class="btn-primary"
             :disabled="submitting || !usernameInput || !passwordInput || !ws.isConnected"
             @click="submit"
           >
             {{ submitting ? 'authenticating…' : '⏎ login' }}
           </button>
-          <span v-if="!submitting" class="hint">Press Enter to submit</span>
+          <span v-if="!submitting" class="muted">Press Enter to submit</span>
         </div>
 
-        <p v-if="error" class="error">✖ {{ error }}</p>
-        <p v-if="auth.isAuthenticated" class="ok">✔ Already authenticated.</p>
+        <p v-if="error" class="mt-3 text-[12px] text-term-err">✖ {{ error }}</p>
+        <p v-if="auth.isAuthenticated" class="mt-3 text-[12px] text-term-ok">
+          ✔ Already authenticated.
+        </p>
       </div>
     </div>
   </div>
@@ -93,116 +107,3 @@ onMounted(() => {
   if (auth.isAuthenticated) router.replace('/terminal')
 })
 </script>
-
-<style scoped>
-.login-view {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-}
-
-.terminal {
-  /* local terminal palette */
-  --term-bg: #0b0f14;
-  --term-fg: #e6edf3;
-  --term-dim: #8b949e;
-  --term-accent: var(--accent-color, #2f81f7);
-  --term-border: #1f2630;
-  --term-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
-  --term-ok: var(--color-success, #4ade80);
-  --term-err: var(--color-error, #f87171);
-
-  background: var(--term-bg);
-  color: var(--term-fg);
-  border: 1px solid var(--term-border);
-  border-radius: 10px;
-  box-shadow: var(--term-shadow);
-  width: min(720px, 92vw);
-  /* font-family inherited from global monospace base */
-  position: relative;
-  overflow: hidden;
-}
-
-.titlebar {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem 0.9rem;
-  border-bottom: 1px solid var(--term-border);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.15));
-}
-.traffic {
-  display: inline-flex;
-  gap: 6px;
-}
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  display: inline-block;
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.6),
-    inset 0 0 6px rgba(0, 0, 0, 0.65);
-}
-.dot.red {
-  background: #ff5f56;
-}
-.dot.yellow {
-  background: #ffbd2e;
-}
-.dot.green {
-  background: #27c93f;
-}
-.title {
-  text-align: center;
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  color: var(--term-dim);
-}
-.titlebar .right {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.screen {
-  padding: 1rem 1.25rem 1.25rem 1.25rem;
-}
-
-.banner {
-  margin: 0 0 1rem 0;
-  font-size: 12px;
-  color: var(--term-dim);
-}
-
-/* prompt-line now uses global utility styles from main.css */
-
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
-}
-.submit {
-  padding: 4px 8px;
-  font-size: 12px;
-  text-transform: lowercase;
-}
-.hint {
-  font-size: 12px;
-  color: var(--term-dim);
-}
-
-.error {
-  color: var(--term-err);
-  font-size: 12px;
-  margin-top: 0.75rem;
-}
-.ok {
-  color: var(--term-ok);
-  font-size: 12px;
-  margin-top: 0.75rem;
-}
-</style>

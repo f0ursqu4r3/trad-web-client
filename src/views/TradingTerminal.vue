@@ -4,7 +4,6 @@ import { createApp, h, type Component, ref, onBeforeUnmount, computed, onMounted
 import { SunIcon, MoonIcon, LogoutIcon } from '@/components/icons'
 
 import { useUiStore } from '@/stores/ui'
-import { useWsStore } from '@/stores/ws'
 import { useAuthStore } from '@/stores/auth'
 
 const LAYOUT_KEY = 'terminalLayoutV1'
@@ -13,7 +12,6 @@ const apiRef = ref<DockviewApi | null>(null)
 let saveInterval: number | null = null
 
 const ui = useUiStore()
-const ws = useWsStore()
 const auth = useAuthStore()
 const currentTheme = computed(() => (ui.theme === 'dark' ? themeDark : themeLight))
 // Choose which icon component to render based on current ui.theme
@@ -274,47 +272,42 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="terminal-view">
-    <div class="toolbar">
-      <div class="left-group">
-        <div class="btn" @click="auth.logout">
+    <div class="toolbar-row">
+      <div class="toolbar-section mr-auto">
+        <button class="icon-btn" @click="auth.logout" title="Logout" aria-label="Logout">
           <LogoutIcon />
-        </div>
-        <span> Trading Terminal </span>
+        </button>
+        <span>Trading Terminal</span>
       </div>
 
-      <div class="right-group">
-        <div v-if="missingPanels.length" class="add-pane-wrapper" style="position: relative">
-          <div class="btn" @click.stop="togglePanelMenu" title="Add a panel">+ Panel</div>
+      <div class="toolbar-section">
+        <div v-if="missingPanels.length" class="menu-anchor">
+          <button class="btn-secondary btn-sm" @click.stop="togglePanelMenu" title="Add a panel">
+            + Panel
+          </button>
           <div
             v-if="panelMenuOpen && missingPanels.length"
-            class="panel-menu"
+            class="menu-dropdown"
             role="menu"
             aria-label="Add Panel Menu"
           >
             <div
               v-for="p in missingPanels"
               :key="p.id"
-              class="panel-menu-item"
+              class="menu-item"
               role="menuitem"
               @click.stop="addPanelById(p.id)"
             >
               {{ p.title }}
             </div>
-            <div v-if="!missingPanels.length" class="panel-menu-empty">No panels available</div>
+            <div v-if="!missingPanels.length" class="menu-empty">No panels available</div>
           </div>
         </div>
 
-        <span
-          :title="
-            `WS Status: ${ws.status}` +
-            (ws.latencyMs != null ? ` (lat ${ws.latencyMs.toFixed(0)}ms)` : '')
-          "
-          class="ws-indicator"
-          :data-status="ws.status"
-        ></span>
+        <WsIndicator />
         <button
           @click="ui.toggleTheme()"
-          class="theme-toggle"
+          class="icon-btn"
           :aria-label="themeToggleLabel"
           :title="themeToggleLabel"
         >
@@ -352,66 +345,9 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 
-.toolbar {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 4px;
-  padding: 4px;
-}
+/* toolbar layout now handled by shared Tailwind classes (toolbar-row, toolbar-section) */
 
-.toolbar .left-group {
-  margin-right: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.toolbar .right-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.toolbar btn {
-  transition:
-    background-color 0.3s,
-    color 0.3s;
-  border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.panel-menu {
-  position: absolute;
-  top: 110%;
-  right: 0;
-  background: var(--panel-menu-bg, #222);
-  color: #eee;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-  min-width: 140px;
-  padding: 4px 0;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-  z-index: 50;
-  font-size: 0.85rem;
-}
-
-.panel-menu-item {
-  padding: 6px 10px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.panel-menu-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.panel-menu-empty {
-  padding: 6px 10px;
-  opacity: 0.7;
-}
+/* dropdown now uses shared menu classes (menu-anchor, menu-dropdown, menu-item, menu-empty) */
 
 .dockview-wrapper {
   flex-grow: 1;
@@ -425,80 +361,7 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
-.ws-indicator {
-  user-select: none;
-  width: 0.8em;
-  height: 0.8em;
-  display: inline-flex;
-  border-radius: 50%;
-  /* we are using a rounded div instead of emoji so we can animate it */
-  justify-content: center;
-  align-items: center;
-  font-weight: bold;
-  transition: background-color 0.3s;
-  background-color: #9e9e9e; /* Grey */
-  border: 1px solid rgba(158, 158, 158, 0.25);
-  box-shadow:
-    0 0 0 4px rgba(158, 158, 158, 0.14),
-    0 3px 8px rgba(0, 0, 0, 0.4);
-  font-size: 1em;
-}
+/* ws indicator now provided by WsIndicator component */
 
-.ws-indicator[data-status='ready'] {
-  background-color: #00c853; /* vivid green */
-  border: 1px solid rgba(0, 200, 83, 0.2);
-  box-shadow:
-    0 0 0 4px rgba(0, 200, 83, 0.12),
-    0 3px 8px rgba(0, 0, 0, 0.35);
-}
-.ws-indicator[data-status='connecting'] {
-  background-color: #ffb300; /* bold amber */
-  border: 1px solid rgba(255, 179, 0, 0.2);
-  box-shadow:
-    0 0 0 4px rgba(255, 179, 0, 0.12),
-    0 3px 8px rgba(0, 0, 0, 0.25);
-}
-.ws-indicator[data-status='reconnecting'] {
-  background-color: #ff6d00; /* strong orange */
-  border: 1px solid rgba(255, 109, 0, 0.2);
-  box-shadow:
-    0 0 0 4px rgba(255, 109, 0, 0.12),
-    0 3px 8px rgba(0, 0, 0, 0.28);
-}
-.ws-indicator[data-status='error'] {
-  background-color: #d50000; /* vivid red */
-  border: 1px solid rgba(213, 0, 0, 0.25);
-  box-shadow:
-    0 0 0 4px rgba(213, 0, 0, 0.14),
-    0 3px 8px rgba(0, 0, 0, 0.4);
-}
-
-/* Theme toggle button */
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  background: linear-gradient(var(--btn-bg-start, #efefef), var(--btn-bg-end, #d9d9d9));
-  color: var(--btn-fg, #222);
-  border: 1px solid var(--btn-border, #c2c2c2);
-  transition: filter 0.25s ease;
-}
-.theme-toggle:hover {
-  filter: brightness(1.1);
-}
-.theme-toggle:active {
-  filter: brightness(0.9);
-}
-.theme-toggle:focus-visible {
-  outline: 2px solid var(--accent-color);
-  outline-offset: 2px;
-}
-.theme-icon {
-  display: block;
-  width: 16px;
-  height: 16px;
-}
+/* theme toggle now uses shared icon-btn */
 </style>

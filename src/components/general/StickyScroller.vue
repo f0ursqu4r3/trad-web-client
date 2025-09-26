@@ -10,20 +10,29 @@
     @scroll="onScroll"
   >
     <slot />
-    <div
-      v-if="(props.showButton ?? true) && !atBottom"
-      class="btn scroll-button"
+    <button
+      v-show="(props.showButton ?? true) && !atBottom"
+      class="btn icon-btn scroll-button"
       title="Scroll to latest"
+      aria-label="Scroll to latest"
       @click="scrollToBottom({ smooth: true })"
     >
       <DownIcon class="icon" />
-      <span class="sr-only">Scroll to latest</span>
-    </div>
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted, defineProps, defineExpose } from 'vue'
+import {
+  ref,
+  watch,
+  nextTick,
+  onMounted,
+  onBeforeUnmount,
+  withDefaults,
+  defineProps,
+  defineExpose,
+} from 'vue'
 
 import { DownIcon } from '@/components/icons'
 
@@ -40,15 +49,26 @@ interface Props {
   showButton?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  bottomThreshold: 12,
+  smooth: false,
+  stickOnMount: true,
+  showButton: true,
+})
 
 const containerRef = ref<HTMLElement | null>(null)
-const atBottom = ref(true)
+const atBottom = ref(false)
+let resizeObs: ResizeObserver | null = null
+let mutationObs: MutationObserver | null = null
 
-const threshold = () => props.bottomThreshold ?? 12
+function threshold() {
+  // Ensure non-negative threshold
+  return Math.max(0, props.bottomThreshold)
+}
 
 function computeAtBottom(el: HTMLElement) {
-  return el.scrollTop + el.clientHeight >= el.scrollHeight - threshold()
+  // Use ceil to avoid sub-pixel rounding issues while scrolling
+  return Math.ceil(el.scrollTop + el.clientHeight) >= Math.floor(el.scrollHeight - threshold())
 }
 
 function updateAtBottom() {
@@ -68,6 +88,7 @@ function scrollToBottom(opts?: { smooth?: boolean }) {
   atBottom.value = true
 }
 
+// Keep pinned when new content arrives
 watch(
   () => props.trigger,
   async () => {
@@ -79,11 +100,56 @@ watch(
 )
 
 onMounted(() => {
-  nextTick().then(() => {
-    if (props.stickOnMount) {
-      updateAtBottom()
-    } else {
-      scrollToBottom()
+  const el = containerRef.value
+  if (!el) return
+
+  // Initial position
+  if (props.stickOnMount) {
+    scrollToBottom()
+  } else {
+    updateAtBottom()
+  }
+
+  // Observe size/content changes automatically when trigger is not provided
+  if (typeof props.trigger === 'undefined') {
+    // ResizeObserver handles scrollHeight changes (e.g., images loading)
+    if ('ResizeObserver' in window) {
+      resizeObs = new ResizeObserver(() => {
+        if (atBottom.value) scrollToBottom({ smooth: props.smooth })
+      })
+      resizeObs.observe(el)
+    }
+
+    // MutationObserver watches child additions (new messages, etc.)
+    if ('MutationObserver' in window) {
+      mutationObs = new MutationObserver(() => {
+        if (atBottom.value) scrollToBottom({ smooth: props.smooth })
+      })
+      mutationObs.observe(el, { childList: true, subtree: true })
+    }
+  }
+
+  // Keep atBottom state fresh on resize & scroll
+  const onScroll = () => updateAtBottom()
+  const onResize = () => updateAtBottom()
+  el.addEventListener('scroll', onScroll, { passive: true })
+  window.addEventListener('resize', onResize)
+
+  // Cleanup
+  onBeforeUnmount(() => {
+    el.removeEventListener('scroll', onScroll)
+    window.removeEventListener('resize', onResize)
+    if (resizeObs) {
+      try {
+        resizeObs.disconnect()
+      } catch {}
+      resizeObs = null
+    }
+    if (mutationObs) {
+      try {
+        mutationObs.disconnect()
+      } catch {}
+      mutationObs = null
     }
   })
 })
@@ -114,17 +180,9 @@ defineExpose({ scrollToBottom, atBottom })
   bottom: 0.25rem;
   transform: translateX(-0.25rem);
   box-shadow: 0 2px 4px #0006;
-  opacity: 0.85;
+  opacity: 0.9;
   transition: opacity 0.15s;
   z-index: 10;
-}
-
-.scroll-button:hover {
-  opacity: 1;
-}
-
-.scroll-button .icon {
-  display: block;
 }
 
 .sr-only {

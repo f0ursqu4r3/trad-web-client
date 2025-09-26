@@ -3,7 +3,7 @@
     <div class="command-history-panel">
       <template v-for="(cmd, index) in commands" :key="index">
         <template v-if="cmd.name === 'te-long'">
-          <TELongCommand :command="cmd" />
+          <TELongCommand :command="cmd" @select="handleSelect" />
         </template>
         <CommandHistoryItem v-else :command="cmd" />
       </template>
@@ -29,7 +29,9 @@ const commands = computed(() =>
   ),
 )
 
-console.log('commandStore', commandStore)
+function handleSelect(commandId: string) {
+  commandStore.selectCommand(commandId)
+}
 </script>
 
 <style scoped>

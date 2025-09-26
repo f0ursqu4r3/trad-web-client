@@ -1,3 +1,343 @@
+@import 'tailwindcss';
+
+/* Tailwind v4 theme tokens for terminal-style palette */
+@theme {
+  --color-term-bg: #0b0f14;
+  --color-term-fg: #e6edf3;
+  --color-term-dim: #8b949e;
+  --color-term-accent: #2f81f7;
+  --color-term-border: #1f2630;
+  --color-term-ok: #4ade80;
+  --color-term-err: #f87171;
+}
+
+/* Dark theme overrides for terminal tokens (outside @theme per Tailwind v4 rules) */
+[data-theme='dark'] {
+  --color-term-bg: #0b0f14;
+  --color-term-fg: #e6edf3;
+  --color-term-dim: #8b949e;
+  --color-term-accent: #2f81f7;
+  --color-term-border: #1f2630;
+  --color-term-ok: #4ade80;
+  --color-term-err: #f87171;
+}
+
+/* Tailwind component shortcuts using @apply */
+@layer components {
+  .terminal-card {
+    @apply w-full max-w-[720px] overflow-hidden rounded-lg border border-term-border bg-term-bg text-term-fg shadow-xl;
+  }
+
+  .prompt-row {
+    @apply mb-2 flex items-center gap-2;
+  }
+
+  .prompt-chevron {
+    @apply w-4 text-center text-term-accent;
+  }
+
+  .prompt-label {
+    @apply w-24 shrink-0 text-[12px] text-term-dim;
+  }
+
+  .input-term {
+    @apply flex-1 rounded border border-slate-700/70 bg-transparent px-2 py-1 text-[13px] outline-none transition focus:border-term-accent focus:ring-1 focus:ring-term-accent disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .muted {
+    @apply text-[12px] text-term-dim;
+  }
+
+  /* Tailwind-backed global button base used across app */
+  .btn {
+    @apply inline-flex items-center gap-1 rounded border px-2 py-1 text-[12px] font-medium tracking-[0.5px] transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50;
+    @apply bg-[linear-gradient(var(--btn-bg-start),var(--btn-bg-end))] text-[var(--btn-fg)] border-[var(--btn-border)] shadow-[0_1px_2px_rgba(0,0,0,0.4),inset_0_0_0_1px_rgba(255,255,255,0.05)];
+  }
+  .btn-sm {
+    @apply px-1.5 py-0.5 text-[11px];
+  }
+  .btn:hover:not(:disabled) {
+    @apply opacity-95;
+  }
+  .btn:active:not(:disabled) {
+    @apply translate-y-px;
+  }
+  .btn:focus-visible {
+    @apply outline-none ring-2 ring-[var(--accent-color)] ring-offset-2 ring-offset-transparent;
+  }
+
+  /* Tailwind-backed icon button */
+  .icon-btn {
+    @apply inline-flex items-center justify-center rounded border px-1.5 py-1 text-[12px] text-current transition border-[var(--border-color)] hover:opacity-90;
+  }
+  .icon-btn:focus-visible {
+    @apply outline-none ring-2 ring-[var(--accent-color)] ring-offset-2;
+  }
+
+  /* Generic panel/card used throughout app */
+  .panel-card {
+    @apply rounded-md border shadow-sm;
+    background: var(--panel-bg);
+    border-color: var(--border-color);
+    color: inherit;
+  }
+
+  .panel-header-row {
+    @apply flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide;
+    background: var(--panel-header-bg);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--color-text-dim);
+  }
+
+  .section-divider {
+    @apply my-2 h-px w-full border-0;
+    background: var(--panel-border-inner);
+  }
+
+  /* Term-themed button variants */
+  .btn-primary {
+    @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-term-accent/40 bg-term-accent/20 text-term-accent hover:border-term-accent hover:bg-term-accent/30;
+  }
+  .btn-secondary {
+    @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-slate-600/60 text-slate-200 hover:bg-slate-600/20;
+  }
+  .btn-danger {
+    @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-red-500/40 bg-red-500/10 text-red-300 hover:border-red-500 hover:bg-red-500/20;
+  }
+  .btn-success {
+    @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:border-emerald-500 hover:bg-emerald-500/20;
+  }
+
+  .btn-group {
+    @apply inline-flex items-center gap-2;
+  }
+
+  /* Inputs/selects/textarea with terminal look */
+  .select-term {
+    @apply flex-1 rounded border border-slate-700/70 bg-transparent px-2 py-1 text-[13px] outline-none transition focus:border-term-accent focus:ring-1 focus:ring-term-accent disabled:cursor-not-allowed disabled:opacity-60 appearance-none pr-6;
+  }
+  .textarea-term {
+    @apply flex-1 rounded border border-slate-700/70 bg-transparent px-2 py-1 text-[13px] outline-none transition focus:border-term-accent focus:ring-1 focus:ring-term-accent disabled:cursor-not-allowed disabled:opacity-60 min-h-[90px];
+  }
+  .form-hint {
+    @apply mt-1 text-[11px] text-term-dim;
+  }
+  .field-row {
+    @apply grid grid-cols-[10rem_1fr] items-start gap-3;
+  }
+
+  /* Size variants */
+  .btn-sm {
+    @apply px-1.5 py-0.5 text-[11px];
+  }
+  .btn-lg {
+    @apply px-3 py-1.5 text-[13px];
+  }
+  .input-term-sm {
+    @apply px-1.5 py-0.5 text-[12px];
+  }
+  .input-term-lg {
+    @apply px-3 py-2 text-[14px];
+  }
+
+  /* Invalid states */
+  .input-invalid {
+    @apply border-red-500/60 focus:border-red-500 focus:ring-1 focus:ring-red-500;
+  }
+  .field-error {
+    @apply mt-1 text-[11px] text-red-400;
+  }
+
+  /* Toolbars */
+  .toolbar-row {
+    @apply flex items-center justify-between gap-2 border-b border-slate-700/60 bg-[var(--panel-header-bg)] px-2 py-1 text-[12px] text-[var(--color-text-dim)];
+  }
+  .toolbar-section {
+    @apply inline-flex items-center gap-2;
+  }
+  .toolbar-spacer {
+    @apply grow;
+  }
+
+  /* Menus / dropdowns */
+  .menu-anchor {
+    @apply relative;
+  }
+  .menu-dropdown {
+    @apply absolute right-0 top-[110%] z-50 min-w-[140px] rounded border py-1 text-[13px] shadow-lg;
+    background: var(--panel-bg);
+    border-color: var(--border-color);
+    color: var(--color-text);
+  }
+  .menu-item {
+    @apply cursor-pointer whitespace-nowrap px-2.5 py-1.5;
+  }
+  .menu-item:hover {
+    @apply bg-white/5;
+  }
+  .menu-empty {
+    @apply px-2.5 py-1.5 text-[12px] text-term-dim;
+  }
+
+  /* Skeletons */
+  .skeleton {
+    @apply animate-pulse rounded bg-slate-500/20;
+  }
+  .skeleton-line {
+    @apply animate-pulse rounded bg-slate-500/20 h-3;
+  }
+
+  /* List rows */
+  .list-row {
+    @apply flex items-center justify-between gap-3 border-b border-slate-800/60 px-2 py-1.5 text-[13px];
+  }
+  .list-row-hover {
+    @apply hover:bg-white/5;
+  }
+
+  /* Small helpers */
+  .code-inline {
+    @apply rounded border px-1.5 py-0.5 text-[12px] font-mono;
+    background: color-mix(in srgb, var(--panel-header-bg) 70%, transparent);
+    border-color: var(--border-color);
+  }
+  .shadow-term {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  }
+
+  /* Notices */
+  .notice {
+    @apply mt-3 text-[12px];
+  }
+  .notice-ok {
+    @apply mt-3 text-[12px] text-term-ok;
+  }
+  .notice-err {
+    @apply mt-3 text-[12px] text-term-err;
+  }
+
+  /* Badges / chips */
+  .badge,
+  .chip {
+    @apply inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px];
+    background: var(--panel-header-bg);
+    border-color: var(--border-color);
+    color: var(--color-text-dim);
+  }
+
+  /* Status pills */
+  .pill {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium;
+  }
+  .pill-ok {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-term-ok/10 text-term-ok ring-1 ring-inset ring-term-ok/30;
+  }
+  .pill-err {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-term-err/10 text-term-err ring-1 ring-inset ring-term-err/30;
+  }
+  .pill-warn {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-yellow-500/10 text-yellow-300 ring-1 ring-inset ring-yellow-500/30;
+  }
+  .pill-info {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-term-accent/10 text-term-accent ring-1 ring-inset ring-term-accent/30;
+  }
+
+  /* Links matching accent */
+  a.link-term {
+    @apply text-term-accent underline underline-offset-2 hover:opacity-90;
+  }
+
+  /* Tables */
+  .table-tiny {
+    @apply w-full text-[12px];
+  }
+  .table-tiny thead th {
+    @apply border-b border-slate-700/70 py-1 text-left font-medium text-term-dim;
+  }
+  .table-tiny tbody td {
+    @apply border-b border-slate-800/70 py-1 align-top;
+  }
+  .table-compact tbody tr:hover {
+    @apply bg-white/5;
+  }
+
+  /* Common scroll area */
+  .scroll-area {
+    @apply overflow-auto;
+  }
+
+  /* Generic panel/card used throughout app */
+  .panel-card {
+    @apply rounded-md border shadow-sm;
+    background: var(--panel-bg);
+    border-color: var(--border-color);
+    color: inherit;
+  }
+
+  .panel-header-row {
+    @apply flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide;
+    background: var(--panel-header-bg);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--color-text-dim);
+  }
+
+  .section-divider {
+    @apply my-2 h-px w-full border-0;
+    background: var(--panel-border-inner);
+  }
+
+  /* Term-themed button variants */
+  .btn-primary {
+    @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-term-accent/40 bg-term-accent/20 text-term-accent hover:border-term-accent hover:bg-term-accent/30;
+  }
+  .btn-secondary {
+    @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-slate-600/60 text-slate-200 hover:bg-slate-600/20;
+  }
+  .btn-danger {
+    @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-red-500/40 bg-red-500/10 text-red-300 hover:border-red-500 hover:bg-red-500/20;
+  }
+  .btn-success {
+    @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:border-emerald-500 hover:bg-emerald-500/20;
+  }
+
+  /* Inputs/selects/textarea with terminal look */
+  .select-term {
+    @apply flex-1 rounded border border-slate-700/70 bg-transparent px-2 py-1 text-[13px] outline-none transition focus:border-term-accent focus:ring-1 focus:ring-term-accent disabled:cursor-not-allowed disabled:opacity-60 appearance-none pr-6;
+  }
+  .textarea-term {
+    @apply flex-1 rounded border border-slate-700/70 bg-transparent px-2 py-1 text-[13px] outline-none transition focus:border-term-accent focus:ring-1 focus:ring-term-accent disabled:cursor-not-allowed disabled:opacity-60 min-h-[90px];
+  }
+
+  /* Badges / chips */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px];
+    background: var(--panel-header-bg);
+    border-color: var(--border-color);
+    color: var(--color-text-dim);
+  }
+
+  /* Links matching accent */
+  a.link-term {
+    @apply text-term-accent underline underline-offset-2 hover:opacity-90;
+  }
+
+  /* Small table styling for compact views */
+  .table-tiny {
+    @apply w-full text-[12px];
+  }
+  .table-tiny thead th {
+    @apply py-1 text-left font-medium text-term-dim border-b border-slate-700/70;
+  }
+  .table-tiny tbody td {
+    @apply py-1 align-top border-b border-slate-800/70;
+  }
+
+  /* Common scroll area */
+  .scroll-area {
+    @apply overflow-auto;
+  }
+}
+
 /* existing imports if any */
 /* Base (light) theme */
 :root {
@@ -214,75 +554,6 @@ body,
   background: var(--accent-color);
 }
 
-/* --------------------------------------------------
-   Btn (global themed)
-   -------------------------------------------------- */
-.btn {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  position: relative;
-  background: linear-gradient(var(--btn-bg-start, #3e3e3e), var(--btn-bg-end, #2a2a2a));
-  color: var(--btn-fg, #e8e8e8);
-  border-color: var(--btn-border, #555);
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.4),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--btn-border, #555);
-  border-radius: 4px;
-  padding: 2px 4px;
-  cursor: pointer;
-  transition:
-    filter 0.25s ease,
-    background 0.3s ease,
-    color 0.3s ease;
-}
-
-.btn:hover:not(:disabled) {
-  filter: brightness(1.15);
-}
-
-.btn:active:not(:disabled) {
-  filter: brightness(0.9);
-  transform: translateY(1px);
-}
-
-.btn:focus-visible {
-  outline: 2px solid var(--accent-color);
-  outline-offset: 2px;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.icon-btn {
-  background: transparent;
-  border: 1px solid var(--border-color);
-  color: inherit;
-  border-radius: 4px;
-  padding: 2px 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-.icon-btn:hover {
-  filter: brightness(1.1);
-}
-.icon-btn:active {
-  filter: brightness(0.95);
-}
-.icon-btn:focus-visible {
-  outline: 2px solid var(--accent-color);
-  outline-offset: 2px;
-}
-
 /* Dark theme */
 [data-theme='dark'] .button {
   --btn-bg-start: #3e3e3e;
@@ -355,38 +626,6 @@ body,
 .prompt-line input:disabled,
 .prompt-line textarea:disabled {
   opacity: 0.6;
-}
-
-/* Subtle CRT overlay for any container. Apply class on the element. */
-.crt-overlay {
-  position: relative;
-  overflow: hidden;
-}
-.crt-overlay::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.03),
-    rgba(255, 255, 255, 0.03) 1px,
-    transparent 1px,
-    transparent 2px
-  );
-  mix-blend-mode: overlay;
-  opacity: 0.12;
-  animation: crt-flicker 8s infinite ease-in-out;
-}
-@keyframes crt-flicker {
-  0%,
-  100% {
-    opacity: 0.1;
-  }
-  50% {
-    opacity: 0.16;
-  }
 }
 
 /* Selection color tuned to accent */

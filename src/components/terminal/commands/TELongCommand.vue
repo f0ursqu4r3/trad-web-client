@@ -1,11 +1,12 @@
 <template>
-  <div class="command-entry panel crt-overlay">
-    <div class="panel-header header">
-      <div class="title">
-        <span class="badge kind">TE‑LONG</span>
-        <span class="name mono">{{ command.name }}</span>
+  <div class="command-entry panel-card">
+    <div class="panel-header-row">
+      <div class="inline-flex items-center gap-2">
+        <span class="pill-info uppercase font-bold text-[10px] tracking-[0.06em]">
+          {{ command.name }}
+        </span>
         <span
-          class="id mono dim copyable"
+          class="mono dim cursor-pointer select-text focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2 rounded-[2px] text-[10px]"
           :title="command.command_id"
           @click="copyId"
           role="button"
@@ -17,33 +18,29 @@
           #{{ shortId }}
         </span>
       </div>
-      <div class="right">
+      <div class="inline-flex items-center gap-2">
         <button
-          class="icon-btn"
+          class="btn btn-sm icon-btn"
+          title="Select command"
+          @click="emit('select', command.command_id)"
+        >
+          <MagnifyingGlassIcon class="icon" size="10" />
+        </button>
+        <button
+          class="btn btn-sm icon-btn"
           :title="expanded ? 'Collapse' : 'Expand'"
           @click="expanded = !expanded"
           aria-label="Toggle details"
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <polyline :points="expanded ? '18 15 12 9 6 15' : '6 9 12 15 18 9'" />
-          </svg>
+          <DownIcon
+            class="icon"
+            size="10"
+            :style="{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }"
+          />
         </button>
-        <div class="status" :data-status="command.status" :aria-label="command.status">
-          <span class="dot" aria-hidden="true"></span>
-          <span class="label">{{ command.status }}</span>
-        </div>
-        <div class="menu-wrapper">
+        <div class="menu-anchor">
           <button
-            class="icon-btn"
+            class="btn btn-sm icon-btn"
             title="More actions"
             aria-haspopup="menu"
             :aria-expanded="showMenu ? 'true' : 'false'"
@@ -51,60 +48,72 @@
             @keydown.enter.prevent="toggleMenu"
             @keydown.space.prevent="toggleMenu"
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="5" cy="12" r="1" />
-              <circle cx="12" cy="12" r="1" />
-              <circle cx="19" cy="12" r="1" />
-            </svg>
+            <MenuDotsIcon class="icon" size="10" />
           </button>
-          <ul v-if="showMenu" class="menu" role="menu" @mouseleave="showMenu = false">
-            <li role="menuitem" @click="copyRaw">Copy raw command</li>
-            <li role="menuitem" @click="inspectDevices">Inspect devices</li>
-            <li
+          <div v-if="showMenu" class="menu-dropdown" role="menu" @mouseleave="showMenu = false">
+            <button type="button" class="menu-item" role="menuitem" @click="copyRaw">
+              Copy raw command
+            </button>
+            <button type="button" class="menu-item" role="menuitem" @click="inspectDevices">
+              Inspect devices
+            </button>
+            <button
+              type="button"
+              class="menu-item"
               role="menuitem"
-              :class="{ disabled: !canCancel }"
+              :disabled="!canCancel"
               @click="canCancel && cancelCommand()"
             >
               Cancel command
-            </li>
-          </ul>
+            </button>
+          </div>
+        </div>
+        <div class="status" :data-status="command.status" :aria-label="command.status">
+          <span class="dot" aria-hidden="true"></span>
+          <span class="label">{{ command.status }}</span>
         </div>
       </div>
     </div>
-    <div class="body">
-      <div v-if="expanded" class="raw">
-        <div class="raw-label">Raw</div>
-        <pre class="raw-text mono">{{ command.text }}</pre>
+    <div class="px-2 py-2">
+      <div v-if="expanded" class="grid grid-cols-[40px_1fr] gap-2 mb-2">
+        <div class="text-[10px] uppercase text-[var(--color-text-dim)] pt-0.5">Raw</div>
+        <pre
+          class="m-0 px-2 py-1 border border-dashed border-[var(--border-color)] rounded bg-[var(--panel-bg)] text-[11px] whitespace-pre-wrap break-words font-mono"
+          >{{ command.text }}</pre
+        >
       </div>
-      <dl class="kv-grid">
+      <dl
+        class="grid [grid-template-columns:repeat(auto-fit,minmax(140px,1fr))] gap-x-4 gap-y-2 m-0"
+      >
         <div class="kv">
-          <dt>Symbol</dt>
-          <dd class="mono">{{ args.symbol }}</dd>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-0.5">
+            Symbol
+          </dt>
+          <dd class="m-0 text-[12px] font-mono">{{ args.symbol }}</dd>
         </div>
         <div class="kv">
-          <dt>Activation</dt>
-          <dd>{{ fmtPrice(args.activationPrice) }}</dd>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-0.5">
+            Activation
+          </dt>
+          <dd class="m-0 text-[12px]">{{ fmtPrice(args.activationPrice) }}</dd>
         </div>
         <div class="kv">
-          <dt>Jump Frac</dt>
-          <dd>{{ fmtPct(args.jumpFractionThreshold) }}</dd>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-0.5">
+            Jump Frac
+          </dt>
+          <dd class="m-0 text-[12px]">{{ fmtPct(args.jumpFractionThreshold) }}</dd>
         </div>
         <div class="kv">
-          <dt>Stop Loss</dt>
-          <dd>{{ fmtPrice(args.stopLoss) }}</dd>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-0.5">
+            Stop Loss
+          </dt>
+          <dd class="m-0 text-[12px]">{{ fmtPrice(args.stopLoss) }}</dd>
         </div>
         <div class="kv">
-          <dt>Risk</dt>
-          <dd>{{ fmtUsd(args.riskAmount) }}</dd>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-0.5">
+            Risk
+          </dt>
+          <dd class="m-0 text-[12px]">{{ fmtUsd(args.riskAmount) }}</dd>
         </div>
       </dl>
     </div>
@@ -115,9 +124,14 @@
 import { computed, ref } from 'vue'
 import type { CommandHistoryItem } from '@/lib/ws/protocol'
 import { useWsStore } from '@/stores/ws'
+import { DownIcon, MenuDotsIcon, MagnifyingGlassIcon } from '@/components/icons'
 
 const props = defineProps<{
   command: CommandHistoryItem
+}>()
+
+const emit = defineEmits<{
+  (e: 'select', commandId: string): void
 }>()
 
 const args = computed(() => {
@@ -200,55 +214,6 @@ function cancelCommand() {
   overflow: hidden;
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 32px;
-}
-
-.title {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.right {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.badge.kind {
-  text-transform: uppercase;
-  font-weight: 700;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  color: var(--accent-color);
-  background: color-mix(in srgb, var(--accent-color) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent-color) 40%, transparent);
-  padding: 2px 6px;
-  border-radius: 999px;
-}
-
-.name {
-  font-size: 11px;
-}
-
-.id {
-  font-size: 10px;
-}
-
-.copyable {
-  cursor: pointer;
-  user-select: text;
-}
-.copyable:focus-visible {
-  outline: 2px solid var(--accent-color);
-  outline-offset: 2px;
-  border-radius: 2px;
-}
-
 .status {
   --status-color: var(--color-text-dim);
   --status-bg: rgba(127, 127, 127, 0.15);
@@ -307,107 +272,5 @@ function cancelCommand() {
     transform: scale(1.25);
     opacity: 0.8;
   }
-}
-
-.body {
-  padding: 8px;
-}
-
-.raw {
-  display: grid;
-  grid-template-columns: 40px 1fr;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-.raw-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  color: var(--color-text-dim);
-  padding-top: 2px;
-}
-.raw-text {
-  margin: 0;
-  padding: 6px 8px;
-  border: 1px dashed var(--border-color);
-  border-radius: 4px;
-  background: var(--panel-bg);
-  font-size: 11px;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.kv-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px 16px;
-  margin: 0;
-}
-.kv dt {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-dim);
-  margin: 0 0 2px 0;
-}
-.kv dd {
-  margin: 0;
-  font-size: 12px;
-}
-
-.mono {
-  font-size: 11px;
-}
-
-.icon-btn {
-  background: transparent;
-  border: 1px solid var(--border-color);
-  color: inherit;
-  border-radius: 4px;
-  padding: 2px 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-.icon-btn:hover {
-  filter: brightness(1.1);
-}
-.icon-btn:active {
-  filter: brightness(0.95);
-}
-.icon-btn:focus-visible {
-  outline: 2px solid var(--accent-color);
-  outline-offset: 2px;
-}
-
-.menu-wrapper {
-  position: relative;
-}
-.menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  list-style: none;
-  margin: 0;
-  padding: 4px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  min-width: 180px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-  z-index: 5;
-}
-.menu li {
-  padding: 6px 8px;
-  font-size: 12px;
-  cursor: pointer;
-  border-radius: 4px;
-}
-.menu li:hover {
-  background: var(--panel-header-bg);
-}
-.menu li.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 </style>

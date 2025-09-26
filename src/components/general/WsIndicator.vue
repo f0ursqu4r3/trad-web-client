@@ -1,6 +1,6 @@
 <template>
-  <span class="ws-indicator-status">[{{ ws.status }}]</span>
-  <span v-if="ws.latencyMs != null" class="ws-indicator-lat">
+  <span class="ws-indicator-status muted">[{{ ws.status }}]</span>
+  <span v-if="ws.latencyMs != null" class="ws-indicator-lat muted">
     ({{ ws.latencyMs.toFixed(0) }}ms)
   </span>
   <span
@@ -66,12 +66,8 @@ const ws = useWsStore()
     0 0 0 3px rgba(213, 0, 0, 0.12),
     0 2px 6px rgba(0, 0, 0, 0.4);
 }
-.ws-indicator-status {
-  font-size: 12px;
-  color: var(--term-dim);
-}
+.ws-indicator-status,
 .ws-indicator-lat {
   font-size: 12px;
-  color: var(--term-dim);
 }
 </style>

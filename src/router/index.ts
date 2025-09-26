@@ -9,6 +9,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/TradingTerminalSplitView.vue'),
     meta: { requiresAuth: true, layout: 'authenticated' },
   },
+  {
+    path: '/tree',
+    component: () => import('@/views/TreeDemo.vue'),
+    meta: { requiresAuth: false },
+  },
   { path: '/:pathMatch(.*)*', redirect: '/terminal' },
 ]
 
