@@ -1,4 +1,3 @@
-// @ts-expect-error Missing .vue type declaration; add shims-vue.d.ts to restore types
 // Import the component
 import TreeView from './TreeView.vue'
 
