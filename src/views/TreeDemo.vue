@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import TreeView, { type TreeItem } from '@/components/general/TreeView.vue'
+import TreeView from '@/components/general/TreeView/TreeView.vue'
+import type { TreeItem } from '@/components/general/TreeView/types'
 
 const data = ref<TreeItem[]>([
   {
