@@ -28,23 +28,23 @@ import { FolderIcon, FolderOpenIcon, FileIcon } from '@/components/icons'
 
 const data = ref<TreeItem[]>([
   {
-    id: 'src',
+    id: 'b81d2d99-98a4-40d7-9b2f-204f412548e9',
     name: 'src',
     type: 'folder',
     children: [
       {
-        id: 'components',
+        id: 'cbf291da-dd36-4589-a2f4-ea04ad42da4d',
         name: 'components',
         type: 'folder',
         children: [
-          { id: 'TreeView.vue', name: 'TreeView.vue', type: 'file' },
-          { id: 'SplitView.vue', name: 'SplitView.vue', type: 'file' },
+          { id: 'fd720d64-8832-4f6c-871d-d81a1ae6bd73', name: 'TreeView.vue', type: 'file' },
+          { id: 'a0c6b61c-ad0c-4639-b903-244ffcfa2579', name: 'SplitView.vue', type: 'file' },
         ],
       },
-      { id: 'main.ts', name: 'main.ts', type: 'file' },
+      { id: '13166576-cbff-4c48-bdc4-6932f30b8969', name: 'main.ts', type: 'file' },
     ],
   },
-  { id: 'README.md', name: 'README.md', type: 'file' },
+  { id: 'd64e4999-f989-49e1-a03f-8bbc1c879f1f', name: 'README.md', type: 'file' },
 ])
 
 const expanded = ref<(string | number)[]>(['src', 'components'])

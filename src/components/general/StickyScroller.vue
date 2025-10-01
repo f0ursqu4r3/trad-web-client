@@ -23,16 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  ref,
-  watch,
-  nextTick,
-  onMounted,
-  onBeforeUnmount,
-  withDefaults,
-  defineProps,
-  defineExpose,
-} from 'vue'
+import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 
 import { DownIcon } from '@/components/icons'
 

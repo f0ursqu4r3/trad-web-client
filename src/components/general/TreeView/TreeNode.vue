@@ -49,21 +49,6 @@ function onToggle() {
     :style="{ paddingLeft: `${level * indent}px` }"
   >
     <div class="flex items-center gap-1.5">
-      <button
-        v-if="!inlineToggle && hasChildren"
-        type="button"
-        class="inline-flex items-center justify-center border-0 bg-transparent p-0 cursor-pointer text-current rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2"
-        :aria-label="expanded ? 'Collapse' : 'Expand'"
-        @click="onToggle"
-      >
-        <slot name="toggle-icon" :expanded="expanded" :level="level" :item="item">
-          <span class="inline-flex w-4 shrink-0 items-center justify-center text-term-dim">
-            {{ expanded ? '▼' : '▶' }}
-          </span>
-        </slot>
-      </button>
-      <span v-else class="inline-block w-4" aria-hidden="true"></span>
-
       <slot
         :item="item"
         :level="level"

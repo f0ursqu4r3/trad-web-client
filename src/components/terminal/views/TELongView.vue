@@ -22,6 +22,8 @@ import { useUiStore } from '@/stores/ui'
 const ui = useUiStore()
 const currentTheme = computed(() => (ui.theme === 'dark' ? themeDark : themeLight))
 
+const LAYOUT_KEY = 'te-long-command-layout'
+
 type DockviewApi = DockviewReadyEvent['api']
 const apiRef = ref<DockviewApi | null>(null)
 
@@ -47,7 +49,7 @@ function buildDefaultLayout(event: DockviewReadyEvent) {
     event.api.addPanel({
       id: 'tree',
       component: 'OrderTree',
-      title: 'Tree',
+      title: 'Devices',
       position: { referencePanel: 'chart', direction: 'below' },
     })
     event.api.addPanel({
@@ -61,9 +63,37 @@ function buildDefaultLayout(event: DockviewReadyEvent) {
   }
 }
 
+function saveLayout() {
+  if (!apiRef.value) return
+  try {
+    const layout = apiRef.value.toJSON()
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout))
+  } catch (e) {
+    console.error('[Dockview Persist Error]', e)
+  }
+}
+
+function loadSavedLayout(event: DockviewReadyEvent) {
+  const raw = localStorage.getItem(LAYOUT_KEY)
+  if (!raw) return false
+  try {
+    const json = JSON.parse(raw)
+    event.api.fromJSON(json)
+    return true
+  } catch (e) {
+    console.warn('[Layout Restore Failed]', e)
+    return false
+  }
+}
+
 function onReady(event: DockviewReadyEvent) {
   apiRef.value = event.api
-  buildDefaultLayout(event)
+  event.api.onDidLayoutChange(() => {
+    saveLayout()
+  })
+  if (!loadSavedLayout(event)) {
+    buildDefaultLayout(event)
+  }
 }
 
 function mountComponent(componentName: string) {

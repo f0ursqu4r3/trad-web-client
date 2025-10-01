@@ -14,9 +14,6 @@
       :getChildren="props.getChildren"
       :inlineToggle="props.inlineToggle"
     >
-      <template #toggle-icon="slotProps">
-        <slot name="toggle-icon" v-bind="slotProps" />
-      </template>
       <template #default="slotProps">
         <slot v-bind="slotProps">
           <span class="select-none">{{ getId(slotProps.item) }}</span>

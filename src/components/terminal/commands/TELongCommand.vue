@@ -19,6 +19,10 @@
         </span>
       </div>
       <div class="inline-flex items-center gap-2">
+        <div class="status" :data-status="command.status" :aria-label="command.status">
+          <span class="dot" aria-hidden="true"></span>
+          <span class="label">{{ command.status }}</span>
+        </div>
         <button
           class="btn btn-sm icon-btn"
           title="Select command"
@@ -68,20 +72,9 @@
             </button>
           </div>
         </div>
-        <div class="status" :data-status="command.status" :aria-label="command.status">
-          <span class="dot" aria-hidden="true"></span>
-          <span class="label">{{ command.status }}</span>
-        </div>
       </div>
     </div>
-    <div class="px-2 py-2">
-      <div v-if="expanded" class="grid grid-cols-[40px_1fr] gap-2 mb-2">
-        <div class="text-[10px] uppercase text-[var(--color-text-dim)] pt-0.5">Raw</div>
-        <pre
-          class="m-0 px-2 py-1 border border-dashed border-[var(--border-color)] rounded bg-[var(--panel-bg)] text-[11px] whitespace-pre-wrap break-words font-mono"
-          >{{ command.text }}</pre
-        >
-      </div>
+    <div v-if="expanded" class="px-2 py-2">
       <dl
         class="grid [grid-template-columns:repeat(auto-fit,minmax(140px,1fr))] gap-x-4 gap-y-2 m-0"
       >
@@ -116,6 +109,13 @@
           <dd class="m-0 text-[12px]">{{ fmtUsd(args.riskAmount) }}</dd>
         </div>
       </dl>
+      <div class="grid grid-cols-[40px_1fr] gap-2 mt-2">
+        <div class="flex items-center text-[10px] uppercase text-[var(--color-text-dim)]">Raw</div>
+        <pre
+          class="m-0 px-2 py-1 border border-dashed border-[var(--border-color)] rounded bg-[var(--panel-bg)] text-[11px] whitespace-pre-wrap break-words font-mono"
+          >{{ command.text }}</pre
+        >
+      </div>
     </div>
   </div>
 </template>

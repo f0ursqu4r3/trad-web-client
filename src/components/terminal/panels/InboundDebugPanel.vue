@@ -4,7 +4,7 @@ import { useWsStore } from '@/stores/ws'
 import StickyScroller from '@/components/general/StickyScroller.vue'
 
 const ws = useWsStore()
-const messages = computed(() => [...ws.inbound].slice(-200))
+const messages = computed(() => [...ws.inbound].slice(-10000))
 </script>
 
 <template>
