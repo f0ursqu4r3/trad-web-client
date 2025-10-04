@@ -1,0 +1,297 @@
+<script setup lang="ts">
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useUserStore } from '@/stores/user'
+import { useUiStore } from '@/stores/ui'
+import { useWsStore } from '@/stores/ws'
+import { apiPut } from '@/lib/apiClient'
+import { useAuth0 } from '@auth0/auth0-vue'
+
+const props = defineProps<{ open: boolean }>()
+const emit = defineEmits<{ (e: 'close'): void }>()
+
+// Stores
+const userStore = useUserStore()
+const uiStore = useUiStore()
+const wsStore = useWsStore()
+const { logout, isAuthenticated } = useAuth0()
+
+// Local editable preferences JSON
+const prefsEditor = ref('')
+const prefsDirty = ref(false)
+const prefsError = ref<string | null>(null)
+const prefsSaving = ref(false)
+const prefsSavedAt = ref<number | null>(null)
+
+// Load editor content from store when (a) modal opens or (b) store.preferences changes
+watch(
+	() => [props.open, userStore.preferences] as const,
+	([isOpen]) => {
+		if (isOpen) {
+			prefsEditor.value = JSON.stringify(userStore.preferences ?? {}, null, 2)
+			prefsDirty.value = false
+			prefsError.value = null
+		}
+	},
+	{ immediate: true },
+)
+
+// Account display fields
+const roles = computed(() => userStore.profile?.roles ?? [])
+const lastFetchedDisplay = computed(() => {
+		const ts = userStore.lastFetchedAt
+	if (!ts) return '—'
+	const d = new Date(ts)
+	return d.toLocaleTimeString()
+})
+
+// Theme toggle
+const theme = computed(() => uiStore.theme)
+function toggleTheme() {
+	uiStore.toggleTheme()
+}
+
+// Preferences saving logic
+async function savePreferences() {
+	prefsError.value = null
+	let parsed: unknown
+	try {
+		parsed = JSON.parse(prefsEditor.value || '{}')
+	} catch (e) {
+		prefsError.value = 'Invalid JSON: ' + (e instanceof Error ? e.message : String(e))
+		return
+	}
+	prefsSaving.value = true
+	try {
+		// Assumption: backend accepts PUT /me/preferences with full object & returns updated prefs
+			const updated = await apiPut<Record<string, unknown>>('/me/preferences', parsed as Record<string, unknown>, {
+			throwOnHTTPError: true,
+		})
+			userStore.preferences = updated // directly mutate (Pinia ref)
+		prefsDirty.value = false
+		prefsSavedAt.value = Date.now()
+	} catch (e) {
+		prefsError.value = e instanceof Error ? e.message : String(e)
+	} finally {
+		prefsSaving.value = false
+	}
+}
+
+// Handle editor changes
+function onPrefsInput() {
+	prefsDirty.value = true
+}
+
+// Refresh account info
+async function refreshAccount() {
+	await userStore.fetchMe()
+}
+
+// WS helpers
+function reconnectWs() {
+	wsStore.disconnect()
+	setTimeout(() => wsStore.connect(), 50)
+}
+function sendPing() {
+	wsStore.sendSystemPing()
+}
+
+function close() {
+	emit('close')
+}
+
+// Global key handling (Esc to close)
+function onKey(e: KeyboardEvent) {
+	if (!props.open) return
+	if (e.key === 'Escape') {
+		e.preventDefault()
+		close()
+	}
+}
+onMounted(() => window.addEventListener('keydown', onKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
+
+// Success / status helpers
+const prefsSavedRecently = computed(() => {
+	if (!prefsSavedAt.value) return false
+	return Date.now() - prefsSavedAt.value < 4000
+})
+
+// Derived states
+const accountLoading = computed(() => userStore.loading)
+const accountError = computed(() => userStore.error)
+
+// When opening, if no profile yet & not loading, fetch
+watch(
+	() => props.open,
+	(isOpen) => {
+			if (isOpen && !userStore.profile && !userStore.loading && isAuthenticated.value) {
+			userStore.fetchMe()
+		}
+	},
+	{ immediate: true },
+)
+
+// Logout redirect origin constant to avoid template global lookup typing issues
+const returnToOrigin = window.location.origin
+
+// Assumption doc: No dedicated preferences update route defined in repo; using PUT /me/preferences.
+</script>
+
+<template>
+	<Teleport to="body">
+		<transition name="fade">
+			<div
+				v-if="open"
+				class="fixed inset-0 z-[500] flex items-start justify-center overflow-auto bg-black/60 p-6 backdrop-blur-sm"
+				aria-modal="true"
+				role="dialog"
+				@click.self="close"
+			>
+				<div class="terminal-card shadow-term relative mx-auto w-full max-w-4xl border border-term-border" role="document">
+					<!-- Header -->
+					<div class="flex items-center justify-between border-b border-term-border/80 bg-term-bg/80 px-3 py-2 text-[12px] uppercase tracking-wide text-term-dim">
+						<div class="flex items-center gap-2">
+							<span class="text-term-accent">User Settings</span>
+							<span class="text-term-dim/70" v-if="userStore.profile">( {{ userStore.displayName }} )</span>
+						</div>
+						<div class="flex items-center gap-2">
+							<button class="btn-secondary btn-sm" @click="refreshAccount" :disabled="accountLoading">Refresh</button>
+							<button class="btn-secondary btn-sm" @click="toggleTheme">Theme: {{ theme }}</button>
+							<button class="btn-secondary btn-sm" @click="close">Close</button>
+						</div>
+					</div>
+
+					<!-- Body Scroll -->
+					<div class="max-h-[75vh] overflow-auto p-4 space-y-8 text-[13px] leading-snug">
+						<!-- Account Section -->
+						<section>
+							<header class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-term-accent">
+								<span>Account</span>
+								<span class="pill-info" v-if="accountLoading">loading...</span>
+								<span class="pill-err" v-if="accountError">error</span>
+							</header>
+							<div v-if="!isAuthenticated">Not authenticated.</div>
+							<div v-else-if="!userStore.profile && !accountLoading" class="text-term-dim">Profile not loaded.</div>
+							<div v-else-if="userStore.profile" class="grid gap-2 sm:grid-cols-2">
+								<div>
+									<div class="dim text-[11px]">User ID</div>
+									<div>{{ userStore.profile.id || '—' }}</div>
+								</div>
+								<div>
+									<div class="dim text-[11px]">Username</div>
+									<div>{{ userStore.profile.username || '—' }}</div>
+								</div>
+								<div>
+									<div class="dim text-[11px]">Name</div>
+									<div>{{ userStore.profile.name || '—' }}</div>
+								</div>
+								<div>
+									<div class="dim text-[11px]">Email</div>
+									<div>{{ userStore.profile.email || '—' }}</div>
+								</div>
+								<div class="sm:col-span-2">
+									<div class="dim text-[11px] mb-1">Roles</div>
+									<div class="flex flex-wrap gap-1">
+										<span v-if="!roles.length" class="badge">none</span>
+										<span v-for="r in roles" :key="r" class="badge">{{ r }}</span>
+									</div>
+								</div>
+								<div>
+									<div class="dim text-[11px]">Last Fetched</div>
+									<div>{{ lastFetchedDisplay }}</div>
+								</div>
+							</div>
+							<div v-if="accountError" class="notice-err mt-2">{{ accountError }}</div>
+						</section>
+
+						<hr class="section-divider" />
+
+						<!-- Session / Connection -->
+						<section>
+							<header class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-term-accent">
+								<span>Session</span>
+							</header>
+							<div class="grid gap-2 sm:grid-cols-3">
+								<div>
+									<div class="dim text-[11px]">Auth Status</div>
+									<div>{{ isAuthenticated ? 'authenticated' : 'anonymous' }}</div>
+								</div>
+								<div>
+									<div class="dim text-[11px]">WS Status</div>
+									<div>
+										<span :class="{
+											'pill-info': wsStore.status === 'connecting',
+											'pill-ok': wsStore.status === 'ready',
+											'pill-warn': wsStore.status === 'reconnecting',
+											'pill-err': wsStore.status === 'error',
+										}" class="pill">
+											{{ wsStore.status }}
+										</span>
+									</div>
+								</div>
+								<div>
+									<div class="dim text-[11px]">Latency</div>
+									<div>{{ wsStore.latencyMs != null ? wsStore.latencyMs.toFixed(0) + ' ms' : '—' }}</div>
+								</div>
+							</div>
+							<div class="mt-3 flex flex-wrap gap-2">
+								<button class="btn-secondary btn-sm" @click="sendPing" :disabled="wsStore.status !== 'ready'">Ping</button>
+								<button class="btn-secondary btn-sm" @click="reconnectWs">Reconnect WS</button>
+								<button class="btn-danger btn-sm" @click="logout({ logoutParams: { returnTo: returnToOrigin } })">Logout</button>
+							</div>
+						</section>
+
+						<hr class="section-divider" />
+
+						<!-- Appearance -->
+						<section>
+							<header class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-term-accent">
+								<span>Appearance</span>
+							</header>
+							<div class="flex items-center gap-3">
+								<div class="dim text-[11px]">Theme Mode</div>
+								<button class="btn-primary btn-sm" @click="toggleTheme">Toggle: {{ theme }}</button>
+							</div>
+						</section>
+
+						<hr class="section-divider" />
+
+						<!-- Preferences JSON -->
+						<section>
+							<header class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-term-accent">
+								<span>Preferences</span>
+								<span v-if="prefsDirty && !prefsSaving" class="pill-warn">modified</span>
+								<span v-if="prefsSaving" class="pill-info">saving...</span>
+								<span v-if="prefsSavedRecently" class="pill-ok">saved</span>
+							</header>
+							<p class="muted mb-2">Edit raw JSON preferences. Save replaces the full object.</p>
+							<textarea
+								v-model="prefsEditor"
+								@input="onPrefsInput"
+								class="textarea-term font-mono h-56 w-full text-[12px]"
+								spellcheck="false"
+							></textarea>
+							<div class="mt-2 flex items-center gap-2">
+								<button class="btn-primary btn-sm" :disabled="!prefsDirty || prefsSaving" @click="savePreferences">
+									Save Preferences
+								</button>
+												<button class="btn-secondary btn-sm" :disabled="!prefsDirty || prefsSaving" @click="() => { prefsEditor = JSON.stringify(userStore.preferences ?? {}, null, 2); prefsDirty = false; prefsError = null }">
+									Reset
+								</button>
+							</div>
+							<div v-if="prefsError" class="notice-err">{{ prefsError }}</div>
+							<div v-else-if="prefsSavedRecently" class="notice-ok">Preferences saved.</div>
+						</section>
+					</div>
+				</div>
+			</div>
+		</transition>
+	</Teleport>
+</template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from,
+.fade-leave-to { opacity: 0; }
+</style>
