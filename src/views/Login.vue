@@ -8,7 +8,9 @@
           <img src="/favicon.png" alt="TRAD" class="h-5 w-5 rounded-sm" />
           <span class="tracking-wide">TRAD Terminal</span>
         </div>
-        <div class="toolbar-section gap-1">
+        <div class="toolbar-section gap-4">
+          <WsIndicator />
+
           <button
             class="icon-btn"
             :title="themeToggleLabel"
@@ -83,13 +85,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
-import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
 import { useRouter } from 'vue-router'
 import { SunIcon, MoonIcon } from '@/components/icons'
 
+import WsIndicator from '@/components/general/WsIndicator.vue'
+
 const ui = useUiStore()
-const auth = useAuthStore()
 const router = useRouter()
 
 const { loginWithRedirect, logout, isAuthenticated, user } = useAuth0()
@@ -112,7 +114,12 @@ const userLabel = computed(() => {
 })
 
 const login = async () => {
-  await loginWithRedirect()
+  await loginWithRedirect({
+    authorizationParams: {
+      audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+      scope: import.meta.env.VITE_AUTH0_SCOPE,
+    },
+  })
 }
 
 const logoutUser = async () => {
@@ -122,7 +129,9 @@ const logoutUser = async () => {
 const goTerminal = () => router.push('/terminal')
 
 onMounted(() => {
-  if (auth.isAuthenticated) router.replace('/terminal')
+  if (isAuthenticated) {
+    router.replace('/terminal')
+  }
 })
 </script>
 

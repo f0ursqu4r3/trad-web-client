@@ -3,7 +3,7 @@
   <div class="layout">
     <div class="toolbar-row">
       <div class="toolbar-section mr-auto">
-        <button class="icon-btn" @click="auth.logout" title="Logout" aria-label="Logout">
+        <button class="btn icon-btn" @click="logoutUser" title="Logout" aria-label="Logout">
           <LogoutIcon />
         </button>
         <span class="muted">logged in as</span>
@@ -13,7 +13,7 @@
         <WsIndicator />
         <button
           @click="ui.toggleTheme()"
-          class="icon-btn"
+          class="btn icon-btn"
           :aria-label="themeToggleLabel"
           :title="themeToggleLabel"
         >
@@ -28,24 +28,30 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuth0 } from '@auth0/auth0-vue'
 import { SunIcon, MoonIcon, LogoutIcon } from '@/components/icons'
 import { useUiStore } from '@/stores/ui'
-import { useAuthStore } from '@/stores/auth'
+import { useUserStore } from '@/stores/user'
 
 import WsIndicator from '@/components/general/WsIndicator.vue'
 
 const ui = useUiStore()
-const auth = useAuthStore()
+const { isAuthenticated, logout } = useAuth0()
+const userStore = useUserStore()
 const router = useRouter()
 
-const username = computed(() => auth.username || 'anonymous')
+const username = computed(() => userStore.displayName || 'anonymous')
 const themeIcon = computed(() => (ui.theme === 'dark' ? SunIcon : MoonIcon))
 const themeToggleLabel = computed(() =>
   ui.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
 )
 
+const logoutUser = async () => {
+  await logout({ logoutParams: { returnTo: window.location.origin } })
+}
+
 watch(
-  () => auth.isAuthenticated,
+  () => isAuthenticated.value,
   (isAuth) => {
     if (!isAuth) {
       router.push({ path: '/login' })

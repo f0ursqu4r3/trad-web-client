@@ -99,6 +99,51 @@ bun install
 bun dev
 ```
 
+### API proxy and Auth0 tokens
+
+During development, API requests to `/api/*` are proxied to `VITE_API_TARGET` (default `http://localhost:5173`). The dev proxy is configured in `vite.config.ts` and strips the leading `/api` when forwarding. Adjust the `rewrite` rule as needed for your backend.
+
+This app uses Auth0. When making requests via the helpers in `src/lib/apiClient.ts`, an `Authorization: Bearer <token>` header is attached automatically when the user is authenticated. Make sure to set the correct `VITE_AUTH0_AUDIENCE` (and optional `VITE_AUTH0_SCOPE`) so that the token contains your API audience.
+
+Env variables:
+
+- `VITE_AUTH0_DOMAIN`
+- `VITE_AUTH0_CLIENT_ID`
+- `VITE_AUTH0_AUDIENCE` (optional but recommended for API access)
+- `VITE_AUTH0_SCOPE` (optional; default `openid profile email`)
+- `VITE_API_BASE` (prod base URL for API; defaults to `/api`)
+- `VITE_API_TARGET` (dev proxy target; defaults to `http://localhost:5173`)
+
+Example usage:
+
+```ts
+import { apiGet, apiPost } from '@/lib/apiClient'
+
+// GET /api/health (in dev) or `${VITE_API_BASE}/health` in prod
+const health = await apiGet<{ ok: boolean }>('/health')
+
+// POST to /api/orders
+const order = await apiPost('/orders', { symbol: 'BTCUSD', side: 'buy' })
+```
+
+### Authtentcation flow
+
+This app uses [Auth0 SPA SDK](https://auth0.com/docs/libraries/auth0-spa-js) for authentication. The main logic is in `src/lib/auth.ts` and the Auth0 provider is configured in `src/main.ts`.
+
+```mermaid
+flowchart TD
+    A[App Load] --> B{Is Authenticated?}
+    B -- Yes --> C[Get Access Token Silently]
+    B -- No --> D[Show Login Button]
+    D --> E[User Clicks Login]
+    E --> F[Redirect to Auth0]
+    F --> G[User Authenticates]
+    G --> H[Redirect Back to App]
+    H --> I[Handle Redirect Callback]
+    I --> C
+    C --> J[Make Authenticated API Requests]
+```
+
 ### Type-Check, Compile and Minify for Production
 
 ```sh

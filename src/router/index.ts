@@ -1,18 +1,14 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { watch } from 'vue'
+import { useAuth0 } from '@auth0/auth0-vue'
 
 const routes: RouteRecordRaw[] = [
   { path: '/', redirect: '/terminal' },
   { path: '/login', component: () => import('@/views/Login.vue'), meta: { layout: 'blank' } },
   {
     path: '/terminal',
-    component: () => import('@/views/TradingTerminalSplitView.vue'),
+    component: () => import('@/views/TradingTerminal.vue'),
     meta: { requiresAuth: true, layout: 'authenticated' },
-  },
-  {
-    path: '/tree',
-    component: () => import('@/views/TreeDemo.vue'),
-    meta: { requiresAuth: false },
   },
   { path: '/:pathMatch(.*)*', redirect: '/terminal' },
 ]
@@ -22,12 +18,31 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to) => {
-  const auth = useAuthStore()
-  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+router.beforeEach(async (to) => {
+  const { isAuthenticated, isLoading } = useAuth0()
+
+  // Wait for Auth0 SDK to finish loading on initial refresh
+  if (isLoading.value) {
+    await new Promise<void>((resolve) => {
+      const stop = watch(
+        () => isLoading.value,
+        (loading: boolean) => {
+          if (!loading) {
+            stop()
+            resolve()
+          }
+        },
+        { immediate: true },
+      )
+    })
+  }
+
+  const authed = isAuthenticated.value
+
+  if (to.meta.requiresAuth && !authed) {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
-  if (to.path === '/login' && auth.isAuthenticated) {
+  if (to.path === '/login' && authed) {
     return { path: '/terminal' }
   }
   return true
