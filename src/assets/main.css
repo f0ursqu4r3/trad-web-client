@@ -108,6 +108,24 @@
     @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:border-emerald-500 hover:bg-emerald-500/20;
   }
 
+  /* --------------------------------------------------
+     Light theme button contrast overrides
+     These adjust variants that were tuned for dark backgrounds so
+     text remains legible on light surfaces.
+     -------------------------------------------------- */
+  [data-theme='light'] .btn-secondary {
+    @apply text-slate-800 border-slate-400/80 hover:bg-slate-400/10;
+  }
+  [data-theme='light'] .btn-danger {
+    @apply text-red-700 border-red-500/50 bg-red-500/10 hover:bg-red-500/20;
+  }
+  [data-theme='light'] .btn-success {
+    @apply text-emerald-700 border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20;
+  }
+  [data-theme='light'] .btn-primary {
+    @apply text-[var(--accent-color)]; /* ensure consistent accent contrast */
+  }
+
   .btn-group {
     @apply inline-flex items-center gap-2;
   }
