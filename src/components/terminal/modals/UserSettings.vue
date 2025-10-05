@@ -5,6 +5,7 @@ import { useUiStore } from '@/stores/ui'
 import { useWsStore } from '@/stores/ws'
 import { apiPut } from '@/lib/apiClient'
 import { useAuth0 } from '@auth0/auth0-vue'
+import { SunIcon, MoonIcon } from '@/components/icons'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -164,14 +165,13 @@ const returnToOrigin = window.location.origin
             </div>
             <div class="flex items-center gap-2">
               <button
-                class="btn-secondary btn-sm"
+                class="btn btn-secondary btn-sm"
                 @click="refreshAccount"
                 :disabled="accountLoading"
               >
                 Refresh
               </button>
-              <button class="btn-secondary btn-sm" @click="toggleTheme">Theme: {{ theme }}</button>
-              <button class="btn-secondary btn-sm" @click="close">Close</button>
+              <button class="btn btn-secondary btn-sm" @click="close">Close</button>
             </div>
           </div>
 
@@ -264,15 +264,15 @@ const returnToOrigin = window.location.origin
               </div>
               <div class="mt-3 flex flex-wrap gap-2">
                 <button
-                  class="btn-secondary btn-sm"
+                  class="btn btn-secondary btn-sm"
                   @click="sendPing"
                   :disabled="wsStore.status !== 'ready'"
                 >
                   Ping
                 </button>
-                <button class="btn-secondary btn-sm" @click="reconnectWs">Reconnect WS</button>
+                <button class="btn btn-secondary btn-sm" @click="reconnectWs">Reconnect WS</button>
                 <button
-                  class="btn-danger btn-sm"
+                  class="btn btn-danger btn-sm"
                   @click="logout({ logoutParams: { returnTo: returnToOrigin } })"
                 >
                   Logout
@@ -291,7 +291,10 @@ const returnToOrigin = window.location.origin
               </header>
               <div class="flex items-center gap-3">
                 <div class="dim text-[11px]">Theme Mode</div>
-                <button class="btn-primary btn-sm" @click="toggleTheme">Toggle: {{ theme }}</button>
+                <button class="btn btn-primary btn-sm" @click="toggleTheme">
+                  Toggle: {{ theme }}
+                  <component :is="theme === 'dark' ? SunIcon : MoonIcon" :size="16" class="ml-1" />
+                </button>
               </div>
             </section>
 
@@ -316,14 +319,14 @@ const returnToOrigin = window.location.origin
               ></textarea>
               <div class="mt-2 flex items-center gap-2">
                 <button
-                  class="btn-primary btn-sm"
+                  class="btn btn-primary btn-sm"
                   :disabled="!prefsDirty || prefsSaving"
                   @click="savePreferences"
                 >
                   Save Preferences
                 </button>
                 <button
-                  class="btn-secondary btn-sm"
+                  class="btn btn-secondary btn-sm"
                   :disabled="!prefsDirty || prefsSaving"
                   @click="
                     () => {
@@ -371,10 +374,10 @@ const returnToOrigin = window.location.origin
 
 .settings-modal-header {
   background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--panel-header-bg) 85%, transparent),
-      color-mix(in srgb, var(--panel-header-bg) 100%, transparent)
-    );
+    180deg,
+    color-mix(in srgb, var(--panel-header-bg) 85%, transparent),
+    color-mix(in srgb, var(--panel-header-bg) 100%, transparent)
+  );
   border-bottom: 1px solid var(--border-color);
   color: var(--color-text-dim);
   backdrop-filter: blur(4px);

@@ -1,10 +1,9 @@
-import { defineStore } from 'pinia'
 import { ref, computed, onUnmounted } from 'vue'
+import { defineStore } from 'pinia'
 import { TradWebClient } from '@/lib/ws/websocketClient'
+import { useCommandStore } from '@/stores/command'
 import type {
   ClientToServerMessagePayload,
-  CommandHistoryItem,
-  CommandDevicesListData,
   ServerToClientMessage,
   UserCommandPayload,
   Uuid,
@@ -25,6 +24,8 @@ interface RawInboundRecord {
 }
 
 export const useWsStore = defineStore('ws', () => {
+  const commandStore = useCommandStore()
+
   const status = ref<WsStatus>('idle')
   const lastError = ref<string | null>(null)
   const latencyMs = ref<number | null>(null)
@@ -37,11 +38,6 @@ export const useWsStore = defineStore('ws', () => {
   const authAccepted = ref<boolean | null>(null)
   const authError = ref<string | null>(null)
   let lastPingSend: number | null = null
-
-  const commandHistory = ref<CommandHistoryItem[]>([])
-  const commandDevices = ref<Record<Uuid, CommandDevicesListData>>(
-    {} as Record<Uuid, CommandDevicesListData>,
-  )
 
   // Build from env (fallback to same host /ws)
   const url = import.meta.env.VITE_WS_URL || location.origin.replace(/^http/, 'ws') + '/ws'
@@ -196,18 +192,18 @@ export const useWsStore = defineStore('ws', () => {
         const data = (
           payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandHistory' }>
         ).data
-        commandHistory.value = data.items
+        commandStore.history = data.items
         break
       }
       case 'SetCommandStatus': {
         const data = (
           payload as Extract<ServerToClientMessage['payload'], { kind: 'SetCommandStatus' }>
         ).data
-        const idx = commandHistory.value.findIndex((item) => item.command_id === data.command_id)
+        const idx = commandStore.history.findIndex((item) => item.command_id === data.command_id)
         if (idx !== -1) {
-          commandHistory.value[idx].status = data.status
+          commandStore.history[idx].status = data.status
           // Force update
-          commandHistory.value = [...commandHistory.value]
+          commandStore.history = [...commandStore.history]
         }
         break
       }
@@ -215,7 +211,7 @@ export const useWsStore = defineStore('ws', () => {
         const data = (
           payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandDevicesList' }>
         ).data
-        commandDevices.value[data.command_id] = data
+        commandStore.devices[data.command_id] = data
         break
       }
       default:
@@ -253,8 +249,6 @@ export const useWsStore = defineStore('ws', () => {
     reconnectCount,
     authAccepted,
     authError,
-    commandHistory,
-    commandDevices,
     // getters
     isConnected,
     // actions

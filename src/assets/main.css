@@ -24,113 +24,33 @@
 
 /* Tailwind component shortcuts using @apply */
 @layer components {
+  /* --------------------------------------------------
+     Consolidated component layer (deduplicated)
+     -------------------------------------------------- */
+
+  /* Terminal card */
   .terminal-card {
     @apply w-full max-w-[720px] overflow-hidden rounded-lg border border-term-border bg-term-bg text-term-fg shadow-xl;
   }
 
+  /* Prompt rows */
   .prompt-row {
     @apply mb-2 flex items-center gap-2;
   }
-
   .prompt-chevron {
     @apply w-4 text-center text-term-accent;
   }
-
   .prompt-label {
     @apply w-24 shrink-0 text-[12px] text-term-dim;
   }
-
-  .input-term {
-    @apply flex-1 rounded border border-slate-700/70 bg-transparent px-2 py-1 text-[13px] outline-none transition focus:border-term-accent focus:ring-1 focus:ring-term-accent disabled:cursor-not-allowed disabled:opacity-60;
-  }
-
   .muted {
     @apply text-[12px] text-term-dim;
   }
 
-  /* Tailwind-backed global button base used across app */
-  .btn {
-    @apply inline-flex items-center gap-1 rounded border px-2 py-1 text-[12px] font-medium tracking-[0.5px] transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50;
-    @apply bg-[linear-gradient(var(--btn-bg-start),var(--btn-bg-end))] text-[var(--btn-fg)] border-[var(--btn-border)] shadow-[0_1px_2px_rgba(0,0,0,0.4),inset_0_0_0_1px_rgba(255,255,255,0.05)];
+  /* Inputs */
+  .input-term {
+    @apply flex-1 rounded border border-slate-700/70 bg-transparent px-2 py-1 text-[13px] outline-none transition focus:border-term-accent focus:ring-1 focus:ring-term-accent disabled:cursor-not-allowed disabled:opacity-60;
   }
-  .btn-sm {
-    @apply px-1.5 py-0.5 text-[11px];
-  }
-  .btn:hover:not(:disabled) {
-    @apply opacity-95;
-  }
-  .btn:active:not(:disabled) {
-    @apply translate-y-px;
-  }
-  .btn:focus-visible {
-    @apply outline-none ring-2 ring-[var(--accent-color)] ring-offset-2 ring-offset-transparent;
-  }
-
-  /* Tailwind-backed icon button */
-  .icon-btn {
-    @apply inline-flex items-center justify-center rounded border px-1.5 py-1 text-[12px] text-current transition border-[var(--border-color)] hover:opacity-90;
-  }
-  .icon-btn:focus-visible {
-    @apply outline-none ring-2 ring-[var(--accent-color)] ring-offset-2;
-  }
-
-  /* Generic panel/card used throughout app */
-  .panel-card {
-    @apply rounded-md border shadow-sm;
-    background: var(--panel-bg);
-    border-color: var(--border-color);
-    color: inherit;
-  }
-
-  .panel-header-row {
-    @apply flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide;
-    background: var(--panel-header-bg);
-    border-bottom: 1px solid var(--border-color);
-    color: var(--color-text-dim);
-  }
-
-  .section-divider {
-    @apply my-2 h-px w-full border-0;
-    background: var(--panel-border-inner);
-  }
-
-  /* Term-themed button variants */
-  .btn-primary {
-    @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-term-accent/40 bg-term-accent/20 text-term-accent hover:border-term-accent hover:bg-term-accent/30;
-  }
-  .btn-secondary {
-    @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-slate-600/60 text-slate-200 hover:bg-slate-600/20;
-  }
-  .btn-danger {
-    @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-red-500/40 bg-red-500/10 text-red-300 hover:border-red-500 hover:bg-red-500/20;
-  }
-  .btn-success {
-    @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:border-emerald-500 hover:bg-emerald-500/20;
-  }
-
-  /* --------------------------------------------------
-     Light theme button contrast overrides
-     These adjust variants that were tuned for dark backgrounds so
-     text remains legible on light surfaces.
-     -------------------------------------------------- */
-  [data-theme='light'] .btn-secondary {
-    @apply text-slate-800 border-slate-400/80 hover:bg-slate-400/10;
-  }
-  [data-theme='light'] .btn-danger {
-    @apply text-red-700 border-red-500/50 bg-red-500/10 hover:bg-red-500/20;
-  }
-  [data-theme='light'] .btn-success {
-    @apply text-emerald-700 border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20;
-  }
-  [data-theme='light'] .btn-primary {
-    @apply text-[var(--accent-color)]; /* ensure consistent accent contrast */
-  }
-
-  .btn-group {
-    @apply inline-flex items-center gap-2;
-  }
-
-  /* Inputs/selects/textarea with terminal look */
   .select-term {
     @apply flex-1 rounded border border-slate-700/70 bg-transparent px-2 py-1 text-[13px] outline-none transition focus:border-term-accent focus:ring-1 focus:ring-term-accent disabled:cursor-not-allowed disabled:opacity-60 appearance-none pr-6;
   }
@@ -143,13 +63,11 @@
   .field-row {
     @apply grid grid-cols-[10rem_1fr] items-start gap-3;
   }
-
-  /* Size variants */
-  .btn-sm {
-    @apply px-1.5 py-0.5 text-[11px];
+  .input-invalid {
+    @apply border-red-500/60 focus:border-red-500 focus:ring-1 focus:ring-red-500;
   }
-  .btn-lg {
-    @apply px-3 py-1.5 text-[13px];
+  .field-error {
+    @apply mt-1 text-[11px] text-red-400;
   }
   .input-term-sm {
     @apply px-1.5 py-0.5 text-[12px];
@@ -158,12 +76,84 @@
     @apply px-3 py-2 text-[14px];
   }
 
-  /* Invalid states */
-  .input-invalid {
-    @apply border-red-500/60 focus:border-red-500 focus:ring-1 focus:ring-red-500;
+  /* Buttons (base + states) */
+  .btn {
+    @apply inline-flex items-center gap-1 rounded border px-2 py-1 text-[12px] font-medium tracking-[0.5px] transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 text-[var(--btn-fg)] border-[var(--btn-border)] shadow-[0_1px_2px_rgba(0,0,0,0.4),inset_0_0_0_1px_rgba(255,255,255,0.05)];
   }
-  .field-error {
-    @apply mt-1 text-[11px] text-red-400;
+  .btn:hover:not(:disabled) {
+    @apply opacity-95;
+  }
+  .btn:active:not(:disabled) {
+    @apply translate-y-px;
+  }
+  .btn:focus-visible {
+    @apply outline-none ring-2 ring-[var(--accent-color)] ring-offset-2 ring-offset-transparent;
+  }
+  .btn-sm {
+    @apply px-1.5 py-0.5 text-[11px];
+  }
+  .btn-lg {
+    @apply px-3 py-1.5 text-[13px];
+  }
+  .btn-group {
+    @apply inline-flex items-center gap-2;
+  }
+
+  /* Button variants (only color differences) */
+  .btn-primary {
+    @apply border-term-accent/40 bg-term-accent/20 text-term-accent hover:border-term-accent hover:bg-term-accent/30 lowercase;
+  }
+  .btn-secondary {
+    @apply border-slate-600/60 text-slate-200 hover:bg-slate-600/20 lowercase;
+  }
+  .btn-danger {
+    @apply border-red-500/40 bg-red-500/10 text-red-300 hover:border-red-500 hover:bg-red-500/20 lowercase;
+  }
+  .btn-success {
+    @apply border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:border-emerald-500 hover:bg-emerald-500/20 lowercase;
+  }
+
+  /* Light theme contrast overrides */
+  [data-theme='light'] .btn-secondary {
+    @apply text-slate-800 border-slate-400/80 hover:bg-slate-400/10;
+  }
+  [data-theme='light'] .btn-danger {
+    @apply text-red-700 border-red-500/50 bg-red-500/10 hover:bg-red-500/20;
+  }
+  [data-theme='light'] .btn-success {
+    @apply text-emerald-700 border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20;
+  }
+  [data-theme='light'] .btn-primary {
+    @apply text-[var(--accent-color)];
+  }
+
+  /* Icon button (doesn't rely on @extend) */
+  .icon-btn {
+    @apply inline-flex items-center justify-center rounded border px-1.5 py-1 text-[12px] font-medium tracking-[0.5px] transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 text-current border-[var(--border-color)] shadow-[0_1px_2px_rgba(0,0,0,0.4),inset_0_0_0_1px_rgba(255,255,255,0.05)];
+  }
+  .icon-btn:hover:not(:disabled) {
+    @apply opacity-90;
+  }
+  .icon-btn:focus-visible {
+    @apply outline-none ring-2 ring-[var(--accent-color)] ring-offset-2;
+  }
+
+  /* Panels */
+  .panel-card {
+    @apply rounded-md border shadow-sm;
+    background: var(--panel-bg);
+    border-color: var(--border-color);
+    color: inherit;
+  }
+  .panel-header-row {
+    @apply flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide;
+    background: var(--panel-header-bg);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--color-text-dim);
+  }
+  .section-divider {
+    @apply my-2 h-px w-full border-0;
+    background: var(--panel-border-inner);
   }
 
   /* Toolbars */
@@ -171,13 +161,13 @@
     @apply flex items-center justify-between gap-2 border-b border-slate-700/60 bg-[var(--panel-header-bg)] px-2 py-1 text-[12px] text-[var(--color-text-dim)];
   }
   .toolbar-section {
-    @apply inline-flex items-center gap-2;
+    @apply inline-flex items-center gap-4;
   }
   .toolbar-spacer {
     @apply grow;
   }
 
-  /* Menus / dropdowns */
+  /* Menus */
   .menu-anchor {
     @apply relative;
   }
@@ -205,7 +195,7 @@
     @apply animate-pulse rounded bg-slate-500/20 h-3;
   }
 
-  /* List rows */
+  /* Lists */
   .list-row {
     @apply flex items-center justify-between gap-3 border-b border-slate-800/60 px-2 py-1.5 text-[13px];
   }
@@ -213,7 +203,7 @@
     @apply hover:bg-white/5;
   }
 
-  /* Small helpers */
+  /* Helpers */
   .code-inline {
     @apply rounded border px-1.5 py-0.5 text-[12px] font-mono;
     background: color-mix(in srgb, var(--panel-header-bg) 70%, transparent);
@@ -260,7 +250,7 @@
     @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-term-accent/10 text-term-accent ring-1 ring-inset ring-term-accent/30;
   }
 
-  /* Links matching accent */
+  /* Links */
   a.link-term {
     @apply text-term-accent underline underline-offset-2 hover:opacity-90;
   }
@@ -270,87 +260,16 @@
     @apply w-full text-[12px];
   }
   .table-tiny thead th {
-    @apply border-b border-slate-700/70 py-1 text-left font-medium text-term-dim;
-  }
-  .table-tiny tbody td {
-    @apply border-b border-slate-800/70 py-1 align-top;
-  }
-  .table-compact tbody tr:hover {
-    @apply bg-white/5;
-  }
-
-  /* Common scroll area */
-  .scroll-area {
-    @apply overflow-auto;
-  }
-
-  /* Generic panel/card used throughout app */
-  .panel-card {
-    @apply rounded-md border shadow-sm;
-    background: var(--panel-bg);
-    border-color: var(--border-color);
-    color: inherit;
-  }
-
-  .panel-header-row {
-    @apply flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide;
-    background: var(--panel-header-bg);
-    border-bottom: 1px solid var(--border-color);
-    color: var(--color-text-dim);
-  }
-
-  .section-divider {
-    @apply my-2 h-px w-full border-0;
-    background: var(--panel-border-inner);
-  }
-
-  /* Term-themed button variants */
-  .btn-primary {
-    @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-term-accent/40 bg-term-accent/20 text-term-accent hover:border-term-accent hover:bg-term-accent/30;
-  }
-  .btn-secondary {
-    @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-slate-600/60 text-slate-200 hover:bg-slate-600/20;
-  }
-  .btn-danger {
-    @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-red-500/40 bg-red-500/10 text-red-300 hover:border-red-500 hover:bg-red-500/20;
-  }
-  .btn-success {
-    @apply rounded border px-2 py-1 text-[12px] lowercase transition disabled:cursor-not-allowed disabled:opacity-50 border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:border-emerald-500 hover:bg-emerald-500/20;
-  }
-
-  /* Inputs/selects/textarea with terminal look */
-  .select-term {
-    @apply flex-1 rounded border border-slate-700/70 bg-transparent px-2 py-1 text-[13px] outline-none transition focus:border-term-accent focus:ring-1 focus:ring-term-accent disabled:cursor-not-allowed disabled:opacity-60 appearance-none pr-6;
-  }
-  .textarea-term {
-    @apply flex-1 rounded border border-slate-700/70 bg-transparent px-2 py-1 text-[13px] outline-none transition focus:border-term-accent focus:ring-1 focus:ring-term-accent disabled:cursor-not-allowed disabled:opacity-60 min-h-[90px];
-  }
-
-  /* Badges / chips */
-  .badge {
-    @apply inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px];
-    background: var(--panel-header-bg);
-    border-color: var(--border-color);
-    color: var(--color-text-dim);
-  }
-
-  /* Links matching accent */
-  a.link-term {
-    @apply text-term-accent underline underline-offset-2 hover:opacity-90;
-  }
-
-  /* Small table styling for compact views */
-  .table-tiny {
-    @apply w-full text-[12px];
-  }
-  .table-tiny thead th {
     @apply py-1 text-left font-medium text-term-dim border-b border-slate-700/70;
   }
   .table-tiny tbody td {
     @apply py-1 align-top border-b border-slate-800/70;
   }
+  .table-compact tbody tr:hover {
+    @apply bg-white/5;
+  }
 
-  /* Common scroll area */
+  /* Scroll area */
   .scroll-area {
     @apply overflow-auto;
   }
@@ -370,7 +289,6 @@
   --accent-color: #0969da;
   --font-mono:
     'SFMono-Regular', ui-monospace, 'JetBrains Mono', 'Source Code Pro', Menlo, Consolas, monospace;
-  --btn-bg-start: #3e3e3e;
   --btn-bg-start: #ffffff;
   --btn-bg-end: #f1f4f8;
   --btn-border: #dfe3e8;

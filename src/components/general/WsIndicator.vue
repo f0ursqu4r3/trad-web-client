@@ -1,16 +1,18 @@
 <template>
-  <span class="ws-indicator-status muted">[{{ ws.status }}]</span>
-  <span v-if="ws.latencyMs != null" class="ws-indicator-lat muted">
-    ({{ ws.latencyMs.toFixed(0) }}ms)
-  </span>
-  <span
-    :title="
-      `WS Status: ${ws.status}` +
-      (ws.latencyMs != null ? ` (lat ${ws.latencyMs.toFixed(0)}ms)` : '')
-    "
-    class="ws-indicator"
-    :data-status="ws.status"
-  ></span>
+  <div class="flex items-center space-x-1">
+    <span class="ws-indicator-status muted">[{{ ws.status }}]</span>
+    <span v-if="ws.latencyMs != null" class="ws-indicator-lat muted">
+      ({{ ws.latencyMs.toFixed(0) }}ms)
+    </span>
+    <span
+      :title="
+        `WS Status: ${ws.status}` +
+        (ws.latencyMs != null ? ` (lat ${ws.latencyMs.toFixed(0)}ms)` : '')
+      "
+      class="ws-indicator"
+      :data-status="ws.status"
+    ></span>
+  </div>
 </template>
 
 <script setup lang="ts">

@@ -1,4 +1,4 @@
-import type { CommandHistoryItem } from '@/lib/ws/protocol'
+import type { CommandDevicesListData, CommandHistoryItem, Uuid } from '@/lib/ws/protocol'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useWsStore } from '@/stores/ws'
@@ -6,8 +6,9 @@ import { useWsStore } from '@/stores/ws'
 export const useCommandStore = defineStore('command', () => {
   const ws = useWsStore()
 
-  const history = ref<CommandHistoryItem[]>(
-    ws.commandHistory.length ? ws.commandHistory : ([] as CommandHistoryItem[]),
+  const history = ref<CommandHistoryItem[]>([])
+  const devices = ref<Record<Uuid, CommandDevicesListData>>(
+    {} as Record<Uuid, CommandDevicesListData>,
   )
 
   const selectedCommandId = ref<string | null>(null)
@@ -22,5 +23,5 @@ export const useCommandStore = defineStore('command', () => {
     ws.listCommandDevices(commandId)
   }
 
-  return { history, selectedCommandId, selectedCommand, selectCommand }
+  return { history, devices, selectedCommandId, selectedCommand, selectCommand }
 })
