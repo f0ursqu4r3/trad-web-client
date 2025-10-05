@@ -1,26 +1,5 @@
+@import './tokens.css'; /* central design tokens */
 @import 'tailwindcss';
-
-/* Tailwind v4 theme tokens for terminal-style palette */
-@theme {
-  --color-term-bg: #0b0f14;
-  --color-term-fg: #e6edf3;
-  --color-term-dim: #8b949e;
-  --color-term-accent: #2f81f7;
-  --color-term-border: #1f2630;
-  --color-term-ok: #4ade80;
-  --color-term-err: #f87171;
-}
-
-/* Dark theme overrides for terminal tokens (outside @theme per Tailwind v4 rules) */
-[data-theme='dark'] {
-  --color-term-bg: #0b0f14;
-  --color-term-fg: #e6edf3;
-  --color-term-dim: #8b949e;
-  --color-term-accent: #2f81f7;
-  --color-term-border: #1f2630;
-  --color-term-ok: #4ade80;
-  --color-term-err: #f87171;
-}
 
 /* Tailwind component shortcuts using @apply */
 @layer components {
@@ -273,72 +252,6 @@
   .scroll-area {
     @apply overflow-auto;
   }
-}
-
-/* existing imports if any */
-/* Base (light) theme */
-:root {
-  --color-bg: #f5f7fa;
-  --color-bg-alt: #ffffff;
-  --panel-bg: #ffffff;
-  --panel-header-bg: #eef1f5;
-  --panel-border-inner: #dfe3e8;
-  --border-color: #cfd6dd;
-  --color-text: #1f2328;
-  --color-text-dim: #57606a;
-  --accent-color: #0969da;
-  --font-mono:
-    'SFMono-Regular', ui-monospace, 'JetBrains Mono', 'Source Code Pro', Menlo, Consolas, monospace;
-  --btn-bg-start: #ffffff;
-  --btn-bg-end: #f1f4f8;
-  --btn-border: #dfe3e8;
-  --btn-fg: #1f2328;
-  --color-bg-secondary: #f5f7fa;
-  --color-text: #1f2328;
-  --color-bg-tertiary: #eef1f5;
-  --color-success: #2abf6e;
-  --color-error: #d73a49;
-  --color-warning: #ffa500;
-  --color-info: #2f81f7;
-  --color-border-strong: #cfd6dd;
-  /* Scrollbar (light) */
-  --scrollbar-track: transparent;
-  --scrollbar-thumb: #c8d1da;
-  --scrollbar-thumb-hover: #b6c0cb;
-}
-/* Dark theme override (activated via [data-theme='dark']) */
-[data-theme='dark'] {
-  --color-bg: #121417;
-  --color-bg-alt: #1a1d21;
-  --panel-bg: #16191d;
-  --panel-header-bg: #20252b;
-  --panel-border-inner: #232a31;
-  --border-color: #2a3139;
-  --color-text: #d0d7de;
-  --color-text-dim: #8b949e;
-  --accent-color: #2f81f7;
-  --btn-bg-start: #3e3e3e;
-  --btn-bg-end: #2a2a2a;
-  --btn-border: #555;
-  --btn-fg: #e8e8e8;
-  --color-bg-secondary: #1a1d21;
-  --color-text: #d0d7de;
-  --color-bg-tertiary: #20252b;
-  --color-success: #4ade80;
-  --color-error: #f87171;
-  --color-warning: #ffb86c;
-  --color-info: #2f81f7;
-  --color-border-strong: #343c45;
-  /* Scrollbar (dark) */
-  --scrollbar-track: transparent;
-  --scrollbar-thumb: #2a3037;
-  --scrollbar-thumb-hover: #343c45;
-}
-
-/* Ensure body inherits when dark attribute set at root */
-[data-theme='dark'] body {
-  background: var(--color-bg);
-  color: var(--color-text);
 }
 
 /* Optional smooth swap */

@@ -155,3 +155,66 @@ bun run build
 ```sh
 bun lint
 ```
+
+## Styling Architecture
+
+### Design Tokens
+
+Centralized in `src/assets/tokens.css` using a Tailwind v4 `@theme` block plus dark-mode overrides. Component styles import this first (`main.css`). This separation allows:
+
+- Faster theming / brand iteration
+- Potential runtime token swapping (theme packs)
+- Clear diff history for purely visual changes
+
+### Components & Utilities
+
+`src/assets/main.css` houses consolidated component classes (`@layer components`). No `@extend` tricks; everything is standard Tailwind utilities + CSS variables. This keeps the CSS pipeline predictable and avoids plugin lock‑in.
+
+### Purge / Safelist Strategy
+
+Dynamic class names in Vue templates (e.g. `:class="['btn', variant]"`) may not be statically discoverable. We enumerate likely dynamic classes under `safelist` in `tailwind.config.js`.
+
+Guidelines:
+
+1. Prefer explicit full class literals when feasible.
+2. When constructing variants programmatically, update `safelist` (or convert a group to a regex like `/^pill-(ok|err|warn|info)$/`).
+3. Audit build size periodically: `grep -c ".btn-" dist/assets/*.css` (rough heuristic) to ensure variants are preserved.
+
+### Future: Plugin / Mixins Extraction
+
+If we introduce a custom Tailwind plugin, repeated button variant patterns can collapse into a `btn-base` component and color recipes:
+
+```js
+// Example (not yet enabled):
+export function buttonVariantsPlugin({ addComponents }) {
+    addComponents({
+        '.btn-base': {
+            '@apply inline-flex items-center gap-1 rounded border px-2 py-1 text-[12px] font-medium tracking-[0.5px] transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50': {}
+        }
+    });
+}
+```
+
+Then each variant becomes:
+
+```css
+.btn-primary { @apply btn-base border-term-accent/40 bg-term-accent/20 text-term-accent hover:border-term-accent hover:bg-term-accent/30; }
+```
+
+### Theming
+
+Dark mode toggled via `[data-theme="dark"]` on the root. Tokens cascade automatically—no JS beyond the attribute switch. Additional themes can be added by scoping another attribute or data value and overriding only differing tokens.
+
+### Token Consumption in JS
+
+If charting or other libs need colors, you can read them with:
+
+```ts
+const root = getComputedStyle(document.documentElement)
+const accent = root.getPropertyValue('--accent-color').trim()
+```
+
+Consider creating a small helper module (`src/lib/themeTokens.ts`) if usage grows.
+
+---
+Open to further refactors: splitting tokens by domain (`color`, `spacing`, etc.), or adding semantic alias tokens (e.g. `--color-surface`, `--color-outline-strong`).
