@@ -1,7 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, watch, computed } from 'vue'
 
-export type ThemeMode = 'dark' | 'light' | 'synthwave' | 'system' | 'legacy' | 'fantasy24'
+export type ThemeMode =
+  | 'dark'
+  | 'light'
+  | 'synthwave'
+  | 'system'
+  | 'legacy'
+  | 'fantasy24'
+  | 'tomorrowNight80s'
 const STORAGE_KEY = 'ui.theme.v1'
 
 function loadInitial(): ThemeMode {
@@ -12,7 +19,8 @@ function loadInitial(): ThemeMode {
     saved === 'synthwave' ||
     saved === 'system' ||
     saved === 'legacy' ||
-    saved === 'fantasy24'
+    saved === 'fantasy24' ||
+    saved === 'tomorrowNight80s'
   )
     return saved as ThemeMode
   // Prefer OS setting

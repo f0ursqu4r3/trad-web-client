@@ -3,7 +3,6 @@ import { ref, computed } from 'vue'
 import {
   SunIcon,
   MoonIcon,
-  MenuDotsIcon,
   ComputerDesktopIcon,
   BoltIcon,
   StarIcon,
@@ -15,28 +14,13 @@ const uiStore = useUiStore()
 const showMenu = ref(false)
 const currentTheme = ref(uiStore.theme)
 
-const currentThemeLabel = computed(() => {
-  return currentTheme.value.charAt(0).toUpperCase() + currentTheme.value.slice(1)
-})
+const currentThemeLabel = computed(
+  () => themeOptions.find((option) => option.value === currentTheme.value)?.label || 'Theme',
+)
 
-const currentThemeIcon = computed(() => {
-  switch (currentTheme.value) {
-    case 'light':
-      return SunIcon
-    case 'dark':
-      return MoonIcon
-    case 'system':
-      return ComputerDesktopIcon
-    case 'synthwave':
-      return BoltIcon
-    case 'legacy':
-      return StarIcon
-    case 'fantasy24':
-      return SparklesIcon
-    default:
-      return MenuDotsIcon
-  }
-})
+const currentThemeIcon = computed(
+  () => themeOptions.find((option) => option.value === currentTheme.value)?.icon || SparklesIcon,
+)
 
 interface ThemeOption {
   label: string
@@ -44,10 +28,10 @@ interface ThemeOption {
   icon:
     | typeof SunIcon
     | typeof MoonIcon
-    | typeof MenuDotsIcon
     | typeof ComputerDesktopIcon
     | typeof BoltIcon
     | typeof StarIcon
+    | typeof SparklesIcon
 }
 
 const themeOptions: ThemeOption[] = [
@@ -57,6 +41,7 @@ const themeOptions: ThemeOption[] = [
   { label: 'Synthwave', value: 'synthwave', icon: BoltIcon },
   { label: 'Legacy', value: 'legacy', icon: StarIcon },
   { label: 'Fantasy24', value: 'fantasy24', icon: SparklesIcon },
+  { label: 'Tomorrow Night 80s', value: 'tomorrowNight80s', icon: SparklesIcon },
 ]
 
 function toggleMenu() {
