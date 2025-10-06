@@ -201,6 +201,82 @@ Then each variant becomes:
 .btn-primary { @apply btn-base border-term-accent/40 bg-term-accent/20 text-term-accent hover:border-term-accent hover:bg-term-accent/30; }
 ```
 
+The actual implementation now lives as a modular plugin: `tailwind.plugins/buttonVariants.js` and is imported in `tailwind.config.js`.
+
+### Button Variants Plugin Options
+
+The plugin is palette‑driven and can be customized by constructing it with `createButtonVariantsPlugin` instead of importing the default instance.
+
+```js
+// tailwind.config.js
+import { createButtonVariantsPlugin } from './tailwind.plugins/buttonVariants.js'
+
+export default {
+    // ...
+    plugins: [
+        createButtonVariantsPlugin({
+            palette: [
+                { name: 'primary', color: 'var(--color-term-accent)', kind: 'accent' },
+                { name: 'neutral', color: 'rgba(71,85,105,0.6)', kind: 'neutral' },
+                { name: 'danger', color: '#ef4444', kind: 'tone' },
+                { name: 'success', color: '#10b981', kind: 'tone' },
+                // Add a custom info tone
+                { name: 'info', color: '#3b82f6', kind: 'tone' },
+            ],
+            dataAttributeMode: true,  // enables [data-variant="danger"] mapping
+            aliases: true,            // keeps .btn-primary / .btn-secondary legacy classes
+        }),
+    ],
+}
+```
+
+#### Palette Entries
+
+Each palette item: `{ name, color, kind }` where:
+
+- `name`: becomes part of the class e.g. `.btn-{name}`, `.btn-outline-{name}`, `.btn-ghost-{name}`.
+- `color`: hex (`#10b981`), rgb/rgba, or CSS variable (`var(--accent-color)`).
+- `kind`: select recipe
+        - `accent`: subtle tinted background + stronger hover & pressed states
+        - `neutral`: low‑contrast neutral styling with hover tint
+        - `tone` (default): colored border + tinted fill + contrast‑aware text color
+
+#### Data Attribute Mode
+When `dataAttributeMode` is `true` you can style with attributes instead of classes:
+
+```html
+<button class="btn" data-variant="primary">Primary</button>
+<button class="btn" data-variant="outline-danger">Delete</button>
+<button class="btn" data-variant="ghost-success">OK</button>
+```
+
+Attribute mapping exists alongside the traditional classes so either approach works. This can help reduce class switching noise in components that change only the variant value.
+
+#### Disabled & Focus Styles
+Disabled buttons remove gradients and drop shadows, relying on neutral panel bg + dim text for better clarity. Focus rings adopt the variant color (for outline/ghost as well) to preserve contextual meaning.
+
+#### Extending Further
+You can wrap the exported `createButtonVariantsPlugin` in your own factory that injects a project‑wide augmented palette or adds additional kinds (e.g. `warning`, `info`) by cloning one of the existing recipe helpers.
+
+```js
+// example extension (in a local file)
+import { createButtonVariantsPlugin } from './tailwind.plugins/buttonVariants.js'
+export const extendedButtons = createButtonVariantsPlugin({
+    palette: [
+        { name: 'primary', color: 'var(--color-term-accent)', kind: 'accent' },
+        { name: 'neutral', color: 'rgba(71,85,105,0.6)', kind: 'neutral' },
+        { name: 'danger', color: '#ef4444', kind: 'tone' },
+        { name: 'success', color: '#10b981', kind: 'tone' },
+        { name: 'warning', color: '#f59e0b', kind: 'tone' },
+    ],
+})
+```
+
+If you add many dynamic names remember to update (or regex‑ify) the `safelist` to prevent purging.
+ 
+### Style Guide
+The route `/style-guide` provides a simple visual surface enumerating buttons, inputs, pills, notices, and badges for manual QA and potential screenshot regression tooling.
+
 ### Theming
 
 Dark mode toggled via `[data-theme="dark"]` on the root. Tokens cascade automatically—no JS beyond the attribute switch. Additional themes can be added by scoping another attribute or data value and overriding only differing tokens.

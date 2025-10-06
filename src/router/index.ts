@@ -10,6 +10,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/TradingTerminal.vue'),
     meta: { requiresAuth: true, layout: 'authenticated' },
   },
+  {
+    path: '/style-guide',
+    component: () => import('@/views/StyleGuide.vue'),
+    meta: { layout: 'blank' },
+  },
   { path: '/:pathMatch(.*)*', redirect: '/terminal' },
 ]
 

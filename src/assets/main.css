@@ -56,66 +56,10 @@
   }
 
   /* Buttons (base + states) */
-  .btn {
-    @apply inline-flex items-center gap-1 rounded border px-2 py-1 text-[12px] font-medium tracking-[0.5px] transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 text-[var(--btn-fg)] border-[var(--btn-border)] shadow-[0_1px_2px_rgba(0,0,0,0.4),inset_0_0_0_1px_rgba(255,255,255,0.05)];
-  }
-  .btn:hover:not(:disabled) {
-    @apply opacity-95;
-  }
-  .btn:active:not(:disabled) {
-    @apply translate-y-px;
-  }
-  .btn:focus-visible {
-    @apply outline-none ring-2 ring-[var(--accent-color)] ring-offset-2 ring-offset-transparent;
-  }
-  .btn-sm {
-    @apply px-1.5 py-0.5 text-[11px];
-  }
-  .btn-lg {
-    @apply px-3 py-1.5 text-[13px];
-  }
-  .btn-group {
-    @apply inline-flex items-center gap-2;
-  }
-
-  /* Button variants (only color differences) */
-  .btn-primary {
-    @apply border-term-accent/40 bg-term-accent/20 text-term-accent hover:border-term-accent hover:bg-term-accent/30 lowercase;
-  }
-  .btn-secondary {
-    @apply border-slate-600/60 text-slate-200 hover:bg-slate-600/20 lowercase;
-  }
-  .btn-danger {
-    @apply border-red-500/40 bg-red-500/10 text-red-300 hover:border-red-500 hover:bg-red-500/20 lowercase;
-  }
-  .btn-success {
-    @apply border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:border-emerald-500 hover:bg-emerald-500/20 lowercase;
-  }
-
-  /* Light theme contrast overrides */
-  [data-theme='light'] .btn-secondary {
-    @apply text-slate-800 border-slate-400/80 hover:bg-slate-400/10;
-  }
-  [data-theme='light'] .btn-danger {
-    @apply text-red-700 border-red-500/50 bg-red-500/10 hover:bg-red-500/20;
-  }
-  [data-theme='light'] .btn-success {
-    @apply text-emerald-700 border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20;
-  }
-  [data-theme='light'] .btn-primary {
-    @apply text-[var(--accent-color)];
-  }
+  /* (Button base + variants migrated to Tailwind plugin: see tailwind.config.js buttonVariants) */
 
   /* Icon button (doesn't rely on @extend) */
-  .icon-btn {
-    @apply inline-flex items-center justify-center rounded border px-1.5 py-1 text-[12px] font-medium tracking-[0.5px] transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 text-current border-[var(--border-color)] shadow-[0_1px_2px_rgba(0,0,0,0.4),inset_0_0_0_1px_rgba(255,255,255,0.05)];
-  }
-  .icon-btn:hover:not(:disabled) {
-    @apply opacity-90;
-  }
-  .icon-btn:focus-visible {
-    @apply outline-none ring-2 ring-[var(--accent-color)] ring-offset-2;
-  }
+  /* (icon-btn also moved to plugin) */
 
   /* Panels */
   .panel-card {
