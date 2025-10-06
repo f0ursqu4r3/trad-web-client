@@ -9,6 +9,8 @@
   --color-term-border: #1f2630;
   --color-term-ok: #4ade80;
   --color-term-err: #f87171;
+  --color-term-warn: #ffb86c;
+  --color-term-info: #2f81f7;
 
   /* Base semantic colors (light) */
   --color-bg: #f5f7fa;
@@ -65,6 +67,8 @@
   --color-warning: #ffb86c;
   --color-info: #2f81f7;
   --color-border-strong: #343c45;
+
+  /* Scrollbar (dark) */
   --scrollbar-track: transparent;
   --scrollbar-thumb: #2a3037;
   --scrollbar-thumb-hover: #343c45;

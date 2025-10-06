@@ -242,6 +242,7 @@ Each palette item: `{ name, color, kind }` where:
         - `tone` (default): colored border + tinted fill + contrast‑aware text color
 
 #### Data Attribute Mode
+
 When `dataAttributeMode` is `true` you can style with attributes instead of classes:
 
 ```html
@@ -253,9 +254,11 @@ When `dataAttributeMode` is `true` you can style with attributes instead of clas
 Attribute mapping exists alongside the traditional classes so either approach works. This can help reduce class switching noise in components that change only the variant value.
 
 #### Disabled & Focus Styles
+
 Disabled buttons remove gradients and drop shadows, relying on neutral panel bg + dim text for better clarity. Focus rings adopt the variant color (for outline/ghost as well) to preserve contextual meaning.
 
 #### Extending Further
+
 You can wrap the exported `createButtonVariantsPlugin` in your own factory that injects a project‑wide augmented palette or adds additional kinds (e.g. `warning`, `info`) by cloning one of the existing recipe helpers.
 
 ```js
@@ -273,8 +276,9 @@ export const extendedButtons = createButtonVariantsPlugin({
 ```
 
 If you add many dynamic names remember to update (or regex‑ify) the `safelist` to prevent purging.
- 
+
 ### Style Guide
+
 The route `/style-guide` provides a simple visual surface enumerating buttons, inputs, pills, notices, and badges for manual QA and potential screenshot regression tooling.
 
 ### Theming

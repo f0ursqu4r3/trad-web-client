@@ -4,30 +4,52 @@
 
     <section>
       <h2 class="text-lg font-mono mb-2">Buttons</h2>
-      <div class="flex flex-wrap gap-3 items-center">
-        <button class="btn btn-primary">primary</button>
-        <button class="btn btn-secondary">secondary</button>
-        <button class="btn btn-danger">danger</button>
-        <button class="btn btn-success">success</button>
-        <button class="btn btn-outline">outline</button>
-        <button class="btn btn-outline-danger">outline danger</button>
-        <button class="btn btn-outline-success">outline success</button>
-        <button class="btn btn-outline-neutral">outline neutral</button>
-        <button class="btn btn-ghost">ghost</button>
-        <button class="btn btn-ghost-danger">ghost danger</button>
-        <button class="btn btn-ghost-success">ghost success</button>
-        <button class="btn btn-ghost-neutral">ghost neutral</button>
-        <button class="btn btn-primary btn-sm">primary sm</button>
-        <button class="btn btn-primary btn-lg">primary lg</button>
-        <button class="btn icon-btn" aria-label="settings">⚙</button>
-        <button class="btn btn-primary" aria-pressed="true">pressed</button>
-        <button class="btn btn-secondary" disabled>disabled</button>
+      <div class="flex flex-col gap-3">
+        <h3 class="font-mono text-sm">Variants</h3>
+        <div class="flex flex-wrap gap-3 items-center">
+          <button class="btn btn-primary">primary</button>
+          <button class="btn btn-secondary">secondary</button>
+          <button class="btn btn-danger">danger</button>
+          <button class="btn btn-success">success</button>
+          <button class="btn btn-warn">warn</button>
+          <button class="btn btn-info">info</button>
+        </div>
+
+        <h3 class="font-mono text-sm">Outline</h3>
+        <div class="flex flex-wrap gap-3 items-center">
+          <button class="btn btn-outline">outline</button>
+          <button class="btn btn-outline-danger">outline danger</button>
+          <button class="btn btn-outline-success">outline success</button>
+          <button class="btn btn-outline-neutral">outline neutral</button>
+          <button class="btn btn-outline-warn">outline warn</button>
+          <button class="btn btn-outline-info">outline info</button>
+        </div>
+
+        <h3 class="font-mono text-sm">Ghost</h3>
+        <div class="flex flex-wrap gap-3 items-center">
+          <button class="btn btn-ghost">ghost</button>
+          <button class="btn btn-ghost-danger">ghost danger</button>
+          <button class="btn btn-ghost-success">ghost success</button>
+          <button class="btn btn-ghost-neutral">ghost neutral</button>
+          <button class="btn btn-ghost-warn">ghost warn</button>
+          <button class="btn btn-ghost-info">ghost info</button>
+        </div>
+
+        <h3 class="font-mono text-sm">Sizes & States</h3>
+        <div class="flex flex-wrap gap-3 items-center">
+          <button class="btn btn-primary btn-sm">primary sm</button>
+          <button class="btn btn-primary btn-lg">primary lg</button>
+          <button class="btn icon-btn" aria-label="settings">⚙</button>
+          <button class="btn btn-primary" aria-pressed="true">pressed</button>
+          <button class="btn btn-secondary" disabled>disabled</button>
+        </div>
       </div>
     </section>
 
     <section>
       <h2 class="text-lg font-mono mb-2">Pills</h2>
       <div class="flex flex-wrap gap-2 items-center">
+        <span class="pill">default</span>
         <span class="pill-ok">ok</span>
         <span class="pill-err">err</span>
         <span class="pill-warn">warn</span>

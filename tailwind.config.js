@@ -3,7 +3,6 @@
  * Safelist patterns added for dynamically generated classes in templates.
  * Adjust as new dynamic patterns appear.
  */
-import { buttonVariantsPlugin } from './tailwind.plugins/buttonVariants.js'
 
 export default {
   content: ['./index.html', './src/**/*.{vue,ts,js,tsx,jsx}'],
@@ -53,6 +52,8 @@ export default {
           border: 'var(--color-term-border)',
           ok: 'var(--color-term-ok)',
           err: 'var(--color-term-err)',
+          warn: 'var(--color-term-warn)',
+          info: 'var(--color-term-info)',
         },
       },
       fontFamily: {
@@ -60,5 +61,4 @@ export default {
       },
     },
   },
-  plugins: [buttonVariantsPlugin],
 }

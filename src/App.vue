@@ -26,11 +26,16 @@ const layoutComponent = computed(() => {
   }
 })
 
+// Only force navigation to login if the CURRENT route actually requires auth.
+// The global router.beforeEach already blocks navigation into protected routes.
+// This prevents public routes like /style-guide from being hijacked during the
+// initial Auth0 loading phase (when isAuthenticated is still false).
 watch(
-  () => isAuthenticated.value,
-  (isAuth) => {
-    if (!isAuth) {
-      router.push({ path: '/login' })
+  () => [isAuthenticated.value, route.fullPath],
+  ([isAuth]) => {
+    const requiresAuth = route.meta?.requiresAuth
+    if (!isAuth && requiresAuth) {
+      router.replace({ path: '/login', query: { redirect: route.fullPath } })
     }
   },
   { immediate: true },

@@ -292,7 +292,7 @@ const returnToOrigin = window.location.origin
               <div class="flex items-center gap-3">
                 <div class="dim text-[11px]">Theme Mode</div>
                 <button class="btn btn-primary btn-sm" @click="toggleTheme">
-                  Toggle: {{ theme }}
+                  {{ theme }}
                   <component :is="theme === 'dark' ? SunIcon : MoonIcon" :size="16" class="ml-1" />
                 </button>
               </div>

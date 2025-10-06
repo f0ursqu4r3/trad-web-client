@@ -128,9 +128,12 @@ const logoutUser = async () => {
 
 const goTerminal = () => router.push('/terminal')
 
+// If already authenticated, optionally redirect to originally requested protected route.
+// Do NOT forcibly redirect for public pages (e.g. accessing /style-guide then clicking login).
 onMounted(() => {
-  if (isAuthenticated) {
-    router.replace('/terminal')
+  if (isAuthenticated.value) {
+    const redirect = (router.currentRoute.value.query.redirect as string) || '/terminal'
+    router.replace(redirect)
   }
 })
 </script>
