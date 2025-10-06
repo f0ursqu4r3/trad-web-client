@@ -649,6 +649,24 @@ body,
   background: var(--scrollbar-thumb-hover);
 }
 
+/* WebKit scrollbar theming note:
+   When only CSS custom property values change (e.g. via [data-theme="dark"])
+   Safari/Chromium sometimes keep painting the old thumb color for existing
+   scroll containers because the pseudo-element rule selector itself didn't
+   change. Duplicating the rules under the themed attribute forces a style
+   recalculation so the updated variables are applied. */
+[data-theme='dark'] ::-webkit-scrollbar-thumb,
+[data-theme='dark'] ::-webkit-scrollbar-track {
+  /* Re-declare so WebKit repaints using dark token values */
+  background: var(--scrollbar-track);
+}
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
 .panel {
   /* fallback if used outside scope */
   background: var(--panel-bg);

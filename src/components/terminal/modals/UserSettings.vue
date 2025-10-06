@@ -393,12 +393,4 @@ const returnToOrigin = window.location.origin
   background: color-mix(in srgb, var(--panel-header-bg) 80%, transparent);
   border: 1px solid var(--border-color);
 }
-
-/* Scrollbar inside modal body (inherits global var colors) */
-.settings-modal-card ::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-}
-.settings-modal-card ::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
-}
 </style>

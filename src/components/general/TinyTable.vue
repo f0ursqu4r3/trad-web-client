@@ -395,28 +395,6 @@ tbody tr.selectable:focus-visible {
     4px 0 4px -2px var(--tt-sticky-shadow-color);
 }
 
-/* Scrollbar styling (WebKit) */
-.tiny-table-scroll::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-.tiny-table-scroll::-webkit-scrollbar-track {
-  background: var(--tt-scrollbar-track);
-}
-.tiny-table-scroll::-webkit-scrollbar-thumb {
-  background: var(--tt-scrollbar-thumb);
-  border-radius: 6px;
-}
-.tiny-table-scroll::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--tt-scrollbar-thumb) 80%, #444);
-}
-
-/* Firefox scrollbar */
-.tiny-table-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: var(--tt-scrollbar-thumb) var(--tt-scrollbar-track);
-}
-
 /* Compact first/last padding adjustments */
 .tiny-table-wrapper :is(th:first-child, td:first-child) {
   padding-left: 10px;
