@@ -133,8 +133,185 @@
   --scrollbar-thumb-hover: #343c45;
 }
 
+/* Synthwave (retro neon) theme overrides */
+[data-theme='synthwave'] {
+  /* Core surfaces */
+  --color-bg: #130b1a; /* deep cosmic purple */
+  --color-bg-alt: #1b0f25;
+  --panel-bg: #1a0f23;
+  --panel-header-bg: #23112f;
+  --panel-border-inner: #372046;
+  --border-color: #3e2751;
+  --color-text: #f5e9ff;
+  --color-text-dim: #c9b2d9;
+  --accent-color: #ff6ec7; /* neon magenta */
+  --color-bg-secondary: #1d1227;
+  --color-bg-tertiary: #271534;
+
+  /* Status / semantic */
+  --color-success: #47f4c2; /* mint */
+  --color-error: #ff4d6d; /* hot pink/red */
+  --color-warning: #ffc857; /* sunset amber */
+  --color-info: #7ad7ff; /* cyan */
+  --color-border-strong: #56306f;
+
+  /* Terminal adjustments (slight neon tilt) */
+  --color-term-accent: var(--accent-color);
+  --color-term-bg: #140a1e;
+  --color-term-fg: #f5e9ff;
+  --color-term-dim: #b899cc;
+  --color-term-border: #2d1840;
+
+  /* Buttons (reuse variable model) */
+  --btn-bg-start: #291538;
+  --btn-bg-end: #1d0d28;
+  --btn-border: #513066;
+  --btn-fg: #f5e9ff;
+
+  /* Pill styling (slightly higher alpha for glow feel) */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 14%;
+  --pill-ring-alpha: 40%;
+
+  /* Button semantic colors */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #b26dff; /* lavender primary neutral */
+  /* Use a high-contrast light foreground; prior deep purple was illegible on dark gradient */
+  --btn-color-neutral-fg: #f5e9ff;
+
+  /* Use same alpha constants (can fine-tune later) */
+  --btn-alpha-border: 50%;
+  /* Boost surface fills for better legibility against deep background */
+  --btn-alpha-surface: 24%;
+  --btn-alpha-surface-hover: 34%;
+  --btn-alpha-surface-active: 45%;
+  --btn-alpha-outline-border: 65%;
+  --btn-alpha-outline-surface-hover: 14%;
+  --btn-alpha-outline-surface-active: 20%;
+  --btn-alpha-ghost-hover: 16%;
+  --btn-alpha-ghost-active: 26%;
+
+  /* Scrollbar */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: #3b224d;
+  --scrollbar-thumb-hover: #4a2b61;
+}
+
+/* Legacy (CC29 palette) theme overrides */
+[data-theme='legacy'] {
+  /* Palette reference (CC29)
+     background_primary: #212123
+     background_secondary: #352b42
+     background_interactive: #45444f
+     border_normal: #646365
+     border_active: #f2f0e5
+     button: #4b4158
+     button_hover: #5f556a
+     text_default: #f2f0e5
+     text_muted: #868188
+     text_error: #b45252
+     text_success: #8ab060
+     text_warning: #a77b5b
+     text_command_name (used as accent/info): #68c2d3
+     text_arg_name: #b2b47e
+     syntax_symbol: #cf8acb
+     syntax_number: #d3a068
+     syntax_keyword: #4b80ca
+  */
+  /* Core surfaces */
+  --color-bg: #212123; /* background_primary */
+  --color-bg-alt: #352b42; /* background_secondary */
+  --panel-bg: #212123; /* align panels with secondary */
+  --panel-header-bg: #45444f; /* background_interactive */
+  --panel-border-inner: #45444f; /* subtle inner separation */
+  --border-color: #646365; /* border_normal */
+  --color-border-strong: #f2f0e5; /* border_active (high contrast) */
+
+  /* Typography / text */
+  --color-text: #f2f0e5; /* text_default */
+  --color-text-dim: #868188; /* text_muted */
+  --accent-color: #68c2d3; /* command name cyan doubles as accent */
+
+  /* Semantic/status */
+  --color-success: #8ab060; /* text_success */
+  --color-error: #b45252; /* text_error */
+  --color-warning: #a77b5b; /* text_warning */
+  --color-info: #68c2d3; /* re-use accent */
+
+  /* Terminal adjustments (bring in palette while staying readable) */
+  --color-term-bg: #212123;
+  --color-term-fg: #f2f0e5;
+  --color-term-dim: #868188;
+  --color-term-accent: #68c2d3;
+  --color-term-border: #352b42;
+  --color-term-ok: #8ab060;
+  --color-term-err: #b45252;
+  --color-term-warn: #a77b5b;
+  --color-term-info: #68c2d3;
+
+  /* Buttons (gradient derived from button + button_hover) */
+  --btn-bg-start: #5f556a; /* button_hover (lighter) */
+  --btn-bg-end: #4b4158; /* button (darker) */
+  --btn-border: #646365; /* border_normal */
+  --btn-fg: #f2f0e5; /* text_default */
+
+  /* Pills (similar tuning to dark theme, slight lift for contrast) */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 13%;
+  --pill-ring-alpha: 38%;
+
+  /* Button semantic colors */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #4b4158; /* base button tone */
+  --btn-color-neutral-fg: #f2f0e5; /* ensure legibility */
+
+  /* Reuse global alpha guidance (can override later if needed) */
+  --btn-alpha-border: 40%;
+  --btn-alpha-surface: 14%;
+  --btn-alpha-surface-hover: 22%;
+  --btn-alpha-surface-active: 30%;
+  --btn-alpha-outline-border: 60%;
+  --btn-alpha-outline-surface-hover: 12%;
+  --btn-alpha-outline-surface-active: 18%;
+  --btn-alpha-ghost-hover: 14%;
+  --btn-alpha-ghost-active: 22%;
+
+  /* Scrollbar */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: #3b3a40; /* mix of bg_interactive + dim */
+  --scrollbar-thumb-hover: #4a4950;
+}
+
 /* Body inheritance helper */
 [data-theme='dark'] body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Body inheritance for synthwave */
+[data-theme='synthwave'] body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Body inheritance for legacy */
+[data-theme='legacy'] body {
   background: var(--color-bg);
   color: var(--color-text);
 }

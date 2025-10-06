@@ -16,10 +16,15 @@ const messages = computed(() => [...ws.inbound].slice(-10000))
       <span class="meta" v-else-if="ws.authAccepted === false">Auth: ❌</span>
       <span class="meta" v-if="ws.authError">Err: {{ ws.authError }}</span>
     </div>
-    <StickyScroller class="list" :trigger="messages.length" :smooth="true" :showButton="true">
+    <StickyScroller
+      class="list striped"
+      :trigger="messages.length"
+      :smooth="true"
+      :showButton="true"
+    >
       <div v-for="m in messages" :key="m.ts + '-' + m.kind" class="row">
         <span class="time">{{ new Date(m.ts).toLocaleTimeString() }}</span>
-        <span class="kind">{{ m.kind }}</span>
+        <span class="text-accent font-bold">{{ m.kind }}</span>
         <pre class="payload">{{ formatPayload(m.payload) }}</pre>
       </div>
       <div v-if="messages.length === 0" class="empty">No messages yet.</div>
@@ -65,25 +70,12 @@ function formatPayload(p: unknown): string {
 }
 .row {
   display: grid;
-  grid-template-columns: 70px 120px 1fr;
+  grid-template-columns: 80px 120px 1fr;
   gap: 4px;
   padding: 2px 0;
 }
-.row:nth-child(odd) {
-  background: #0001;
-}
-[data-theme='dark'] .row:nth-child(odd) {
-  background: #fff1;
-}
 .time {
   opacity: 0.6;
-}
-.kind {
-  font-weight: 600;
-  color: rgb(35, 155, 247);
-}
-[data-theme='dark'] .kind {
-  color: #8cf;
 }
 .payload {
   margin: 0;

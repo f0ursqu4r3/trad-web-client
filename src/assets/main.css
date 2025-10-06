@@ -454,17 +454,25 @@
     @apply relative;
   }
   .menu-dropdown {
-    @apply absolute right-0 top-[110%] z-50 min-w-[140px] rounded border py-1 text-[13px] shadow-lg;
+    @apply absolute right-0 top-[110%] z-50 min-w-[140px] flex flex-col rounded border py-1 text-[13px] shadow-lg;
     background: var(--panel-bg);
     border-color: var(--border-color);
     color: var(--color-text);
+    z-index: 1000;
   }
   .menu-item {
-    @apply cursor-pointer whitespace-nowrap px-2.5 py-1.5;
+    @apply cursor-pointer whitespace-nowrap px-2.5 py-1.5 flex items-center gap-2;
   }
   .menu-item:hover {
     @apply bg-white/5;
   }
+  .menu-item:active,
+  .menu-item.selected,
+  .menu-item[aria-checked='true'],
+  .menu-item[data-checked='true'] {
+    @apply bg-white/10;
+  }
+  .menu-item:disabled,
   .menu-empty {
     @apply px-2.5 py-1.5 text-[12px] text-term-dim;
   }
@@ -572,10 +580,24 @@
   .table-compact tbody tr:hover {
     @apply bg-white/5;
   }
+  .table-compact tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  table.striped tbody tr:nth-child(odd) {
+    @apply bg-white/5;
+  }
+
+  .list.striped .row:nth-child(odd) {
+    @apply bg-white/5;
+  }
 
   /* Scroll area */
   .scroll-area {
     @apply overflow-auto;
+  }
+
+  .text-accent {
+    color: var(--accent-color);
   }
 }
 
@@ -599,7 +621,8 @@ body,
   --dv-floatingbox-shadow: 0 0 0 1px var(--border-color), 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 /* Dark theme Dockview overrides */
-[data-theme='dark'] .dockview-theme-trad {
+[data-theme='dark'] .dockview-theme-trad,
+[data-theme='synthwave'] .dockview-theme-trad {
   --dv-floatingbox-shadow: 0 0 0 1px var(--border-color), 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 html,
@@ -656,14 +679,18 @@ body,
    change. Duplicating the rules under the themed attribute forces a style
    recalculation so the updated variables are applied. */
 [data-theme='dark'] ::-webkit-scrollbar-thumb,
-[data-theme='dark'] ::-webkit-scrollbar-track {
+[data-theme='dark'] ::-webkit-scrollbar-track,
+[data-theme='synthwave'] ::-webkit-scrollbar-thumb,
+[data-theme='synthwave'] ::-webkit-scrollbar-track {
   /* Re-declare so WebKit repaints using dark token values */
   background: var(--scrollbar-track);
 }
-[data-theme='dark'] ::-webkit-scrollbar-thumb {
+[data-theme='dark'] ::-webkit-scrollbar-thumb,
+[data-theme='synthwave'] ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
 }
-[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover,
+[data-theme='synthwave'] ::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
 }
 

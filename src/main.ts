@@ -38,7 +38,7 @@ app.mount('#app')
 const ui = useUiStore()
 const rootEl = document.documentElement
 function applyTheme() {
-  rootEl.setAttribute('data-theme', ui.theme)
+  rootEl.setAttribute('data-theme', ui.effectiveTheme)
 }
 applyTheme()
 ui.$subscribe(() => applyTheme())

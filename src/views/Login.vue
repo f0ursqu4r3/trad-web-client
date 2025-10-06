@@ -96,10 +96,24 @@ const router = useRouter()
 
 const { loginWithRedirect, logout, isAuthenticated, user } = useAuth0()
 
-const themeIcon = computed(() => (ui.theme === 'dark' ? SunIcon : MoonIcon))
-const themeToggleLabel = computed(() =>
-  ui.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
-)
+const themeIcon = computed(() => {
+  // For synthwave show a sun icon to indicate next will be light (reuse)
+  if (ui.theme === 'dark') return SunIcon
+  if (ui.theme === 'synthwave') return MoonIcon // going to light next, show moon-to-light cue
+  return MoonIcon
+})
+const themeToggleLabel = computed(() => {
+  switch (ui.theme) {
+    case 'light':
+      return 'Switch to dark theme'
+    case 'dark':
+      return 'Switch to synthwave theme'
+    case 'synthwave':
+      return 'Switch to light theme'
+    default:
+      return 'Toggle theme'
+  }
+})
 
 const showDebug = ref(false)
 

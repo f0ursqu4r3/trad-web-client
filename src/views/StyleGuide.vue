@@ -1,6 +1,12 @@
 <template>
   <div class="p-6 space-y-8">
-    <h1 class="text-xl font-mono">UI Style Guide</h1>
+    <div class="flex items-center justify-between flex-wrap gap-4">
+      <h1 class="text-xl font-mono m-0">UI Style Guide</h1>
+      <div class="flex items-center gap-2">
+        <span class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)]">Theme</span>
+        <ThemeSwitcher />
+      </div>
+    </div>
 
     <section>
       <h2 class="text-lg font-mono mb-2">Buttons</h2>
@@ -88,5 +94,5 @@
 </template>
 
 <script setup lang="ts">
-// Style guide view for visual regression & manual QA
+import ThemeSwitcher from '@/components/general/ThemeSwitcher.vue'
 </script>

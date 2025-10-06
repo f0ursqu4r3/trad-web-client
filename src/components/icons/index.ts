@@ -116,8 +116,38 @@ export const CogIcon: FunctionalComponent<{ size?: number | string }> = (props) 
 }
 CogIcon.displayName = 'CogIcon'
 
+export const BoltIcon: FunctionalComponent<{ size?: number | string }> = (props) => {
+  const size = props.size ?? 16
+  return h('svg', base(size, 'Synthwave theme', 'theme-icon bolt-icon'), [
+    h('path', { d: 'm3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z' }),
+  ])
+}
+BoltIcon.displayName = 'BoltIcon'
+
+export const ComputerDesktopIcon: FunctionalComponent<{ size?: number | string }> = (props) => {
+  const size = props.size ?? 16
+  return h('svg', base(size, 'Computer Desktop', 'icon computer-desktop-icon'), [
+    h('path', {
+      d: 'M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25',
+    }),
+  ])
+}
+ComputerDesktopIcon.displayName = 'ComputerDesktopIcon'
+
+export const StarIcon: FunctionalComponent<{ size?: number | string }> = (props) => {
+  const size = props.size ?? 16
+  return h('svg', base(size, 'Star', 'icon star-icon'), [
+    h('path', {
+      d: 'M11.48 3.499a.562.562 0 0 0-1.016 0l-2.125 4.308-4.752.692a.563.563 0 0 0-.312.959l3.438 3.356-.812 4.73a.563.563 0 0 0 .816.594L12 16.347l4.253 2.235a.563.563 0 0 0 .816-.594l-.812-4.73 3.438-3.356a.563.563 0 0 0-.312-.959l-4.752-.692-2.125-4.308Z',
+    }),
+  ])
+}
+StarIcon.displayName = 'StarIcon'
+
 export default {
+  BoltIcon,
   CogIcon,
+  ComputerDesktopIcon,
   DownIcon,
   FileIcon,
   FolderIcon,
@@ -126,5 +156,6 @@ export default {
   MagnifyingGlassIcon,
   MenuDotsIcon,
   MoonIcon,
+  StarIcon,
   SunIcon,
 }

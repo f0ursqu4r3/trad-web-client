@@ -59,7 +59,6 @@ import { computed, onBeforeUnmount, onMounted, ref, watch, useSlots } from 'vue'
  *  - resize: number[] (current sizes in % whenever drag finishes or reset occurs)
  *
  * Theming (override via CSS variables on a parent or :root)
- *  --sv-bg: var(--panel-bg)
  *  --sv-border: var(--border-color)
  *  --sv-gutter: color of gutter (default derived from border)
  *  --sv-gutter-hover
@@ -324,7 +323,6 @@ function resetSizes() {
 <style scoped>
 .sv-wrapper {
   /* Resolve against global theme tokens (defined in assets/main.css) with safe fallbacks */
-  --sv-bg: var(--panel-bg, #16191d);
   --sv-border: var(--border-color, #2a3139);
   --sv-gutter: color-mix(in srgb, var(--sv-border, #2a3139) 75%, transparent);
   --sv-gutter-hover: color-mix(in srgb, var(--sv-border, #2a3139) 90%, transparent);
@@ -334,7 +332,6 @@ function resetSizes() {
   width: 100%;
   height: 100%;
   display: grid;
-  background: var(--sv-bg);
   border-radius: 4px;
   overflow: hidden;
   min-height: 40px;

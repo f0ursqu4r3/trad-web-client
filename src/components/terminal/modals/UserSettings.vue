@@ -1,18 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useUserStore } from '@/stores/user'
-import { useUiStore } from '@/stores/ui'
 import { useWsStore } from '@/stores/ws'
 import { apiPut } from '@/lib/apiClient'
 import { useAuth0 } from '@auth0/auth0-vue'
-import { SunIcon, MoonIcon } from '@/components/icons'
+
+import ThemeSwitcher from '@/components/general/ThemeSwitcher.vue'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 // Stores
 const userStore = useUserStore()
-const uiStore = useUiStore()
 const wsStore = useWsStore()
 const { logout, isAuthenticated } = useAuth0()
 
@@ -44,12 +43,6 @@ const lastFetchedDisplay = computed(() => {
   const d = new Date(ts)
   return d.toLocaleTimeString()
 })
-
-// Theme toggle
-const theme = computed(() => uiStore.theme)
-function toggleTheme() {
-  uiStore.toggleTheme()
-}
 
 // Preferences saving logic
 async function savePreferences() {
@@ -291,10 +284,7 @@ const returnToOrigin = window.location.origin
               </header>
               <div class="flex items-center gap-3">
                 <div class="dim text-[11px]">Theme Mode</div>
-                <button class="btn btn-primary btn-sm" @click="toggleTheme">
-                  {{ theme }}
-                  <component :is="theme === 'dark' ? MoonIcon : SunIcon" :size="16" class="ml-1" />
-                </button>
+                <ThemeSwitcher />
               </div>
             </section>
 
