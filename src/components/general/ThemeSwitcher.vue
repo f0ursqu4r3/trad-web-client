@@ -1,13 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import {
-  SunIcon,
-  MoonIcon,
-  ComputerDesktopIcon,
-  BoltIcon,
-  StarIcon,
-  SparklesIcon,
-} from '@/components/icons'
+import { SunIcon, MoonIcon, ComputerDesktopIcon, SparklesIcon } from '@/components/icons'
 import { useUiStore, type ThemeMode } from '@/stores/ui'
 
 const uiStore = useUiStore()
@@ -25,23 +18,17 @@ const currentThemeIcon = computed(
 interface ThemeOption {
   label: string
   value: ThemeMode
-  icon:
-    | typeof SunIcon
-    | typeof MoonIcon
-    | typeof ComputerDesktopIcon
-    | typeof BoltIcon
-    | typeof StarIcon
-    | typeof SparklesIcon
+  icon: typeof SunIcon | typeof MoonIcon | typeof ComputerDesktopIcon
 }
 
 const themeOptions: ThemeOption[] = [
   { label: 'System', value: 'system', icon: ComputerDesktopIcon },
   { label: 'Light', value: 'light', icon: SunIcon },
   { label: 'Dark', value: 'dark', icon: MoonIcon },
-  { label: 'Synthwave', value: 'synthwave', icon: BoltIcon },
-  { label: 'Legacy', value: 'legacy', icon: StarIcon },
-  { label: 'Fantasy24', value: 'fantasy24', icon: SparklesIcon },
-  { label: 'Tomorrow Night 80s', value: 'tomorrowNight80s', icon: SparklesIcon },
+  { label: 'Synthwave', value: 'synthwave', icon: MoonIcon },
+  { label: 'Legacy', value: 'legacy', icon: MoonIcon },
+  { label: 'Fantasy24', value: 'fantasy24', icon: MoonIcon },
+  { label: 'Tomorrow Night 80s', value: 'tomorrowNight80s', icon: MoonIcon },
 ]
 
 function toggleMenu() {

@@ -394,7 +394,7 @@
   }
 
   .icon-btn {
-    @apply inline-flex items-center justify-center border rounded text-[12px] px-1.5 py-1 cursor-pointer transition;
+    @apply inline-flex gap-2 items-center justify-center border rounded text-[12px] px-1.5 py-1 cursor-pointer transition;
     border-color: var(--border-color);
     background: var(--btn-bg, var(--btn-bg-start));
     color: currentColor;
