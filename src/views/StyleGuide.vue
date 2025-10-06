@@ -17,6 +17,7 @@
           <button class="btn btn-secondary">secondary</button>
           <button class="btn btn-danger">danger</button>
           <button class="btn btn-success">success</button>
+          <button class="btn btn-neutral">neutral</button>
           <button class="btn btn-warn">warn</button>
           <button class="btn btn-info">info</button>
         </div>

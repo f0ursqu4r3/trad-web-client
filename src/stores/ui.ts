@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, watch, computed } from 'vue'
 
-export type ThemeMode = 'dark' | 'light' | 'synthwave' | 'system' | 'legacy'
+export type ThemeMode = 'dark' | 'light' | 'synthwave' | 'system' | 'legacy' | 'fantasy24'
 const STORAGE_KEY = 'ui.theme.v1'
 
 function loadInitial(): ThemeMode {
@@ -11,7 +11,8 @@ function loadInitial(): ThemeMode {
     saved === 'dark' ||
     saved === 'synthwave' ||
     saved === 'system' ||
-    saved === 'legacy'
+    saved === 'legacy' ||
+    saved === 'fantasy24'
   )
     return saved as ThemeMode
   // Prefer OS setting
@@ -46,25 +47,6 @@ export const useUiStore = defineStore('ui', () => {
   function setTheme(t: ThemeMode) {
     theme.value = t
   }
-  function toggleTheme() {
-    // cycle: system -> light -> dark -> synthwave -> system
-    switch (theme.value) {
-      case 'system':
-        theme.value = 'light'
-        break
-      case 'light':
-        theme.value = 'dark'
-        break
-      case 'dark':
-        theme.value = 'synthwave'
-        break
-      case 'synthwave':
-        theme.value = 'system'
-        break
-      default:
-        theme.value = 'system'
-    }
-  }
 
   function getVar(name: string, fallback?: string | undefined): string {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim() ?? fallback
@@ -73,5 +55,5 @@ export const useUiStore = defineStore('ui', () => {
   // Persist chosen theme *not* effective theme
   watch(theme, (t) => localStorage.setItem(STORAGE_KEY, t), { immediate: true })
 
-  return { theme, effectiveTheme, systemPrefersDark, setTheme, toggleTheme, getVar }
+  return { theme, effectiveTheme, systemPrefersDark, setTheme, getVar }
 })

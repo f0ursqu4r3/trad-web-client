@@ -7,6 +7,7 @@ import {
   ComputerDesktopIcon,
   BoltIcon,
   StarIcon,
+  SparklesIcon,
 } from '@/components/icons'
 import { useUiStore, type ThemeMode } from '@/stores/ui'
 
@@ -30,6 +31,8 @@ const currentThemeIcon = computed(() => {
       return BoltIcon
     case 'legacy':
       return StarIcon
+    case 'fantasy24':
+      return SparklesIcon
     default:
       return MenuDotsIcon
   }
@@ -53,6 +56,7 @@ const themeOptions: ThemeOption[] = [
   { label: 'Dark', value: 'dark', icon: MoonIcon },
   { label: 'Synthwave', value: 'synthwave', icon: BoltIcon },
   { label: 'Legacy', value: 'legacy', icon: StarIcon },
+  { label: 'Fantasy24', value: 'fantasy24', icon: SparklesIcon },
 ]
 
 function toggleMenu() {

@@ -298,6 +298,94 @@
   --scrollbar-thumb-hover: #4a4950;
 }
 
+/* Fantasy24 theme overrides (earthy arcane palette) */
+[data-theme='fantasy24'] {
+  /* Source colors reference (ordered as provided)
+     1: #1f240a (deep olive)            2: #39571c (forest green)
+     3: #a58c27 (muted gold)            4: #efac28 (bright amber)
+     5: #efd8a1 (parchment)             6: #ab5c1c (burnt orange)
+     7: #183f39 (deep teal)             8: #ef692f (ember orange)
+     9: #efb775 (soft peach gold)      10: #a56243 (rust light)
+    11: #773421 (deep rust)            12: #724113 (brown ochre)
+    13: #2a1d0d (dark sepia)           14: #392a1c (mid sepia)
+    15: #684c3c (aged wood)            16: #927e6a (faded parchment)
+    17: #276468 (teal medium)          18: #ef3a0c (molten red/orange)
+    19: #45230d (soot brown)           20: #3c9f9c (cerulean teal)
+    21: #9b1a0a (deep blood)           22: #36170c (charred brown)
+    23: #550f0a (dark ember)           24: #300f0a (coal ember) */
+
+  /* Core surfaces (layered depth: bg < alt < tertiary) */
+  --color-bg: #1f240a; /* base cavern */
+  --color-bg-alt: #2a1d0d; /* deeper chamber */
+  --panel-bg: #2a1d0d; /* panels match alt */
+  --panel-header-bg: #392a1c; /* slightly lifted header */
+  --panel-border-inner: #45230d; /* subtle inner line */
+  --border-color: #392a1c; /* neutral border */
+  --color-border-strong: #efd8a1; /* parchment highlight */
+
+  /* Text */
+  --color-text: #efd8a1; /* primary readable */
+  --color-text-dim: #927e6a; /* secondary */
+  --accent-color: #3c9f9c; /* cool contrast accent (teal) */
+
+  /* Semantic status */
+  --color-success: #39571c; /* forest green */
+  --color-error: #ef3a0c; /* molten error */
+  --color-warning: #efac28; /* bright amber */
+  --color-info: #3c9f9c; /* teal reused */
+
+  /* Terminal (harmonized) */
+  --color-term-bg: #1f240a;
+  --color-term-fg: #efd8a1;
+  --color-term-dim: #927e6a;
+  --color-term-accent: #3c9f9c;
+  --color-term-border: #392a1c;
+  --color-term-ok: #39571c;
+  --color-term-err: #ef3a0c;
+  --color-term-warn: #efac28;
+  --color-term-info: #3c9f9c;
+
+  /* Buttons (primary gradient draws from rust → deep rust) */
+  --btn-bg-start: #a56243; /* lighter rust */
+  --btn-bg-end: #773421; /* deep rust */
+  --btn-border: #684c3c; /* aged wood */
+  --btn-fg: #efd8a1; /* parchment text */
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 15%; /* slightly higher for dark earthy surfaces */
+  --pill-ring-alpha: 42%;
+
+  /* Button semantic variants */
+  --btn-color-primary: var(--accent-color); /* teal */
+  --btn-color-danger: #9b1a0a; /* deeper blood tone */
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #684c3c; /* wood neutral */
+  --btn-color-neutral-fg: #efd8a1; /* parchment */
+
+  /* Alpha tuning (slightly stronger fills than legacy) */
+  --btn-alpha-border: 45%;
+  --btn-alpha-surface: 18%;
+  --btn-alpha-surface-hover: 26%;
+  --btn-alpha-surface-active: 34%;
+  --btn-alpha-outline-border: 65%;
+  --btn-alpha-outline-surface-hover: 16%;
+  --btn-alpha-outline-surface-active: 22%;
+  --btn-alpha-ghost-hover: 18%;
+  --btn-alpha-ghost-active: 28%;
+
+  /* Scrollbar */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: #392a1c;
+  --scrollbar-thumb-hover: #45230d;
+}
+
 /* Body inheritance helper */
 [data-theme='dark'] body {
   background: var(--color-bg);
@@ -312,6 +400,12 @@
 
 /* Body inheritance for legacy */
 [data-theme='legacy'] body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Body inheritance for fantasy24 */
+[data-theme='fantasy24'] body {
   background: var(--color-bg);
   color: var(--color-text);
 }
