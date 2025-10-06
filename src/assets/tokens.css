@@ -36,6 +36,36 @@
   --btn-border: #dfe3e8;
   --btn-fg: #1f2328;
 
+  /* Pill (status) tokens (light) */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 10%; /* surface fill */
+  --pill-ring-alpha: 30%; /* outline/ring */
+
+  /* Button variant semantic tokens (light) */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  /* Neutral uses a pair (bg/border base + readable fg) for light theme */
+  --btn-color-neutral: #475569; /* slate-600 (border/source) */
+  --btn-color-neutral-fg: #334155; /* slate-700 for readable text on light */
+
+  /* Shared alpha stop guidance (percent values used in color-mix calls) */
+  --btn-alpha-border: 40%;
+  --btn-alpha-surface: 10%;
+  --btn-alpha-surface-hover: 20%;
+  --btn-alpha-surface-active: 30%;
+  --btn-alpha-outline-border: 60%;
+  --btn-alpha-outline-surface-hover: 10%;
+  --btn-alpha-outline-surface-active: 15%;
+  --btn-alpha-ghost-hover: 12%;
+  --btn-alpha-ghost-active: 20%;
+
   --font-mono:
     'SFMono-Regular', ui-monospace, 'JetBrains Mono', 'Source Code Pro', Menlo, Consolas, monospace;
 
@@ -67,6 +97,35 @@
   --color-warning: #ffb86c;
   --color-info: #2f81f7;
   --color-border-strong: #343c45;
+
+  /* Pill (status) tokens (dark) */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 12%; /* slightly higher for dark legibility */
+  --pill-ring-alpha: 35%;
+
+  /* Button variant semantic tokens (dark overrides) */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #64748b; /* slate-500 */
+  --btn-color-neutral-fg: #e2e8f0; /* slate-200 for contrast on dark */
+
+  /* Alphas can stay the same across themes (tweak if needed later) */
+  --btn-alpha-border: 40%;
+  --btn-alpha-surface: 12%; /* slightly higher base fill in dark not needed; keep subtle */
+  --btn-alpha-surface-hover: 20%;
+  --btn-alpha-surface-active: 30%;
+  --btn-alpha-outline-border: 60%;
+  --btn-alpha-outline-surface-hover: 12%;
+  --btn-alpha-outline-surface-active: 18%;
+  --btn-alpha-ghost-hover: 12%;
+  --btn-alpha-ghost-active: 20%;
 
   /* Scrollbar (dark) */
   --scrollbar-track: transparent;

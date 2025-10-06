@@ -99,99 +99,105 @@
   /* Primary (accent) */
   .btn-primary {
     text-transform: lowercase;
-    border-color: rgba(47, 129, 247, 0.4);
-    background: color-mix(in srgb, var(--accent-color) 20%, transparent);
-    color: var(--accent-color);
+    --_c: var(--btn-color-primary);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-border), transparent);
+    background: color-mix(in srgb, var(--_c) 20%, transparent);
+    color: var(--_c);
   }
   .btn-primary:hover {
-    border-color: var(--accent-color);
-    background: color-mix(in srgb, var(--accent-color) 30%, transparent);
+    border-color: var(--_c);
+    background: color-mix(in srgb, var(--_c) 30%, transparent);
   }
   .btn-primary[aria-pressed='true'],
   .btn-primary[data-pressed='true'] {
-    background: color-mix(in srgb, var(--accent-color) 40%, transparent);
+    background: color-mix(in srgb, var(--_c) 40%, transparent);
   }
 
   /* Neutral / Secondary */
   .btn-neutral,
   .btn-secondary {
     text-transform: lowercase;
-    border-color: rgba(71, 85, 105, 0.6);
-    color: rgb(226 232 240);
+    --_c: var(--btn-color-neutral);
+    border-color: color-mix(in srgb, var(--_c) 60%, transparent);
+    color: var(--btn-color-neutral-fg);
   }
   .btn-neutral:hover,
   .btn-secondary:hover {
-    background: rgba(71, 85, 105, 0.2);
+    background: color-mix(in srgb, var(--_c) 20%, transparent);
   }
   .btn-neutral[aria-pressed='true'],
   .btn-secondary[aria-pressed='true'],
   .btn-neutral[data-pressed='true'],
   .btn-secondary[data-pressed='true'] {
-    background: rgba(71, 85, 105, 0.2);
+    background: color-mix(in srgb, var(--_c) 22%, transparent);
   }
 
   /* Danger */
   .btn-danger {
     text-transform: lowercase;
-    border-color: rgba(239, 68, 68, 0.4);
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
+    --_c: var(--btn-color-danger);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-border), transparent);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface), transparent);
+    color: var(--_c);
   }
   .btn-danger:hover {
-    border-color: #ef4444;
-    background: rgba(239, 68, 68, 0.2);
+    border-color: var(--_c);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface-hover), transparent);
   }
   .btn-danger[aria-pressed='true'],
   .btn-danger[data-pressed='true'] {
-    background: rgba(239, 68, 68, 0.3);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface-active), transparent);
   }
 
   /* Success */
   .btn-success {
     text-transform: lowercase;
-    border-color: rgba(16, 185, 129, 0.4);
-    background: rgba(16, 185, 129, 0.1);
-    color: #10b981;
+    --_c: var(--btn-color-success);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-border), transparent);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface), transparent);
+    color: var(--_c);
   }
   .btn-success:hover {
-    border-color: #10b981;
-    background: rgba(16, 185, 129, 0.2);
+    border-color: var(--_c);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface-hover), transparent);
   }
   .btn-success[aria-pressed='true'],
   .btn-success[data-pressed='true'] {
-    background: rgba(16, 185, 129, 0.3);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface-active), transparent);
   }
 
   /* Warning */
   .btn-warn {
     text-transform: lowercase;
-    border-color: rgba(255, 184, 108, 0.4);
-    background: rgba(255, 184, 108, 0.1);
-    color: #ffb86c;
+    --_c: var(--btn-color-warn);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-border), transparent);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface), transparent);
+    color: var(--_c);
   }
   .btn-warn:hover {
-    border-color: #ffb86c;
-    background: rgba(255, 184, 108, 0.2);
+    border-color: var(--_c);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface-hover), transparent);
   }
   .btn-warn[aria-pressed='true'],
   .btn-warn[data-pressed='true'] {
-    background: rgba(255, 184, 108, 0.3);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface-active), transparent);
   }
 
   /* Info */
   .btn-info {
     text-transform: lowercase;
-    border-color: rgba(47, 129, 247, 0.4);
-    background: rgba(47, 129, 247, 0.1);
-    color: #2f81f7;
+    --_c: var(--btn-color-info);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-border), transparent);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface), transparent);
+    color: var(--_c);
   }
   .btn-info:hover {
-    border-color: #2f81f7;
-    background: rgba(47, 129, 247, 0.2);
+    border-color: var(--_c);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface-hover), transparent);
   }
   .btn-info[aria-pressed='true'],
   .btn-info[data-pressed='true'] {
-    background: rgba(47, 129, 247, 0.3);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface-active), transparent);
   }
 
   /* Outline variants */
@@ -199,13 +205,14 @@
   .btn-outline-primary {
     text-transform: lowercase;
     background: transparent;
-    border-color: rgba(47, 129, 247, 0.6);
-    color: var(--accent-color);
+    --_c: var(--btn-color-primary);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-border), transparent);
+    color: var(--_c);
   }
   .btn-outline:hover,
   .btn-outline-primary:hover {
-    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
-    border-color: var(--accent-color);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-hover), transparent);
+    border-color: var(--_c);
   }
   .btn-outline[aria-pressed='true'],
   .btn-outline[data-pressed='true'],
@@ -216,72 +223,77 @@
   .btn-outline-danger {
     text-transform: lowercase;
     background: transparent;
-    border-color: rgba(239, 68, 68, 0.6);
-    color: #ef4444;
+    --_c: var(--btn-color-danger);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-border), transparent);
+    color: var(--_c);
   }
   .btn-outline-danger:hover {
-    background: rgba(239, 68, 68, 0.1);
-    border-color: #ef4444;
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-hover), transparent);
+    border-color: var(--_c);
   }
   .btn-outline-danger[aria-pressed='true'],
   .btn-outline-danger[data-pressed='true'] {
-    background: rgba(239, 68, 68, 0.15);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-active), transparent);
   }
   .btn-outline-success {
     text-transform: lowercase;
     background: transparent;
-    border-color: rgba(16, 185, 129, 0.6);
-    color: #10b981;
+    --_c: var(--btn-color-success);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-border), transparent);
+    color: var(--_c);
   }
   .btn-outline-success:hover {
-    background: rgba(16, 185, 129, 0.1);
-    border-color: #10b981;
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-hover), transparent);
+    border-color: var(--_c);
   }
   .btn-outline-success[aria-pressed='true'],
   .btn-outline-success[data-pressed='true'] {
-    background: rgba(16, 185, 129, 0.15);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-active), transparent);
   }
   .btn-outline-neutral {
     text-transform: lowercase;
     background: transparent;
-    border-color: rgba(71, 85, 105, 0.6);
-    color: rgb(226 232 240);
+    --_c: var(--btn-color-neutral);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-border), transparent);
+    color: var(--btn-color-neutral-fg);
   }
   .btn-outline-neutral:hover {
-    background: rgba(71, 85, 105, 0.2);
-    border-color: rgba(71, 85, 105, 1);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-hover), transparent);
+    border-color: var(--_c);
   }
   .btn-outline-neutral[aria-pressed='true'],
   .btn-outline-neutral[data-pressed='true'] {
-    background: rgba(71, 85, 105, 0.25);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-active), transparent);
   }
   .btn-outline-warn {
     text-transform: lowercase;
     background: transparent;
-    border-color: rgba(255, 184, 108, 0.6);
-    color: #ffb86c;
+    --_c: var(--btn-color-warn);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-border), transparent);
+    color: var(--_c);
   }
   .btn-outline-warn:hover {
-    background: rgba(255, 184, 108, 0.1);
-    border-color: #ffb86c;
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-hover), transparent);
+    border-color: var(--_c);
   }
   .btn-outline-warn[aria-pressed='true'],
   .btn-outline-warn[data-pressed='true'] {
-    background: rgba(255, 184, 108, 0.15);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-active), transparent);
   }
   .btn-outline-info {
     text-transform: lowercase;
     background: transparent;
-    border-color: rgba(47, 129, 247, 0.6);
-    color: #2f81f7;
+    --_c: var(--btn-color-info);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-border), transparent);
+    color: var(--_c);
   }
   .btn-outline-info:hover {
-    background: rgba(47, 129, 247, 0.1);
-    border-color: #2f81f7;
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-hover), transparent);
+    border-color: var(--_c);
   }
   .btn-outline-info[aria-pressed='true'],
   .btn-outline-info[data-pressed='true'] {
-    background: rgba(47, 129, 247, 0.15);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-active), transparent);
   }
 
   /* Ghost variants */
@@ -290,88 +302,94 @@
     text-transform: lowercase;
     background: transparent;
     border-color: transparent;
-    color: var(--accent-color);
+    --_c: var(--btn-color-primary);
+    color: var(--_c);
     box-shadow: none;
   }
   .btn-ghost:hover,
   .btn-ghost-primary:hover {
-    background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-hover), transparent);
   }
   .btn-ghost[aria-pressed='true'],
   .btn-ghost[data-pressed='true'],
   .btn-ghost-primary[aria-pressed='true'],
   .btn-ghost-primary[data-pressed='true'] {
-    background: color-mix(in srgb, var(--accent-color) 20%, transparent);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-active), transparent);
   }
   .btn-ghost-danger {
     text-transform: lowercase;
     background: transparent;
     border-color: transparent;
-    color: #ef4444;
+    --_c: var(--btn-color-danger);
+    color: var(--_c);
     box-shadow: none;
   }
   .btn-ghost-danger:hover {
-    background: rgba(239, 68, 68, 0.12);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-hover), transparent);
   }
   .btn-ghost-danger[aria-pressed='true'],
   .btn-ghost-danger[data-pressed='true'] {
-    background: rgba(239, 68, 68, 0.2);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-active), transparent);
   }
   .btn-ghost-success {
     text-transform: lowercase;
     background: transparent;
     border-color: transparent;
-    color: #10b981;
+    --_c: var(--btn-color-success);
+    color: var(--_c);
     box-shadow: none;
   }
   .btn-ghost-success:hover {
-    background: rgba(16, 185, 129, 0.12);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-hover), transparent);
   }
   .btn-ghost-success[aria-pressed='true'],
   .btn-ghost-success[data-pressed='true'] {
-    background: rgba(16, 185, 129, 0.2);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-active), transparent);
   }
   .btn-ghost-neutral {
     text-transform: lowercase;
     background: transparent;
     border-color: transparent;
-    color: rgb(226 232 240);
+    --_c: var(--btn-color-neutral);
+    color: var(--btn-color-neutral-fg);
     box-shadow: none;
   }
   .btn-ghost-neutral:hover {
-    background: rgba(71, 85, 105, 0.2);
+    background: color-mix(in srgb, var(--_c) 20%, transparent);
   }
   .btn-ghost-neutral[aria-pressed='true'],
   .btn-ghost-neutral[data-pressed='true'] {
-    background: rgba(71, 85, 105, 0.25);
+    background: color-mix(in srgb, var(--_c) 26%, transparent);
   }
   .btn-ghost-warn {
     text-transform: lowercase;
     background: transparent;
     border-color: transparent;
-    color: #ffb86c;
+    --_c: var(--btn-color-warn);
+    color: var(--_c);
     box-shadow: none;
   }
   .btn-ghost-warn:hover {
-    background: rgba(255, 184, 108, 0.12);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-hover), transparent);
   }
   .btn-ghost-warn[aria-pressed='true'],
   .btn-ghost-warn[data-pressed='true'] {
-    background: rgba(255, 184, 108, 0.2);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-active), transparent);
   }
   .btn-ghost-info {
     text-transform: lowercase;
     background: transparent;
     border-color: transparent;
-    color: #2f81f7;
+    --_c: var(--btn-color-info);
+    color: var(--_c);
     box-shadow: none;
   }
   .btn-ghost-info:hover {
-    background: rgba(47, 129, 247, 0.12);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-hover), transparent);
   }
   .btn-ghost-info[aria-pressed='true'],
   .btn-ghost-info[data-pressed='true'] {
-    background: rgba(47, 129, 247, 0.2);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-active), transparent);
   }
 
   .icon-btn {
@@ -401,9 +419,6 @@
       0 0 0 2px var(--accent-color),
       inset 0 0 0 1px var(--accent-color);
   }
-
-  /* Icon button (doesn't rely on @extend) */
-  /* (icon-btn also moved to plugin) */
 
   /* Panels */
   .panel-card {
@@ -502,19 +517,41 @@
 
   /* Status pills */
   .pill {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-term-dim/10 text-term-dim ring-1 ring-inset ring-term-dim/30;
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium;
+    --_c: var(--pill-color-neutral);
+    background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
+    color: var(--_c);
+    box-shadow: none;
+    /* Use ring mimic via border for broader support */
+    border: 1px solid color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
   }
   .pill-ok {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-term-ok/10 text-term-ok ring-1 ring-inset ring-term-ok/30;
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium;
+    --_c: var(--pill-color-ok);
+    background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
+    color: var(--_c);
+    border: 1px solid color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
   }
   .pill-err {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-term-err/10 text-term-err ring-1 ring-inset ring-term-err/30;
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium;
+    --_c: var(--pill-color-err);
+    background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
+    color: var(--_c);
+    border: 1px solid color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
   }
   .pill-warn {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-yellow-500/10 text-yellow-300 ring-1 ring-inset ring-yellow-500/30;
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium;
+    --_c: var(--pill-color-warn);
+    background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
+    color: var(--_c);
+    border: 1px solid color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
   }
   .pill-info {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-term-accent/10 text-term-accent ring-1 ring-inset ring-term-accent/30;
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium;
+    --_c: var(--pill-color-info);
+    background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
+    color: var(--_c);
+    border: 1px solid color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
   }
 
   /* Links */
@@ -674,7 +711,7 @@ body,
 .dockview-theme-trad .dv-drop-target-overlay {
   box-shadow:
     0 0 0 1px var(--accent-color),
-    0 0 0 3px rgba(47, 129, 247, 0.35);
+    0 0 0 3px color-mix(in srgb, var(--accent-color) 35%, transparent);
   border-radius: 4px;
 }
 
