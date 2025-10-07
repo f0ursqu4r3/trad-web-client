@@ -56,8 +56,8 @@ function submit() {
     <form class="space-y-4" @submit.prevent="submit">
       <div class="grid gap-3 md:grid-cols-2">
         <label class="field"><span>Symbol</span><input v-model="symbol" class="input" /></label>
-        <label class="field"
-          ><span>Action</span>
+        <label class="field">
+          <span>Action</span>
           <select v-model="action" class="input">
             <option>Buy</option>
             <option>Sell</option>
@@ -65,16 +65,16 @@ function submit() {
             <option>CloseAll</option>
           </select>
         </label>
-        <label class="field"
-          ><span>USD Qty (total)</span
-          ><input type="number" v-model.number="quantity_usd" class="input"
-        /></label>
-        <label class="field"
-          ><span>Splits</span
-          ><input type="number" min="2" max="50" v-model.number="num_splits" class="input"
-        /></label>
-        <label class="field"
-          ><span>Position Side</span>
+        <label class="field">
+          <span>USD Qty (total)</span>
+          <input type="number" v-model.number="quantity_usd" class="input" />
+        </label>
+        <label class="field">
+          <span>Splits</span>
+          <input type="number" min="2" max="50" v-model.number="num_splits" class="input" />
+        </label>
+        <label class="field">
+          <span>Position Side</span>
           <select v-model="position_side" class="input">
             <option>Long</option>
             <option>Short</option>

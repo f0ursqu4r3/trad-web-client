@@ -56,22 +56,23 @@ function submit() {
     <form class="space-y-4" @submit.prevent="submit">
       <div class="grid grid-cols-2 gap-3">
         <label class="field"><span>Symbol</span><input v-model="symbol" class="input" /></label>
-        <label class="field"
-          ><span>Side</span>
+        <label class="field">
+          <span>Side</span>
           <select v-model="side" class="input">
             <option>Buy</option>
             <option>Sell</option>
           </select>
         </label>
-        <label class="field"
-          ><span>Qty</span
-          ><input type="number" step="0.000001" v-model.number="quantity" class="input"
-        /></label>
-        <label class="field"
-          ><span>Price</span><input type="number" v-model.number="price" class="input"
-        /></label>
-        <label class="field col-span-2"
-          ><span>Position Side</span>
+        <label class="field">
+          <span>Qty</span>
+          <input type="number" step="0.000001" v-model.number="quantity" class="input" />
+        </label>
+        <label class="field">
+          <span>Price</span>
+          <input type="number" v-model.number="price" class="input" />
+        </label>
+        <label class="field col-span-2">
+          <span>Position Side</span>
           <select v-model="posSide" class="input">
             <option>Long</option>
             <option>Short</option>

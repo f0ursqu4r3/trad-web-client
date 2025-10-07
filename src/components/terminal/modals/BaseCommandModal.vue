@@ -17,7 +17,7 @@ function close() {
   <Teleport to="body">
     <div
       v-if="open"
-      class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center p-16 z-500"
+      class="fixed inset-0 bg-black/25 backdrop-blur-xs flex items-start justify-center p-16 z-500"
       @click.self="close"
     >
       <div

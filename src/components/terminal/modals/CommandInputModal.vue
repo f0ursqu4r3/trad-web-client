@@ -151,7 +151,11 @@ onUnmounted(() => {
 
     <!-- Command palette popup -->
     <Teleport to="body">
-      <div v-if="showMenu" class="fixed inset-0 z-[400]" @click.self="showMenu = false">
+      <div
+        v-if="showMenu"
+        class="fixed inset-0 z-[400] bg-black/25 backdrop-blur-xs"
+        @click.self="showMenu = false"
+      >
         <div
           class="absolute top-[10%] left-1/2 -translate-x-1/2 w-[min(640px,90%)] bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-lg shadow-2xl text-[color:var(--color-text)] overflow-hidden"
         >

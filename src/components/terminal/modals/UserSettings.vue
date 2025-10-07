@@ -145,10 +145,13 @@ const returnToOrigin = window.location.origin
         role="dialog"
         @click.self="close"
       >
-        <div class="settings-modal-card relative mx-auto w-full max-w-4xl" role="document">
+        <div
+          class="relative mx-auto w-full max-w-4xl flex flex-col max-h-[80vh] rounded-lg border border-[var(--border-color)] bg-[var(--panel-bg)] text-[var(--color-text)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--border-color)_65%,transparent),0_8px_28px_rgba(0,0,0,0.45)]"
+          role="document"
+        >
           <!-- Header -->
           <div
-            class="settings-modal-header flex items-center justify-between px-3 py-2 text-[12px] uppercase tracking-wide"
+            class="flex items-center justify-between px-3 py-2 text-[12px] uppercase tracking-wide bg-[linear-gradient(180deg,color-mix(in_srgb,var(--panel-header-bg)_85%,transparent),color-mix(in_srgb,var(--panel-header-bg)_100%,transparent))] border-b border-[var(--border-color)] text-[var(--color-text-dim)] backdrop-blur-sm"
           >
             <div class="flex items-center gap-2">
               <span class="text-[var(--accent-color)]">User Settings</span>
@@ -349,29 +352,7 @@ const returnToOrigin = window.location.origin
   opacity: 0;
 }
 
-.settings-modal-card {
-  background: var(--panel-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  color: var(--color-text);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--border-color) 65%, transparent),
-    0 8px 28px rgba(0, 0, 0, 0.45);
-  display: flex;
-  flex-direction: column;
-  max-height: 80vh;
-}
-
-.settings-modal-header {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--panel-header-bg) 85%, transparent),
-    color-mix(in srgb, var(--panel-header-bg) 100%, transparent)
-  );
-  border-bottom: 1px solid var(--border-color);
-  color: var(--color-text-dim);
-  backdrop-filter: blur(4px);
-}
+/* styles replaced by Tailwind utility classes in template */
 
 /* Adapt badges/pills if inside modal (ensures contrast in light/dark) */
 :deep(.badge) {
