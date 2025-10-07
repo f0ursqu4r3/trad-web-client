@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 3
+export const PROTOCOL_VERSION = 4
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 

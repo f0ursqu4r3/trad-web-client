@@ -110,7 +110,7 @@ for (let i = 0; i < 100; i++) {
 
     <section>
       <h2 class="text-lg font-mono mb-2">Sticky Scroller</h2>
-      <div class="h-64 w-96">
+      <div class="h-64 w-96 overflow-hidden rounded">
         <StickyScroller
           class="list striped"
           :trigger="ssitems.length"
