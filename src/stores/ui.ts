@@ -56,6 +56,10 @@ export const useUiStore = defineStore('ui', () => {
     theme.value = t
   }
 
+  function toggleTheme() {
+    setTheme(theme.value === 'dark' ? 'light' : 'dark')
+  }
+
   function getVar(name: string, fallback?: string | undefined): string {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim() ?? fallback
   }
@@ -63,5 +67,5 @@ export const useUiStore = defineStore('ui', () => {
   // Persist chosen theme *not* effective theme
   watch(theme, (t) => localStorage.setItem(STORAGE_KEY, t), { immediate: true })
 
-  return { theme, effectiveTheme, systemPrefersDark, setTheme, getVar }
+  return { theme, effectiveTheme, systemPrefersDark, setTheme, toggleTheme, getVar }
 })

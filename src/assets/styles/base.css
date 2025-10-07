@@ -1,0 +1,62 @@
+/* Base (html/body, typography, transitions, scrollbars, selection) */
+@layer base {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: var(
+      --font-mono,
+      'SFMono-Regular',
+      ui-monospace,
+      'JetBrains Mono',
+      'Source Code Pro',
+      Menlo,
+      Consolas,
+      monospace
+    );
+    line-height: 1.35;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--color-bg);
+    color: var(--color-text);
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+  body,
+  #app {
+    height: 100vh;
+  }
+  body,
+  .dockview-wrapper {
+    transition:
+      background-color 0.25s ease,
+      color 0.25s ease;
+  }
+  ::-webkit-scrollbar {
+    width: 0.5rem;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 0.25rem;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+  [data-theme='dark'] ::-webkit-scrollbar-thumb,
+  [data-theme='dark'] ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+  [data-theme='dark'] ::-webkit-scrollbar-thumb,
+  [data-theme='synthwave'] ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+  }
+  [data-theme='dark'] ::-webkit-scrollbar-thumb:hover,
+  [data-theme='synthwave'] ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--accent-color) 30%, transparent);
+  }
+}

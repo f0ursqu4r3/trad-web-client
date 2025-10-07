@@ -1,0 +1,145 @@
+/* Panels, menus, tables, lists, badges, pills, notices */
+@layer components {
+  .terminal-card {
+    @apply w-full max-w-[720px] overflow-hidden rounded-lg border border-term-border bg-term-bg text-term-fg shadow-xl;
+  }
+  .panel-card {
+    @apply rounded-md border shadow-sm;
+    background: var(--panel-bg);
+    border-color: var(--border-color);
+  }
+  .panel-header-row {
+    @apply flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide;
+    background: var(--panel-header-bg);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--color-text-dim);
+  }
+  .section-divider {
+    @apply my-2 h-px w-full border-0;
+    background: var(--panel-border-inner);
+  }
+  .toolbar-row {
+    @apply flex items-center justify-between gap-2 border-b border-slate-700/60 bg-[var(--panel-header-bg)] px-2 py-1 text-[12px] text-[var(--color-text-dim)];
+  }
+  .toolbar-section {
+    @apply inline-flex items-center gap-4;
+  }
+  .toolbar-spacer {
+    @apply grow;
+  }
+  .menu-anchor {
+    @apply relative;
+  }
+  .menu-dropdown {
+    @apply absolute right-0 top-[110%] z-50 min-w-[140px] flex flex-col rounded border py-1 text-[13px] shadow-lg;
+    background: var(--panel-bg);
+    border-color: var(--border-color);
+    color: var(--color-text);
+    z-index: 1000;
+  }
+  .menu-item {
+    @apply cursor-pointer whitespace-nowrap px-2.5 py-1.5 flex items-center gap-2;
+  }
+  .menu-item:hover {
+    @apply bg-white/5;
+  }
+  .menu-item:active,
+  .menu-item.selected,
+  .menu-item[aria-checked='true'],
+  .menu-item[data-checked='true'] {
+    @apply bg-white/10;
+  }
+  .menu-item:disabled,
+  .menu-empty {
+    @apply px-2.5 py-1.5 text-[12px] text-term-dim;
+  }
+  .skeleton {
+    @apply animate-pulse rounded bg-slate-500/20;
+  }
+  .skeleton-line {
+    @apply animate-pulse rounded bg-slate-500/20 h-3;
+  }
+  .list-row {
+    @apply flex items-center justify-between gap-3 border-b border-slate-800/60 px-2 py-1.5 text-[13px];
+  }
+  .list-row-hover {
+    @apply hover:bg-white/5;
+  }
+  .badge,
+  .chip {
+    @apply inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px];
+    background: var(--panel-header-bg);
+    border-color: var(--border-color);
+    color: var(--color-text-dim);
+  }
+  .pill,
+  .pill-ok,
+  .pill-err,
+  .pill-warn,
+  .pill-info {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium;
+    box-shadow: none;
+    border: 1px solid transparent;
+  }
+  .pill {
+    --_c: var(--pill-color-neutral);
+    background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
+    color: var(--_c);
+    border-color: color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
+  }
+  .pill-ok {
+    --_c: var(--pill-color-ok);
+    background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
+    color: var(--_c);
+    border-color: color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
+  }
+  .pill-err {
+    --_c: var(--pill-color-err);
+    background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
+    color: var(--_c);
+    border-color: color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
+  }
+  .pill-warn {
+    --_c: var(--pill-color-warn);
+    background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
+    color: var(--_c);
+    border-color: color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
+  }
+  .pill-info {
+    --_c: var(--pill-color-info);
+    background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
+    color: var(--_c);
+    border-color: color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
+  }
+  a.link-term {
+    @apply text-term-accent underline underline-offset-2 hover:opacity-90;
+  }
+  .table-tiny {
+    @apply w-full text-[12px];
+  }
+  .table-tiny thead th {
+    @apply py-1 text-left font-medium text-term-dim border-b border-slate-700/70;
+  }
+  .table-tiny tbody td {
+    @apply py-1 align-top border-b border-slate-800/70;
+  }
+  .table-compact tbody tr:hover {
+    @apply bg-white/5;
+  }
+  .table-compact tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  table.striped tbody tr:nth-child(odd),
+  .list.striped .row:nth-child(odd) {
+    @apply bg-white/5;
+  }
+  .notice {
+    @apply mt-3 text-[12px];
+  }
+  .notice-ok {
+    @apply mt-3 text-[12px] text-term-ok;
+  }
+  .notice-err {
+    @apply mt-3 text-[12px] text-term-err;
+  }
+}

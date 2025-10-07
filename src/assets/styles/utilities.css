@@ -1,0 +1,62 @@
+/* Utilities & helpers */
+@layer components {
+  .prompt-row {
+    @apply mb-2 flex items-center gap-2;
+  }
+  .prompt-chevron {
+    @apply w-4 text-center text-term-accent;
+  }
+  .prompt-label {
+    @apply w-24 shrink-0 text-[12px] text-term-dim;
+  }
+  .muted {
+    @apply text-[12px] text-term-dim;
+  }
+  .mono {
+    font-family: var(
+      --font-mono,
+      'SFMono-Regular',
+      ui-monospace,
+      'JetBrains Mono',
+      'Source Code Pro',
+      Menlo,
+      Consolas,
+      monospace
+    );
+  }
+  .dim {
+    color: var(--color-text-dim);
+  }
+  .kbd {
+    font-family: var(--font-mono);
+    background: var(--panel-header-bg);
+    border: 1px solid var(--border-color);
+    border-bottom-color: var(--color-border-strong);
+    padding: 0 4px;
+    border-radius: 3px;
+    font-size: 0.85em;
+  }
+  .text-accent {
+    color: var(--accent-color);
+  }
+  .shadow-term {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  }
+  .code-inline {
+    @apply rounded border px-1.5 py-0.5 text-[12px] font-mono;
+    background: color-mix(in srgb, var(--panel-header-bg) 70%, transparent);
+    border-color: var(--border-color);
+  }
+  .panel {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+  }
+  .panel-header {
+    background: var(--panel-header-bg);
+    padding: 0 0.5rem;
+  }
+  .scroll-area {
+    @apply overflow-auto;
+  }
+}

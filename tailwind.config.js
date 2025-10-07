@@ -30,11 +30,27 @@ export default {
     'scroll-area',
     'list-row',
     'list-row-hover',
-    // Terminal themed inputs
+    // Inputs (new generic) + legacy aliases (remove -term variants after migration)
+    'input',
+    'input-sm',
+    'input-lg',
+    'textarea',
+    'select',
+    'input-invalid',
+    // Range sliders
+    'range',
+    'range-sm',
+    'range-wrapper',
+    'range-vertical',
+    'range-bubble',
+    'range-bubble-accent',
+    'dual-range',
+    'dual-range-track-overlay',
+    'dual-range-track-active',
+    // Legacy (to phase out)
     'input-term',
     'input-term-sm',
     'input-term-lg',
-    'input-invalid',
     // Menus
     'menu-dropdown',
     'menu-item',

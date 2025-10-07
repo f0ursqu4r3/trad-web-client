@@ -111,6 +111,16 @@ export const useWsStore = defineStore('ws', () => {
     outboundCount.value++
   }
 
+  /** Generic sender for any UserCommandPayload (raw_text optional convenience) */
+  function sendUserCommand(command: UserCommandPayload, rawText?: string) {
+    const raw = rawText ?? `/${command.kind}`
+    client.send({
+      kind: 'UserCommand',
+      data: { raw_text: raw, command },
+    })
+    outboundCount.value++
+  }
+
   function listCommandDevices(commandId: Uuid) {
     client.send({
       kind: 'System',
@@ -257,6 +267,7 @@ export const useWsStore = defineStore('ws', () => {
     sendSystemPing,
     sendAuthenticate,
     sendLogout,
+    sendUserCommand,
     listCommandDevices,
     sendCancelCommand,
   }

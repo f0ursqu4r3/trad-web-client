@@ -1,0 +1,350 @@
+/* Buttons */
+@layer components {
+  .btn {
+    @apply inline-flex items-center gap-1 border px-2 py-1 text-[12px] font-medium rounded tracking-wide cursor-pointer transition select-none;
+    border-color: var(--btn-border);
+    background: var(--btn-bg, var(--btn-bg-start));
+    color: var(--btn-fg);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+  .btn:hover:not(:disabled) {
+    opacity: 0.95;
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent-color);
+  }
+  .btn:disabled {
+    @apply opacity-60 cursor-not-allowed;
+    background: var(--panel-bg);
+    color: var(--color-text-dim);
+    box-shadow: none;
+  }
+  .btn[aria-pressed='true'],
+  .btn[data-pressed='true'] {
+    box-shadow:
+      0 0 0 2px var(--accent-color),
+      inset 0 0 0 1px var(--accent-color);
+  }
+  .btn-sm {
+    @apply px-1.5 py-0.5 text-[11px];
+  }
+  .btn-lg {
+    @apply px-3 py-2 text-[13px];
+  }
+  /* Variants */
+  .btn-primary {
+    text-transform: lowercase;
+    --_c: var(--btn-color-primary);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-border), transparent);
+    background: color-mix(in srgb, var(--_c) 20%, transparent);
+    color: var(--_c);
+  }
+  .btn-primary:hover {
+    border-color: var(--_c);
+    background: color-mix(in srgb, var(--_c) 30%, transparent);
+  }
+  .btn-primary[aria-pressed='true'],
+  .btn-primary[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) 40%, transparent);
+  }
+  .btn-neutral,
+  .btn-secondary {
+    text-transform: lowercase;
+    --_c: var(--btn-color-neutral);
+    border-color: color-mix(in srgb, var(--_c) 60%, transparent);
+    color: var(--btn-color-neutral-fg);
+  }
+  .btn-neutral:hover,
+  .btn-secondary:hover {
+    background: color-mix(in srgb, var(--_c) 20%, transparent);
+  }
+  .btn-neutral[aria-pressed='true'],
+  .btn-secondary[aria-pressed='true'],
+  .btn-neutral[data-pressed='true'],
+  .btn-secondary[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) 22%, transparent);
+  }
+  .btn-danger {
+    text-transform: lowercase;
+    --_c: var(--btn-color-danger);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-border), transparent);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface), transparent);
+    color: var(--_c);
+  }
+  .btn-danger:hover {
+    border-color: var(--_c);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface-hover), transparent);
+  }
+  .btn-danger[aria-pressed='true'],
+  .btn-danger[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface-active), transparent);
+  }
+  .btn-success {
+    text-transform: lowercase;
+    --_c: var(--btn-color-success);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-border), transparent);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface), transparent);
+    color: var(--_c);
+  }
+  .btn-success:hover {
+    border-color: var(--_c);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface-hover), transparent);
+  }
+  .btn-success[aria-pressed='true'],
+  .btn-success[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface-active), transparent);
+  }
+  .btn-warn {
+    text-transform: lowercase;
+    --_c: var(--btn-color-warn);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-border), transparent);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface), transparent);
+    color: var(--_c);
+  }
+  .btn-warn:hover {
+    border-color: var(--_c);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface-hover), transparent);
+  }
+  .btn-warn[aria-pressed='true'],
+  .btn-warn[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface-active), transparent);
+  }
+  .btn-info {
+    text-transform: lowercase;
+    --_c: var(--btn-color-info);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-border), transparent);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface), transparent);
+    color: var(--_c);
+  }
+  .btn-info:hover {
+    border-color: var(--_c);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface-hover), transparent);
+  }
+  .btn-info[aria-pressed='true'],
+  .btn-info[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-surface-active), transparent);
+  }
+  /* Outline */
+  .btn-outline,
+  .btn-outline-primary {
+    text-transform: lowercase;
+    background: transparent;
+    --_c: var(--btn-color-primary);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-border), transparent);
+    color: var(--_c);
+  }
+  .btn-outline:hover,
+  .btn-outline-primary:hover {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-hover), transparent);
+    border-color: var(--_c);
+  }
+  .btn-outline[aria-pressed='true'],
+  .btn-outline[data-pressed='true'],
+  .btn-outline-primary[aria-pressed='true'],
+  .btn-outline-primary[data-pressed='true'] {
+    background: color-mix(in srgb, var(--accent-color) 15%, transparent);
+  }
+  .btn-outline-danger {
+    text-transform: lowercase;
+    background: transparent;
+    --_c: var(--btn-color-danger);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-border), transparent);
+    color: var(--_c);
+  }
+  .btn-outline-danger:hover {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-hover), transparent);
+    border-color: var(--_c);
+  }
+  .btn-outline-danger[aria-pressed='true'],
+  .btn-outline-danger[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-active), transparent);
+  }
+  .btn-outline-success {
+    text-transform: lowercase;
+    background: transparent;
+    --_c: var(--btn-color-success);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-border), transparent);
+    color: var(--_c);
+  }
+  .btn-outline-success:hover {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-hover), transparent);
+    border-color: var(--_c);
+  }
+  .btn-outline-success[aria-pressed='true'],
+  .btn-outline-success[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-active), transparent);
+  }
+  .btn-outline-neutral {
+    text-transform: lowercase;
+    background: transparent;
+    --_c: var(--btn-color-neutral);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-border), transparent);
+    color: var(--btn-color-neutral-fg);
+  }
+  .btn-outline-neutral:hover {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-hover), transparent);
+    border-color: var(--_c);
+  }
+  .btn-outline-neutral[aria-pressed='true'],
+  .btn-outline-neutral[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-active), transparent);
+  }
+  .btn-outline-warn {
+    text-transform: lowercase;
+    background: transparent;
+    --_c: var(--btn-color-warn);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-border), transparent);
+    color: var(--_c);
+  }
+  .btn-outline-warn:hover {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-hover), transparent);
+    border-color: var(--_c);
+  }
+  .btn-outline-warn[aria-pressed='true'],
+  .btn-outline-warn[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-active), transparent);
+  }
+  .btn-outline-info {
+    text-transform: lowercase;
+    background: transparent;
+    --_c: var(--btn-color-info);
+    border-color: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-border), transparent);
+    color: var(--_c);
+  }
+  .btn-outline-info:hover {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-hover), transparent);
+    border-color: var(--_c);
+  }
+  .btn-outline-info[aria-pressed='true'],
+  .btn-outline-info[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-active), transparent);
+  }
+  /* Ghost */
+  .btn-ghost,
+  .btn-ghost-primary {
+    text-transform: lowercase;
+    background: transparent;
+    border-color: transparent;
+    --_c: var(--btn-color-primary);
+    color: var(--_c);
+    box-shadow: none;
+  }
+  .btn-ghost:hover,
+  .btn-ghost-primary:hover {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-hover), transparent);
+  }
+  .btn-ghost[aria-pressed='true'],
+  .btn-ghost[data-pressed='true'],
+  .btn-ghost-primary[aria-pressed='true'],
+  .btn-ghost-primary[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-active), transparent);
+  }
+  .btn-ghost-danger {
+    text-transform: lowercase;
+    background: transparent;
+    border-color: transparent;
+    --_c: var(--btn-color-danger);
+    color: var(--_c);
+    box-shadow: none;
+  }
+  .btn-ghost-danger:hover {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-hover), transparent);
+  }
+  .btn-ghost-danger[aria-pressed='true'],
+  .btn-ghost-danger[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-active), transparent);
+  }
+  .btn-ghost-success {
+    text-transform: lowercase;
+    background: transparent;
+    border-color: transparent;
+    --_c: var(--btn-color-success);
+    color: var(--_c);
+    box-shadow: none;
+  }
+  .btn-ghost-success:hover {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-hover), transparent);
+  }
+  .btn-ghost-success[aria-pressed='true'],
+  .btn-ghost-success[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-active), transparent);
+  }
+  .btn-ghost-neutral {
+    text-transform: lowercase;
+    background: transparent;
+    border-color: transparent;
+    --_c: var(--btn-color-neutral);
+    color: var(--btn-color-neutral-fg);
+    box-shadow: none;
+  }
+  .btn-ghost-neutral:hover {
+    background: color-mix(in srgb, var(--_c) 20%, transparent);
+  }
+  .btn-ghost-neutral[aria-pressed='true'],
+  .btn-ghost-neutral[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) 26%, transparent);
+  }
+  .btn-ghost-warn {
+    text-transform: lowercase;
+    background: transparent;
+    border-color: transparent;
+    --_c: var(--btn-color-warn);
+    color: var(--_c);
+    box-shadow: none;
+  }
+  .btn-ghost-warn:hover {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-hover), transparent);
+  }
+  .btn-ghost-warn[aria-pressed='true'],
+  .btn-ghost-warn[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-active), transparent);
+  }
+  .btn-ghost-info {
+    text-transform: lowercase;
+    background: transparent;
+    border-color: transparent;
+    --_c: var(--btn-color-info);
+    color: var(--_c);
+    box-shadow: none;
+  }
+  .btn-ghost-info:hover {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-hover), transparent);
+  }
+  .btn-ghost-info[aria-pressed='true'],
+  .btn-ghost-info[data-pressed='true'] {
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-active), transparent);
+  }
+  .icon-btn {
+    @apply inline-flex gap-2 items-center justify-center border rounded text-[12px] px-1.5 py-1 cursor-pointer transition;
+    border-color: var(--border-color);
+    background: var(--btn-bg, var(--btn-bg-start));
+    color: currentColor;
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+  .icon-btn:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+  .icon-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent-color);
+  }
+  .icon-btn:disabled {
+    @apply opacity-50 cursor-not-allowed;
+    background: var(--panel-bg);
+    box-shadow: none;
+  }
+  .icon-btn[aria-pressed='true'],
+  .icon-btn[data-pressed='true'] {
+    box-shadow:
+      0 0 0 2px var(--accent-color),
+      inset 0 0 0 1px var(--accent-color);
+  }
+}

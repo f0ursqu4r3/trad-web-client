@@ -304,7 +304,7 @@ const returnToOrigin = window.location.origin
               <textarea
                 v-model="prefsEditor"
                 @input="onPrefsInput"
-                class="textarea-term font-mono h-56 w-full text-[12px]"
+                class="textarea font-mono h-56 w-full text-[12px]"
                 spellcheck="false"
               ></textarea>
               <div class="mt-2 flex items-center gap-2">
