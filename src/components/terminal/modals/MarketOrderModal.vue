@@ -76,13 +76,13 @@ function submit() {
           </select>
         </label>
       </div>
-      <div class="flex items-center justify-end gap-2 pt-2">
-        <button type="button" class="btn btn-secondary btn-sm" @click="emit('close')">
-          Cancel
-        </button>
-        <button type="submit" class="btn btn-primary btn-sm">Submit</button>
-      </div>
     </form>
+    <template #footer>
+      <div class="flex gap-2 justify-end pt-2">
+        <button type="button" class="btn btn-secondary" @click="emit('close')">Cancel</button>
+        <button form="trailing-entry" type="submit" class="btn btn-primary">Submit</button>
+      </div>
+    </template>
   </BaseCommandModal>
 </template>
 

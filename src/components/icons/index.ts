@@ -154,6 +154,15 @@ export const SparklesIcon: FunctionalComponent<{ size?: number | string }> = (pr
 }
 SparklesIcon.displayName = 'SparklesIcon'
 
+export const XIcon: FunctionalComponent<{ size?: number | string }> = (props) => {
+  const size = props.size ?? 16
+  return h('svg', base(size, 'Close', 'icon x-icon'), [
+    h('line', { x1: 18, y1: 6, x2: 6, y2: 18 }),
+    h('line', { x1: 6, y1: 6, x2: 18, y2: 18 }),
+  ])
+}
+XIcon.displayName = 'XIcon'
+
 export default {
   BoltIcon,
   CogIcon,
@@ -169,4 +178,5 @@ export default {
   SparklesIcon,
   StarIcon,
   SunIcon,
+  XIcon,
 }

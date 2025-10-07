@@ -77,7 +77,6 @@ function submit() {
         </label>
       </div>
     </form>
-
     <template #footer>
       <div class="flex gap-2 justify-end pt-2">
         <button type="button" class="btn btn-secondary" @click="emit('close')">Cancel</button>

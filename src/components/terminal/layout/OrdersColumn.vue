@@ -12,12 +12,6 @@
         <CommandHistory />
       </div>
     </template>
-    <template #command-input>
-      <div class="panel">
-        <div class="panel-header dim">command input</div>
-        <CommandInput />
-      </div>
-    </template>
   </SplitView>
 </template>
 
@@ -25,7 +19,6 @@
 import SplitView from '@/components/general/SplitView.vue'
 import InboundDebugPanel from '@/components/terminal/panels/InboundDebugPanel.vue'
 import CommandHistory from '@/components/terminal/panels/CommandHistoryPanel.vue'
-import CommandInput from '@/components/terminal/panels/CommandInputPanel.vue'
 </script>
 
 <style scoped>

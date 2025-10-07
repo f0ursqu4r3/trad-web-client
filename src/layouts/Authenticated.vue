@@ -2,9 +2,12 @@
 <template>
   <div class="relative w-full h-full overflow-hidden flex flex-col">
     <div class="toolbar-row">
-      <div class="toolbar-section mr-auto">
+      <div class="toolbar-section">
         <span class="muted">logged in as</span>
         <span class="text-term-accent">{{ username }}</span>
+      </div>
+      <div class="toolbar-section">
+        <CommandInputModal />
       </div>
       <div class="toolbar-section">
         <WsIndicator />
@@ -30,6 +33,7 @@ import { useUserStore } from '@/stores/user'
 
 import WsIndicator from '@/components/general/WsIndicator.vue'
 import UserSettings from '@/components/terminal/modals/UserSettings.vue'
+import CommandInputModal from '@/components/terminal/modals/CommandInputModal.vue'
 
 const userStore = useUserStore()
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { XIcon } from '@/components/icons'
 withDefaults(
   defineProps<{
     title: string
@@ -14,68 +15,35 @@ function close() {
 
 <template>
   <Teleport to="body">
-    <div v-if="open" class="modal-frame" @click.self="close">
-      <div class="modal-card" role="dialog" aria-modal="true">
-        <header class="modal-header">
+    <div
+      v-if="open"
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center p-16 z-500"
+      @click.self="close"
+    >
+      <div
+        class="bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-[10px] w-full max-w-[640px] max-h-[80vh] flex flex-col text-[var(--color-text)] shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+        role="dialog"
+        aria-modal="true"
+      >
+        <header
+          class="flex items-center px-4 py-3 border-b border-[var(--border-color)] uppercase tracking-[0.5px] text-[var(--accent-color)] text-[13px] font-semibold"
+        >
           <div class="flex items-center justify-between w-full">
             <span>{{ title }}</span>
-            <button class="btn btn-secondary btn-xs" @click="close">Close</button>
+            <button class="btn btn-ghost" @click="close">
+              <XIcon />
+            </button>
           </div>
         </header>
-        <div class="modal-body">
+
+        <div class="px-4 pt-3 pb-4 overflow-auto text-[13px]">
           <slot />
         </div>
-        <footer class="modal-footer">
+
+        <footer class="flex gap-2 justify-end px-4 pt-2 pb-3 border-t border-[var(--border-color)]">
           <slot name="footer" />
         </footer>
       </div>
     </div>
   </Teleport>
 </template>
-
-<style scoped>
-.modal-frame {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 4rem 1rem 2rem;
-  z-index: 500;
-}
-.modal-card {
-  background: var(--panel-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  width: min(640px, 100%);
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  color: var(--color-text);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-}
-.modal-header {
-  font-size: 13px;
-  font-weight: 600;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border-color);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--accent-color);
-  display: flex;
-}
-.modal-body {
-  padding: 0.75rem 1rem 1rem;
-  overflow: auto;
-  font-size: 13px;
-}
-.modal-footer {
-  padding: 0.5rem 1rem 0.75rem;
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-  border-top: 1px solid var(--border-color);
-}
-</style>

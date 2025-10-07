@@ -28,13 +28,7 @@
     color: var(--color-text-dim);
   }
   .kbd {
-    font-family: var(--font-mono);
-    background: var(--panel-header-bg);
-    border: 1px solid var(--border-color);
-    border-bottom-color: var(--color-border-strong);
-    padding: 0 4px;
-    border-radius: 3px;
-    font-size: 0.85em;
+    @apply inline-block rounded border px-1.5 py-0.5 text-[11px] font-mono text-term-dim tracking-widest;
   }
   .text-accent {
     color: var(--accent-color);
