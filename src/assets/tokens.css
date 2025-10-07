@@ -70,7 +70,7 @@
     'SFMono-Regular', ui-monospace, 'JetBrains Mono', 'Source Code Pro', Menlo, Consolas, monospace;
 
   /* Scrollbar (light) */
-  --scrollbar-track: transparent;
+  --scrollbar-track: inherit;
   --scrollbar-thumb: #c8d1da;
   --scrollbar-thumb-hover: #b6c0cb;
 }
@@ -128,7 +128,7 @@
   --btn-alpha-ghost-active: 20%;
 
   /* Scrollbar (dark) */
-  --scrollbar-track: transparent;
+  --scrollbar-track: inherit;
   --scrollbar-thumb: #2a3037;
   --scrollbar-thumb-hover: #343c45;
 }
@@ -200,7 +200,7 @@
   --btn-alpha-ghost-active: 26%;
 
   /* Scrollbar */
-  --scrollbar-track: transparent;
+  --scrollbar-track: inherit;
   --scrollbar-thumb: #3b224d;
   --scrollbar-thumb-hover: #4a2b61;
 }
@@ -293,7 +293,7 @@
   --btn-alpha-ghost-active: 22%;
 
   /* Scrollbar */
-  --scrollbar-track: transparent;
+  --scrollbar-track: inherit;
   --scrollbar-thumb: #3b3a40; /* mix of bg_interactive + dim */
   --scrollbar-thumb-hover: #4a4950;
 }
@@ -381,7 +381,7 @@
   --btn-alpha-ghost-active: 28%;
 
   /* Scrollbar */
-  --scrollbar-track: transparent;
+  --scrollbar-track: inherit;
   --scrollbar-thumb: #392a1c;
   --scrollbar-thumb-hover: #45230d;
 }
@@ -461,37 +461,13 @@
   --btn-alpha-ghost-active: 24%;
 
   /* Scrollbar */
-  --scrollbar-track: transparent;
+  --scrollbar-track: inherit;
   --scrollbar-thumb: #393939;
   --scrollbar-thumb-hover: #515151;
 }
 
 /* Body inheritance helper */
-[data-theme='dark'] body {
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-
-/* Body inheritance for synthwave */
-[data-theme='synthwave'] body {
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-
-/* Body inheritance for legacy */
-[data-theme='legacy'] body {
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-
-/* Body inheritance for fantasy24 */
-[data-theme='fantasy24'] body {
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-
-/* Body inheritance for tomorrow80s */
-[data-theme='tomorrowNight80s'] body {
+body {
   background: var(--color-bg);
   color: var(--color-text);
 }

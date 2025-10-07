@@ -657,7 +657,7 @@ body,
 
 /* Scrollbars subtle */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 0.5rem;
 }
 
 ::-webkit-scrollbar-track {
@@ -666,7 +666,7 @@ body,
 
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
-  border-radius: 4px;
+  border-radius: 0.25rem;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -680,10 +680,7 @@ body,
    change. Duplicating the rules under the themed attribute forces a style
    recalculation so the updated variables are applied. */
 [data-theme='dark'] ::-webkit-scrollbar-thumb,
-[data-theme='dark'] ::-webkit-scrollbar-track,
-[data-theme='synthwave'] ::-webkit-scrollbar-thumb,
-[data-theme='synthwave'] ::-webkit-scrollbar-track {
-  /* Re-declare so WebKit repaints using dark token values */
+[data-theme='dark'] ::-webkit-scrollbar-track {
   background: var(--scrollbar-track);
 }
 [data-theme='dark'] ::-webkit-scrollbar-thumb,

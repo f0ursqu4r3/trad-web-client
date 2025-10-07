@@ -1,3 +1,19 @@
+<script setup lang="ts">
+import { ref, type Ref } from 'vue'
+
+import StickyScroller from '@/components/general/StickyScroller.vue'
+import ThemeSwitcher from '@/components/general/ThemeSwitcher.vue'
+
+const ssitems: Ref<Array<{ time: string; level: string; message: string }>> = ref([])
+for (let i = 0; i < 100; i++) {
+  ssitems.value.push({
+    time: new Date().toLocaleTimeString(),
+    level: 'INFO',
+    message: `This is log message #${i + 1}`,
+  })
+}
+</script>
+
 <template>
   <div class="p-6 space-y-8">
     <div class="flex items-center justify-between flex-wrap gap-4">
@@ -91,9 +107,40 @@
         <span class="chip">chip</span>
       </div>
     </section>
+
+    <section>
+      <h2 class="text-lg font-mono mb-2">Sticky Scroller</h2>
+      <div class="h-64 w-96">
+        <StickyScroller
+          class="list striped"
+          :trigger="ssitems.length"
+          :smooth="true"
+          :showButton="true"
+        >
+          <div v-for="(item, index) in ssitems" :key="index" class="row">
+            <span class="time">{{ item.time }}</span>
+            <span class="text-accent font-bold">{{ item.level }}</span>
+            <pre class="payload">{{ item.message }}</pre>
+          </div>
+          <div v-if="ssitems.length === 0" class="empty">No log messages yet.</div>
+        </StickyScroller>
+      </div>
+    </section>
   </div>
 </template>
 
-<script setup lang="ts">
-import ThemeSwitcher from '@/components/general/ThemeSwitcher.vue'
-</script>
+<style scoped>
+.list {
+  flex: 1;
+  overflow: auto;
+  font-size: 8pt;
+  line-height: 1.2;
+  padding: 2pt;
+}
+.row {
+  display: grid;
+  grid-template-columns: 64pt 64pt 1fr;
+  gap: 4pt;
+  padding: 2pt 0;
+}
+</style>
