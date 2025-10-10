@@ -125,8 +125,11 @@ export type ClientToServerMessagePayload =
 export type SystemMessagePayload =
   | { kind: 'Ping'; data: PingData }
   | { kind: 'GetDeviceMarketInfo'; data: GetDeviceMarketInfoRequest }
-  | { kind: 'InspectCommand'; data: InspectCommandRequest }
   | { kind: 'SyncDevice'; data: SyncDeviceRequest }
+  // v3 event-driven inspect + resync
+  | { kind: 'InspectStart'; data: InspectStartRequest }
+  | { kind: 'InspectReadyAck'; data: InspectReadyAckData }
+  | { kind: 'ResyncDevice'; data: ResyncDeviceRequest }
   | { kind: 'TePointsPageRequest'; data: TePointsPageRequest }
   | { kind: 'ListCommandDevicesRequest'; data: ListCommandDevicesRequest }
   | { kind: 'CancelCommand'; data: CancelCommandRequest }
@@ -145,8 +148,8 @@ export type HelloData = {
 // Command structs (anonymous + authenticated)
 export type PingData = { client_send_time: number }
 export type EchoCommand = { message: string }
-export type CreateUserCommand = { username: string; password: string }
-export type LoginCommand = { username: string; password: string }
+export type CreateUserCommand = { username: string; password_hash: string }
+export type LoginCommand = { username: string; password_hash: string }
 export type TestCommand = { test_type: TestType }
 export type GetPriceCommand = { symbol: string }
 export type LogoutCommand = { all_sessions: boolean }
@@ -212,8 +215,14 @@ export type ControlSimMarketCommand = {
 export type DeleteSimMarketCommand = { identifier: string }
 
 export type GetDeviceMarketInfoRequest = { device_id: Uuid }
-export type InspectCommandRequest = { command_id: Uuid; command_box_id: Uuid }
 export type SyncDeviceRequest = { device_id: Uuid }
+export type InspectStartRequest = { command_id: Uuid }
+export type InspectReadyAckData = { command_id: Uuid }
+export type ResyncDeviceRequest = {
+  device_id: Uuid
+  since_seq?: number | null
+  since_ts?: string | null // ISO timestamp
+}
 export type TePointsPageRequest = { device_id: Uuid; since_index: number; max_points: number }
 export type ListCommandDevicesRequest = { command_id: Uuid }
 
@@ -276,7 +285,6 @@ export type ServerToClientPayload =
   | { kind: 'DeviceMarketInfoResponse'; data: DeviceMarketInfoResponseData }
   | { kind: 'DeviceSnapshotLite'; data: DeviceSnapshotLiteData }
   | { kind: 'FatalServerError'; data: FatalServerErrorData }
-  | { kind: 'InspectCommandResponse'; data: InspectCommandResponseData }
   | { kind: 'Message'; data: MessageData }
   | { kind: 'Pong'; data: PongData }
   | { kind: 'ServerError'; data: ServerErrorData }
@@ -287,6 +295,12 @@ export type ServerToClientPayload =
   | { kind: 'TePointsPage'; data: TePointsPageData }
   | { kind: 'UnsetUser'; data: UnsetUserData }
   | { kind: 'Welcome'; data: WelcomeData }
+  | { kind: 'InspectReady'; data: InspectReadyData }
+  | { kind: 'DeviceLifecycle'; data: DeviceLifecycleEvent }
+  | { kind: 'DeviceTeDelta'; data: DeviceTeDeltaEvent }
+  | { kind: 'DeviceMoDelta'; data: DeviceMoDeltaEvent }
+  | { kind: 'DeviceSgDelta'; data: DeviceSgDeltaEvent }
+  | { kind: 'DeviceSplitDelta'; data: DeviceSplitDeltaEvent }
 
 // Payload structs (Server → Client)
 export type ClientIdAssignmentData = { new_client_id: Uuid }
@@ -304,6 +318,7 @@ export type ServerHelloData = {
   server_name: string
   build?: string | null
 }
+export type InspectReadyData = { command_id: Uuid; barrier_ts: string }
 export type PongData = { client_send_time: number }
 export type SetUserData = { user_id: Uuid; username: string }
 export type UnsetUserData = Record<string, never>
@@ -317,20 +332,43 @@ export type DeviceMarketInfoResponseData = {
   market_context: MarketContext
   description: string
 }
-export type InspectCommandResponseData = {
+
+// Server→Client payload data (grouped)
+export type TePointsPageData = {
+  device_id: Uuid
+  start_index: number
+  next_index: number
+  total_len: number
+  points: number[]
+}
+
+export type CommandDevicesListData = {
   command_id: Uuid
-  command_box_id: Uuid
-  initial_inspected_device_type: DeviceKind
-  initial_inspected_device: Uuid
-  initial_inspected_device_market_info: DeviceMarketInfo
   device_ids: Uuid[]
-  device_market_infos: Record<Uuid, DeviceMarketInfo>
   device_kinds: Record<Uuid, DeviceKind>
+}
+
+export type CommandHistoryItem = {
+  command_id: Uuid
+  name: string
+  text: string
+  status: CommandStatus
+}
+
+export type CommandHistoryData = {
+  items: CommandHistoryItem[]
+}
+
+export type SetCommandStatusData = {
+  command_id: Uuid
+  status: CommandStatus
 }
 
 // Lite device snapshot types
 export type DeviceSnapshotLiteData = {
   device_id: Uuid
+  owner_user_id: Uuid
+  associated_command_id: Uuid
   parent_device?: Uuid | null
   children_devices?: Uuid[] | null
   complete: boolean
@@ -402,32 +440,149 @@ export type StopGuardSnapshot = {
   status: StopGuardStatus
 }
 
-export type TePointsPageData = {
+// ==============================================================================================
+// Generic device lifecycle events
+// ==============================================================================================
+
+export type DeviceLifecycle =
+  | { kind: 'Created' }
+  | { kind: 'Running' }
+  | { kind: 'AwaitingFill' }
+  | { kind: 'Completed'; data: { ok: boolean; canceled: boolean } }
+  | { kind: 'Error'; data: { code: string; msg: string } }
+
+export type DeviceLifecycleEvent = {
   device_id: Uuid
-  start_index: number
-  next_index: number
-  total_len: number
-  points: number[]
+  ts: string // ISO timestamp
+  seq: number
+  event: DeviceLifecycle
 }
 
-export type CommandDevicesListData = {
-  command_id: Uuid
-  device_ids: Uuid[]
-  device_kinds: Record<Uuid, DeviceKind>
+// ==============================================================================================
+// Typed device delta streams
+// ==============================================================================================
+
+// Trailing Entry deltas
+export type DeviceTeDelta =
+  | {
+      kind: 'Init'
+      data: {
+        command_id: Uuid
+        symbol: string
+        market_context: MarketContext
+        position_side: PositionSide
+        activation_price: number
+        jump_frac_threshold: number
+        stop_loss: number
+        risk_amount: number
+        phase: TrailingEntryPhase
+        peak: number
+        peak_index: number
+        base_index: number
+        total_points: number
+      }
+    }
+  | { kind: 'PointsInit'; data: { start_idx: number; points: number[]; total_len: number } }
+  | { kind: 'Point'; data: { idx: number; price: number } }
+  | { kind: 'Peak'; data: { price: number } }
+  | { kind: 'Phase'; data: { from: string; to: string } }
+  | { kind: 'TrailingStop'; data: { price: number } }
+  | {
+      kind: 'Review'
+      data: { start_trigger_index?: number | null; end_trigger_index?: number | null }
+    }
+  | {
+      kind: 'OrderUpdate'
+      data: { order_id: number; status: string; cum_qty?: number | null; price?: number | null }
+    }
+
+export type DeviceTeDeltaEvent = {
+  device_id: Uuid
+  ts: string // ISO timestamp
+  seq: number
+  delta: DeviceTeDelta
 }
 
-export type CommandHistoryItem = {
-  command_id: Uuid
-  name: string
-  text: string
-  status: CommandStatus
+// Market Order deltas
+export type DeviceMoDelta =
+  | {
+      kind: 'Init'
+      data: {
+        parent_device?: Uuid | null
+        command_id: Uuid
+        market_context: MarketContext
+        symbol: string
+        order_side: OrderSide
+        position_side: PositionSide
+        quantity: number
+        price: number
+        status: MarketOrderStatus
+        client_order_id?: string | null
+      }
+    }
+  | { kind: 'Submitted'; data: { qty?: number | null; price?: number | null } }
+  | {
+      kind: 'PartiallyFilled'
+      data: { cum_qty?: number | null; last_qty?: number | null; price?: number | null }
+    }
+  | { kind: 'Filled'; data: { cum_qty?: number | null; price?: number | null } }
+  | { kind: 'Canceled' }
+  | { kind: 'Rejected'; data: { order_id?: string | null; reason?: string | null } }
+
+export type DeviceMoDeltaEvent = {
+  device_id: Uuid
+  ts: string // ISO timestamp
+  seq: number
+  delta: DeviceMoDelta
 }
 
-export type CommandHistoryData = {
-  items: CommandHistoryItem[]
+// Stop Guard deltas
+export type DeviceSgDelta =
+  | {
+      kind: 'Init'
+      data: {
+        parent_device?: Uuid | null
+        command_id: Uuid
+        symbol: string
+        market_context: MarketContext
+        position_side: PositionSide
+        stop_price: number
+        covered_qty: number
+        current_stop_client_id?: string | null
+        status: StopGuardStatus
+      }
+    }
+  | { kind: 'Threshold'; data: { price: number } }
+  | { kind: 'Triggered'; data: { at_price: number } }
+  | { kind: 'OrderUpdate'; data: { status: string } }
+  | { kind: 'Coverage'; data: { covered_qty: number } }
+
+export type DeviceSgDeltaEvent = {
+  device_id: Uuid
+  ts: string // ISO timestamp
+  seq: number
+  delta: DeviceSgDelta
 }
 
-export type SetCommandStatusData = {
-  command_id: Uuid
-  status: CommandStatus
+// Split deltas
+export type DeviceSplitDelta =
+  | {
+      kind: 'Init'
+      data: {
+        parent_device?: Uuid | null
+        command_id: Uuid
+        symbol: string
+        price: number
+        quantity: number
+        expected_children: number
+      }
+    }
+  | { kind: 'ChildAdded'; data: { child_id: Uuid } }
+  | { kind: 'ChildState'; data: { child_id: Uuid; state: string } }
+
+export type DeviceSplitDeltaEvent = {
+  device_id: Uuid
+  ts: string // ISO timestamp
+  seq: number
+  delta: DeviceSplitDelta
 }
