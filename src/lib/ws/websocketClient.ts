@@ -44,6 +44,7 @@ export class TradWebClient {
   private onFatalError: FatalErrorHandler | null = null
   private readonly openHandlers = new Set<() => void>()
   private readonly closeHandlers = new Set<(event: CloseEvent) => void>()
+  private readonly pingHandlers = new Set<(commandId: Uuid) => void>()
 
   constructor(options: TradWebClientOptions) {
     if (!options.url) {
@@ -89,14 +90,20 @@ export class TradWebClient {
     return () => this.closeHandlers.delete(handler)
   }
 
-  send(payload: ClientToServerMessagePayload, commandId?: Uuid): void {
+  onPing(handler: (commandId: Uuid) => void): () => void {
+    this.pingHandlers.add(handler)
+    return () => this.pingHandlers.delete(handler)
+  }
+
+  send(payload: ClientToServerMessagePayload, commandId?: Uuid): Uuid {
     const targetCommandId = commandId ?? this.generateUuid()
     if (!this.handshakeComplete) {
       this.outboundQueue.push({ payload, commandId: targetCommandId })
       this.logDebug('Queueing outbound message until ServerHello arrives')
-      return
+      return targetCommandId
     }
     this.dispatchMessage(payload, targetCommandId)
+    return targetCommandId
   }
 
   private openSocket(): void {
@@ -301,7 +308,14 @@ export class TradWebClient {
           },
         },
       }
-      this.send(payload)
+      const commandId = this.send(payload)
+      for (const cb of this.pingHandlers) {
+        try {
+          cb(commandId)
+        } catch (err) {
+          this.logWarn('onPing handler threw', err)
+        }
+      }
     }, interval)
   }
 

@@ -3,8 +3,15 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useWsStore } from '@/stores/ws'
 
+export interface PendingCommand {
+  commandId: string
+  sentAt: number
+}
+
 export const useCommandStore = defineStore('command', () => {
   const ws = useWsStore()
+
+  const pendingCommands = ref<Record<Uuid, PendingCommand>>({})
 
   const history = ref<CommandHistoryItem[]>([])
   const devices = ref<Record<Uuid, CommandDevicesListData>>(
@@ -23,5 +30,34 @@ export const useCommandStore = defineStore('command', () => {
     ws.listCommandDevices(commandId)
   }
 
-  return { history, devices, selectedCommandId, selectedCommand, selectCommand }
+  function addPendingCommand(commandId: string) {
+    pendingCommands.value[commandId] = {
+      commandId,
+      sentAt: performance.now(),
+    }
+  }
+
+  function verifyPendingCommand(commandId: string): number | undefined {
+    if (!pendingCommands.value[commandId]) return
+    const now = performance.now()
+    const pending = pendingCommands.value[commandId]
+    const latency = now - pending.sentAt
+    console.debug(`[command] Command ${commandId} acknowledged, latency=${Math.round(latency)}ms`)
+    // Remove from pending
+    delete pendingCommands.value[commandId]
+    return latency
+  }
+
+  return {
+    /* state */
+    history,
+    devices,
+    selectedCommandId,
+    selectedCommand,
+    pendingCommands,
+    /* actions */
+    selectCommand,
+    addPendingCommand,
+    verifyPendingCommand,
+  }
 })

@@ -68,7 +68,14 @@ export type TestType = 'ServerError' | 'ServerMessage'
 
 export type DeviceFilter = 'All' | 'Complete' | 'Incomplete'
 
-export type CommandStatus = 'Unsent' | 'Pending' | 'Malformed' | 'Running' | 'Succeeded' | 'Failed'
+export enum CommandStatus {
+  Unsent = 'Unsent',
+  Pending = 'Pending',
+  Malformed = 'Malformed',
+  Running = 'Running',
+  Succeeded = 'Succeeded',
+  Failed = 'Failed',
+}
 
 export type SimMarketAction =
   | 'Reset'

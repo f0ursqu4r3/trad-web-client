@@ -1,14 +1,14 @@
+import {
+  type CreateAccountCommand,
+  type ServerToClientMessage,
+  type SystemMessagePayload,
+  type UserCommandPayload,
+  type Uuid,
+} from '@/lib/ws/protocol'
 import { ref, computed, onUnmounted } from 'vue'
 import { defineStore } from 'pinia'
 import { TradWebClient } from '@/lib/ws/websocketClient'
 import { useCommandStore } from '@/stores/command'
-import type {
-  ClientToServerMessagePayload,
-  CreateAccountCommand,
-  ServerToClientMessage,
-  UserCommandPayload,
-  Uuid,
-} from '@/lib/ws/protocol'
 import { useUserStore } from './user'
 
 // Connection phases
@@ -78,6 +78,10 @@ export const useWsStore = defineStore('ws', () => {
         status.value = 'idle'
       }
     })
+    // handle ping sent
+    client.onPing(() => {
+      lastPingSend = performance.now()
+    })
   }
 
   function disconnect() {
@@ -86,83 +90,67 @@ export const useWsStore = defineStore('ws', () => {
     status.value = 'idle'
   }
 
-  function sendSystemPing() {
-    lastPingSend = performance.now()
+  /* System Commands */
+  function sendSystemCommand(command: SystemMessagePayload): void {
     client.send({
       kind: 'System',
-      data: { kind: 'Ping', data: { client_send_time: Date.now() } },
+      data: command,
     })
-    outboundCount.value++
   }
 
-  function sendTokenLogin(token: string) {
-    client.send({
-      kind: 'UserCommand',
-      data: {
-        raw_text: `/tokenLogin ${token}`,
-        command: {
-          kind: 'TokenLogin',
-          data: { token },
-        } as UserCommandPayload,
-      },
-    } as ClientToServerMessagePayload)
-    outboundCount.value++
+  function sendSystemPing() {
+    lastPingSend = performance.now()
+    sendSystemCommand({
+      kind: 'Ping',
+      data: { client_send_time: Date.now() },
+    })
   }
 
-  function sendLogout() {
-    client.send({
-      kind: 'UserCommand',
-      data: {
-        raw_text: `/logout`,
-        command: {
-          kind: 'Logout',
-          data: {
-            all_sessions: false,
-          },
-        } as UserCommandPayload,
-      },
-    } as ClientToServerMessagePayload)
-    outboundCount.value++
+  function listCommandDevices(commandId: Uuid) {
+    sendSystemCommand({
+      kind: 'ListCommandDevicesRequest',
+      data: { command_id: commandId },
+    })
   }
 
-  /** Generic sender for any UserCommandPayload (raw_text optional convenience) */
+  function sendCancelCommand(commandId: Uuid) {
+    sendSystemCommand({
+      kind: 'CancelCommand',
+      data: { command_id: commandId },
+    })
+  }
+
+  /* User Commands */
   function sendUserCommand(command: UserCommandPayload, rawText?: string) {
     const raw = rawText ?? `/${command.kind}`
-    client.send({
+    const commandId = client.send({
       kind: 'UserCommand',
       data: { raw_text: raw, command },
     })
     outboundCount.value++
+    commandStore.addPendingCommand(commandId)
+    return commandId
   }
 
-  function listCommandDevices(commandId: Uuid) {
-    client.send({
-      kind: 'System',
-      data: { kind: 'ListCommandDevicesRequest', data: { command_id: commandId } },
+  function sendTokenLogin(token: string) {
+    sendUserCommand({
+      kind: 'TokenLogin',
+      data: { token },
     })
-    outboundCount.value++
   }
 
-  function sendCancelCommand(commandId: Uuid) {
-    client.send({
-      kind: 'System',
-      data: { kind: 'CancelCommand', data: { command_id: commandId } },
+  function sendLogout(allSessions: boolean = false) {
+    sendUserCommand({
+      kind: 'Logout',
+      data: { all_sessions: allSessions },
     })
-    outboundCount.value++
   }
 
   function sendCreateAccountCommand(account: CreateAccountCommand) {
-    client.send({
-      kind: 'UserCommand',
-      data: {
-        raw_text: `/createAccount ${account.network} ${account.name} ${account.api_key}`,
-        command: {
-          kind: 'CreateAccount',
-          data: account,
-        } as UserCommandPayload,
-      },
-    } as ClientToServerMessagePayload)
-    outboundCount.value++
+    sendUserCommand({
+      kind: 'CreateAccount',
+      data: account,
+    })
   }
 
   function onServerMessage(msg: ServerToClientMessage) {
@@ -170,104 +158,122 @@ export const useWsStore = defineStore('ws', () => {
     inbound.value.push({ ts: Date.now(), kind: payload.kind, payload: payload.data })
     if (inbound.value.length > 300) inbound.value.shift()
 
-    switch (payload.kind) {
-      case 'ClientIdAssignment': {
-        const data = (
-          payload as Extract<ServerToClientMessage['payload'], { kind: 'ClientIdAssignment' }>
-        ).data
-        clientId.value = data.new_client_id
-        break
-      }
-      case 'ServerHello': {
-        const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'ServerHello' }>)
-          .data
-        protocolVersion.value = data.protocol_version
-        status.value = 'ready'
-        console.info('[ws] ServerHello received. status -> ready, protocol=', data.protocol_version)
-        // send TokenLogin if we have a token stored
-        const token = localStorage.getItem('auth_token')
-        if (token) {
-          console.info('[ws] sending TokenLogin with stored token')
-          sendTokenLogin(token)
-        } else {
-          console.info('[ws] no stored token found')
-        }
-        // reset reconnect count on successful connection
-        reconnectCount.value = 0
-        break
-      }
-      case 'SetUser': {
-        authAccepted.value = true
-        authError.value = null
-        username.value = (
-          payload as Extract<ServerToClientMessage['payload'], { kind: 'SetUser' }>
-        ).data.username
-        console.info('[ws] SetUser received. authAccepted -> true, username=', username.value)
-        // Update user store as well
-        const userStore = useUserStore()
-        userStore.isServerAuthenticated = true
-        break
-      }
-      case 'UnsetUser': {
-        authAccepted.value = false
-        username.value = 'anonymous'
-        console.info('[ws] UnsetUser received. authAccepted -> false, username -> anonymous')
-        // Keep existing authError if any; UnsetUser is not necessarily an error.
-        break
-      }
-      case 'Pong': {
-        if (lastPingSend != null) {
-          latencyMs.value = performance.now() - lastPingSend
-          lastPingSend = null
-        }
-        break
-      }
-      case 'FatalServerError': {
-        const data = (
-          payload as Extract<ServerToClientMessage['payload'], { kind: 'FatalServerError' }>
-        ).data
-        lastError.value = data.error
-        status.value = 'error'
-        console.error('[ws] FatalServerError received. status -> error', data.error)
-        break
-      }
-      case 'ServerError': {
-        // If a ServerError arrives immediately after a Login attempt, surface it as authError
-        const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'ServerError' }>)
-          .data
-        authAccepted.value = false
-        authError.value = data.error
-        break
-      }
-      case 'CommandHistory': {
-        const data = (
-          payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandHistory' }>
-        ).data
-        commandStore.history = data.items
-        break
-      }
-      case 'SetCommandStatus': {
-        const data = (
-          payload as Extract<ServerToClientMessage['payload'], { kind: 'SetCommandStatus' }>
-        ).data
-        const idx = commandStore.history.findIndex((item) => item.command_id === data.command_id)
-        if (idx !== -1) {
-          commandStore.history[idx].status = data.status
-          // Force update
-          commandStore.history = [...commandStore.history]
-        }
-        break
-      }
-      case 'CommandDevicesList': {
-        const data = (
-          payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandDevicesList' }>
-        ).data
-        commandStore.devices[data.command_id] = data
-        break
-      }
-      default:
-        break
+    // Handle different message kinds
+    const handlers = {
+      ClientIdAssignment: handleClientIdAssignment,
+      ServerHello: handleServerHello,
+      SetUser: handleSetUser,
+      UnsetUser: handleUnsetUser,
+      CommandResponse: handleCommandResponse,
+      Pong: handlePong,
+      FatalServerError: handleFatalServerError,
+      ServerError: handleServerError,
+      CommandHistory: handleCommandHistory,
+      SetCommandStatus: handleSetCommandStatus,
+      CommandDevicesList: handleCommandDevicesList,
+    } as Record<string, (p: ServerToClientMessage['payload']) => void>
+    const handler = handlers[payload.kind]
+    handler?.(payload)
+  }
+
+  /* Handlers for inbound message kinds */
+  function handleClientIdAssignment(payload: ServerToClientMessage['payload']): void {
+    const data = (
+      payload as Extract<ServerToClientMessage['payload'], { kind: 'ClientIdAssignment' }>
+    ).data
+    clientId.value = data.new_client_id
+  }
+
+  function handleServerHello(payload: ServerToClientMessage['payload']): void {
+    const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'ServerHello' }>)
+      .data
+    protocolVersion.value = data.protocol_version
+    status.value = 'ready'
+    console.info('[ws] ServerHello received. status -> ready, protocol=', data.protocol_version)
+    // send TokenLogin if we have a token stored
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+      console.info('[ws] sending TokenLogin with stored token')
+      sendTokenLogin(token)
+    } else {
+      console.info('[ws] no stored token found')
     }
+    // reset reconnect count on successful connection
+    reconnectCount.value = 0
+  }
+
+  function handleSetUser(payload: ServerToClientMessage['payload']): void {
+    authAccepted.value = true
+    authError.value = null
+    username.value = (
+      payload as Extract<ServerToClientMessage['payload'], { kind: 'SetUser' }>
+    ).data.username
+    console.info('[ws] SetUser received. authAccepted -> true, username=', username.value)
+    // Update user store as well
+    const userStore = useUserStore()
+    userStore.isServerAuthenticated = true
+  }
+
+  function handleUnsetUser(): void {
+    authAccepted.value = false
+    username.value = 'anonymous'
+    console.info('[ws] UnsetUser received. authAccepted -> false, username -> anonymous')
+    // Keep existing authError if any; UnsetUser is not necessarily an error.
+  }
+
+  function handleCommandResponse(payload: ServerToClientMessage['payload']): void {
+    const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandResponse' }>)
+      .data
+    commandStore.verifyPendingCommand(data.request_uuid)
+  }
+
+  function handlePong(): void {
+    if (lastPingSend) {
+      const now = performance.now()
+      latencyMs.value = now - lastPingSend
+      lastPingSend = null
+    }
+  }
+
+  function handleFatalServerError(payload: ServerToClientMessage['payload']): void {
+    const data = (
+      payload as Extract<ServerToClientMessage['payload'], { kind: 'FatalServerError' }>
+    ).data
+    lastError.value = data.error
+    status.value = 'error'
+    console.error('[ws] FatalServerError received. status -> error', data.error)
+  }
+
+  function handleServerError(payload: ServerToClientMessage['payload']): void {
+    // If a ServerError arrives immediately after a Login attempt, surface it as authError
+    const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'ServerError' }>)
+      .data
+    authAccepted.value = false
+    authError.value = data.error
+  }
+
+  function handleCommandHistory(payload: ServerToClientMessage['payload']): void {
+    const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandHistory' }>)
+      .data
+    commandStore.history = data.items
+  }
+
+  function handleSetCommandStatus(payload: ServerToClientMessage['payload']): void {
+    const data = (
+      payload as Extract<ServerToClientMessage['payload'], { kind: 'SetCommandStatus' }>
+    ).data
+    const idx = commandStore.history.findIndex((item) => item.command_id === data.command_id)
+    if (idx !== -1) {
+      commandStore.history[idx].status = data.status
+      commandStore.history = [...commandStore.history]
+    }
+  }
+
+  function handleCommandDevicesList(payload: ServerToClientMessage['payload']): void {
+    const data = (
+      payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandDevicesList' }>
+    ).data
+    commandStore.devices[data.command_id] = data
   }
 
   const isConnected = computed(() => status.value === 'ready')

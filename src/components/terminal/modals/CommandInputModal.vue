@@ -3,11 +3,13 @@ import { ref, computed, watch, onUnmounted, nextTick, onBeforeUpdate } from 'vue
 import { useWsStore } from '@/stores/ws'
 import type { UserCommandPayload } from '@/lib/ws/protocol'
 import { XIcon } from '@/components/icons'
+import { commandRegistry, type CommandMeta } from '@/components/terminal/commands/commandRegistry'
+
 import MarketOrderModal from '@/components/terminal/modals/MarketOrderModal.vue'
 import LimitOrderModal from '@/components/terminal/modals/LimitOrderModal.vue'
 import TrailingEntryOrderModal from '@/components/terminal/modals/TrailingEntryOrderModal.vue'
 import SplitMarketOrderModal from '@/components/terminal/modals/SplitMarketOrderModal.vue'
-import { commandRegistry, type CommandMeta } from '@/components/terminal/commands/commandRegistry'
+import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 
 // Store
 const ws = useWsStore()
@@ -219,6 +221,7 @@ onUnmounted(() => {
       :open="activeModal?.kind === 'SplitMarketOrder'"
       @close="closeActiveModal"
     />
+    <CreateAccountModal :open="activeModal?.kind === 'CreateAccount'" @close="closeActiveModal" />
   </div>
 </template>
 
