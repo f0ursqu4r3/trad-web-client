@@ -4,6 +4,7 @@ import { ref, type Ref, computed, onMounted, onBeforeUnmount, nextTick } from 'v
 import StickyScroller from '@/components/general/StickyScroller.vue'
 import ThemeSwitcher from '@/components/general/ThemeSwitcher.vue'
 import TinyTable from '@/components/general/TinyTable.vue'
+import type { TinyTableColumn } from '@/components/general/TinyTable.vue'
 
 /* --------------------------------------------------
  * Demo Data
@@ -17,7 +18,7 @@ for (let i = 0; i < 60; i++) {
   })
 }
 
-const tableColumns = [
+const tableColumns: TinyTableColumn[] = [
   { key: 'symbol', label: 'Symbol', stickyLeft: 0 },
   { key: 'price', label: 'Price', align: 'right' },
   { key: 'qty', label: 'Qty', align: 'right' },

@@ -85,6 +85,7 @@ function submit() {
     </template>
   </BaseCommandModal>
 </template>
+
 <style scoped>
 .field {
   display: flex;

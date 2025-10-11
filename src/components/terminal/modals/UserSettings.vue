@@ -24,25 +24,16 @@ const prefsSavedAt = ref<number | null>(null)
 
 // Load editor content from store when (a) modal opens or (b) store.preferences changes
 watch(
-  () => [props.open, userStore.preferences] as const,
+  () => [props.open, userStore.profile?.meta?.preferences],
   ([isOpen]) => {
     if (isOpen) {
-      prefsEditor.value = JSON.stringify(userStore.preferences ?? {}, null, 2)
+      prefsEditor.value = JSON.stringify(userStore.profile?.meta?.preferences ?? {}, null, 2)
       prefsDirty.value = false
       prefsError.value = null
     }
   },
   { immediate: true },
 )
-
-// Account display fields
-const roles = computed(() => userStore.profile?.roles ?? [])
-const lastFetchedDisplay = computed(() => {
-  const ts = userStore.lastFetchedAt
-  if (!ts) return '—'
-  const d = new Date(ts)
-  return d.toLocaleTimeString()
-})
 
 // Preferences saving logic
 async function savePreferences() {
@@ -64,7 +55,8 @@ async function savePreferences() {
         throwOnHTTPError: true,
       },
     )
-    userStore.preferences = updated // directly mutate (Pinia ref)
+    userStore.profile!.meta = userStore.profile!.meta || { preferences: {} }
+    userStore.profile!.meta.preferences = updated
     prefsDirty.value = false
     prefsSavedAt.value = Date.now()
   } catch (e) {
@@ -192,30 +184,11 @@ const returnToOrigin = window.location.origin
               <div v-else-if="userStore.profile" class="grid gap-2 sm:grid-cols-2">
                 <div>
                   <div class="dim text-[11px]">User ID</div>
-                  <div>{{ userStore.profile.id || '—' }}</div>
+                  <div>{{ userStore.userId || '—' }}</div>
                 </div>
                 <div>
-                  <div class="dim text-[11px]">Username</div>
-                  <div>{{ userStore.profile.username || '—' }}</div>
-                </div>
-                <div>
-                  <div class="dim text-[11px]">Name</div>
-                  <div>{{ userStore.profile.name || '—' }}</div>
-                </div>
-                <div>
-                  <div class="dim text-[11px]">Email</div>
-                  <div>{{ userStore.profile.email || '—' }}</div>
-                </div>
-                <div class="sm:col-span-2">
-                  <div class="dim text-[11px] mb-1">Roles</div>
-                  <div class="flex flex-wrap gap-1">
-                    <span v-if="!roles.length" class="badge">none</span>
-                    <span v-for="r in roles" :key="r" class="badge">{{ r }}</span>
-                  </div>
-                </div>
-                <div>
-                  <div class="dim text-[11px]">Last Fetched</div>
-                  <div>{{ lastFetchedDisplay }}</div>
+                  <div class="dim text-[11px]">Display Name</div>
+                  <div>{{ userStore.profile.displayName || '—' }}</div>
                 </div>
               </div>
               <div v-if="accountError" class="notice-err mt-2">{{ accountError }}</div>
@@ -278,6 +251,37 @@ const returnToOrigin = window.location.origin
 
             <hr class="section-divider" />
 
+            <!-- Accounts -->
+            <section>
+              <header
+                class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-[var(--accent-color)]"
+              >
+                <span>Accounts</span>
+              </header>
+              <div v-if="!isAuthenticated" class="text-[var(--color-text-dim)]">
+                Not authenticated.
+              </div>
+              <div v-else-if="userStore.keys.length === 0" class="text-[var(--color-text-dim)]">
+                No Accounts available.
+              </div>
+              <div v-else class="space-y-2">
+                <div
+                  v-for="key in userStore.keys"
+                  :key="key.id"
+                  class="rounded border border-[var(--border-color)] bg-[var(--panel-bg-alt)] p-2"
+                >
+                  <div class="text-[var(--color-text-dim)] text-[11px]">Key ID</div>
+                  <div class="font-mono break-all text-sm">{{ key.id }}</div>
+                  <div v-if="key.name" class="mt-1">
+                    <div class="text-[var(--color-text-dim)] text-[11px]">Name</div>
+                    <div class="text-sm">{{ key.name }}</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <hr class="section-divider" />
+
             <!-- Appearance -->
             <section>
               <header
@@ -323,7 +327,11 @@ const returnToOrigin = window.location.origin
                   :disabled="!prefsDirty || prefsSaving"
                   @click="
                     () => {
-                      prefsEditor = JSON.stringify(userStore.preferences ?? {}, null, 2)
+                      prefsEditor = JSON.stringify(
+                        userStore.profile?.meta?.preferences ?? {},
+                        null,
+                        2,
+                      )
                       prefsDirty = false
                       prefsError = null
                     }

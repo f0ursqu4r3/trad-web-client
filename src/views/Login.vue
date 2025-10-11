@@ -1,4 +1,74 @@
 <!-- eslint-disable vue/multi-word-component-names -->
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useAuth0 } from '@auth0/auth0-vue'
+import { useUiStore } from '@/stores/ui'
+import { useRouter } from 'vue-router'
+import { SunIcon, MoonIcon } from '@/components/icons'
+
+import WsIndicator from '@/components/general/WsIndicator.vue'
+
+const ui = useUiStore()
+const router = useRouter()
+
+const { loginWithRedirect, logout, isAuthenticated, user } = useAuth0()
+
+const themeIcon = computed(() => {
+  // For synthwave show a sun icon to indicate next will be light (reuse)
+  if (ui.theme === 'dark') return SunIcon
+  if (ui.theme === 'synthwave') return MoonIcon // going to light next, show moon-to-light cue
+  return MoonIcon
+})
+const themeToggleLabel = computed(() => {
+  switch (ui.theme) {
+    case 'light':
+      return 'Switch to dark theme'
+    case 'dark':
+      return 'Switch to synthwave theme'
+    case 'synthwave':
+      return 'Switch to light theme'
+    default:
+      return 'Toggle theme'
+  }
+})
+
+const showDebug = ref(false)
+
+interface Auth0UserLike {
+  name?: string
+  email?: string
+  nickname?: string
+}
+const userLabel = computed(() => {
+  const u = (user?.value ?? {}) as Auth0UserLike
+  return u.name || u.email || u.nickname || 'user'
+})
+
+const login = async () => {
+  await loginWithRedirect({
+    authorizationParams: {
+      audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+      scope: import.meta.env.VITE_AUTH0_SCOPE,
+    },
+  })
+}
+
+const logoutUser = async () => {
+  await logout({ logoutParams: { returnTo: window.location.origin } })
+}
+
+const goTerminal = () => router.push('/terminal')
+
+// If already authenticated, optionally redirect to originally requested protected route.
+// Do NOT forcibly redirect for public pages (e.g. accessing /style-guide then clicking login).
+onMounted(() => {
+  if (isAuthenticated.value) {
+    const redirect = (router.currentRoute.value.query.redirect as string) || '/terminal'
+    router.replace(redirect)
+  }
+})
+</script>
+
 <template>
   <div class="login-wrap">
     <div class="terminal-card shadow-term login-card">
@@ -81,76 +151,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useAuth0 } from '@auth0/auth0-vue'
-import { useUiStore } from '@/stores/ui'
-import { useRouter } from 'vue-router'
-import { SunIcon, MoonIcon } from '@/components/icons'
-
-import WsIndicator from '@/components/general/WsIndicator.vue'
-
-const ui = useUiStore()
-const router = useRouter()
-
-const { loginWithRedirect, logout, isAuthenticated, user } = useAuth0()
-
-const themeIcon = computed(() => {
-  // For synthwave show a sun icon to indicate next will be light (reuse)
-  if (ui.theme === 'dark') return SunIcon
-  if (ui.theme === 'synthwave') return MoonIcon // going to light next, show moon-to-light cue
-  return MoonIcon
-})
-const themeToggleLabel = computed(() => {
-  switch (ui.theme) {
-    case 'light':
-      return 'Switch to dark theme'
-    case 'dark':
-      return 'Switch to synthwave theme'
-    case 'synthwave':
-      return 'Switch to light theme'
-    default:
-      return 'Toggle theme'
-  }
-})
-
-const showDebug = ref(false)
-
-interface Auth0UserLike {
-  name?: string
-  email?: string
-  nickname?: string
-}
-const userLabel = computed(() => {
-  const u = (user?.value ?? {}) as Auth0UserLike
-  return u.name || u.email || u.nickname || 'user'
-})
-
-const login = async () => {
-  await loginWithRedirect({
-    authorizationParams: {
-      audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-      scope: import.meta.env.VITE_AUTH0_SCOPE,
-    },
-  })
-}
-
-const logoutUser = async () => {
-  await logout({ logoutParams: { returnTo: window.location.origin } })
-}
-
-const goTerminal = () => router.push('/terminal')
-
-// If already authenticated, optionally redirect to originally requested protected route.
-// Do NOT forcibly redirect for public pages (e.g. accessing /style-guide then clicking login).
-onMounted(() => {
-  if (isAuthenticated.value) {
-    const redirect = (router.currentRoute.value.query.redirect as string) || '/terminal'
-    router.replace(redirect)
-  }
-})
-</script>
 
 <style scoped>
 .login-wrap {

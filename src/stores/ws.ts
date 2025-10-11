@@ -4,10 +4,12 @@ import { TradWebClient } from '@/lib/ws/websocketClient'
 import { useCommandStore } from '@/stores/command'
 import type {
   ClientToServerMessagePayload,
+  CreateAccountCommand,
   ServerToClientMessage,
   UserCommandPayload,
   Uuid,
 } from '@/lib/ws/protocol'
+import { useUserStore } from './user'
 
 // Connection phases
 // 'idle' -> not yet attempted
@@ -65,6 +67,17 @@ export const useWsStore = defineStore('ws', () => {
       console.error('[ws] fatal error', err)
     })
     client.connect()
+    // wait for the client to open the connection
+    client.onOpen(() => {
+      console.info('[ws] WebSocket connection opened')
+    })
+    // wait for the client to close the connection
+    client.onClose((event) => {
+      console.warn('[ws] WebSocket connection closed', event)
+      if (status.value !== 'error') {
+        status.value = 'idle'
+      }
+    })
   }
 
   function disconnect() {
@@ -82,17 +95,18 @@ export const useWsStore = defineStore('ws', () => {
     outboundCount.value++
   }
 
-  function sendAuthenticate(username: string, password: string) {
+  function sendTokenLogin(token: string) {
     client.send({
       kind: 'UserCommand',
       data: {
-        raw_text: `/login ${username} ********`,
+        raw_text: `/tokenLogin ${token}`,
         command: {
-          kind: 'Login',
-          data: { username, password },
+          kind: 'TokenLogin',
+          data: { token },
         } as UserCommandPayload,
       },
     } as ClientToServerMessagePayload)
+    outboundCount.value++
   }
 
   function sendLogout() {
@@ -137,6 +151,20 @@ export const useWsStore = defineStore('ws', () => {
     outboundCount.value++
   }
 
+  function sendCreateAccountCommand(account: CreateAccountCommand) {
+    client.send({
+      kind: 'UserCommand',
+      data: {
+        raw_text: `/createAccount ${account.network} ${account.name} ${account.api_key}`,
+        command: {
+          kind: 'CreateAccount',
+          data: account,
+        } as UserCommandPayload,
+      },
+    } as ClientToServerMessagePayload)
+    outboundCount.value++
+  }
+
   function onServerMessage(msg: ServerToClientMessage) {
     const payload = msg.payload
     inbound.value.push({ ts: Date.now(), kind: payload.kind, payload: payload.data })
@@ -156,6 +184,16 @@ export const useWsStore = defineStore('ws', () => {
         protocolVersion.value = data.protocol_version
         status.value = 'ready'
         console.info('[ws] ServerHello received. status -> ready, protocol=', data.protocol_version)
+        // send TokenLogin if we have a token stored
+        const token = localStorage.getItem('auth_token')
+        if (token) {
+          console.info('[ws] sending TokenLogin with stored token')
+          sendTokenLogin(token)
+        } else {
+          console.info('[ws] no stored token found')
+        }
+        // reset reconnect count on successful connection
+        reconnectCount.value = 0
         break
       }
       case 'SetUser': {
@@ -165,6 +203,9 @@ export const useWsStore = defineStore('ws', () => {
           payload as Extract<ServerToClientMessage['payload'], { kind: 'SetUser' }>
         ).data.username
         console.info('[ws] SetUser received. authAccepted -> true, username=', username.value)
+        // Update user store as well
+        const userStore = useUserStore()
+        userStore.isServerAuthenticated = true
         break
       }
       case 'UnsetUser': {
@@ -265,10 +306,11 @@ export const useWsStore = defineStore('ws', () => {
     connect,
     disconnect,
     sendSystemPing,
-    sendAuthenticate,
+    sendTokenLogin,
     sendLogout,
     sendUserCommand,
     listCommandDevices,
     sendCancelCommand,
+    sendCreateAccountCommand,
   }
 })

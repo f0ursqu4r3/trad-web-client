@@ -34,6 +34,8 @@ async function authFetch(input: string, init: RequestOptions = {}) {
       })
       if (typeof token === 'string' && token.length > 0) {
         headers.set('Authorization', `Bearer ${token}`)
+        // Store token for WebSocket auth
+        localStorage.setItem('auth_token', token)
       }
     }
   } catch (error) {

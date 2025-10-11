@@ -163,6 +163,16 @@ export const XIcon: FunctionalComponent<{ size?: number | string }> = (props) =>
 }
 XIcon.displayName = 'XIcon'
 
+export const UnoReverseIcon: FunctionalComponent<{ size?: number | string }> = (props) => {
+  const size = props.size ?? 16
+  return h('svg', base(size, 'Uno Reverse', 'icon uno-reverse-icon'), [
+    h('path', {
+      d: 'M11 13.242641 L15.242641 13.242641 M15.242641 13.242641 L15.242641 17.485281 M15.242641 13.242641 L11 17.485281 C9.32842712 19.1568542 6.82842712 19.1568542 5.15685425 17.4852814 C3.48528137 15.8137085 3.48528137 13.3137085 5.15685425 11.6421356 L6.36396103 10.4340288 M11 7.75735931 L5.15685425 7.75735931 M5.15685425 7.75735931 L5.15685425 2.91421356 M5.15685425 7.75735931 L11 2.91421356 C12.6715729 1.24264069 15.1715729 1.24264069 16.8431458 2.91421356 C18.5147187 4.58578644 18.5147187 7.08578644 16.8431458 8.75735931 L15.636039 9.96446609',
+    }),
+  ])
+}
+UnoReverseIcon.displayName = 'UnoReverseIcon'
+
 export default {
   BoltIcon,
   CogIcon,
@@ -178,5 +188,6 @@ export default {
   SparklesIcon,
   StarIcon,
   SunIcon,
+  UnoReverseIcon,
   XIcon,
 }

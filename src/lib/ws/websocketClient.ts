@@ -42,6 +42,8 @@ export class TradWebClient {
 
   private onServerMessage: ServerMessageHandler | null = null
   private onFatalError: FatalErrorHandler | null = null
+  private readonly openHandlers = new Set<() => void>()
+  private readonly closeHandlers = new Set<(event: CloseEvent) => void>()
 
   constructor(options: TradWebClientOptions) {
     if (!options.url) {
@@ -75,6 +77,18 @@ export class TradWebClient {
     this.onFatalError = handler
   }
 
+  /** Register a callback for when the WebSocket connection opens. Returns an unsubscribe function. */
+  onOpen(handler: () => void): () => void {
+    this.openHandlers.add(handler)
+    return () => this.openHandlers.delete(handler)
+  }
+
+  /** Register a callback for when the WebSocket connection closes. Returns an unsubscribe function. */
+  onClose(handler: (event: CloseEvent) => void): () => void {
+    this.closeHandlers.add(handler)
+    return () => this.closeHandlers.delete(handler)
+  }
+
   send(payload: ClientToServerMessagePayload, commandId?: Uuid): void {
     const targetCommandId = commandId ?? this.generateUuid()
     if (!this.handshakeComplete) {
@@ -96,6 +110,14 @@ export class TradWebClient {
       this.handshakeComplete = false
       this.clientId = this.clientId ?? NULL_UUID
       this.logInfo('WebSocket open')
+      // notify subscribers
+      for (const cb of this.openHandlers) {
+        try {
+          cb()
+        } catch (err) {
+          this.logWarn('onOpen handler threw', err)
+        }
+      }
       this.sendHello()
       this.startPingTimer()
     }
@@ -114,6 +136,14 @@ export class TradWebClient {
       this.socket = null
       this.handshakeComplete = false
       this.clientId = this.clientId ?? NULL_UUID
+      // notify subscribers
+      for (const cb of this.closeHandlers) {
+        try {
+          cb(event)
+        } catch (err) {
+          this.logWarn('onClose handler threw', err)
+        }
+      }
       if (!this.stopped) {
         this.scheduleReconnect()
       }

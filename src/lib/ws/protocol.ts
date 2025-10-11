@@ -149,7 +149,7 @@ export type HelloData = {
 export type PingData = { client_send_time: number }
 export type EchoCommand = { message: string }
 export type CreateUserCommand = { username: string; password_hash: string }
-export type LoginCommand = { username: string; password_hash: string }
+export type TokenLoginCommand = { token: string }
 export type TestCommand = { test_type: TestType }
 export type GetPriceCommand = { symbol: string }
 export type LogoutCommand = { all_sessions: boolean }
@@ -253,13 +253,13 @@ export type UserCommandPayload =
   | { kind: 'ListPositions'; data?: undefined }
   | { kind: 'ListSimMarkets'; data?: undefined }
   | { kind: 'ListUsers'; data?: undefined }
-  | { kind: 'Login'; data: LoginCommand }
   | { kind: 'Logout'; data: LogoutCommand }
   | { kind: 'MarketOrder'; data: MarketOrderCommand }
   | { kind: 'SetHedgeMode'; data: SetHedgeModeCommand }
   | { kind: 'SetLeverage'; data: SetLeverageCommand }
   | { kind: 'SplitMarketOrder'; data: SplitMarketOrderCommand }
   | { kind: 'Test'; data: TestCommand }
+  | { kind: 'TokenLogin'; data: TokenLoginCommand }
   | { kind: 'TrailingEntryOrder'; data: TrailingEntryOrderCommand }
   | { kind: 'UseBinance'; data: UseBinanceCommand }
   | { kind: 'UseSimMarket'; data: UseSimMarketCommand }
@@ -282,9 +282,15 @@ export type ServerToClientPayload =
   | { kind: 'CommandDevicesList'; data: CommandDevicesListData }
   | { kind: 'CommandHistory'; data: CommandHistoryData }
   | { kind: 'CommandResponse'; data: CommandResponseData }
+  | { kind: 'DeviceLifecycle'; data: DeviceLifecycleEvent }
   | { kind: 'DeviceMarketInfoResponse'; data: DeviceMarketInfoResponseData }
+  | { kind: 'DeviceMoDelta'; data: DeviceMoDeltaEvent }
+  | { kind: 'DeviceSgDelta'; data: DeviceSgDeltaEvent }
   | { kind: 'DeviceSnapshotLite'; data: DeviceSnapshotLiteData }
+  | { kind: 'DeviceSplitDelta'; data: DeviceSplitDeltaEvent }
+  | { kind: 'DeviceTeDelta'; data: DeviceTeDeltaEvent }
   | { kind: 'FatalServerError'; data: FatalServerErrorData }
+  | { kind: 'InspectReady'; data: InspectReadyData }
   | { kind: 'Message'; data: MessageData }
   | { kind: 'Pong'; data: PongData }
   | { kind: 'ServerError'; data: ServerErrorData }
@@ -295,12 +301,6 @@ export type ServerToClientPayload =
   | { kind: 'TePointsPage'; data: TePointsPageData }
   | { kind: 'UnsetUser'; data: UnsetUserData }
   | { kind: 'Welcome'; data: WelcomeData }
-  | { kind: 'InspectReady'; data: InspectReadyData }
-  | { kind: 'DeviceLifecycle'; data: DeviceLifecycleEvent }
-  | { kind: 'DeviceTeDelta'; data: DeviceTeDeltaEvent }
-  | { kind: 'DeviceMoDelta'; data: DeviceMoDeltaEvent }
-  | { kind: 'DeviceSgDelta'; data: DeviceSgDeltaEvent }
-  | { kind: 'DeviceSplitDelta'; data: DeviceSplitDeltaEvent }
 
 // Payload structs (Server → Client)
 export type ClientIdAssignmentData = { new_client_id: Uuid }

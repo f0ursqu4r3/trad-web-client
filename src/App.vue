@@ -1,16 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRouter, RouterView } from 'vue-router'
 import { useAuth0 } from '@auth0/auth0-vue'
 
 import AuthenticatedLayout from '@/layouts/Authenticated.vue'
 
-import { useWsStore } from '@/stores/ws'
-
 const { isAuthenticated } = useAuth0()
 const router = useRouter()
-const ws = useWsStore()
 
 // Simple Nuxt-like layout selection using route meta
 const route = useRoute()
@@ -40,14 +37,6 @@ watch(
   },
   { immediate: true },
 )
-
-onMounted(() => {
-  ws.connect()
-})
-
-onBeforeUnmount(() => {
-  ws.disconnect()
-})
 </script>
 
 <template>

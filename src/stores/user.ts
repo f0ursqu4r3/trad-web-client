@@ -4,35 +4,46 @@ import { useAuth0 } from '@auth0/auth0-vue'
 import { apiGet } from '@/lib/apiClient'
 
 export interface UserProfile {
-  id?: string
-  username?: string
-  email?: string
-  name?: string
-  roles?: string[]
-  [key: string]: unknown
+  displayName?: string | null
+  meta?: UserMeta
+}
+
+export interface UserKey {
+  id: string
+  name: string
 }
 
 export interface UserPreferences {
   [key: string]: unknown
 }
 
+export interface UserMeta {
+  preferences?: UserPreferences
+  [key: string]: unknown
+}
+
 export const useUserStore = defineStore('user', () => {
   const { isAuthenticated } = useAuth0()
 
-  const profile = ref<UserProfile | null>(null)
-  const preferences = ref<UserPreferences | null>(null)
+  const userId = ref<string | null>(null)
+  const profile = ref<UserProfile>({ displayName: null, meta: { preferences: {} } })
+  const keys = ref<UserKey[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
   const lastFetchedAt = ref<number | null>(null)
+  const isServerAuthenticated = ref<boolean>(false)
 
   const displayName = computed(
-    () => profile.value?.name || profile.value?.username || profile.value?.email || 'user',
+    () =>
+      profile.value?.displayName ||
+      userId.value ||
+      (isAuthenticated.value ? 'authenticated user' : 'guest'),
   )
 
   interface MeResponseShape {
-    user?: UserProfile
-    preferences?: UserPreferences
-    [key: string]: unknown
+    user_id?: string
+    profile?: UserProfile
+    keys?: UserKey[]
   }
 
   async function fetchMe() {
@@ -45,31 +56,31 @@ export const useUserStore = defineStore('user', () => {
         throwOnHTTPError: false,
       })
       if (data && typeof data === 'object') {
-        if ('user' in data || 'preferences' in data) {
-          profile.value = (data.user ?? null) as UserProfile | null
-          preferences.value = (data.preferences ?? null) as UserPreferences | null
+        if ('user_id' in data) {
+          userId.value = data.user_id || null
+          profile.value = data.profile || { meta: { preferences: {} } }
+          keys.value = data.keys || []
         } else {
-          // Fallback if API returns a flat shape
+          // Flat profile object
           profile.value = data as UserProfile
-          preferences.value = (data.preferences ?? null) as UserPreferences | null
         }
       } else {
-        profile.value = null
-        preferences.value = null
+        userId.value = null
+        profile.value = { displayName: null, meta: { preferences: {} } }
       }
       lastFetchedAt.value = Date.now()
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)
-      profile.value = null
-      preferences.value = null
+      userId.value = null
+      profile.value = { displayName: null, meta: { preferences: {} } }
     } finally {
       loading.value = false
     }
   }
 
   function clear() {
-    profile.value = null
-    preferences.value = null
+    userId.value = null
+    profile.value = { displayName: null, meta: { preferences: {} } }
     error.value = null
     lastFetchedAt.value = null
   }
@@ -86,11 +97,13 @@ export const useUserStore = defineStore('user', () => {
 
   return {
     // state
+    userId,
+    keys,
     profile,
-    preferences,
     loading,
     error,
     lastFetchedAt,
+    isServerAuthenticated,
     // getters
     displayName,
     // actions
