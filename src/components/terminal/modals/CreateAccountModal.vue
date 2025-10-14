@@ -9,8 +9,8 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 
 const accounts = useAccountsStore()
 
-const DEFAULT_NETWORK: NetworkType = 'Binance'
-const NETWORK_OPTIONS: NetworkType[] = ['Binance', 'Sim']
+const DEFAULT_NETWORK: NetworkType = 'Mainnet'
+const NETWORK_OPTIONS: NetworkType[] = ['Mainnet', 'Testnet']
 
 const network = ref<NetworkType>(DEFAULT_NETWORK)
 const name = ref('')
@@ -50,11 +50,11 @@ async function submit() {
   isSubmitting.value = true
   formError.value = null
   try {
-    await accounts.createAccount({
+    await accounts.addAccount({
       label: name.value.trim(),
       apiKey: apiKey.value.trim(),
       secretKey: secretKey.value.trim(),
-      network: network.value,
+      network: network.value.toLowerCase(),
     })
     close()
   } catch (err) {

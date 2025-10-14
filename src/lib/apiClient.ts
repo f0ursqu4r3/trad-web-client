@@ -16,12 +16,10 @@ function getBaseUrl() {
 }
 
 async function authFetch(input: string, init: RequestOptions = {}) {
-  const auth0 = getAuth0Client() as
-    | {
-        isAuthenticated?: { value?: boolean }
-        getAccessTokenSilently?: (options?: Record<string, unknown>) => Promise<unknown>
-      }
-    | null
+  const auth0 = getAuth0Client() as {
+    isAuthenticated?: { value?: boolean }
+    getAccessTokenSilently?: (options?: Record<string, unknown>) => Promise<unknown>
+  } | null
 
   const headers = new Headers(init.headers || {})
   if (init.body && !headers.has('Content-Type')) {
@@ -29,7 +27,8 @@ async function authFetch(input: string, init: RequestOptions = {}) {
     const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
     const isBlob = typeof Blob !== 'undefined' && body instanceof Blob
     const isArrayBuffer =
-      typeof ArrayBuffer !== 'undefined' && (body instanceof ArrayBuffer || ArrayBuffer.isView(body))
+      typeof ArrayBuffer !== 'undefined' &&
+      (body instanceof ArrayBuffer || ArrayBuffer.isView(body))
 
     if (!isFormData && !isBlob && !isArrayBuffer) {
       headers.set('Content-Type', 'application/json')
@@ -126,4 +125,3 @@ export async function apiDelete<T = unknown>(path: string, opts: JsonOptions = {
   if (res.status === 204) return undefined as unknown as T
   return (await res.json()) as T
 }
-

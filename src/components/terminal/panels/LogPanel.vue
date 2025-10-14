@@ -7,7 +7,7 @@ const { logs } = storeToRefs(terminal)
 </script>
 
 <template>
-  <section class="log-panel crt-overlay">
+  <section class="log-panel">
     <div class="log-lines mono">
       <div v-for="l in logs" :key="l.id" class="log-line dim">
         {{ new Date(l.ts).toLocaleTimeString() }} - {{ l.text }}

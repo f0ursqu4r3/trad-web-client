@@ -2,12 +2,10 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useWsStore } from '@/stores/ws'
-import { useAccountsStore } from '@/stores/accounts'
+import { useAccountsStore, type ApiKeyRecord } from '@/stores/accounts'
 import { apiPut } from '@/lib/apiClient'
 import { useAuth0 } from '@auth0/auth0-vue'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
-import EditAccountModal from '@/components/terminal/modals/EditAccountModal.vue'
-import type { GatewayAccount } from '@/lib/gatewayClient'
 
 import ThemeSwitcher from '@/components/general/ThemeSwitcher.vue'
 
@@ -28,8 +26,6 @@ const prefsSaving = ref(false)
 const prefsSavedAt = ref<number | null>(null)
 
 const isCreateAccountOpen = ref(false)
-const isEditAccountOpen = ref(false)
-const accountToEdit = ref<GatewayAccount | null>(null)
 
 // Load editor content from store when (a) modal opens or (b) store.preferences changes
 watch(
@@ -103,20 +99,10 @@ function openCreateAccount() {
   isCreateAccountOpen.value = true
 }
 
-function openEditAccount(account: GatewayAccount) {
-  accountToEdit.value = account
-  isEditAccountOpen.value = true
-}
-
-function closeEditAccount() {
-  accountToEdit.value = null
-  isEditAccountOpen.value = false
-}
-
-async function deleteAccount(account: GatewayAccount) {
+async function deleteAccount(account: ApiKeyRecord) {
   if (!window.confirm(`Delete account "${account.label}"? This cannot be undone.`)) return
   try {
-    await accountsStore.removeAccount(account)
+    await accountsStore.removeAccount(account.label)
   } catch (err) {
     prefsError.value = err instanceof Error ? err.message : String(err)
   }
@@ -230,7 +216,9 @@ const returnToOrigin = window.location.origin
                 </div>
               </div>
               <div v-if="isAuthenticated" class="mt-4 space-y-2">
-                <div class="flex items-center justify-between gap-2 text-[11px] uppercase tracking-wide text-[var(--color-text-dim)]">
+                <div
+                  class="flex items-center justify-between gap-2 text-[11px] uppercase tracking-wide text-[var(--color-text-dim)]"
+                >
                   <span>Trading Accounts</span>
                   <div class="flex items-center gap-2">
                     <button
@@ -240,13 +228,14 @@ const returnToOrigin = window.location.origin
                     >
                       Refresh
                     </button>
-                    <button class="btn btn-primary btn-xs" @click="openCreateAccount">
-                      New
-                    </button>
+                    <button class="btn btn-primary btn-xs" @click="openCreateAccount">New</button>
                   </div>
                 </div>
                 <p v-if="accountsStore.error" class="notice-err">{{ accountsStore.error }}</p>
-                <p v-else-if="accountsStore.loading && !accountsStore.accounts.length" class="notice-info">
+                <p
+                  v-else-if="accountsStore.loading && !accountsStore.accounts.length"
+                  class="notice-info"
+                >
                   Loading accounts...
                 </p>
                 <ul v-else-if="accountsStore.accounts.length" class="accounts-list">
@@ -260,14 +249,14 @@ const returnToOrigin = window.location.origin
                         {{ account.label }}
                       </div>
                       <div class="text-[11px] text-[var(--color-text-dim)]">
-                        {{ account.network || account.meta?.network || 'Unknown network' }}
+                        {{ account.network || 'Unknown network' }}
                       </div>
                     </div>
                     <div class="accounts-item-actions">
-                      <button class="btn btn-ghost btn-xs" @click="openEditAccount(account)">
-                        Edit
-                      </button>
-                      <button class="btn btn-ghost btn-xs text-red-400" @click="deleteAccount(account)">
+                      <button
+                        class="btn btn-ghost btn-xs text-red-400"
+                        @click="deleteAccount(account)"
+                      >
                         Delete
                       </button>
                     </div>
@@ -429,11 +418,6 @@ const returnToOrigin = window.location.origin
             </section>
           </div>
           <CreateAccountModal :open="isCreateAccountOpen" @close="isCreateAccountOpen = false" />
-          <EditAccountModal
-            :open="isEditAccountOpen"
-            :account="accountToEdit"
-            @close="closeEditAccount"
-          />
         </div>
       </div>
     </transition>
