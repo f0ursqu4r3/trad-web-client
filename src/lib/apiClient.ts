@@ -1,4 +1,4 @@
-import { useAuth0 } from '@auth0/auth0-vue'
+import { getAuth0Client } from '@/plugins/auth0'
 
 export interface RequestOptions extends RequestInit {
   // When true, throws on non-2xx; when false returns Response
@@ -16,22 +16,40 @@ function getBaseUrl() {
 }
 
 async function authFetch(input: string, init: RequestOptions = {}) {
-  const { getAccessTokenSilently, isAuthenticated } = useAuth0()
+  const auth0 = getAuth0Client() as
+    | {
+        isAuthenticated?: { value?: boolean }
+        getAccessTokenSilently?: (options?: Record<string, unknown>) => Promise<unknown>
+      }
+    | null
 
   const headers = new Headers(init.headers || {})
-  if (!headers.has('Content-Type') && init.body && typeof init.body !== 'string') {
-    headers.set('Content-Type', 'application/json')
+  if (init.body && !headers.has('Content-Type')) {
+    const body = init.body as unknown
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
+    const isBlob = typeof Blob !== 'undefined' && body instanceof Blob
+    const isArrayBuffer =
+      typeof ArrayBuffer !== 'undefined' && (body instanceof ArrayBuffer || ArrayBuffer.isView(body))
+
+    if (!isFormData && !isBlob && !isArrayBuffer) {
+      headers.set('Content-Type', 'application/json')
+    }
   }
 
   // Attach bearer token when available
   try {
-    if (isAuthenticated.value) {
-      const token = await getAccessTokenSilently({
-        authorizationParams: {
-          audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-          scope: import.meta.env.VITE_AUTH0_SCOPE,
-        },
-      })
+    if (auth0?.isAuthenticated?.value && typeof auth0.getAccessTokenSilently === 'function') {
+      const token = await auth0
+        .getAccessTokenSilently({
+          authorizationParams: {
+            audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+            scope: import.meta.env.VITE_AUTH0_SCOPE,
+          },
+        })
+        .catch((error: unknown) => {
+          console.warn('Error getting access token', error)
+          return null
+        })
       if (typeof token === 'string' && token.length > 0) {
         headers.set('Authorization', `Bearer ${token}`)
         // Store token for WebSocket auth
@@ -108,3 +126,4 @@ export async function apiDelete<T = unknown>(path: string, opts: JsonOptions = {
   if (res.status === 204) return undefined as unknown as T
   return (await res.json()) as T
 }
+

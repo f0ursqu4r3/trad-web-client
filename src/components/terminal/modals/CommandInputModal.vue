@@ -9,7 +9,6 @@ import MarketOrderModal from '@/components/terminal/modals/MarketOrderModal.vue'
 import LimitOrderModal from '@/components/terminal/modals/LimitOrderModal.vue'
 import TrailingEntryOrderModal from '@/components/terminal/modals/TrailingEntryOrderModal.vue'
 import SplitMarketOrderModal from '@/components/terminal/modals/SplitMarketOrderModal.vue'
-import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 
 // Store
 const ws = useWsStore()
@@ -49,7 +48,6 @@ function submitQuick(cmd: CommandMeta) {
   // Map of zero-data commands
   const zeroDataKinds: Array<UserCommandPayload['kind']> = [
     'GetBalance',
-    'ListAccounts',
     'ListDevices',
     'ListPositions',
     'CancelAllDevicesCommand',
@@ -221,7 +219,6 @@ onUnmounted(() => {
       :open="activeModal?.kind === 'SplitMarketOrder'"
       @close="closeActiveModal"
     />
-    <CreateAccountModal :open="activeModal?.kind === 'CreateAccount'" @close="closeActiveModal" />
   </div>
 </template>
 

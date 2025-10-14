@@ -37,7 +37,6 @@ function submitQuick(cmd: CommandMeta) {
   // Map of zero-data commands
   const zeroDataKinds: Array<UserCommandPayload['kind']> = [
     'GetBalance',
-    'ListAccounts',
     'ListDevices',
     'ListPositions',
     'CancelAllDevicesCommand',

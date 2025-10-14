@@ -2,8 +2,12 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useWsStore } from '@/stores/ws'
+import { useAccountsStore } from '@/stores/accounts'
 import { apiPut } from '@/lib/apiClient'
 import { useAuth0 } from '@auth0/auth0-vue'
+import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
+import EditAccountModal from '@/components/terminal/modals/EditAccountModal.vue'
+import type { GatewayAccount } from '@/lib/gatewayClient'
 
 import ThemeSwitcher from '@/components/general/ThemeSwitcher.vue'
 
@@ -13,6 +17,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 // Stores
 const userStore = useUserStore()
 const wsStore = useWsStore()
+const accountsStore = useAccountsStore()
 const { logout, isAuthenticated } = useAuth0()
 
 // Local editable preferences JSON
@@ -21,6 +26,10 @@ const prefsDirty = ref(false)
 const prefsError = ref<string | null>(null)
 const prefsSaving = ref(false)
 const prefsSavedAt = ref<number | null>(null)
+
+const isCreateAccountOpen = ref(false)
+const isEditAccountOpen = ref(false)
+const accountToEdit = ref<GatewayAccount | null>(null)
 
 // Load editor content from store when (a) modal opens or (b) store.preferences changes
 watch(
@@ -74,6 +83,7 @@ function onPrefsInput() {
 // Refresh account info
 async function refreshAccount() {
   await userStore.fetchMe()
+  await accountsStore.fetchAccounts()
 }
 
 // WS helpers
@@ -87,6 +97,29 @@ function sendPing() {
 
 function close() {
   emit('close')
+}
+
+function openCreateAccount() {
+  isCreateAccountOpen.value = true
+}
+
+function openEditAccount(account: GatewayAccount) {
+  accountToEdit.value = account
+  isEditAccountOpen.value = true
+}
+
+function closeEditAccount() {
+  accountToEdit.value = null
+  isEditAccountOpen.value = false
+}
+
+async function deleteAccount(account: GatewayAccount) {
+  if (!window.confirm(`Delete account "${account.label}"? This cannot be undone.`)) return
+  try {
+    await accountsStore.removeAccount(account)
+  } catch (err) {
+    prefsError.value = err instanceof Error ? err.message : String(err)
+  }
 }
 
 // Global key handling (Esc to close)
@@ -116,6 +149,11 @@ watch(
   (isOpen) => {
     if (isOpen && !userStore.profile && !userStore.loading && isAuthenticated.value) {
       userStore.fetchMe()
+    }
+    if (isOpen && isAuthenticated.value) {
+      accountsStore.fetchAccounts().catch((err) => {
+        prefsError.value = err instanceof Error ? err.message : String(err)
+      })
     }
   },
   { immediate: true },
@@ -190,6 +228,52 @@ const returnToOrigin = window.location.origin
                   <div class="dim text-[11px]">Display Name</div>
                   <div>{{ userStore.profile.displayName || '—' }}</div>
                 </div>
+              </div>
+              <div v-if="isAuthenticated" class="mt-4 space-y-2">
+                <div class="flex items-center justify-between gap-2 text-[11px] uppercase tracking-wide text-[var(--color-text-dim)]">
+                  <span>Trading Accounts</span>
+                  <div class="flex items-center gap-2">
+                    <button
+                      class="btn btn-secondary btn-xs"
+                      :disabled="accountsStore.loading"
+                      @click="accountsStore.fetchAccounts()"
+                    >
+                      Refresh
+                    </button>
+                    <button class="btn btn-primary btn-xs" @click="openCreateAccount">
+                      New
+                    </button>
+                  </div>
+                </div>
+                <p v-if="accountsStore.error" class="notice-err">{{ accountsStore.error }}</p>
+                <p v-else-if="accountsStore.loading && !accountsStore.accounts.length" class="notice-info">
+                  Loading accounts...
+                </p>
+                <ul v-else-if="accountsStore.accounts.length" class="accounts-list">
+                  <li
+                    v-for="account in accountsStore.accounts"
+                    :key="account.id"
+                    class="accounts-item"
+                  >
+                    <div class="accounts-item-main">
+                      <div class="font-medium text-[12px] text-[var(--color-text)]">
+                        {{ account.label }}
+                      </div>
+                      <div class="text-[11px] text-[var(--color-text-dim)]">
+                        {{ account.network || account.meta?.network || 'Unknown network' }}
+                      </div>
+                    </div>
+                    <div class="accounts-item-actions">
+                      <button class="btn btn-ghost btn-xs" @click="openEditAccount(account)">
+                        Edit
+                      </button>
+                      <button class="btn btn-ghost btn-xs text-red-400" @click="deleteAccount(account)">
+                        Delete
+                      </button>
+                    </div>
+                  </li>
+                </ul>
+                <p v-else class="notice-info">No trading accounts configured.</p>
               </div>
               <div v-if="accountError" class="notice-err mt-2">{{ accountError }}</div>
             </section>
@@ -344,6 +428,12 @@ const returnToOrigin = window.location.origin
               <div v-else-if="prefsSavedRecently" class="notice-ok">Preferences saved.</div>
             </section>
           </div>
+          <CreateAccountModal :open="isCreateAccountOpen" @close="isCreateAccountOpen = false" />
+          <EditAccountModal
+            :open="isEditAccountOpen"
+            :account="accountToEdit"
+            @close="closeEditAccount"
+          />
         </div>
       </div>
     </transition>
@@ -371,5 +461,33 @@ const returnToOrigin = window.location.origin
 :deep(.pill) {
   background: color-mix(in srgb, var(--panel-header-bg) 80%, transparent);
   border: 1px solid var(--border-color);
+}
+
+.accounts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.accounts-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--panel-bg) 85%, transparent);
+}
+
+.accounts-item-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.accounts-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 </style>

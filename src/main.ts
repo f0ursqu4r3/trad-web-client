@@ -15,7 +15,7 @@ import TerminalCommandInput from '@/components/terminal/panels/CommandInputPanel
 import TerminalDeviceDetails from '@/components/terminal/panels/DeviceDetailsPanel.vue'
 import TerminalInboundDebug from './components/terminal/panels/InboundDebugPanel.vue'
 
-import { auth0 } from '@/plugins/auth0'
+import { auth0, setAuth0Client } from '@/plugins/auth0'
 import { useUiStore } from '@/stores/ui'
 
 const app = createApp(App)
@@ -23,6 +23,7 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 app.use(auth0)
+setAuth0Client(app.config.globalProperties.$auth0)
 
 app.component('LogPanel', TerminalLogPanel)
 app.component('ChartPanel', TerminalChartPanel)

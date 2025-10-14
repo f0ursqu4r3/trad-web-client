@@ -2,30 +2,43 @@
 import { computed, ref, watch } from 'vue'
 import BaseCommandModal from './BaseCommandModal.vue'
 import type { NetworkType } from '@/lib/ws/protocol'
+import type { GatewayAccount } from '@/lib/gatewayClient'
 import { useAccountsStore } from '@/stores/accounts'
 
-const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
+interface Props {
+  open: boolean
+  account: GatewayAccount | null
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  open: false,
+  account: null,
+})
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 const accounts = useAccountsStore()
 
-const DEFAULT_NETWORK: NetworkType = 'Binance'
-const NETWORK_OPTIONS: NetworkType[] = ['Binance', 'Sim']
-
-const network = ref<NetworkType>(DEFAULT_NETWORK)
-const name = ref('')
+const network = ref<NetworkType>('Binance')
+const label = ref('')
 const apiKey = ref('')
 const secretKey = ref('')
 const formError = ref<string | null>(null)
 const isSubmitting = ref(false)
 
 const isSubmitDisabled = computed(() => {
-  return !network.value || !name.value.trim() || !apiKey.value.trim() || !secretKey.value.trim()
+  return !props.account || !label.value.trim() || !apiKey.value.trim() || !secretKey.value.trim()
 })
 
-function reset() {
-  network.value = DEFAULT_NETWORK
-  name.value = ''
+function resetFromAccount(acct: GatewayAccount | null) {
+  if (!acct) {
+    label.value = ''
+    network.value = 'Binance'
+    apiKey.value = ''
+    secretKey.value = ''
+    return
+  }
+  label.value = acct.label ?? ''
+  network.value = (acct.meta?.network as NetworkType) || 'Binance'
   apiKey.value = ''
   secretKey.value = ''
   formError.value = null
@@ -33,12 +46,13 @@ function reset() {
 }
 
 watch(
-  () => props.open,
-  (open) => {
-    if (open) {
-      reset()
+  () => [props.open, props.account],
+  () => {
+    if (props.open) {
+      resetFromAccount(props.account)
     }
   },
+  { immediate: true },
 )
 
 function close() {
@@ -46,12 +60,12 @@ function close() {
 }
 
 async function submit() {
-  if (isSubmitDisabled.value || isSubmitting.value) return
+  if (!props.account || isSubmitDisabled.value || isSubmitting.value) return
   isSubmitting.value = true
   formError.value = null
   try {
-    await accounts.createAccount({
-      label: name.value.trim(),
+    await accounts.updateAccount(props.account.id, {
+      label: label.value.trim(),
       apiKey: apiKey.value.trim(),
       secretKey: secretKey.value.trim(),
       network: network.value,
@@ -66,32 +80,33 @@ async function submit() {
 </script>
 
 <template>
-  <BaseCommandModal title="Create Account" :open="open" @close="close">
-    <form id="create-account-form" class="space-y-4" @submit.prevent="submit">
-      <div class="grid grid-cols-2 gap-3">
+  <BaseCommandModal title="Edit Account" :open="open" @close="close">
+    <form id="edit-account-form" class="space-y-4" @submit.prevent="submit">
+      <div v-if="!account" class="text-xs text-[var(--color-text-dim)]">No account selected.</div>
+      <div v-else class="grid grid-cols-2 gap-3">
         <label class="field">
-          <span>Network</span>
-          <select v-model="network" class="input">
-            <option v-for="option in NETWORK_OPTIONS" :key="option" :value="option">
-              {{ option }}
-            </option>
-          </select>
+          <span>Label</span>
+          <input v-model.trim="label" class="input" placeholder="Account label" />
         </label>
         <label class="field">
-          <span>Name</span>
-          <input v-model.trim="name" class="input" placeholder="Account alias" />
+          <span>Network</span>
+          <input
+            v-model.trim="network"
+            class="input"
+            placeholder="Network"
+            title="Network identifier (e.g. Binance)"
+          />
         </label>
         <label class="field">
           <span>API Key</span>
-          <input v-model.trim="apiKey" class="input" placeholder="API key" />
+          <input v-model.trim="apiKey" class="input" placeholder="New API key" />
         </label>
         <label class="field">
           <span>Secret Key</span>
-          <input v-model.trim="secretKey" class="input" placeholder="Secret key" />
+          <input v-model.trim="secretKey" class="input" placeholder="New secret key" />
         </label>
         <p class="col-span-2 text-[11px] text-[var(--color-text-dim)] leading-relaxed">
-          Your keys are stored securely and are only accessible by the trading backend. Double-check
-          the network matches the exchange the keys belong to.
+          Updating an account replaces the stored credentials. Provide the complete new key pair.
         </p>
       </div>
       <p v-if="formError" class="text-xs text-red-400">{{ formError }}</p>
@@ -100,13 +115,13 @@ async function submit() {
       <div class="flex gap-2 justify-end pt-2">
         <button type="button" class="btn btn-secondary" @click="close">Cancel</button>
         <button
-          form="create-account-form"
+          form="edit-account-form"
           type="submit"
           class="btn btn-primary"
           :disabled="isSubmitDisabled || isSubmitting"
         >
-          <span v-if="isSubmitting">Creating...</span>
-          <span v-else>Create</span>
+          <span v-if="isSubmitting">Saving...</span>
+          <span v-else>Save</span>
         </button>
       </div>
     </template>
@@ -141,10 +156,5 @@ async function submit() {
 .input:focus {
   outline: 1px solid var(--accent-color);
   outline-offset: 1px;
-}
-
-button[disabled] {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 </style>

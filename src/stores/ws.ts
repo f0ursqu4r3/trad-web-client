@@ -1,5 +1,4 @@
 import {
-  type CreateAccountCommand,
   type ServerToClientMessage,
   type SystemMessagePayload,
   type UserCommandPayload,
@@ -146,10 +145,14 @@ export const useWsStore = defineStore('ws', () => {
     })
   }
 
-  function sendCreateAccountCommand(account: CreateAccountCommand) {
-    sendUserCommand({
-      kind: 'CreateAccount',
-      data: account,
+  function sendRefreshAccountKeys(accountId: Uuid, label: string, userToken: string) {
+    sendSystemCommand({
+      kind: 'RefreshAccountKeys',
+      data: {
+        account_id: accountId,
+        label,
+        user_token: userToken,
+      },
     })
   }
 
@@ -317,6 +320,6 @@ export const useWsStore = defineStore('ws', () => {
     sendUserCommand,
     listCommandDevices,
     sendCancelCommand,
-    sendCreateAccountCommand,
+    sendRefreshAccountKeys,
   }
 })

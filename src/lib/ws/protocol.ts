@@ -141,6 +141,7 @@ export type SystemMessagePayload =
   | { kind: 'ListCommandDevicesRequest'; data: ListCommandDevicesRequest }
   | { kind: 'CancelCommand'; data: CancelCommandRequest }
   | { kind: 'Hello'; data: HelloData }
+  | { kind: 'RefreshAccountKeys'; data: RefreshAccountKeysMessage }
 
 export type CancelCommandRequest = {
   command_id: Uuid
@@ -190,15 +191,7 @@ export type TrailingEntryOrderCommand = {
   stop_loss: number
   risk_amount: number
 }
-export type ListAccountsCommand = { show_connections: boolean }
-export type CreateAccountCommand = {
-  network: NetworkType
-  name: string
-  api_key: string
-  secret_key: string
-}
-export type DeleteAccountCommand = { name: string }
-export type UseBinanceCommand = { account_name: string }
+export type UseBinanceCommand = { account_id: Uuid }
 export type UseSimMarketCommand = { sim_market_name: string }
 export type ListDevicesCommand = { filter: DeviceFilter }
 export type GetDeviceTreeCommand = { device_id: Uuid }
@@ -233,19 +226,23 @@ export type ResyncDeviceRequest = {
 export type TePointsPageRequest = { device_id: Uuid; since_index: number; max_points: number }
 export type ListCommandDevicesRequest = { command_id: Uuid }
 
+export type RefreshAccountKeysMessage = {
+  account_id: Uuid
+  label: string
+  user_token: string
+}
+
 // User-submitted commands
 export type UserCommandPayload =
   | { kind: 'CancelAllDevicesCommand'; data?: undefined }
   | { kind: 'CancelDevice'; data: CancelDeviceCommand }
   | { kind: 'CancelPosition'; data: CancelPositionCommand }
   | { kind: 'ControlSimMarket'; data: ControlSimMarketCommand }
-  | { kind: 'CreateAccount'; data: CreateAccountCommand }
   | { kind: 'CreateHistoricSimMarket'; data: CreateHistoricSimMarketCommand }
   | { kind: 'CreateSimMarket'; data: CreateSimMarketCommand }
   | { kind: 'CreateTestDeviceA'; data?: undefined }
   | { kind: 'CreateTradeWatch'; data: CreateTradeWatchCommand }
   | { kind: 'CreateUser'; data: CreateUserCommand }
-  | { kind: 'DeleteAccount'; data: DeleteAccountCommand }
   | { kind: 'DeleteSimMarket'; data: DeleteSimMarketCommand }
   | { kind: 'Echo'; data: EchoCommand }
   | { kind: 'GetBalance'; data?: undefined }
@@ -254,7 +251,6 @@ export type UserCommandPayload =
   | { kind: 'GetSymbolPrecision'; data: GetSymbolPrecisionCommand }
   | { kind: 'GetUserInfo'; data?: undefined }
   | { kind: 'LimitOrder'; data: LimitOrderCommand }
-  | { kind: 'ListAccounts'; data: ListAccountsCommand }
   | { kind: 'ListDevices'; data: ListDevicesCommand }
   | { kind: 'ListHistoricMarkets'; data?: undefined }
   | { kind: 'ListPositions'; data?: undefined }

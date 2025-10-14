@@ -24,12 +24,6 @@ export const commandRegistry: CommandMeta[] = [
     modal: true,
   },
   {
-    kind: 'CreateAccount',
-    label: 'Create Account',
-    description: 'Add trading account',
-    modal: true,
-  },
-  {
     kind: 'ControlSimMarket',
     label: 'Control Sim Market',
     description: 'Control / adjust sim market',
@@ -37,7 +31,6 @@ export const commandRegistry: CommandMeta[] = [
   },
   // Non-modal quick commands below
   { kind: 'GetBalance', label: 'Get Balance' },
-  { kind: 'ListAccounts', label: 'List Accounts' },
   { kind: 'ListDevices', label: 'List Devices' },
   { kind: 'ListPositions', label: 'List Positions' },
   { kind: 'CancelAllDevicesCommand', label: 'Cancel All Devices' },

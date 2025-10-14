@@ -13,3 +13,13 @@ export const auth0 = createAuth0({
   useRefreshTokens: true,
   useRefreshTokensFallback: true,
 })
+
+let auth0Client: Record<string, unknown> | null = null
+
+export function setAuth0Client(client: Record<string, unknown>) {
+  auth0Client = client
+}
+
+export function getAuth0Client(): Record<string, unknown> | null {
+  return auth0Client
+}
