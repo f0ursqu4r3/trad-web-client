@@ -8,6 +8,7 @@ import { useAuth0 } from '@auth0/auth0-vue'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 
 import ThemeSwitcher from '@/components/general/ThemeSwitcher.vue'
+import OrderedList from '@/components/general/OrderedList.vue'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -106,6 +107,11 @@ async function deleteAccount(account: ApiKeyRecord) {
   } catch (err) {
     prefsError.value = err instanceof Error ? err.message : String(err)
   }
+}
+
+function handleAccountsReorder(nextItems: unknown[]) {
+  if (!Array.isArray(nextItems)) return
+  accountsStore.reorderAccounts(nextItems as ApiKeyRecord[])
 }
 
 // Global key handling (Esc to close)
@@ -238,30 +244,39 @@ const returnToOrigin = window.location.origin
                 >
                   Loading accounts...
                 </p>
-                <ul v-else-if="accountsStore.accounts.length" class="accounts-list">
-                  <li
-                    v-for="account in accountsStore.accounts"
-                    :key="account.id"
-                    class="accounts-item"
-                  >
-                    <div class="accounts-item-main">
-                      <div class="font-medium text-[12px] text-[var(--color-text)]">
-                        {{ account.label }}
+                <OrderedList
+                  v-else-if="accountsStore.accounts.length"
+                  :items="accountsStore.accounts"
+                  item-key="id"
+                  @update:items="handleAccountsReorder"
+                >
+                  <template #default="{ item: account, index }">
+                    <div
+                      class="flex items-center justify-between gap-3 p-2 border rounded-md bg-[var(--panel-bg-alt)] border-[var(--border-color)]"
+                    >
+                      <div class="flex items-center gap-3">
+                        <span v-if="index < 9" class="kbd">ctrl+{{ index + 1 }}</span>
+                        <div class="flex flex-col gap-1">
+                          <div class="font-medium text-sm text-[var(--color-text)]">
+                            {{ (account as ApiKeyRecord).label }}
+                          </div>
+                          <div class="text-[11px] text-[var(--color-text-dim)]">
+                            {{ (account as ApiKeyRecord).network || 'Unknown network' }}
+                          </div>
+                        </div>
                       </div>
-                      <div class="text-[11px] text-[var(--color-text-dim)]">
-                        {{ account.network || 'Unknown network' }}
+
+                      <div class="flex items-center gap-2">
+                        <button
+                          class="btn btn-ghost btn-xs text-red-400"
+                          @click="deleteAccount(account as ApiKeyRecord)"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
-                    <div class="accounts-item-actions">
-                      <button
-                        class="btn btn-ghost btn-xs text-red-400"
-                        @click="deleteAccount(account)"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </li>
-                </ul>
+                  </template>
+                </OrderedList>
                 <p v-else class="notice-info">No trading accounts configured.</p>
               </div>
               <div v-if="accountError" class="notice-err mt-2">{{ accountError }}</div>
@@ -319,37 +334,6 @@ const returnToOrigin = window.location.origin
                 >
                   Logout
                 </button>
-              </div>
-            </section>
-
-            <hr class="section-divider" />
-
-            <!-- Accounts -->
-            <section>
-              <header
-                class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-[var(--accent-color)]"
-              >
-                <span>Accounts</span>
-              </header>
-              <div v-if="!isAuthenticated" class="text-[var(--color-text-dim)]">
-                Not authenticated.
-              </div>
-              <div v-else-if="userStore.keys.length === 0" class="text-[var(--color-text-dim)]">
-                No Accounts available.
-              </div>
-              <div v-else class="space-y-2">
-                <div
-                  v-for="key in userStore.keys"
-                  :key="key.id"
-                  class="rounded border border-[var(--border-color)] bg-[var(--panel-bg-alt)] p-2"
-                >
-                  <div class="text-[var(--color-text-dim)] text-[11px]">Key ID</div>
-                  <div class="font-mono break-all text-sm">{{ key.id }}</div>
-                  <div v-if="key.name" class="mt-1">
-                    <div class="text-[var(--color-text-dim)] text-[11px]">Name</div>
-                    <div class="text-sm">{{ key.name }}</div>
-                  </div>
-                </div>
               </div>
             </section>
 
@@ -445,33 +429,5 @@ const returnToOrigin = window.location.origin
 :deep(.pill) {
   background: color-mix(in srgb, var(--panel-header-bg) 80%, transparent);
   border: 1px solid var(--border-color);
-}
-
-.accounts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.accounts-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.35rem 0.5rem;
-  border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--panel-bg) 85%, transparent);
-}
-
-.accounts-item-actions {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.accounts-item-main {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
 }
 </style>

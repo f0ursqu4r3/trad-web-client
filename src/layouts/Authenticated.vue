@@ -5,6 +5,8 @@
       <div class="toolbar-section">
         <span class="muted">logged in as</span>
         <span class="text-term-accent">{{ username }}</span>
+        <span class="muted">|</span>
+        <AccountSelect />
       </div>
       <div class="toolbar-section">
         <CommandInputModal />
@@ -34,6 +36,7 @@ import { useUserStore } from '@/stores/user'
 import WsIndicator from '@/components/general/WsIndicator.vue'
 import UserSettings from '@/components/terminal/modals/UserSettings.vue'
 import CommandInputModal from '@/components/terminal/modals/CommandInputModal.vue'
+import AccountSelect from '@/components/general/AccountSelect.vue'
 
 const userStore = useUserStore()
 

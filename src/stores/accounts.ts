@@ -21,11 +21,45 @@ export interface ApiKeyRecord {
 export const useAccountsStore = defineStore('accounts', () => {
   const { isAuthenticated } = useAuth0()
 
-  const accounts = ref<ApiKeyRecord[]>([])
+  const ACCOUNT_ORDER_STORAGE_KEY = 'trad-account-order'
+
+  const accountsRaw = ref<ApiKeyRecord[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
   const selectedAccountId = ref<string | null>(null)
   const lastFetchedAt = ref<number | null>(null)
+  const accountOrder = ref<string[]>([])
+
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = window.localStorage.getItem(ACCOUNT_ORDER_STORAGE_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored) as unknown
+        if (Array.isArray(parsed) && parsed.every((id) => typeof id === 'string')) {
+          accountOrder.value = parsed
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to hydrate account order from storage', error)
+    }
+  }
+
+  const accounts = computed(() => {
+    const list = accountsRaw.value
+    if (!accountOrder.value.length) {
+      return [...list]
+    }
+
+    const orderMap = new Map(accountOrder.value.map((id, index) => [id, index]))
+    const baseIndex = orderMap.size
+    const incomingIndex = new Map(list.map((item, index) => [item.id, index]))
+
+    return [...list].sort((a, b) => {
+      const orderA = orderMap.get(a.id) ?? baseIndex + (incomingIndex.get(a.id) ?? 0)
+      const orderB = orderMap.get(b.id) ?? baseIndex + (incomingIndex.get(b.id) ?? 0)
+      return orderA - orderB
+    })
+  })
 
   const selectedAccount = computed(
     () => accounts.value.find((a) => a.id === selectedAccountId.value) ?? null,
@@ -34,10 +68,26 @@ export const useAccountsStore = defineStore('accounts', () => {
 
   async function fetchAccounts(): Promise<void> {
     const response = await apiGet<ApiKeyRecord[]>('/accounts')
-    accounts.value = response
-    if (!selectedAccountId.value && accounts.value.length > 0) {
+    accountsRaw.value = response
+
+    const fetchedIds = new Set(response.map((account) => account.id))
+    accountOrder.value = accountOrder.value.filter((id) => fetchedIds.has(id))
+
+    for (const account of response) {
+      if (!accountOrder.value.includes(account.id)) {
+        accountOrder.value.push(account.id)
+      }
+    }
+
+    if (accounts.value.length === 0) {
+      selectedAccountId.value = null
+    } else if (
+      !selectedAccountId.value ||
+      !accounts.value.some((a) => a.id === selectedAccountId.value)
+    ) {
       selectedAccountId.value = accounts.value[0].id
     }
+
     lastFetchedAt.value = Date.now()
   }
 
@@ -60,6 +110,56 @@ export const useAccountsStore = defineStore('accounts', () => {
     await fetchAccounts()
   }
 
+  function reorderAccounts(nextOrder: ApiKeyRecord[]): void {
+    const nextIds = nextOrder.map((account) => account.id)
+    const existingMap = new Map(accountsRaw.value.map((account) => [account.id, account]))
+    const seen = new Set<string>()
+    const reordered: ApiKeyRecord[] = []
+
+    for (const id of nextIds) {
+      const match = existingMap.get(id)
+      if (match) {
+        reordered.push(match)
+        seen.add(id)
+      }
+    }
+
+    for (const account of accountsRaw.value) {
+      if (!seen.has(account.id)) {
+        reordered.push(account)
+      }
+    }
+
+    accountsRaw.value = reordered
+    accountOrder.value = reordered.map((account) => account.id)
+
+    if (selectedAccountId.value) {
+      const exists = accounts.value.some((account) => account.id === selectedAccountId.value)
+      if (!exists) {
+        selectedAccountId.value = accounts.value[0]?.id ?? null
+      }
+    } else if (accounts.value.length > 0) {
+      selectedAccountId.value = accounts.value[0].id
+    }
+  }
+
+  watch(
+    accountOrder,
+    (order) => {
+      if (typeof window === 'undefined') return
+      if (!order.length) {
+        window.localStorage.removeItem(ACCOUNT_ORDER_STORAGE_KEY)
+        return
+      }
+      try {
+        window.localStorage.setItem(ACCOUNT_ORDER_STORAGE_KEY, JSON.stringify(order))
+      } catch (error) {
+        console.warn('Failed to persist account order', error)
+      }
+    },
+    { deep: true },
+  )
+
   watch(
     () => isAuthenticated.value,
     (authed) => {
@@ -68,7 +168,8 @@ export const useAccountsStore = defineStore('accounts', () => {
           error.value = err instanceof Error ? err.message : String(err)
         })
       } else {
-        accounts.value = []
+        accountsRaw.value = []
+        accountOrder.value = []
         selectedAccountId.value = null
         error.value = null
         lastFetchedAt.value = null
@@ -90,5 +191,6 @@ export const useAccountsStore = defineStore('accounts', () => {
     fetchAccounts,
     addAccount,
     removeAccount,
+    reorderAccounts,
   }
 })

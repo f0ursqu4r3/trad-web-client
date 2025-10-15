@@ -22,9 +22,6 @@
     @apply appearance-none rounded border border-term-border bg-transparent px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60;
     line-height: 1.25;
   }
-  select {
-    @apply pr-6;
-  }
   input[type='text']:focus,
   input[type='password']:focus,
   input[type='email']:focus,
@@ -67,6 +64,17 @@
   .input-term-sm,
   .form-control-sm {
     @apply px-1.5 py-0.5 text-[12px];
+  }
+  select.input-sm,
+  select.input-term-sm,
+  select.form-control-sm,
+  .select.input-sm,
+  .select.input-term-sm,
+  .select.form-control-sm,
+  .select-term.input-sm,
+  .select-term.input-term-sm,
+  .select-term.form-control-sm {
+    @apply pr-6;
   }
   .input-lg,
   .input-term-lg,
