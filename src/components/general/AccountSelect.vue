@@ -1,7 +1,31 @@
 <script lang="ts" setup>
+import { onBeforeUnmount, onMounted } from 'vue'
 import { useAccountsStore } from '@/stores/accounts'
 
 const accounts = useAccountsStore()
+
+function onKeyDown(event: KeyboardEvent) {
+  if (event.ctrlKey || event.metaKey) {
+    const key = event.key
+    // 1-0 keys
+    if (/^[1-9]$/.test(key) || key === '0') {
+      const index = key === '0' ? 9 : parseInt(key, 10) - 1
+      const account = accounts.accounts[index]
+      if (account) {
+        accounts.selectedAccountId = account.id
+        event.preventDefault()
+      }
+    }
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeyDown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeyDown)
+})
 </script>
 
 <template>

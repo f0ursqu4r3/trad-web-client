@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 
 import 'dockview-vue/dist/styles/dockview.css'
 import './assets/main.css'
@@ -20,7 +21,10 @@ import { useUiStore } from '@/stores/ui'
 
 const app = createApp(App)
 
-app.use(createPinia())
+const pinia = createPinia()
+pinia.use(piniaPluginPersistedstate)
+app.use(pinia)
+
 app.use(router)
 app.use(auth0)
 setAuth0Client(app.config.globalProperties.$auth0)
