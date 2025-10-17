@@ -8,10 +8,14 @@ import type {
   PositionSide,
 } from '@/lib/ws/protocol'
 import { useWsStore } from '@/stores/ws'
+import { useAccountsStore } from '@/stores/accounts'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
 const ws = useWsStore()
+const accounts = useAccountsStore()
+
+const selectedAccountId = ref<string>(accounts.selectedAccount?.id || '')
 
 const symbol = ref('BTCUSDT')
 const action = ref<MarketAction>('Buy')
@@ -20,6 +24,7 @@ const position_side = ref<PositionSide>('Long')
 const num_splits = ref(4)
 
 function reset() {
+  selectedAccountId.value = accounts.selectedAccount?.id || ''
   action.value = 'Buy'
   quantity_usd.value = 100
   position_side.value = 'Long'
@@ -33,12 +38,18 @@ watch(
 )
 
 function submit() {
+  const marketContext = accounts.getMarketContextForAccount(selectedAccountId.value)
+  if (!marketContext) {
+    console.error('No market context found for account', selectedAccountId.value)
+    return
+  }
   const data: SplitMarketOrderCommand = {
     num_splits: num_splits.value,
     action: action.value,
     symbol: symbol.value,
     quantity_usd: quantity_usd.value,
     position_side: position_side.value,
+    market_context: marketContext,
   }
   const payload: Extract<UserCommandPayload, { kind: 'SplitMarketOrder' }> = {
     kind: 'SplitMarketOrder',

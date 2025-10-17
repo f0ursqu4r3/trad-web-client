@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 4
+export const PROTOCOL_VERSION = 5
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -13,10 +13,10 @@ export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 // External/shared domain types (placeholders — align with server definitions)
 // ==============================================================================================
 
-// If your server uses specific string values, adjust these literal unions accordingly.
 export type OrderSide = 'Buy' | 'Sell'
 export type PositionSide = 'Long' | 'Short'
 export type MarketAction = 'Buy' | 'Sell' | 'Close' | 'CloseAll' | string
+
 export enum NetworkType {
   Testnet = 'testnet',
   Mainnet = 'mainnet',
@@ -33,28 +33,23 @@ export type DeviceKind =
   | 'Unknown'
   | string
 
-// Market/MarketContext/DeviceMarketInfo are placeholders; extend to match server JSON
 export interface MarketContext {
   name?: string
   network?: NetworkType
-  // ... add fields as needed
   [k: string]: unknown
 }
 
 export interface Market {
   symbol?: string
-  // ... add fields as needed
   [k: string]: unknown
 }
 
 export interface DeviceMarketInfo {
   symbol?: string
   description?: string
-  // ... add fields as needed
   [k: string]: unknown
 }
 
-// Device-specific status enums — define as string unions for forward-compatibility
 export type TrailingEntryPhase =
   | 'Idle'
   | 'Arming'
@@ -63,7 +58,15 @@ export type TrailingEntryPhase =
   | 'Completed'
   | 'Failed'
   | string
-export type MarketOrderStatus = 'Unsent' | 'Pending' | 'Filled' | 'Cancelled' | 'Failed' | string
+export type TrailingEntryLifecycle = unknown
+export type MarketOrderStatus =
+  | 'Unsent'
+  | 'Pending'
+  | 'Running'
+  | 'Filled'
+  | 'Cancelled'
+  | 'Failed'
+  | string
 export type StopGuardStatus = 'Idle' | 'Placing' | 'Active' | 'Cancelled' | 'Failed' | string
 
 // ==============================================================================================
@@ -139,15 +142,18 @@ export type SystemMessagePayload =
   | { kind: 'Ping'; data: PingData }
   | { kind: 'GetDeviceMarketInfo'; data: GetDeviceMarketInfoRequest }
   | { kind: 'SyncDevice'; data: SyncDeviceRequest }
-  // v3 event-driven inspect + resync
+  | { kind: 'TePointsPageRequest'; data: TePointsPageRequest }
+  | { kind: 'ListCommandDevicesRequest'; data: ListCommandDevicesRequest }
   | { kind: 'InspectStart'; data: InspectStartRequest }
   | { kind: 'InspectReadyAck'; data: InspectReadyAckData }
   | { kind: 'ResyncDevice'; data: ResyncDeviceRequest }
-  | { kind: 'TePointsPageRequest'; data: TePointsPageRequest }
-  | { kind: 'ListCommandDevicesRequest'; data: ListCommandDevicesRequest }
   | { kind: 'CancelCommand'; data: CancelCommandRequest }
-  | { kind: 'Hello'; data: HelloData }
   | { kind: 'RefreshAccountKeys'; data: RefreshAccountKeysMessage }
+  | { kind: 'GetBalance'; data: GetBalanceRequest }
+  | { kind: 'ListPositions'; data: ListPositionsRequest }
+  | { kind: 'ListDevices'; data: ListDevicesCommand }
+  | { kind: 'GetDeviceTree'; data: GetDeviceTreeCommand }
+  | { kind: 'Hello'; data: HelloData }
 
 export type CancelCommandRequest = {
   command_id: Uuid
@@ -159,21 +165,39 @@ export type HelloData = {
   build?: string | null
 }
 
+export type RefreshAccountKeysMessage = {
+  account_id: Uuid
+  user_token: string
+  label?: string | null
+}
+
+export type GetBalanceRequest = {
+  market_context: MarketContext
+}
+
+export type ListPositionsRequest = {
+  market_context: MarketContext
+}
+
 // Command structs (anonymous + authenticated)
 export type PingData = { client_send_time: number }
 export type EchoCommand = { message: string }
-export type CreateUserCommand = { username: string; password_hash: string }
 export type TokenLoginCommand = { token: string }
 export type TestCommand = { test_type: TestType }
-export type GetPriceCommand = { symbol: string }
+export type GetPriceCommand = { symbol: string; market_context: MarketContext }
 export type LogoutCommand = { all_sessions: boolean }
-export type CreateTradeWatchCommand = { symbol: string }
-export type SetLeverageCommand = { symbol: string; leverage: number }
+export type CreateTradeWatchCommand = { symbol: string; market_context: MarketContext }
+export type SetLeverageCommand = {
+  symbol: string
+  leverage: number
+  market_context: MarketContext
+}
 export type MarketOrderCommand = {
   action: MarketAction
   symbol: string
   quantity_usd: number
   position_side: PositionSide
+  market_context: MarketContext
 }
 export type SplitMarketOrderCommand = {
   num_splits: number
@@ -181,6 +205,7 @@ export type SplitMarketOrderCommand = {
   symbol: string
   quantity_usd: number
   position_side: PositionSide
+  market_context: MarketContext
 }
 export type LimitOrderCommand = {
   side: OrderSide
@@ -188,6 +213,7 @@ export type LimitOrderCommand = {
   quantity: number
   price: number
   position_side: PositionSide
+  market_context: MarketContext
 }
 export type TrailingEntryOrderCommand = {
   position_side: PositionSide
@@ -196,15 +222,14 @@ export type TrailingEntryOrderCommand = {
   jump_frac_threshold: number
   stop_loss: number
   risk_amount: number
+  market_context: MarketContext
 }
-export type UseBinanceCommand = { account_id: Uuid }
-export type UseSimMarketCommand = { sim_market_name: string }
 export type ListDevicesCommand = { filter: DeviceFilter }
 export type GetDeviceTreeCommand = { device_id: Uuid }
 export type CancelDeviceCommand = { device_id: Uuid }
-export type SetHedgeModeCommand = { enabled: boolean }
-export type CancelPositionCommand = { symbol: string }
-export type GetSymbolPrecisionCommand = { symbol: string }
+export type SetHedgeModeCommand = { enabled: boolean; market_context: MarketContext }
+export type CancelPositionCommand = { symbol: string; market_context: MarketContext }
+export type GetSymbolPrecisionCommand = { symbol: string; market_context: MarketContext }
 export type CreateHistoricSimMarketCommand = { scenario_name: string; nickname: string }
 export type SimMarketCoinSettings = { coin_name: string; center: number; variance: number }
 export type CreateSimMarketCommand = {
@@ -212,7 +237,6 @@ export type CreateSimMarketCommand = {
   name: string
   coin_settings: SimMarketCoinSettings[]
 }
-export type SetActiveMarketCommand = { name: string }
 export type ControlSimMarketCommand = {
   action: SimMarketAction
   identifier: string
@@ -232,46 +256,33 @@ export type ResyncDeviceRequest = {
 export type TePointsPageRequest = { device_id: Uuid; since_index: number; max_points: number }
 export type ListCommandDevicesRequest = { command_id: Uuid }
 
-export type RefreshAccountKeysMessage = {
-  account_id: Uuid
-  label: string
-  user_token: string
-}
-
-// User-submitted commands
 export type UserCommandPayload =
-  | { kind: 'CancelAllDevicesCommand'; data?: undefined }
-  | { kind: 'CancelDevice'; data: CancelDeviceCommand }
-  | { kind: 'CancelPosition'; data: CancelPositionCommand }
-  | { kind: 'ControlSimMarket'; data: ControlSimMarketCommand }
-  | { kind: 'CreateHistoricSimMarket'; data: CreateHistoricSimMarketCommand }
-  | { kind: 'CreateSimMarket'; data: CreateSimMarketCommand }
-  | { kind: 'CreateTestDeviceA'; data?: undefined }
-  | { kind: 'CreateTradeWatch'; data: CreateTradeWatchCommand }
-  | { kind: 'CreateUser'; data: CreateUserCommand }
-  | { kind: 'DeleteSimMarket'; data: DeleteSimMarketCommand }
   | { kind: 'Echo'; data: EchoCommand }
-  | { kind: 'GetBalance'; data?: undefined }
-  | { kind: 'GetDeviceTree'; data: GetDeviceTreeCommand }
-  | { kind: 'GetPrice'; data: GetPriceCommand }
-  | { kind: 'GetSymbolPrecision'; data: GetSymbolPrecisionCommand }
-  | { kind: 'GetUserInfo'; data?: undefined }
-  | { kind: 'LimitOrder'; data: LimitOrderCommand }
-  | { kind: 'ListDevices'; data: ListDevicesCommand }
-  | { kind: 'ListHistoricMarkets'; data?: undefined }
-  | { kind: 'ListPositions'; data?: undefined }
-  | { kind: 'ListSimMarkets'; data?: undefined }
   | { kind: 'ListUsers'; data?: undefined }
-  | { kind: 'Logout'; data: LogoutCommand }
-  | { kind: 'MarketOrder'; data: MarketOrderCommand }
-  | { kind: 'SetHedgeMode'; data: SetHedgeModeCommand }
-  | { kind: 'SetLeverage'; data: SetLeverageCommand }
-  | { kind: 'SplitMarketOrder'; data: SplitMarketOrderCommand }
-  | { kind: 'Test'; data: TestCommand }
   | { kind: 'TokenLogin'; data: TokenLoginCommand }
+  | { kind: 'Test'; data: TestCommand }
+  | { kind: 'GetPrice'; data: GetPriceCommand }
+  | { kind: 'Logout'; data: LogoutCommand }
+  | { kind: 'CreateTradeWatch'; data: CreateTradeWatchCommand }
+  | { kind: 'SetLeverage'; data: SetLeverageCommand }
+  | { kind: 'MarketOrder'; data: MarketOrderCommand }
+  | { kind: 'SplitMarketOrder'; data: SplitMarketOrderCommand }
+  | { kind: 'LimitOrder'; data: LimitOrderCommand }
   | { kind: 'TrailingEntryOrder'; data: TrailingEntryOrderCommand }
-  | { kind: 'UseBinance'; data: UseBinanceCommand }
-  | { kind: 'UseSimMarket'; data: UseSimMarketCommand }
+  | { kind: 'CreateTestDeviceA'; data?: undefined }
+  | { kind: 'CancelDevice'; data: CancelDeviceCommand }
+  | { kind: 'SetHedgeMode'; data: SetHedgeModeCommand }
+  | { kind: 'CancelPosition'; data: CancelPositionCommand }
+  | { kind: 'GetSymbolPrecision'; data: GetSymbolPrecisionCommand }
+  | { kind: 'ListHistoricMarkets'; data?: undefined }
+  | { kind: 'CreateHistoricSimMarket'; data: CreateHistoricSimMarketCommand }
+  | { kind: 'ListSimMarkets'; data?: undefined }
+  | { kind: 'CreateSimMarket'; data: CreateSimMarketCommand }
+  | { kind: 'ControlSimMarket'; data: ControlSimMarketCommand }
+  | { kind: 'DeleteSimMarket'; data: DeleteSimMarketCommand }
+  | { kind: 'CancelAllDevicesCommand'; data?: undefined }
+  | { kind: 'ListDevices'; data: ListDevicesCommand }
+  | { kind: 'GetDeviceTree'; data: GetDeviceTreeCommand }
 
 // ==============================================================================================
 // Server → Client
@@ -283,33 +294,37 @@ export type ServerToClientMessage = {
 }
 
 export type ServerToClientPayload =
-  | { kind: 'Alert'; data: AlertData }
-  | { kind: 'ChatMessage'; data: ChatMessageData }
   | { kind: 'ClientIdAssignment'; data: ClientIdAssignmentData }
+  | { kind: 'Welcome'; data: WelcomeData }
   | { kind: 'ClientJoined'; data: ClientJoinedData }
   | { kind: 'ClientLeft'; data: ClientLeftData }
-  | { kind: 'CommandDevicesList'; data: CommandDevicesListData }
-  | { kind: 'CommandHistory'; data: CommandHistoryData }
   | { kind: 'CommandResponse'; data: CommandResponseData }
-  | { kind: 'DeviceLifecycle'; data: DeviceLifecycleEvent }
+  | { kind: 'Message'; data: MessageData }
+  | { kind: 'Alert'; data: AlertData }
+  | { kind: 'ChatMessage'; data: ChatMessageData }
+  | { kind: 'ServerError'; data: ServerErrorData }
+  | { kind: 'FatalServerError'; data: FatalServerErrorData }
+  | { kind: 'Pong'; data: PongData }
+  | { kind: 'ServerHello'; data: ServerHelloData }
+  | { kind: 'SetUser'; data: SetUserData }
+  | { kind: 'UnsetUser'; data: UnsetUserData }
   | { kind: 'DeviceMarketInfoResponse'; data: DeviceMarketInfoResponseData }
+  | { kind: 'DeviceSnapshotLite'; data: DeviceSnapshotLiteData }
+  | { kind: 'TePointsPage'; data: TePointsPageData }
+  | { kind: 'CommandDevicesList'; data: CommandDevicesListData }
+  | { kind: 'SetCommandStatus'; data: SetCommandStatusData }
+  | { kind: 'CommandHistory'; data: CommandHistoryData }
+  | { kind: 'InspectReady'; data: InspectReadyData }
+  | { kind: 'DeviceLifecycle'; data: DeviceLifecycleEvent }
+  | { kind: 'DeviceTeDelta'; data: DeviceTeDeltaEvent }
   | { kind: 'DeviceMoDelta'; data: DeviceMoDeltaEvent }
   | { kind: 'DeviceSgDelta'; data: DeviceSgDeltaEvent }
-  | { kind: 'DeviceSnapshotLite'; data: DeviceSnapshotLiteData }
   | { kind: 'DeviceSplitDelta'; data: DeviceSplitDeltaEvent }
-  | { kind: 'DeviceTeDelta'; data: DeviceTeDeltaEvent }
-  | { kind: 'FatalServerError'; data: FatalServerErrorData }
-  | { kind: 'InspectReady'; data: InspectReadyData }
-  | { kind: 'Message'; data: MessageData }
-  | { kind: 'Pong'; data: PongData }
-  | { kind: 'ServerError'; data: ServerErrorData }
-  | { kind: 'ServerHello'; data: ServerHelloData }
-  | { kind: 'SetActiveMarketContext'; data: SetActiveMarketContextData }
-  | { kind: 'SetCommandStatus'; data: SetCommandStatusData }
-  | { kind: 'SetUser'; data: SetUserData }
-  | { kind: 'TePointsPage'; data: TePointsPageData }
-  | { kind: 'UnsetUser'; data: UnsetUserData }
-  | { kind: 'Welcome'; data: WelcomeData }
+  | { kind: 'AccountBalanceSnapshot'; data: AccountBalanceData }
+  | { kind: 'PositionsSnapshot'; data: PositionsSnapshotData }
+  | { kind: 'DevicesList'; data: DevicesListData }
+  | { kind: 'DeviceTree'; data: DeviceTreeData }
+  | { kind: 'UserInfo'; data: UserInfoData }
 
 // Payload structs (Server → Client)
 export type ClientIdAssignmentData = { new_client_id: Uuid }
@@ -331,18 +346,73 @@ export type InspectReadyData = { command_id: Uuid; barrier_ts: string }
 export type PongData = { client_send_time: number }
 export type SetUserData = { user_id: Uuid; username: string }
 export type UnsetUserData = Record<string, never>
-export type SetActiveMarketContextData = {
-  market_context: MarketContext
-  market?: Market | null
-  description: string
-}
+
 export type DeviceMarketInfoResponseData = {
   device_id: Uuid
   market_context: MarketContext
   description: string
 }
 
-// Server→Client payload data (grouped)
+export type AccountBalanceAsset = {
+  asset: string
+  free: number
+  locked: number
+}
+
+export type AccountBalanceData = {
+  market_context: MarketContext
+  assets: AccountBalanceAsset[]
+}
+
+export type PositionSummary = {
+  symbol: string
+  position_side: PositionSide
+  amount: number
+  entry_price: number
+  unrealized_pnl: number
+}
+
+export type PositionsSnapshotData = {
+  market_context: MarketContext
+  positions: PositionSummary[]
+}
+
+export type DeviceRunState =
+  | 'Running'
+  | 'CompletedOk'
+  | 'CompletedFailed'
+  | 'CompletedCanceled'
+  | string
+
+export type DevicesListItem = {
+  device_id: Uuid
+  kind?: string | null
+  symbol?: string | null
+  state: DeviceRunState
+}
+
+export type DevicesListData = {
+  devices: DevicesListItem[]
+}
+
+export type DeviceTreeNode = {
+  device_id: Uuid
+  parent_device_id?: Uuid | null
+  kind?: string | null
+  symbol?: string | null
+  state: DeviceRunState
+}
+
+export type DeviceTreeData = {
+  root_device_id: Uuid
+  nodes: DeviceTreeNode[]
+}
+
+export type UserInfoData = {
+  user_id: Uuid
+  username: string
+}
+
 export type TePointsPageData = {
   device_id: Uuid
   start_index: number
@@ -419,6 +489,7 @@ export type TrailingEntrySnapshot = {
   total_points: number
   start_trigger_index?: number | null
   end_trigger_index?: number | null
+  lifecycle?: TrailingEntryLifecycle
 }
 
 export type MarketOrderSnapshot = {
@@ -445,8 +516,16 @@ export type StopGuardSnapshot = {
   position_side: PositionSide
   stop_price: number
   covered_qty: number
-  current_stop_client_id?: string | null
+  target_coverage: number
+  client_order_id?: string | null
+  remote_order_id?: number | null
+  topup_seq: number
+  sent_at?: string | null
+  last_update_seen_at?: string | null
+  last_status_check_at?: string | null
+  last_replacement_at?: string | null
   status: StopGuardStatus
+  pending_replacement_from?: string | null
 }
 
 // ==============================================================================================
@@ -471,7 +550,6 @@ export type DeviceLifecycleEvent = {
 // Typed device delta streams
 // ==============================================================================================
 
-// Trailing Entry deltas
 export type DeviceTeDelta =
   | {
       kind: 'Init'
@@ -489,12 +567,14 @@ export type DeviceTeDelta =
         peak_index: number
         base_index: number
         total_points: number
+        lifecycle: TrailingEntryLifecycle
       }
     }
   | { kind: 'PointsInit'; data: { start_idx: number; points: number[]; total_len: number } }
   | { kind: 'Point'; data: { idx: number; price: number } }
   | { kind: 'Peak'; data: { price: number } }
   | { kind: 'Phase'; data: { from: string; to: string } }
+  | { kind: 'Lifecycle'; data: { status: TrailingEntryLifecycle } }
   | { kind: 'TrailingStop'; data: { price: number } }
   | {
       kind: 'Review'
@@ -512,7 +592,6 @@ export type DeviceTeDeltaEvent = {
   delta: DeviceTeDelta
 }
 
-// Market Order deltas
 export type DeviceMoDelta =
   | {
       kind: 'Init'
@@ -545,7 +624,6 @@ export type DeviceMoDeltaEvent = {
   delta: DeviceMoDelta
 }
 
-// Stop Guard deltas
 export type DeviceSgDelta =
   | {
       kind: 'Init'
@@ -557,14 +635,42 @@ export type DeviceSgDelta =
         position_side: PositionSide
         stop_price: number
         covered_qty: number
-        current_stop_client_id?: string | null
+        target_coverage: number
+        client_order_id?: string | null
+        remote_order_id?: number | null
+        topup_seq: number
+        sent_at?: string | null
+        last_update_seen_at?: string | null
+        last_status_check_at?: string | null
+        last_replacement_at?: string | null
         status: StopGuardStatus
       }
     }
+  | { kind: 'Submitted'; data: { order_id: string; quantity: number; topup_seq: number } }
+  | {
+      kind: 'Replaced'
+      data: {
+        old_order_id: string
+        new_order_id: string
+        new_quantity: number
+        reason: string
+        topup_seq: number
+      }
+    }
+  | {
+      kind: 'PartiallyFilled'
+      data: { order_id: string; cum_qty?: number | null; last_qty?: number | null }
+    }
+  | { kind: 'Filled'; data: { order_id: string; cum_qty?: number | null } }
+  | { kind: 'Canceled'; data: { order_id: string; reason: string } }
+  | { kind: 'Rejected'; data: { order_id?: string | null; reason?: string | null } }
   | { kind: 'Threshold'; data: { price: number } }
   | { kind: 'Triggered'; data: { at_price: number } }
   | { kind: 'OrderUpdate'; data: { status: string } }
-  | { kind: 'Coverage'; data: { covered_qty: number } }
+  | {
+      kind: 'Coverage'
+      data: { covered_qty: number; target_coverage: number; topup_seq: number }
+    }
 
 export type DeviceSgDeltaEvent = {
   device_id: Uuid
@@ -573,7 +679,6 @@ export type DeviceSgDeltaEvent = {
   delta: DeviceSgDelta
 }
 
-// Split deltas
 export type DeviceSplitDelta =
   | {
       kind: 'Init'
