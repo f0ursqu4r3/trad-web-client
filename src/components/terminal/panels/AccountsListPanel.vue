@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useAccountsStore, type ApiKeyRecord } from '@/stores/accounts'
+import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 import { XIcon } from '@/components/icons'
 
@@ -16,7 +16,7 @@ function openCreateModal() {
   isCreateModalOpen.value = true
 }
 
-async function deleteAccount(account: ApiKeyRecord) {
+async function deleteAccount(account: AccountRecord) {
   if (!window.confirm(`Delete account "${account.label}"? This cannot be undone.`)) return
   try {
     await accounts.removeAccount(account.label)
@@ -25,7 +25,7 @@ async function deleteAccount(account: ApiKeyRecord) {
   }
 }
 
-function selectAccount(account: ApiKeyRecord) {
+function selectAccount(account: AccountRecord) {
   accounts.selectedAccountId = account.id
 }
 

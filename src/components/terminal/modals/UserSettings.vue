@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useWsStore } from '@/stores/ws'
-import { useAccountsStore, type ApiKeyRecord } from '@/stores/accounts'
+import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import { apiPut } from '@/lib/apiClient'
 import { useAuth0 } from '@auth0/auth0-vue'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
@@ -100,7 +100,7 @@ function openCreateAccount() {
   isCreateAccountOpen.value = true
 }
 
-async function deleteAccount(account: ApiKeyRecord) {
+async function deleteAccount(account: AccountRecord) {
   if (!window.confirm(`Delete account "${account.label}"? This cannot be undone.`)) return
   try {
     await accountsStore.removeAccount(account.label)
@@ -111,7 +111,7 @@ async function deleteAccount(account: ApiKeyRecord) {
 
 function handleAccountsReorder(nextItems: unknown[]) {
   if (!Array.isArray(nextItems)) return
-  accountsStore.reorderAccounts(nextItems as ApiKeyRecord[])
+  accountsStore.reorderAccounts(nextItems as AccountRecord[])
 }
 
 // Global key handling (Esc to close)
@@ -218,7 +218,7 @@ const returnToOrigin = window.location.origin
                 </div>
                 <div>
                   <div class="dim text-[11px]">Display Name</div>
-                  <div>{{ userStore.profile.displayName || '—' }}</div>
+                  <div>{{ userStore.displayName || '—' }}</div>
                 </div>
               </div>
               <div v-if="isAuthenticated" class="mt-4 space-y-2">
@@ -258,10 +258,10 @@ const returnToOrigin = window.location.origin
                         <span v-if="index < 9" class="kbd">ctrl+{{ index + 1 }}</span>
                         <div class="flex flex-col gap-1">
                           <div class="font-medium text-sm text-[var(--color-text)]">
-                            {{ (account as ApiKeyRecord).label }}
+                            {{ (account as AccountRecord).label }}
                           </div>
                           <div class="text-[11px] text-[var(--color-text-dim)]">
-                            {{ (account as ApiKeyRecord).network || 'Unknown network' }}
+                            {{ (account as AccountRecord).network || 'Unknown network' }}
                           </div>
                         </div>
                       </div>
@@ -269,7 +269,7 @@ const returnToOrigin = window.location.origin
                       <div class="flex items-center gap-2">
                         <button
                           class="btn btn-ghost btn-xs text-red-400"
-                          @click="deleteAccount(account as ApiKeyRecord)"
+                          @click="deleteAccount(account as AccountRecord)"
                         >
                           Delete
                         </button>

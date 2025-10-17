@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useUserStore } from './user'
 
 export type ThemeMode =
   | 'dark'
@@ -38,6 +39,7 @@ export const useUiStore = defineStore(
 
     function setTheme(t: ThemeMode) {
       theme.value = t
+      useUserStore().saveProfile()
     }
 
     function toggleTheme() {

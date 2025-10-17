@@ -17,7 +17,13 @@ export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 export type OrderSide = 'Buy' | 'Sell'
 export type PositionSide = 'Long' | 'Short'
 export type MarketAction = 'Buy' | 'Sell' | 'Close' | 'CloseAll' | string
-export type NetworkType = 'Binance' | 'Sim' | string
+export enum NetworkType {
+  Testnet = 'testnet',
+  Mainnet = 'mainnet',
+}
+export enum ExchangeType {
+  Binance = 'binance',
+}
 
 export type DeviceKind =
   | 'TrailingEntry'
