@@ -30,9 +30,6 @@ export const commandRegistry: CommandMeta[] = [
     modal: true,
   },
   // Non-modal quick commands below
-  { kind: 'GetBalance', label: 'Get Balance' },
   { kind: 'ListDevices', label: 'List Devices' },
-  { kind: 'ListPositions', label: 'List Positions' },
   { kind: 'CancelAllDevicesCommand', label: 'Cancel All Devices' },
-  { kind: 'GetUserInfo', label: 'Get User Info' },
 ]

@@ -47,11 +47,8 @@ function submitQuick(cmd: CommandMeta) {
   }
   // Map of zero-data commands
   const zeroDataKinds: Array<UserCommandPayload['kind']> = [
-    'GetBalance',
     'ListDevices',
-    'ListPositions',
     'CancelAllDevicesCommand',
-    'GetUserInfo',
   ]
   if (zeroDataKinds.includes(cmd.kind as UserCommandPayload['kind'])) {
     const payload = { kind: cmd.kind as UserCommandPayload['kind'], data: undefined } as Extract<

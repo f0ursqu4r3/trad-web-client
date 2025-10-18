@@ -3,11 +3,14 @@ import { ref, watch } from 'vue'
 import BaseCommandModal from './BaseCommandModal.vue'
 import type { TrailingEntryOrderCommand, UserCommandPayload, PositionSide } from '@/lib/ws/protocol'
 import { useWsStore } from '@/stores/ws'
+import { useAccountsStore } from '@/stores/accounts'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
 const ws = useWsStore()
+const accounts = useAccountsStore()
 
+const selectedAccountId = ref<string>(accounts.selectedAccount?.id || '')
 const symbol = ref('BTCUSDT')
 const activation_price = ref(58000)
 const jump_frac_threshold = ref(0.002)
@@ -16,6 +19,7 @@ const risk_amount = ref(50)
 const position_side = ref<PositionSide>('Long')
 
 function reset() {
+  selectedAccountId.value = accounts.selectedAccount?.id || ''
   activation_price.value = 58000
   jump_frac_threshold.value = 0.002
   stop_loss.value = 57000
@@ -30,6 +34,12 @@ watch(
 )
 
 function submit() {
+  console.log('Submitting trailing entry order')
+  const marketContext = accounts.getMarketContextForAccount(selectedAccountId.value)
+  if (!marketContext) {
+    console.error('No market context found for account', selectedAccountId.value)
+    return
+  }
   const data: TrailingEntryOrderCommand = {
     position_side: position_side.value,
     symbol: symbol.value,
@@ -37,6 +47,7 @@ function submit() {
     jump_frac_threshold: jump_frac_threshold.value,
     stop_loss: stop_loss.value,
     risk_amount: risk_amount.value,
+    market_context: marketContext,
   }
   const payload: Extract<UserCommandPayload, { kind: 'TrailingEntryOrder' }> = {
     kind: 'TrailingEntryOrder',
@@ -50,6 +61,14 @@ function submit() {
   <BaseCommandModal title="Trailing Entry" :open="open" @close="emit('close')">
     <form name="trailing-entry" class="space-y-4" @submit.prevent="submit">
       <div class="grid gap-3 md:grid-cols-2">
+        <label class="field">
+          <span>Account</span>
+          <select v-model="selectedAccountId" class="input">
+            <option v-for="account in accounts.accounts" :key="account.id" :value="account.id">
+              {{ account.label }} ({{ account.exchange }} - {{ account.network }})
+            </option>
+          </select>
+        </label>
         <label class="field">
           <span>Symbol</span>
           <input type="text" v-model="symbol" />

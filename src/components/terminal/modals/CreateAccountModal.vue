@@ -1,18 +1,22 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import BaseCommandModal from './BaseCommandModal.vue'
-import type { NetworkType } from '@/lib/ws/protocol'
-import { useAccountsStore } from '@/stores/accounts'
+import { enumKeyName } from '@/lib/utils'
+import { NetworkType, ExchangeType } from '@/lib/ws/protocol'
+import { useAccountsStore, type AccountFormPayload } from '@/stores/accounts'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 const accounts = useAccountsStore()
 
-const DEFAULT_NETWORK: NetworkType = 'Mainnet'
-const NETWORK_OPTIONS: NetworkType[] = ['Mainnet', 'Testnet']
+const DEFAULT_NETWORK: NetworkType = NetworkType.Mainnet
+const NETWORK_OPTIONS: NetworkType[] = [NetworkType.Mainnet, NetworkType.Testnet]
+const DEFAULT_EXCHANGE: ExchangeType = ExchangeType.Binance
+const EXCHANGE_OPTIONS: ExchangeType[] = [ExchangeType.Binance]
 
 const network = ref<NetworkType>(DEFAULT_NETWORK)
+const exchange = ref<ExchangeType>(DEFAULT_EXCHANGE)
 const name = ref('')
 const apiKey = ref('')
 const secretKey = ref('')
@@ -52,10 +56,11 @@ async function submit() {
   try {
     await accounts.addAccount({
       label: name.value.trim(),
-      apiKey: apiKey.value.trim(),
-      secretKey: secretKey.value.trim(),
-      network: network.value.toLowerCase(),
-    })
+      key: apiKey.value.trim(),
+      secret: secretKey.value.trim(),
+      network: network.value.toLowerCase() as NetworkType,
+      exchange: exchange.value.toLowerCase() as ExchangeType,
+    } as AccountFormPayload)
     close()
   } catch (err) {
     formError.value = err instanceof Error ? err.message : String(err)
@@ -73,7 +78,15 @@ async function submit() {
           <span>Network</span>
           <select v-model="network" class="input">
             <option v-for="option in NETWORK_OPTIONS" :key="option" :value="option">
-              {{ option }}
+              {{ enumKeyName(NetworkType, option) || option }}
+            </option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Exchange</span>
+          <select v-model="exchange" class="input" disabled>
+            <option v-for="option in EXCHANGE_OPTIONS" :key="option" :value="option">
+              {{ enumKeyName(ExchangeType, option) || option }}
             </option>
           </select>
         </label>

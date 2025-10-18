@@ -8,12 +8,16 @@ import type {
   PositionSide,
 } from '@/lib/ws/protocol'
 import { useWsStore } from '@/stores/ws'
+import { useAccountsStore } from '@/stores/accounts'
+
+const accounts = useAccountsStore()
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 const ws = useWsStore()
 
+const selectedAccountId = ref<string>(accounts.selectedAccount?.id || '')
 const symbol = ref('BTCUSDT')
 const action = ref<MarketAction>('Buy')
 const qtyUsd = ref(50)
@@ -33,11 +37,17 @@ watch(
 )
 
 function submit() {
+  const marketContext = accounts.getMarketContextForAccount(selectedAccountId.value)
+  if (!marketContext) {
+    console.error('No market context found for account', selectedAccountId.value)
+    return
+  }
   const data: MarketOrderCommand = {
     action: action.value,
     symbol: symbol.value,
     quantity_usd: qtyUsd.value,
     position_side: posSide.value,
+    market_context: marketContext,
   }
   const payload: Extract<UserCommandPayload, { kind: 'MarketOrder' }> = {
     kind: 'MarketOrder',
@@ -55,6 +65,15 @@ function submit() {
   <BaseCommandModal title="Market Order" :open="open" @close="emit('close')">
     <form class="space-y-4" @submit.prevent="submit">
       <div class="grid grid-cols-2 gap-3">
+        <label class="field">
+          <span>Account</span>
+          <select v-model="selectedAccountId" class="input">
+            <option v-for="account in accounts.accounts" :key="account.id" :value="account.id">
+              {{ account.label }} ({{ account.exchange }} - {{ account.network }})
+            </option>
+          </select>
+        </label>
+
         <label class="field"><span>Symbol</span><input v-model="symbol" class="input" /></label>
         <label class="field">
           <span>Action</span>

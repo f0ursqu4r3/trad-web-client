@@ -2,20 +2,22 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { apiPut, apiGet, apiDelete } from '@/lib/apiClient'
+import type { ExchangeType, MarketContext, NetworkType } from '@/lib/ws/protocol'
 
 export interface AccountFormPayload {
   label: string
-  apiKey: string
-  secretKey: string
-  network: string
+  key: string
+  secret: string
+  network: NetworkType
+  exchange: ExchangeType
 }
 
-export interface ApiKeyRecord {
+export interface AccountRecord {
   id: string
   label: string
   key: string
-  network?: 'mainnet' | 'testnet' | string
-  exchange?: 'binance' | string
+  network: NetworkType
+  exchange: ExchangeType
 }
 
 export const useAccountsStore = defineStore(
@@ -23,7 +25,7 @@ export const useAccountsStore = defineStore(
   () => {
     const { isAuthenticated } = useAuth0()
 
-    const accountsRaw = ref<ApiKeyRecord[]>([])
+    const accountsRaw = ref<AccountRecord[]>([])
     const loading = ref(false)
     const error = ref<string | null>(null)
     const selectedAccountId = ref<string | null>(null)
@@ -53,7 +55,7 @@ export const useAccountsStore = defineStore(
     const hasAccounts = computed(() => accounts.value.length > 0)
 
     async function fetchAccounts(): Promise<void> {
-      const response = await apiGet<ApiKeyRecord[]>('/accounts')
+      const response = await apiGet<AccountRecord[]>('/accounts')
       accountsRaw.value = response
 
       const fetchedIds = new Set(response.map((account) => account.id))
@@ -79,13 +81,7 @@ export const useAccountsStore = defineStore(
 
     async function addAccount(payload: AccountFormPayload): Promise<void> {
       const label = encodeURIComponent(payload.label.trim())
-      const resp = await apiPut(`/accounts/${label}`, {
-        label: payload.label,
-        key: payload.apiKey,
-        secret: payload.secretKey,
-        network: payload.network,
-        exchange: 'binance',
-      })
+      const resp = await apiPut(`/accounts/${label}`, payload)
       console.log('Add account response:', resp)
       await fetchAccounts()
     }
@@ -96,11 +92,11 @@ export const useAccountsStore = defineStore(
       await fetchAccounts()
     }
 
-    function reorderAccounts(nextOrder: ApiKeyRecord[]): void {
+    function reorderAccounts(nextOrder: AccountRecord[]): void {
       const nextIds = nextOrder.map((account) => account.id)
       const existingMap = new Map(accountsRaw.value.map((account) => [account.id, account]))
       const seen = new Set<string>()
-      const reordered: ApiKeyRecord[] = []
+      const reordered: AccountRecord[] = []
 
       for (const id of nextIds) {
         const match = existingMap.get(id)
@@ -129,14 +125,21 @@ export const useAccountsStore = defineStore(
       }
     }
 
+    function getMarketContextForAccount(accountId: string): MarketContext | null {
+      const account = accounts.value.find((a) => a.id === accountId)
+      if (!account) return null
+      return {
+        network: account.network,
+        exchange: account.exchange,
+        account_id: account.id,
+        account_label: account.label,
+      }
+    }
+
     watch(
       () => isAuthenticated.value,
       (authed) => {
-        if (authed) {
-          fetchAccounts().catch((err) => {
-            error.value = err instanceof Error ? err.message : String(err)
-          })
-        } else {
+        if (!authed) {
           accountsRaw.value = []
           error.value = null
           lastFetchedAt.value = null
@@ -147,6 +150,7 @@ export const useAccountsStore = defineStore(
 
     return {
       // state
+      accountsRaw,
       accounts,
       accountOrder,
       loading,
@@ -160,6 +164,7 @@ export const useAccountsStore = defineStore(
       addAccount,
       removeAccount,
       reorderAccounts,
+      getMarketContextForAccount,
     }
   },
   {

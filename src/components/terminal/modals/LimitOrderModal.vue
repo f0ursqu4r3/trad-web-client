@@ -8,12 +8,15 @@ import type {
   PositionSide,
 } from '@/lib/ws/protocol'
 import { useWsStore } from '@/stores/ws'
+import { useAccountsStore } from '@/stores/accounts'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 const ws = useWsStore()
+const accounts = useAccountsStore()
 
+const selectedAccountId = ref<string>(accounts.selectedAccount?.id || '')
 const symbol = ref('BTCUSDT')
 const side = ref<OrderSide>('Buy')
 const quantity = ref(0.001)
@@ -21,6 +24,7 @@ const price = ref(58000)
 const posSide = ref<PositionSide>('Long')
 
 function reset() {
+  selectedAccountId.value = accounts.selectedAccount?.id || ''
   symbol.value = 'BTCUSDT'
   side.value = 'Buy'
   quantity.value = 0.001
@@ -35,12 +39,18 @@ watch(
 )
 
 function submit() {
+  const marketContext = accounts.getMarketContextForAccount(selectedAccountId.value)
+  if (!marketContext) {
+    console.error('No market context found for account', selectedAccountId.value)
+    return
+  }
   const data: LimitOrderCommand = {
     side: side.value,
     symbol: symbol.value,
     quantity: quantity.value,
     price: price.value,
     position_side: posSide.value,
+    market_context: marketContext,
   }
   const payload: Extract<UserCommandPayload, { kind: 'LimitOrder' }> = { kind: 'LimitOrder', data }
   ws.sendUserCommand(
@@ -55,6 +65,14 @@ function submit() {
   <BaseCommandModal title="Limit Order" :open="open" @close="emit('close')">
     <form class="space-y-4" @submit.prevent="submit">
       <div class="grid grid-cols-2 gap-3">
+        <label class="field">
+          <span>Account</span>
+          <select v-model="selectedAccountId" class="input">
+            <option v-for="account in accounts.accounts" :key="account.id" :value="account.id">
+              {{ account.label }} ({{ account.exchange }} - {{ account.network }})
+            </option>
+          </select>
+        </label>
         <label class="field"><span>Symbol</span><input v-model="symbol" class="input" /></label>
         <label class="field">
           <span>Side</span>
