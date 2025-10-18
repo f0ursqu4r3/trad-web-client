@@ -35,7 +35,6 @@ export type DeviceKind =
 
 export interface MarketContext {
   name?: string
-  network?: NetworkType
   [k: string]: unknown
 }
 

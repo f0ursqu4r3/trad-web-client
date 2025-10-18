@@ -27,7 +27,7 @@ export const useCommandStore = defineStore('command', () => {
   function selectCommand(commandId: string | null) {
     selectedCommandId.value = commandId
     if (!commandId) return
-    ws.listCommandDevices(commandId)
+    ws.inspectCommand(commandId)
   }
 
   function addPendingCommand(commandId: string) {

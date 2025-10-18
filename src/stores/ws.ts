@@ -51,7 +51,7 @@ export const useWsStore = defineStore('ws', () => {
     reconnectDelayMs: 1000,
     exponentialBackoff: true,
     maxReconnectDelayMs: 30_000,
-    pingIntervalMs: 10_000,
+    pingIntervalMs: 30_000,
   })
 
   function connect() {
@@ -119,12 +119,16 @@ export const useWsStore = defineStore('ws', () => {
     })
   }
 
+  function inspectCommand(commandId: Uuid) {
+    sendSystemCommand({
+      kind: 'InspectStart',
+      data: { command_id: commandId },
+    })
+  }
+
   /* User Commands */
   function sendUserCommand(command: UserCommandPayload) {
-    const commandId = client.send({
-      kind: 'UserCommand',
-      data: command,
-    })
+    const commandId = client.send({ kind: 'UserCommand', data: command })
     outboundCount.value++
     commandStore.addPendingCommand(commandId)
     return commandId
@@ -313,6 +317,7 @@ export const useWsStore = defineStore('ws', () => {
     // actions
     connect,
     disconnect,
+    inspectCommand,
     sendSystemPing,
     sendTokenLogin,
     sendLogout,

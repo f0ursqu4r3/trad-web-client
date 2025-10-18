@@ -59,7 +59,7 @@ function submit() {
 </script>
 <template>
   <BaseCommandModal title="Trailing Entry" :open="open" @close="emit('close')">
-    <form name="trailing-entry" class="space-y-4" @submit.prevent="submit">
+    <form id="trailing-entry" class="space-y-4" @submit.prevent="submit">
       <div class="grid gap-3 md:grid-cols-2">
         <label class="field">
           <span>Account</span>

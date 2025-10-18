@@ -53,17 +53,14 @@ function submit() {
     market_context: marketContext,
   }
   const payload: Extract<UserCommandPayload, { kind: 'LimitOrder' }> = { kind: 'LimitOrder', data }
-  ws.sendUserCommand(
-    payload,
-    `/limit ${data.side} ${data.symbol} ${data.quantity} @ ${data.price} ${data.position_side}`,
-  )
+  ws.sendUserCommand(payload)
   emit('close')
 }
 </script>
 
 <template>
   <BaseCommandModal title="Limit Order" :open="open" @close="emit('close')">
-    <form class="space-y-4" @submit.prevent="submit">
+    <form id="limit-order" class="space-y-4" @submit.prevent="submit">
       <div class="grid grid-cols-2 gap-3">
         <label class="field">
           <span>Account</span>
@@ -101,7 +98,7 @@ function submit() {
     <template #footer>
       <div class="flex gap-2 justify-end pt-2">
         <button type="button" class="btn btn-secondary" @click="emit('close')">Cancel</button>
-        <button form="trailing-entry" type="submit" class="btn btn-primary">Submit</button>
+        <button form="limit-order" type="submit" class="btn btn-primary">Submit</button>
       </div>
     </template>
   </BaseCommandModal>

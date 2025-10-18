@@ -53,17 +53,14 @@ function submit() {
     kind: 'MarketOrder',
     data,
   }
-  ws.sendUserCommand(
-    payload,
-    `/market ${data.action} ${data.symbol} ${data.quantity_usd} ${data.position_side}`,
-  )
+  ws.sendUserCommand(payload)
   emit('close')
 }
 </script>
 
 <template>
   <BaseCommandModal title="Market Order" :open="open" @close="emit('close')">
-    <form class="space-y-4" @submit.prevent="submit">
+    <form id="market-order" class="space-y-4" @submit.prevent="submit">
       <div class="grid grid-cols-2 gap-3">
         <label class="field">
           <span>Account</span>
@@ -73,7 +70,6 @@ function submit() {
             </option>
           </select>
         </label>
-
         <label class="field"><span>Symbol</span><input v-model="symbol" class="input" /></label>
         <label class="field">
           <span>Action</span>
@@ -100,7 +96,7 @@ function submit() {
     <template #footer>
       <div class="flex gap-2 justify-end pt-2">
         <button type="button" class="btn btn-secondary" @click="emit('close')">Cancel</button>
-        <button form="trailing-entry" type="submit" class="btn btn-primary">Submit</button>
+        <button form="market-order" type="submit" class="btn btn-primary">Submit</button>
       </div>
     </template>
   </BaseCommandModal>

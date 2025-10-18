@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { apiPut, apiGet, apiDelete } from '@/lib/apiClient'
-import type { ExchangeType, MarketContext, NetworkType } from '@/lib/ws/protocol'
+import { ExchangeType, type MarketContext, type NetworkType } from '@/lib/ws/protocol'
 
 export interface AccountFormPayload {
   label: string
@@ -129,10 +129,9 @@ export const useAccountsStore = defineStore(
       const account = accounts.value.find((a) => a.id === accountId)
       if (!account) return null
       return {
-        network: account.network,
-        exchange: account.exchange,
-        account_id: account.id,
-        account_label: account.label,
+        [account.exchange]: {
+          account_id: account.id,
+        },
       }
     }
 
