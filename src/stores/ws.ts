@@ -120,11 +120,10 @@ export const useWsStore = defineStore('ws', () => {
   }
 
   /* User Commands */
-  function sendUserCommand(command: UserCommandPayload, rawText?: string) {
-    const raw = rawText ?? `/${command.kind}`
+  function sendUserCommand(command: UserCommandPayload) {
     const commandId = client.send({
       kind: 'UserCommand',
-      data: { raw_text: raw, command },
+      data: command,
     })
     outboundCount.value++
     commandStore.addPendingCommand(commandId)

@@ -42,7 +42,7 @@ function submit() {
     kind: 'TrailingEntryOrder',
     data,
   }
-  ws.sendUserCommand(payload, `/trailing ${data.symbol}`)
+  ws.sendUserCommand(payload)
   emit('close')
 }
 </script>

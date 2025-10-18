@@ -2,7 +2,7 @@
   <StickyScroller :trigger="commands.length" :smooth="true" :showButton="true">
     <div class="command-history-panel">
       <template v-for="(cmd, index) in commands" :key="index">
-        <template v-if="cmd.name === 'te-long'">
+        <template v-if="cmd.command.kind === 'TrailingEntryOrder'">
           <TELongCommand :command="cmd" @select="handleSelect" />
         </template>
         <CommandHistoryItem v-else :command="cmd" />
@@ -19,13 +19,13 @@ import { computed } from 'vue'
 import CommandHistoryItem from '@/components/terminal/commands/CommandHistoryItem.vue'
 import TELongCommand from '@/components/terminal/commands/TELongCommand.vue'
 
-const interestingCommandNames = ['te-long']
+const interestingCommandKinds = ['TrailingEntryOrder']
 
 const commandStore = useCommandStore()
 
 const commands = computed(() =>
   commandStore.history.filter(
-    (cmd) => cmd.name !== undefined && interestingCommandNames.includes(cmd.name),
+    (cmd) => cmd.command?.kind !== undefined && interestingCommandKinds.includes(cmd.command.kind),
   ),
 )
 

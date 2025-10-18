@@ -3,7 +3,7 @@
     <div class="panel-header-row">
       <div class="inline-flex items-center gap-2">
         <span class="pill-info uppercase font-bold text-[10px] tracking-[0.06em]">
-          {{ command.name }}
+          {{ commandName }}
         </span>
         <span
           class="mono dim cursor-pointer select-text focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2 rounded-[2px] text-[10px]"
@@ -82,38 +82,38 @@
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-0.5">
             Symbol
           </dt>
-          <dd class="m-0 text-[12px] font-mono">{{ args.symbol }}</dd>
+          <dd class="m-0 text-[12px] font-mono">{{ args?.symbol }}</dd>
         </div>
         <div class="kv">
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-0.5">
             Activation
           </dt>
-          <dd class="m-0 text-[12px]">{{ fmtPrice(args.activationPrice) }}</dd>
+          <dd class="m-0 text-[12px]">{{ fmtPrice(args?.activationPrice) }}</dd>
         </div>
         <div class="kv">
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-0.5">
             Jump Frac
           </dt>
-          <dd class="m-0 text-[12px]">{{ fmtPct(args.jumpFractionThreshold) }}</dd>
+          <dd class="m-0 text-[12px]">{{ fmtPct(args?.jumpFractionThreshold) }}</dd>
         </div>
         <div class="kv">
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-0.5">
             Stop Loss
           </dt>
-          <dd class="m-0 text-[12px]">{{ fmtPrice(args.stopLoss) }}</dd>
+          <dd class="m-0 text-[12px]">{{ fmtPrice(args?.stopLoss) }}</dd>
         </div>
         <div class="kv">
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-0.5">
             Risk
           </dt>
-          <dd class="m-0 text-[12px]">{{ fmtUsd(args.riskAmount) }}</dd>
+          <dd class="m-0 text-[12px]">{{ fmtUsd(args?.riskAmount) }}</dd>
         </div>
       </dl>
       <div class="grid grid-cols-[40px_1fr] gap-2 mt-2">
-        <div class="flex items-center text-[10px] uppercase text-[var(--color-text-dim)]">Raw</div>
+        <div class="flex items-center text-[10px] uppercase text-[var(--color-text-dim)]">Data</div>
         <pre
           class="m-0 px-2 py-1 border border-dashed border-[var(--border-color)] rounded bg-[var(--panel-bg)] text-[11px] whitespace-pre-wrap break-words font-mono"
-          >{{ command.text }}</pre
+          >{{ JSON.stringify(teData, null, 2) }}</pre
         >
       </div>
     </div>
@@ -134,15 +134,31 @@ const emit = defineEmits<{
   (e: 'select', commandId: string): void
 }>()
 
+// Extract typed TE command data
+const teData = computed(() => {
+  if (props.command.command.kind === 'TrailingEntryOrder') {
+    return props.command.command.data
+  }
+  return null
+})
+
+const commandName = computed(() => {
+  if (props.command.command.kind === 'TrailingEntryOrder') {
+    const side = props.command.command.data.position_side
+    return side === 'Long' ? 'te-long' : 'te-short'
+  }
+  return 'unknown'
+})
+
 const args = computed(() => {
-  const parts = props.command.text.split(' ')
-  // symbol activation_price jump_frac_threshold stop_loss risk_amount
+  const data = teData.value
+  if (!data) return null
   return {
-    symbol: parts[1],
-    activationPrice: parseFloat(parts[2]),
-    jumpFractionThreshold: parseFloat(parts[3]),
-    stopLoss: parseFloat(parts[4]),
-    riskAmount: parseFloat(parts[5]),
+    symbol: data.symbol,
+    activationPrice: data.activation_price,
+    jumpFractionThreshold: data.jump_frac_threshold,
+    stopLoss: data.stop_loss,
+    riskAmount: data.risk_amount,
   }
 })
 
@@ -191,7 +207,7 @@ function fmtPct(n?: number) {
 
 async function copyRaw() {
   try {
-    await navigator.clipboard.writeText(props.command.text)
+    await navigator.clipboard.writeText(JSON.stringify(teData.value, null, 2))
   } catch {}
   showMenu.value = false
 }

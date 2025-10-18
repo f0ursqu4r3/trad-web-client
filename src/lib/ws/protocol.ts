@@ -119,13 +119,7 @@ export type ClientToServerMessage = {
 }
 
 export type ClientToServerMessagePayload =
-  | {
-      kind: 'UserCommand'
-      data: {
-        raw_text: string
-        command: UserCommandPayload
-      }
-    }
+  | { kind: 'UserCommand'; data: UserCommandPayload }
   | { kind: 'System'; data: SystemMessagePayload }
 
 // System/internal messages
@@ -353,8 +347,7 @@ export type CommandDevicesListData = {
 
 export type CommandHistoryItem = {
   command_id: Uuid
-  name: string
-  text: string
+  command: UserCommandPayload
   status: CommandStatus
 }
 

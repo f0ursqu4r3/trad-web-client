@@ -47,7 +47,7 @@ function submitQuick(cmd: CommandMeta) {
       UserCommandPayload,
       { data: undefined }
     >
-    ws.sendUserCommand(payload, `/${cmd.kind}`)
+    ws.sendUserCommand(payload)
   } else {
     console.warn('Unhandled quick command kind without modal', cmd.kind)
   }
