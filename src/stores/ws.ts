@@ -43,6 +43,18 @@ export const useWsStore = defineStore('ws', () => {
   // Build from env (fallback to same host /ws)
   const url = import.meta.env.VITE_WS_URL || location.origin.replace(/^http/, 'ws') + '/ws'
 
+  const isConnected = computed(() => status.value === 'ready')
+
+  // Basic reconnect heuristic: watch transitions indirectly via inbound messages
+  const interval = setInterval(() => {
+    if (status.value === 'connecting' || status.value === 'ready') return
+    if (status.value === 'error') return
+    if (status.value === 'idle') return
+    // If we are here, treat as reconnecting
+    reconnectCount.value++
+    status.value = 'reconnecting'
+  }, 5000)
+
   const client = new TradWebClient({
     url,
     clientName: 'trad-web-ui',
@@ -281,18 +293,6 @@ export const useWsStore = defineStore('ws', () => {
     ).data
     commandStore.devices[data.command_id] = data
   }
-
-  const isConnected = computed(() => status.value === 'ready')
-
-  // Basic reconnect heuristic: watch transitions indirectly via inbound messages
-  const interval = setInterval(() => {
-    if (status.value === 'connecting' || status.value === 'ready') return
-    if (status.value === 'error') return
-    if (status.value === 'idle') return
-    // If we are here, treat as reconnecting
-    reconnectCount.value++
-    status.value = 'reconnecting'
-  }, 5000)
 
   onUnmounted(() => {
     clearInterval(interval)

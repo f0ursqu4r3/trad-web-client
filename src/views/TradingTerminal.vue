@@ -15,8 +15,8 @@ const currentComponent = computed<Component | null>(() => {
   if (!commandStore.selectedCommand) return null
   return (
     {
-      'TE-LONG': TELongView,
-    }[commandStore.selectedCommand?.name.toUpperCase()] || null
+      TrailingEntryOrder: TELongView,
+    }[commandStore.selectedCommand?.command.kind] || null
   )
 })
 

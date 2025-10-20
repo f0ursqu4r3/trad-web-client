@@ -1,183 +1,56 @@
-<template>
-  <div class="command-entry panel-card">
-    <div class="panel-header-row">
-      <div class="inline-flex items-center gap-2">
-        <span class="pill-info uppercase font-bold text-[10px] tracking-[0.06em]">
-          {{ commandName }}
-        </span>
-        <span
-          class="mono dim cursor-pointer select-text focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2 rounded-[2px] text-[10px]"
-          :title="command.command_id"
-          @click="copyId"
-          role="button"
-          tabindex="0"
-          @keydown.enter.prevent="copyId"
-          @keydown.space.prevent="copyId"
-          aria-label="Copy command id"
-        >
-          #{{ shortId }}
-        </span>
-      </div>
-      <div class="inline-flex items-center gap-2">
-        <div class="status" :data-status="command.status" :aria-label="command.status">
-          <span class="dot" aria-hidden="true"></span>
-          <span class="label">{{ command.status }}</span>
-        </div>
-        <button
-          class="btn btn-sm icon-btn"
-          title="Select command"
-          @click="emit('select', command.command_id)"
-        >
-          <MagnifyingGlassIcon class="icon" size="10" />
-        </button>
-        <button
-          class="btn btn-sm icon-btn"
-          :title="expanded ? 'Collapse' : 'Expand'"
-          @click="expanded = !expanded"
-          aria-label="Toggle details"
-        >
-          <DownIcon
-            class="icon"
-            size="10"
-            :style="{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }"
-          />
-        </button>
-        <div class="menu-anchor">
-          <button
-            class="btn btn-sm icon-btn"
-            title="More actions"
-            aria-haspopup="menu"
-            :aria-expanded="showMenu ? 'true' : 'false'"
-            @click="toggleMenu"
-            @keydown.enter.prevent="toggleMenu"
-            @keydown.space.prevent="toggleMenu"
-          >
-            <MenuDotsIcon class="icon" size="10" />
-          </button>
-          <div v-if="showMenu" class="menu-dropdown" role="menu" @mouseleave="showMenu = false">
-            <button type="button" class="menu-item" role="menuitem" @click="copyRaw">
-              Copy raw command
-            </button>
-            <button type="button" class="menu-item" role="menuitem" @click="inspectDevices">
-              Inspect devices
-            </button>
-            <button
-              type="button"
-              class="menu-item"
-              role="menuitem"
-              :disabled="!canCancel"
-              @click="canCancel && cancelCommand()"
-            >
-              Cancel command
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div v-if="expanded" class="px-2 py-2">
-      <dl
-        class="grid [grid-template-columns:repeat(auto-fit,minmax(140px,1fr))] gap-x-4 gap-y-2 m-0"
-      >
-        <div class="kv">
-          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-0.5">
-            Symbol
-          </dt>
-          <dd class="m-0 text-[12px] font-mono">{{ args?.symbol }}</dd>
-        </div>
-        <div class="kv">
-          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-0.5">
-            Activation
-          </dt>
-          <dd class="m-0 text-[12px]">{{ fmtPrice(args?.activationPrice) }}</dd>
-        </div>
-        <div class="kv">
-          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-0.5">
-            Jump Frac
-          </dt>
-          <dd class="m-0 text-[12px]">{{ fmtPct(args?.jumpFractionThreshold) }}</dd>
-        </div>
-        <div class="kv">
-          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-0.5">
-            Stop Loss
-          </dt>
-          <dd class="m-0 text-[12px]">{{ fmtPrice(args?.stopLoss) }}</dd>
-        </div>
-        <div class="kv">
-          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-0.5">
-            Risk
-          </dt>
-          <dd class="m-0 text-[12px]">{{ fmtUsd(args?.riskAmount) }}</dd>
-        </div>
-      </dl>
-      <div class="grid grid-cols-[40px_1fr] gap-2 mt-2">
-        <div class="flex items-center text-[10px] uppercase text-[var(--color-text-dim)]">Data</div>
-        <pre
-          class="m-0 px-2 py-1 border border-dashed border-[var(--border-color)] rounded bg-[var(--panel-bg)] text-[11px] whitespace-pre-wrap break-words font-mono"
-          >{{ JSON.stringify(teData, null, 2) }}</pre
-        >
-      </div>
-    </div>
-  </div>
-</template>
-
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
-import type { CommandHistoryItem } from '@/lib/ws/protocol'
-import { useWsStore } from '@/stores/ws'
-import { DownIcon, MenuDotsIcon, MagnifyingGlassIcon } from '@/components/icons'
+import type { TrailingEntryOrderCommand } from '@/lib/ws/protocol'
+import { useCommandStore } from '@/stores/command'
+import { DownIcon, MagnifyingGlassIcon } from '@/components/icons'
+import DropMenu from '@/components/general/DropMenu.vue'
+import { type DropMenuItem } from '@/components/general/DropMenu.vue'
+import StatusIndicator from '@/components/general/StatusIndicator.vue'
 
 const props = defineProps<{
-  command: CommandHistoryItem
+  command_id: string
+  command: TrailingEntryOrderCommand
+  command_status: string
 }>()
 
 const emit = defineEmits<{
   (e: 'select', commandId: string): void
 }>()
 
-// Extract typed TE command data
-const teData = computed(() => {
-  if (props.command.command.kind === 'TrailingEntryOrder') {
-    return props.command.command.data
-  }
-  return null
-})
-
-const commandName = computed(() => {
-  if (props.command.command.kind === 'TrailingEntryOrder') {
-    const side = props.command.command.data.position_side
-    return side === 'Long' ? 'te-long' : 'te-short'
-  }
-  return 'unknown'
-})
-
-const args = computed(() => {
-  const data = teData.value
-  if (!data) return null
-  return {
-    symbol: data.symbol,
-    activationPrice: data.activation_price,
-    jumpFractionThreshold: data.jump_frac_threshold,
-    stopLoss: data.stop_loss,
-    riskAmount: data.risk_amount,
-  }
-})
-
-const shortId = computed(() => props.command.command_id.slice(0, 8))
+const shortId = computed(() => props.command_id.slice(0, 8))
 const expanded = ref(false)
 const showMenu = ref(false)
-const ws = useWsStore()
+
+const commandStore = useCommandStore()
 
 const canCancel = computed(() =>
-  ['Unsent', 'Pending', 'Running', 'Malformed'].includes(props.command.status),
+  ['Unsent', 'Pending', 'Running', 'Malformed'].includes(props.command_status),
 )
 
-function toggleMenu() {
-  showMenu.value = !showMenu.value
+const statusMap: Record<string, string> = {
+  Unsent: 'neutral',
+  Pending: 'neutral',
+  Malformed: 'error',
+  Running: 'info',
+  Succeeded: 'success',
+  Failed: 'error',
 }
+
+const menuItems: Array<DropMenuItem> = [
+  {
+    label: 'Inspect devices',
+    action: inspectDevices,
+  },
+  {
+    label: 'Cancel command',
+    action: cancelCommand,
+    disabled: !canCancel.value,
+  },
+]
 
 async function copyId() {
   try {
-    await navigator.clipboard.writeText(props.command.command_id)
+    await navigator.clipboard.writeText(props.command_id)
   } catch {
     // no-op if clipboard blocked
   }
@@ -205,88 +78,103 @@ function fmtPct(n?: number) {
   return new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 2 }).format(n)
 }
 
-async function copyRaw() {
-  try {
-    await navigator.clipboard.writeText(JSON.stringify(teData.value, null, 2))
-  } catch {}
-  showMenu.value = false
-}
-
 function inspectDevices() {
-  ws.listCommandDevices(props.command.command_id)
+  commandStore.inspectCommand(props.command_id)
   showMenu.value = false
 }
 
 function cancelCommand() {
-  ws.sendCancelCommand(props.command.command_id)
+  commandStore.cancelCommand(props.command_id)
   showMenu.value = false
 }
 </script>
 
-<style scoped>
-.command-entry {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+<template>
+  <div class="flex flex-col bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+    <div class="flex items-start justify-between gap-3 px-3 py-2">
+      <div class="flex items-center gap-2">
+        <span
+          class="uppercase font-bold text-[12px] tracking-[0.06em] bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded"
+        >
+          Trailing Entry
+        </span>
+        <span
+          class="font-mono text-[10px] text-gray-500 dark:text-gray-300 cursor-pointer select-text rounded-[2px] px-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2"
+          :title="command_id"
+          @click="copyId"
+          role="button"
+          tabindex="0"
+          @keydown.enter.prevent="copyId"
+          @keydown.space.prevent="copyId"
+          aria-label="Copy command id"
+        >
+          #{{ shortId }}
+        </span>
+      </div>
 
-.status {
-  --status-color: var(--color-text-dim);
-  --status-bg: rgba(127, 127, 127, 0.15);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 3px 6px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--status-color) 30%, transparent);
-  background: var(--status-bg);
-  color: var(--status-color);
-}
-.status .label {
-  font-size: 11px;
-}
-.status .dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: var(--status-color);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--status-color) 20%, transparent);
-}
+      <div class="flex items-center gap-2">
+        <div
+          class="pill flex gap-2"
+          :class="`pill-${statusMap[command_status]}`"
+          :aria-label="command_status"
+          role="status"
+        >
+          <StatusIndicator :status="statusMap[command_status]" />
+          <span class="text-[11px]">{{ command_status }}</span>
+        </div>
 
-/* Status themes */
-.status[data-status='Unsent'] {
-  --status-color: #969696;
-}
-.status[data-status='Pending'] {
-  --status-color: #ffb300;
-}
-.status[data-status='Malformed'] {
-  --status-color: #ff4500;
-}
-.status[data-status='Running'] {
-  --status-color: #0078ff;
-}
-.status[data-status='Succeeded'] {
-  --status-color: #00c853;
-}
-.status[data-status='Failed'] {
-  --status-color: #d50000;
-}
+        <button
+          class="btn btn-sm icon-btn"
+          title="Select command"
+          @click="emit('select', command_id)"
+        >
+          <MagnifyingGlassIcon class="icon" size="10" />
+        </button>
 
-/* Pulse animation for active states */
-.status[data-status='Pending'] .dot,
-.status[data-status='Running'] .dot {
-  animation: pulse 1.2s infinite ease-in-out;
-}
-@keyframes pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.25);
-    opacity: 0.8;
-  }
-}
-</style>
+        <button
+          class="btn btn-sm icon-btn"
+          :title="expanded ? 'Collapse' : 'Expand'"
+          @click="expanded = !expanded"
+          aria-label="Toggle details"
+        >
+          <DownIcon
+            class="icon"
+            size="10"
+            :style="{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }"
+          />
+        </button>
+
+        <DropMenu :items="menuItems" />
+      </div>
+    </div>
+
+    <div v-if="expanded" class="px-3 py-2">
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 m-0">
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-gray-500 mb-1">Symbol</dt>
+          <dd class="m-0 text-[12px] font-mono">{{ command.symbol }}</dd>
+        </div>
+
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-gray-500 mb-1">Activation</dt>
+          <dd class="m-0 text-[12px]">{{ fmtPrice(command.activation_price) }}</dd>
+        </div>
+
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-gray-500 mb-1">Jump Frac</dt>
+          <dd class="m-0 text-[12px]">{{ fmtPct(command.jump_frac_threshold) }}</dd>
+        </div>
+
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-gray-500 mb-1">Stop Loss</dt>
+          <dd class="m-0 text-[12px]">{{ fmtPrice(command.stop_loss) }}</dd>
+        </div>
+
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-gray-500 mb-1">Risk</dt>
+          <dd class="m-0 text-[12px]">{{ fmtUsd(command.risk_amount) }}</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+</template>

@@ -74,8 +74,11 @@
   }
   .pill,
   .pill-ok,
+  .pill-success,
   .pill-err,
+  .pill-error,
   .pill-warn,
+  .pill-warning,
   .pill-info {
     @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium;
     box-shadow: none;
@@ -87,19 +90,22 @@
     color: var(--_c);
     border-color: color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
   }
-  .pill-ok {
+  .pill-ok,
+  .pill-success {
     --_c: var(--pill-color-ok);
     background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
     color: var(--_c);
     border-color: color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
   }
-  .pill-err {
+  .pill-err,
+  .pill-error {
     --_c: var(--pill-color-err);
     background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
     color: var(--_c);
     border-color: color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
   }
-  .pill-warn {
+  .pill-warn,
+  .pill-warning {
     --_c: var(--pill-color-warn);
     background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
     color: var(--_c);
@@ -141,5 +147,61 @@
   }
   .notice-err {
     @apply mt-3 text-[12px] text-term-err;
+  }
+
+  .status-indicator {
+    @apply inline-block h-2 w-2 rounded-full;
+    --_c: var(--color-term-dim);
+    background-color: var(--_c);
+    border: 1px solid color-mix(in srgb, var(--_c) 20%, transparent);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--_c) 10%, transparent),
+      0 2px 6px color-mix(in srgb, var(--_c) 25%, transparent);
+  }
+  .status-indicator-neutral {
+    --_c: var(--color-term-dim);
+    background-color: var(--_c);
+    border: 1px solid color-mix(in srgb, var(--_c) 20%, transparent);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--_c) 10%, transparent),
+      0 2px 6px color-mix(in srgb, var(--_c) 25%, transparent);
+  }
+  .status-indicator-ok,
+  .status-indicator-success {
+    --_c: var(--color-term-ok);
+    background-color: var(--_c);
+    border: 1px solid color-mix(in srgb, var(--_c) 20%, transparent);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--_c) 10%, transparent),
+      0 2px 6px color-mix(in srgb, var(--_c) 25%, transparent);
+  }
+  .status-indicator-warn,
+  .status-indicator-warning {
+    --_c: var(--color-term-warn);
+    background-color: var(--_c);
+    border: 1px solid color-mix(in srgb, var(--_c) 20%, transparent);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--_c) 10%, transparent),
+      0 2px 6px color-mix(in srgb, var(--_c) 25%, transparent);
+  }
+  .status-indicator-info {
+    --_c: var(--color-term-info);
+    background-color: var(--_c);
+    border: 1px solid color-mix(in srgb, var(--_c) 20%, transparent);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--_c) 10%, transparent),
+      0 2px 6px color-mix(in srgb, var(--_c) 25%, transparent);
+  }
+  .status-indicator-err,
+  .status-indicator-error {
+    --_c: var(--color-term-err);
+    background-color: var(--_c);
+    border: 1px solid color-mix(in srgb, var(--_c) 20%, transparent);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--_c) 10%, transparent),
+      0 2px 6px color-mix(in srgb, var(--_c) 25%, transparent);
+  }
+  .status-indicator-animated {
+    @apply animate-pulse;
   }
 }

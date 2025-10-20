@@ -24,12 +24,6 @@ export const useCommandStore = defineStore('command', () => {
     return history.value.find((cmd) => cmd.command_id === selectedCommandId.value) ?? null
   })
 
-  function selectCommand(commandId: string | null) {
-    selectedCommandId.value = commandId
-    if (!commandId) return
-    ws.inspectCommand(commandId)
-  }
-
   function addPendingCommand(commandId: string) {
     pendingCommands.value[commandId] = {
       commandId,
@@ -48,6 +42,16 @@ export const useCommandStore = defineStore('command', () => {
     return latency
   }
 
+  function inspectCommand(commandId: string | null) {
+    selectedCommandId.value = commandId
+    if (!commandId) return
+    ws.inspectCommand(commandId)
+  }
+
+  function cancelCommand(commandId: string) {
+    ws.sendCancelCommand(commandId)
+  }
+
   return {
     /* state */
     history,
@@ -56,7 +60,8 @@ export const useCommandStore = defineStore('command', () => {
     selectedCommand,
     pendingCommands,
     /* actions */
-    selectCommand,
+    inspectCommand,
+    cancelCommand,
     addPendingCommand,
     verifyPendingCommand,
   }

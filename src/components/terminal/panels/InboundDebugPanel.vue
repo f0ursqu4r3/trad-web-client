@@ -4,87 +4,50 @@ import { useWsStore } from '@/stores/ws'
 import StickyScroller from '@/components/general/StickyScroller.vue'
 
 const ws = useWsStore()
-const messages = computed(() => [...ws.inbound].slice(-10000))
-</script>
+const messages = computed(() => ws.inbound.filter((m) => m.kind !== 'Pong').slice(-10000))
 
-<template>
-  <div class="inbound-debug">
-    <div class="summary">
-      <strong>Inbound Messages</strong>
-      <span class="meta">Total: {{ ws.inbound.length }}</span>
-      <span class="meta" v-if="ws.authAccepted === true">Auth: ✅</span>
-      <span class="meta" v-else-if="ws.authAccepted === false">Auth: ❌</span>
-      <span class="meta" v-if="ws.authError">Err: {{ ws.authError }}</span>
-    </div>
-    <StickyScroller
-      class="list striped"
-      :trigger="messages.length"
-      :smooth="true"
-      :showButton="true"
-    >
-      <div v-for="m in messages" :key="m.ts + '-' + m.kind" class="row">
-        <span class="time">{{ new Date(m.ts).toLocaleTimeString() }}</span>
-        <span class="text-accent font-bold">{{ m.kind }}</span>
-        <pre class="payload">{{ formatPayload(m.payload) }}</pre>
-      </div>
-      <div v-if="messages.length === 0" class="empty">No messages yet.</div>
-    </StickyScroller>
-  </div>
-</template>
-
-<script lang="ts">
 function formatPayload(p: unknown): string {
   try {
-    return JSON.stringify(p, null, 0)
+    return JSON.stringify(p, null, 2)
   } catch {
     return String(p)
   }
 }
 </script>
 
-<style scoped>
-.inbound-debug {
-  font-family: var(--dv-font-family, ui-monospace, monospace);
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-.summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 6px;
-  font-size: 10pt;
-  border-bottom: 1px solid #4446;
-}
-.meta {
-  opacity: 0.7;
-}
-.list {
-  flex: 1;
-  overflow: auto;
-  font-size: 8pt;
-  line-height: 1.2;
-  padding: 4px;
-}
-.row {
-  display: grid;
-  grid-template-columns: 80px 120px 1fr;
-  gap: 4px;
-  padding: 2px 0;
-}
-.time {
-  opacity: 0.6;
-}
-.payload {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.empty {
-  opacity: 0.6;
-  font-style: italic;
-  padding: 8px;
-}
-</style>
+<template>
+  <div class="font-mono flex flex-col h-full overflow-hidden">
+    <div class="flex items-center gap-2 px-1.5 py-1 text-sm border-b border-gray-600/60 w-full">
+      <strong class="font-semibold">Inbound Messages</strong>
+      <div class="flex gap-2 justify-between opacity-70 text-xs ml-auto">
+        <span>Total: {{ ws.inbound.length }}</span>
+        <span v-if="ws.authAccepted === true">Auth: ✅</span>
+        <span v-else-if="ws.authAccepted === false">Auth: ❌</span>
+        <span v-if="ws.authError">Err: {{ ws.authError }}</span>
+      </div>
+    </div>
+
+    <StickyScroller
+      class="overflow-y-auto flex-1"
+      :trigger="messages.length"
+      :smooth="true"
+      :showButton="true"
+    >
+      <div
+        v-for="m in messages"
+        :key="m.ts + '-' + m.kind"
+        class="flex flex-col gap-0.5 p-2 border-b border-gray-600/30 odd:bg-gray-800/30"
+      >
+        <div class="flex justify-between items-center gap-2">
+          <span class="text-blue-400 font-bold text-xs">{{ m.kind }}</span>
+          <span class="opacity-60 text-xs">{{ new Date(m.ts).toLocaleTimeString() }}</span>
+        </div>
+        <div class="m-0 whitespace-pre-wrap break-words text-xs">
+          {{ formatPayload(m.payload) }}
+        </div>
+      </div>
+
+      <div v-if="messages.length === 0" class="opacity-60 italic p-2 text-xs">No messages yet.</div>
+    </StickyScroller>
+  </div>
+</template>

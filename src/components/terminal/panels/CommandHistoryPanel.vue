@@ -3,7 +3,12 @@
     <div class="command-history-panel">
       <template v-for="(cmd, index) in commands" :key="index">
         <template v-if="cmd.command.kind === 'TrailingEntryOrder'">
-          <TELongCommand :command="cmd" @select="handleSelect" />
+          <TELongCommand
+            :command_id="cmd.command_id"
+            :command_status="cmd.status"
+            :command="cmd.command.data as TrailingEntryOrderCommand"
+            @select="handleInspect"
+          />
         </template>
         <CommandHistoryItem v-else :command="cmd" />
       </template>
@@ -18,6 +23,7 @@ import { computed } from 'vue'
 
 import CommandHistoryItem from '@/components/terminal/commands/CommandHistoryItem.vue'
 import TELongCommand from '@/components/terminal/commands/TELongCommand.vue'
+import type { TrailingEntryOrderCommand } from '@/lib/ws/protocol'
 
 const interestingCommandKinds = ['TrailingEntryOrder']
 
@@ -29,8 +35,8 @@ const commands = computed(() =>
   ),
 )
 
-function handleSelect(commandId: string) {
-  commandStore.selectCommand(commandId)
+function handleInspect(commandId: string) {
+  commandStore.inspectCommand(commandId)
 }
 </script>
 
