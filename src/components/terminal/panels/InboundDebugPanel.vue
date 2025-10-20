@@ -1,10 +1,79 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useWsStore } from '@/stores/ws'
 import StickyScroller from '@/components/general/StickyScroller.vue'
 
 const ws = useWsStore()
-const messages = computed(() => ws.inbound.filter((m) => m.kind !== 'Pong').slice(-10000))
+const lastClearedAt = ref<number | null>(null)
+const rawMessages = computed<InboundMessage[]>(
+  () => ws.inbound.filter((m) => m.kind !== 'Pong').slice(-10000) as InboundMessage[],
+)
+const messages = computed<InboundMessage[]>(() => {
+  const threshold = lastClearedAt.value
+  if (threshold === null) {
+    return rawMessages.value
+  }
+
+  return rawMessages.value.filter((message) => {
+    const messageMs = timestampToMs(message.ts)
+    if (messageMs === null) {
+      return true
+    }
+
+    return messageMs > threshold
+  })
+})
+
+const expandedMessages = ref<Record<string, boolean>>({})
+
+interface InboundMessage {
+  kind: string
+  payload: unknown
+  ts: number | string
+  [key: string]: unknown
+}
+
+function messageKey(message: InboundMessage): string {
+  return `${message.ts}-${message.kind}`
+}
+
+function timestampToMs(ts: InboundMessage['ts']): number | null {
+  if (typeof ts === 'number' && Number.isFinite(ts)) {
+    return ts
+  }
+
+  const parsed = new Date(ts).valueOf()
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function isExpanded(key: string): boolean {
+  return expandedMessages.value[key] === true
+}
+
+function toggleExpanded(key: string): void {
+  expandedMessages.value = {
+    ...expandedMessages.value,
+    [key]: !expandedMessages.value[key],
+  }
+}
+
+function clearMessages(): void {
+  expandedMessages.value = {}
+  lastClearedAt.value = Date.now()
+}
+
+watch(messages, (newMessages) => {
+  const allowedKeys = new Set(newMessages.map((message) => messageKey(message)))
+  const nextState: Record<string, boolean> = {}
+
+  for (const [key, value] of Object.entries(expandedMessages.value)) {
+    if (allowedKeys.has(key)) {
+      nextState[key] = value
+    }
+  }
+
+  expandedMessages.value = nextState
+})
 
 function formatPayload(p: unknown): string {
   try {
@@ -19,11 +88,21 @@ function formatPayload(p: unknown): string {
   <div class="font-mono flex flex-col h-full overflow-hidden">
     <div class="flex items-center gap-2 px-1.5 py-1 text-sm border-b border-gray-600/60 w-full">
       <strong class="font-semibold">Inbound Messages</strong>
-      <div class="flex gap-2 justify-between opacity-70 text-xs ml-auto">
-        <span>Total: {{ ws.inbound.length }}</span>
-        <span v-if="ws.authAccepted === true">Auth: ✅</span>
-        <span v-else-if="ws.authAccepted === false">Auth: ❌</span>
-        <span v-if="ws.authError">Err: {{ ws.authError }}</span>
+      <div class="flex items-center gap-2 ml-auto">
+        <div class="flex gap-2 justify-between opacity-70 text-xs">
+          <span>Total: {{ ws.inbound.length }}</span>
+          <span v-if="ws.authAccepted === true">Auth: ✅</span>
+          <span v-else-if="ws.authAccepted === false">Auth: ❌</span>
+          <span v-if="ws.authError">Err: {{ ws.authError }}</span>
+        </div>
+        <button
+          type="button"
+          class="btn btn-ghost btn-xs"
+          :disabled="messages.length === 0"
+          @click="clearMessages"
+        >
+          Clear
+        </button>
       </div>
     </div>
 
@@ -35,14 +114,26 @@ function formatPayload(p: unknown): string {
     >
       <div
         v-for="m in messages"
-        :key="m.ts + '-' + m.kind"
+        :key="messageKey(m)"
         class="flex flex-col gap-0.5 p-2 border-b border-gray-600/30 odd:bg-gray-800/30"
       >
-        <div class="flex justify-between items-center gap-2">
+        <div class="flex flex-wrap items-center justify-between gap-2">
           <span class="text-blue-400 font-bold text-xs">{{ m.kind }}</span>
-          <span class="opacity-60 text-xs">{{ new Date(m.ts).toLocaleTimeString() }}</span>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class="btn icon-btn btn-ghost btn-sm"
+              :aria-expanded="isExpanded(messageKey(m))"
+              @click="toggleExpanded(messageKey(m))"
+            >
+              {{ new Date(m.ts).toLocaleTimeString() }}
+              <span aria-hidden="true">
+                {{ isExpanded(messageKey(m)) ? '▾' : '▸' }}
+              </span>
+            </button>
+          </div>
         </div>
-        <div class="m-0 whitespace-pre-wrap break-words text-xs">
+        <div v-if="isExpanded(messageKey(m))" class="m-0 whitespace-pre-wrap break-words text-xs">
           {{ formatPayload(m.payload) }}
         </div>
       </div>

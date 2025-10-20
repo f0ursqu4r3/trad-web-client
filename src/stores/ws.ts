@@ -117,13 +117,6 @@ export const useWsStore = defineStore('ws', () => {
     })
   }
 
-  function listCommandDevices(commandId: Uuid) {
-    sendSystemCommand({
-      kind: 'ListCommandDevicesRequest',
-      data: { command_id: commandId },
-    })
-  }
-
   function sendCancelCommand(commandId: Uuid) {
     sendSystemCommand({
       kind: 'CancelCommand',
@@ -322,7 +315,6 @@ export const useWsStore = defineStore('ws', () => {
     sendTokenLogin,
     sendLogout,
     sendUserCommand,
-    listCommandDevices,
     sendCancelCommand,
     sendRefreshAccountKeys,
   }
