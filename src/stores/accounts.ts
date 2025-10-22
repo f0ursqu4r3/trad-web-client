@@ -128,11 +128,12 @@ export const useAccountsStore = defineStore(
     function getMarketContextForAccount(accountId: string): MarketContext | null {
       const account = accounts.value.find((a) => a.id === accountId)
       if (!account) return null
-      return {
+      const ctx = {
         [account.exchange]: {
           account_id: account.id,
         },
-      }
+      } as unknown as MarketContext
+      return ctx
     }
 
     watch(

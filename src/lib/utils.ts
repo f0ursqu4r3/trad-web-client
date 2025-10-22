@@ -3,7 +3,7 @@ export function enumKeyName(enumObj: Record<string, unknown>, value: unknown): s
   return key ?? null
 }
 
-export function setObjectPath(obj: Record<string, unknown>, path: string, value: unknown): void {
+export function setv(obj: Record<string, unknown>, path: string, value: unknown): void {
   const keys = path.split('.')
   let current = obj
   for (let i = 0; i < keys.length - 1; i++) {
@@ -14,4 +14,18 @@ export function setObjectPath(obj: Record<string, unknown>, path: string, value:
     current = current[key] as Record<string, unknown>
   }
   current[keys[keys.length - 1]] = value
+}
+
+export function getv(obj: Record<string, unknown>, key: string, def: unknown): unknown {
+  return (
+    key.split('.').reduce<unknown>((o, x) => {
+      if (typeof o === 'undefined' || o === null) return def
+      if (typeof o !== 'object') return def
+      return (o as Record<string, unknown>)[x]
+    }, obj as unknown) ?? def
+  )
+}
+
+export function deepClone<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj))
 }

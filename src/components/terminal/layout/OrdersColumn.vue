@@ -1,19 +1,34 @@
 <template>
   <SplitView
-    orientation="vertical"
-    storage-key="terminal-orders-column"
-    :initial-sizes="[35, 35, 30]"
+    orientation="horizontal"
+    storage-key="terminal-orders-column-main"
+    :initial-sizes="[70, 30]"
   >
-    <template #inbound-debug>
-      <div class="panel">
-        <div class="panel-header dim">messages</div>
-        <InboundDebugPanel />
-      </div>
+    <template #primary>
+      <SplitView
+        orientation="vertical"
+        storage-key="terminal-orders-column"
+        :initial-sizes="[35, 35, 30]"
+      >
+        <template #inbound-debug>
+          <div class="panel">
+            <div class="panel-header dim">messages</div>
+            <InboundDebugPanel />
+          </div>
+        </template>
+        <template #command-history>
+          <div class="panel">
+            <div class="panel-header dim">commands</div>
+            <CommandPanel />
+          </div>
+        </template>
+      </SplitView>
     </template>
-    <template #command-history>
+
+    <template #secondary>
       <div class="panel">
-        <div class="panel-header dim">command history</div>
-        <CommandHistory />
+        <div class="panel-header dim">devices</div>
+        <OrderTreePanel />
       </div>
     </template>
   </SplitView>
@@ -22,7 +37,8 @@
 <script setup lang="ts">
 import SplitView from '@/components/general/SplitView.vue'
 import InboundDebugPanel from '@/components/terminal/panels/InboundDebugPanel.vue'
-import CommandHistory from '@/components/terminal/panels/CommandHistoryPanel.vue'
+import CommandPanel from '@/components/terminal/panels/CommandPanel.vue'
+import OrderTreePanel from '../panels/OrderTreePanel.vue'
 </script>
 
 <style scoped>

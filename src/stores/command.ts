@@ -8,6 +8,12 @@ export interface PendingCommand {
   sentAt: number
 }
 
+export interface OrderedCommandHistoryItem extends CommandHistoryItem {
+  orderIndex: number
+}
+
+const interestingCommandKinds = ['TrailingEntryOrder']
+
 export const useCommandStore = defineStore('command', () => {
   const ws = useWsStore()
 
@@ -18,10 +24,29 @@ export const useCommandStore = defineStore('command', () => {
     {} as Record<Uuid, CommandDevicesListData>,
   )
 
+  const commandMap = computed<Record<string, OrderedCommandHistoryItem>>(() => {
+    return history.value
+      .filter(
+        (cmd) =>
+          cmd.command?.kind !== undefined && interestingCommandKinds.includes(cmd.command.kind),
+      )
+      .reduce<Record<string, OrderedCommandHistoryItem>>((map, cmd, index) => {
+        map[cmd.command_id] = {
+          ...cmd,
+          orderIndex: index,
+        }
+        return map
+      }, {})
+  })
+
+  const commands = computed<OrderedCommandHistoryItem[]>(() => {
+    return Object.values(commandMap.value).sort((a, b) => a.orderIndex - b.orderIndex)
+  })
+
   const selectedCommandId = ref<string | null>(null)
-  const selectedCommand = computed<CommandHistoryItem | null>(() => {
+  const selectedCommand = computed<OrderedCommandHistoryItem | null>(() => {
     if (!selectedCommandId.value) return null
-    return history.value.find((cmd) => cmd.command_id === selectedCommandId.value) ?? null
+    return commandMap.value[selectedCommandId.value] || null
   })
 
   function addPendingCommand(commandId: string) {
@@ -56,6 +81,8 @@ export const useCommandStore = defineStore('command', () => {
     /* state */
     history,
     devices,
+    commandMap,
+    commands,
     selectedCommandId,
     selectedCommand,
     pendingCommands,

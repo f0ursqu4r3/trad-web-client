@@ -2,22 +2,23 @@
 import { computed, type Component, onBeforeUnmount, onMounted } from 'vue'
 import { useWsStore } from '@/stores/ws'
 import { useCommandStore } from '@/stores/command'
+import { getv } from '@/lib/utils'
 
 import SplitView from '@/components/general/SplitView.vue'
 import OrdersColumn from '@/components/terminal/layout/OrdersColumn.vue'
 
-import TELongView from '@/components/terminal/views/TELongView.vue'
+import TrailingEntryView from '@/components/terminal/views/TrailingEntryView.vue'
 
 const ws = useWsStore()
 const commandStore = useCommandStore()
 
+const componentMap: Record<string, Component> = {
+  TrailingEntryOrder: TrailingEntryView,
+}
+
 const currentComponent = computed<Component | null>(() => {
   if (!commandStore.selectedCommand) return null
-  return (
-    {
-      TrailingEntryOrder: TELongView,
-    }[commandStore.selectedCommand?.command.kind] || null
-  )
+  return getv(componentMap, commandStore.selectedCommand?.command.kind, null) || null
 })
 
 onMounted(() => {

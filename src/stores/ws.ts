@@ -8,6 +8,7 @@ import { ref, computed, onUnmounted } from 'vue'
 import { defineStore } from 'pinia'
 import { TradWebClient } from '@/lib/ws/websocketClient'
 import { useCommandStore } from '@/stores/command'
+import { useDeviceStore } from '@/stores/devices'
 import { useUserStore } from './user'
 
 // Connection phases
@@ -26,6 +27,7 @@ interface RawInboundRecord {
 
 export const useWsStore = defineStore('ws', () => {
   const commandStore = useCommandStore()
+  const deviceStore = useDeviceStore()
 
   const status = ref<WsStatus>('idle')
   const lastError = ref<string | null>(null)
@@ -182,6 +184,7 @@ export const useWsStore = defineStore('ws', () => {
       CommandHistory: handleCommandHistory,
       SetCommandStatus: handleSetCommandStatus,
       CommandDevicesList: handleCommandDevicesList,
+      DeviceTeDelta: handleDeviceTeDelta,
     } as Record<string, (p: ServerToClientMessage['payload']) => void>
     const handler = handlers[payload.kind]
     handler?.(payload)
@@ -256,7 +259,6 @@ export const useWsStore = defineStore('ws', () => {
   }
 
   function handleServerError(payload: ServerToClientMessage['payload']): void {
-    // If a ServerError arrives immediately after a Login attempt, surface it as authError
     const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'ServerError' }>)
       .data
     authAccepted.value = false
@@ -285,6 +287,15 @@ export const useWsStore = defineStore('ws', () => {
       payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandDevicesList' }>
     ).data
     commandStore.devices[data.command_id] = data
+  }
+
+  function handleDeviceTeDelta(payload: ServerToClientMessage['payload']): void {
+    const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceTeDelta' }>
+    deviceStore.handleDeviceUpdate(data.kind, data.data)
+  }
+
+  function getDeviceTree(deviceId: Uuid) {
+    sendSystemCommand({ kind: 'GetDeviceTree', data: { device_id: deviceId } })
   }
 
   onUnmounted(() => {
@@ -317,5 +328,6 @@ export const useWsStore = defineStore('ws', () => {
     sendUserCommand,
     sendCancelCommand,
     sendRefreshAccountKeys,
+    getDeviceTree,
   }
 })

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { apiGet, apiPut } from '@/lib/apiClient'
-import { setObjectPath } from '@/lib/utils'
+import { setv } from '@/lib/utils'
 import { useUiStore } from '@/stores/ui'
 import { type AccountRecord, useAccountsStore } from '@/stores/accounts'
 
@@ -92,7 +92,7 @@ export const useUserStore = defineStore('user', () => {
       display_name: profile.value.display_name,
       meta: profile.value.meta || { preferences: {} },
     }
-    setObjectPath(payload, 'meta.preferences.theme', uiStore.theme)
+    setv(payload, 'meta.preferences.theme', uiStore.theme)
     try {
       await apiPut('/me', payload as ClientProfile, { throwOnHTTPError: true })
     } catch (e) {

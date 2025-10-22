@@ -7,7 +7,7 @@
       single-tab-mode="fullwidth"
       :components="{
         ChartPanel: mountComponent('ChartPanel'),
-        OrderTree: mountComponent('OrderTree'),
+        // OrderTree: mountComponent('OrderTree'),
         EntriesPanel: mountComponent('EntriesPanel'),
       }"
     />
@@ -20,7 +20,8 @@ import { DockviewVue, type DockviewReadyEvent, themeDark, themeLight } from 'doc
 import { useUiStore } from '@/stores/ui'
 
 const ui = useUiStore()
-const currentTheme = computed(() => (ui.theme === 'dark' ? themeDark : themeLight))
+
+const currentTheme = computed(() => (ui.theme === 'light' ? themeLight : themeDark))
 
 const LAYOUT_KEY = 'te-long-command-layout'
 
@@ -47,17 +48,17 @@ function buildDefaultLayout(event: DockviewReadyEvent) {
       title: 'Chart',
     })
     event.api.addPanel({
-      id: 'tree',
-      component: 'OrderTree',
-      title: 'Devices',
-      position: { referencePanel: 'chart', direction: 'below' },
-    })
-    event.api.addPanel({
       id: 'entries',
       component: 'EntriesPanel',
       title: 'Entries',
       position: { referencePanel: 'chart', direction: 'below' },
     })
+    // event.api.addPanel({
+    //   id: 'tree',
+    //   component: 'OrderTree',
+    //   title: 'Devices',
+    //   position: { referencePanel: 'entries', direction: 'below' },
+    // })
   } catch (e) {
     console.error('[Dockview Layout Error]', e)
   }

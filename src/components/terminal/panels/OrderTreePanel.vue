@@ -1,18 +1,25 @@
 <template>
   <div class="w-full h-full scroll-area">
-    <tree-view v-model:expanded-ids="expanded" :items="data" :indent="12" inline-toggle>
-      <template #default="{ item, isLeaf, toggle, expanded }">
+    <div v-if="!treeData.length" class="empty-state">Select a command to view its device tree.</div>
+    <tree-view v-else v-model:expanded-ids="expanded" :items="treeData" :indent="12" inline-toggle>
+      <template #default="{ item, isLeaf, toggle, expanded: isExpanded }">
         <div
           class="flex items-center gap-2 px-2 border-slate-800/60 text-[13px] hover:bg-white/5 select-none cursor-default"
-          @dblclick="!isLeaf && toggle()"
-          @click="!isLeaf && toggle()"
         >
-          <span class="inline-flex w-4 shrink-0 items-center justify-center text-term-dim">
-            <FolderOpenIcon v-if="!isLeaf && expanded" />
+          <span
+            @dblclick="!isLeaf && toggle()"
+            @click="!isLeaf && toggle()"
+            class="inline-flex w-4 shrink-0 items-center justify-center text-term-dim"
+          >
+            <FolderOpenIcon v-if="!isLeaf && isExpanded" />
             <FolderIcon v-else-if="!isLeaf" />
             <FileIcon v-else />
           </span>
-          <span class="truncate">{{ item.name || item.id }}</span>
+          <div class="node-label">
+            <span class="node-name">{{ item.kind || item.id }}</span>
+            <span v-if="item.symbol" class="node-meta">{{ item.symbol }}</span>
+            <span v-if="item.state" class="node-state">{{ item.state }}</span>
+          </div>
         </div>
       </template>
     </tree-view>
@@ -20,32 +27,66 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 
 import { TreeView, type TreeItem } from '@/components/general/TreeView'
-
 import { FolderIcon, FolderOpenIcon, FileIcon } from '@/components/icons'
+import { useDeviceStore, type Device } from '@/stores/devices'
 
-const data = ref<TreeItem[]>([
-  {
-    id: 'b81d2d99-98a4-40d7-9b2f-204f412548e9',
-    name: 'src',
-    type: 'folder',
-    children: [
-      {
-        id: 'cbf291da-dd36-4589-a2f4-ea04ad42da4d',
-        name: 'components',
-        type: 'folder',
-        children: [
-          { id: 'fd720d64-8832-4f6c-871d-d81a1ae6bd73', name: 'TreeView.vue', type: 'file' },
-          { id: 'a0c6b61c-ad0c-4639-b903-244ffcfa2579', name: 'SplitView.vue', type: 'file' },
-        ],
-      },
-      { id: '13166576-cbff-4c48-bdc4-6932f30b8969', name: 'main.ts', type: 'file' },
-    ],
-  },
-  { id: 'd64e4999-f989-49e1-a03f-8bbc1c879f1f', name: 'README.md', type: 'file' },
-])
+const deviceStore = useDeviceStore()
 
-const expanded = ref<(string | number)[]>(['src', 'components'])
+const { devices } = storeToRefs(deviceStore)
+
+const expanded = ref<(string | number)[]>([])
+
+const treeData = computed<TreeItem[]>(() =>
+  (devices.value as Device[]).map((item) => ({
+    id: item.id,
+    children: [],
+    kind: item.kind,
+  })),
+)
 </script>
+
+<style scoped>
+.empty-state {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem;
+  color: var(--term-dim, #8b98a5);
+  font-size: 0.875rem;
+}
+
+.node-label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.node-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.node-meta {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--term-dim, #8b98a5);
+}
+
+.node-state {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--term-dim, #8b98a5);
+}
+</style>

@@ -33,10 +33,10 @@ export type DeviceKind =
   | 'Unknown'
   | string
 
-export interface MarketContext {
-  name?: string
-  [k: string]: unknown
-}
+export type MarketContext =
+  | { type: 'none' }
+  | { type: 'binance'; account_id: string } // UUID as string
+  | { type: 'sim'; sim_market_id: string } // UUID as string
 
 export interface Market {
   symbol?: string
@@ -49,24 +49,27 @@ export interface DeviceMarketInfo {
   [k: string]: unknown
 }
 
-export type TrailingEntryPhase =
-  | 'Idle'
-  | 'Arming'
-  | 'Armed'
-  | 'Triggered'
-  | 'Completed'
-  | 'Failed'
-  | string
+export enum TrailingEntryPhase {
+  Initial = 'Initial',
+  Triggered = 'Triggered',
+}
+
 export type TrailingEntryLifecycle = unknown
-export type MarketOrderStatus =
-  | 'Unsent'
-  | 'Pending'
-  | 'Running'
-  | 'Filled'
-  | 'Cancelled'
-  | 'Failed'
-  | string
-export type StopGuardStatus = 'Idle' | 'Placing' | 'Active' | 'Cancelled' | 'Failed' | string
+export enum MarketOrderStatus {
+  NotYetSent = 'Not Yet Sent',
+  AlreadySentAndAwaitingFilling = 'Already Sent And Awaiting Filling',
+  PartiallyFilled = 'Partially Filled',
+  Filled = 'Filled',
+  Canceled = 'Canceled',
+  Rejected = 'Rejected',
+}
+export enum StopGuardStatus {
+  Idle = 'Idle',
+  Placing = 'Placing',
+  Active = 'Active',
+  Cancelled = 'Cancelled',
+  Failed = 'Failed',
+}
 
 // ==============================================================================================
 // Protocol-specific enums (match Rust variant names)

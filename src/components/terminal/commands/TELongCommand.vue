@@ -92,9 +92,10 @@ function cancelCommand() {
 <template>
   <div class="flex flex-col bg-white dark:bg-gray-800 rounded-lg shadow-sm">
     <div class="flex items-start justify-between gap-3 px-3 py-2">
-      <div class="flex items-center gap-2">
+      <div class="flex items-center flex-wrap gap-2">
         <span
-          class="uppercase font-bold text-[12px] tracking-[0.06em] bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded"
+          class="uppercase font-bold text-[12px] tracking-[0.06em] bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded cursor-pointer"
+          @click="emit('select', command_id)"
         >
           Trailing Entry
         </span>
@@ -112,7 +113,7 @@ function cancelCommand() {
         </span>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex items-center justify-end flex-wrap gap-2">
         <div
           class="pill flex gap-2"
           :class="`pill-${statusMap[command_status]}`"
@@ -123,28 +124,30 @@ function cancelCommand() {
           <span class="text-[11px]">{{ command_status }}</span>
         </div>
 
-        <button
-          class="btn btn-sm icon-btn"
-          title="Select command"
-          @click="emit('select', command_id)"
-        >
-          <MagnifyingGlassIcon class="icon" size="10" />
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            class="btn btn-sm icon-btn"
+            title="Select command"
+            @click="emit('select', command_id)"
+          >
+            <MagnifyingGlassIcon class="icon" size="10" />
+          </button>
 
-        <button
-          class="btn btn-sm icon-btn"
-          :title="expanded ? 'Collapse' : 'Expand'"
-          @click="expanded = !expanded"
-          aria-label="Toggle details"
-        >
-          <DownIcon
-            class="icon"
-            size="10"
-            :style="{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }"
-          />
-        </button>
+          <button
+            class="btn btn-sm icon-btn"
+            :title="expanded ? 'Collapse' : 'Expand'"
+            @click="expanded = !expanded"
+            aria-label="Toggle details"
+          >
+            <DownIcon
+              class="icon"
+              size="10"
+              :style="{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }"
+            />
+          </button>
 
-        <DropMenu :items="menuItems" />
+          <DropMenu :items="menuItems" />
+        </div>
       </div>
     </div>
 

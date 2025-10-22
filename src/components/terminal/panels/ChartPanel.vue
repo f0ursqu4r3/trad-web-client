@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import {
   createChart,
   AreaSeries,
@@ -10,8 +10,42 @@ import {
 } from 'lightweight-charts'
 import { storeToRefs } from 'pinia'
 import { useTerminalStore } from '@/stores/terminal'
+import { useDeviceStore } from '@/stores/devices'
 
-const { priceSeries, lastPrice } = storeToRefs(useTerminalStore())
+const terminalStore = useTerminalStore()
+const deviceStore = useDeviceStore()
+
+const { selectedDeviceId } = storeToRefs(terminalStore)
+
+const devicePoints = computed(
+  () =>
+    deviceStore.tePoints.map((price, idx) => ({
+      idx,
+      price,
+    })) as Array<{ idx: number; price: number; ts?: number }>,
+)
+
+const chartSeriesData = computed<AreaData[]>(() => {
+  const points = devicePoints.value
+  if (!points.length) return []
+  let lastTs: number | undefined
+  const fallbackBase = Math.floor(Date.now() / 1000) - points.length
+  return points.map((point, index) => {
+    let ts = point.ts ?? fallbackBase + index
+    if (lastTs !== undefined && ts <= lastTs) ts = lastTs + 1
+    lastTs = ts
+    return {
+      time: ts as UTCTimestamp,
+      value: point.price,
+    }
+  })
+})
+
+const displayLastPrice = computed(() => {
+  const data = chartSeriesData.value
+  if (!data.length) return null
+  return data[data.length - 1]?.value ?? null
+})
 const containerEl = ref<HTMLDivElement | null>(null)
 let chart: IChartApi | null = null
 let series: ISeriesApi<'Area'> | null = null
@@ -28,10 +62,6 @@ function resizeChart() {
   } catch {
     /* noop */
   }
-}
-
-function toTs(ms: number): UTCTimestamp {
-  return Math.floor(ms / 1000) as UTCTimestamp
 }
 
 onMounted(() => {
@@ -58,10 +88,14 @@ onMounted(() => {
     lineWidth: 2,
     pointMarkersVisible: false,
   })
-  const initial: AreaData[] = priceSeries.value.map((p) => ({ time: toTs(p.time), value: p.value }))
+  const initial = chartSeriesData.value
   if (initial.length && series) {
     series.setData(initial)
-    chart.timeScale().fitContent()
+    try {
+      chart.timeScale().fitContent()
+    } catch {
+      /* noop */
+    }
   }
 
   // Observe container resize
@@ -72,13 +106,29 @@ onMounted(() => {
   resizeChart()
 })
 
-// Watch only the length so pushes trigger updates (array ref itself isn't replaced)
 watch(
-  () => priceSeries.value.length,
-  (len, prev) => {
-    if (!series || len === 0 || len === prev) return
-    const last = priceSeries.value[len - 1]
-    series.update({ time: toTs(last.time), value: last.value })
+  chartSeriesData,
+  (data) => {
+    if (!series) return
+    if (!data.length) {
+      series.setData([])
+      return
+    }
+    series.setData(data)
+    try {
+      chart?.timeScale().fitContent()
+    } catch {
+      /* noop */
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => selectedDeviceId.value,
+  () => {
+    if (!series) return
+    series.setData([])
   },
 )
 
@@ -90,33 +140,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="chart-panel">
-    <header class="panel-header">
-      Chart <span class="last">{{ lastPrice.toFixed(2) }}</span>
+  <section class="relative flex flex-col min-h-0 w-full h-full">
+    <header class="ml-2 text-sm font-medium flex items-center h-8 border-b border-gray-600/60">
+      Chart
+      <span class="ml-2 text-(--accent-color)">
+        {{ displayLastPrice !== null ? displayLastPrice.toFixed(2) : '—' }}
+      </span>
     </header>
-    <div ref="containerEl" class="chart-container" />
+    <div ref="containerEl" class="flex w-full h-full" />
   </section>
 </template>
-
-<style scoped>
-.chart-panel {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  /* Allow panel to expand within parent flex layout */
-  flex: 1 1 auto;
-  min-height: 0; /* prevents flex overflow clipping in some browsers */
-
-  height: 100%;
-  width: 100%;
-}
-.chart-container {
-  flex: 1 1 auto;
-  width: 100%;
-  height: 100%;
-}
-.panel-header .last {
-  margin-left: 8px;
-  color: var(--accent-color);
-}
-</style>
