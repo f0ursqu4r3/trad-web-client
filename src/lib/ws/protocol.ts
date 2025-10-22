@@ -13,10 +13,20 @@ export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 // External/shared domain types (placeholders — align with server definitions)
 // ==============================================================================================
 
-export type OrderSide = 'Buy' | 'Sell'
-export type PositionSide = 'Long' | 'Short'
-export type MarketAction = 'Buy' | 'Sell' | 'Close' | 'CloseAll' | string
-
+export enum OrderSide {
+  Buy = 'BUY',
+  Sell = 'SELL',
+}
+export enum PositionSide {
+  Long = 'LONG',
+  Short = 'SHORT',
+}
+export enum MarketAction {
+  Buy = 'Buy',
+  Sell = 'Sell',
+  Close = 'Close',
+  CloseAll = 'CloseAll',
+}
 export enum NetworkType {
   Testnet = 'testnet',
   Mainnet = 'mainnet',
@@ -54,7 +64,12 @@ export enum TrailingEntryPhase {
   Triggered = 'Triggered',
 }
 
-export type TrailingEntryLifecycle = unknown
+export enum TrailingEntryLifecycle {
+  Running = 'Running',
+  SpawningChildren = 'Spawning Children',
+  ChildrenSpawned = 'Children Spawned',
+  Completed = 'Completed',
+}
 export enum MarketOrderStatus {
   NotYetSent = 'Not Yet Sent',
   AlreadySentAndAwaitingFilling = 'Already Sent And Awaiting Filling',
@@ -64,11 +79,14 @@ export enum MarketOrderStatus {
   Rejected = 'Rejected',
 }
 export enum StopGuardStatus {
-  Idle = 'Idle',
-  Placing = 'Placing',
-  Active = 'Active',
-  Cancelled = 'Cancelled',
-  Failed = 'Failed',
+  NotYetSent = 'Not Yet Sent',
+  Submitting = 'Submitting',
+  Working = 'Working',
+  Triggered = 'Triggered',
+  Flat = 'Flat',
+  Canceled = 'Canceled',
+  Rejected = 'Rejected',
+  Expired = 'Expired',
 }
 
 // ==============================================================================================

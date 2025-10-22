@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import BaseCommandModal from './BaseCommandModal.vue'
-import type {
-  SplitMarketOrderCommand,
-  UserCommandPayload,
-  MarketAction,
+import {
   PositionSide,
+  type SplitMarketOrderCommand,
+  type UserCommandPayload,
+  MarketAction,
 } from '@/lib/ws/protocol'
 import { useWsStore } from '@/stores/ws'
 import { useAccountsStore } from '@/stores/accounts'
@@ -18,16 +18,16 @@ const accounts = useAccountsStore()
 const selectedAccountId = ref<string>(accounts.selectedAccount?.id || '')
 
 const symbol = ref('BTCUSDT')
-const action = ref<MarketAction>('Buy')
+const action = ref<MarketAction>(MarketAction.Buy)
 const quantity_usd = ref(100)
-const position_side = ref<PositionSide>('Long')
+const position_side = ref<PositionSide>(PositionSide.Long)
 const num_splits = ref(4)
 
 function reset() {
   selectedAccountId.value = accounts.selectedAccount?.id || ''
-  action.value = 'Buy'
+  action.value = MarketAction.Buy
   quantity_usd.value = 100
-  position_side.value = 'Long'
+  position_side.value = PositionSide.Long
   num_splits.value = 4
 }
 watch(

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import BaseCommandModal from './BaseCommandModal.vue'
-import type {
+import {
   MarketAction,
-  MarketOrderCommand,
-  UserCommandPayload,
   PositionSide,
+  type MarketOrderCommand,
+  type UserCommandPayload,
 } from '@/lib/ws/protocol'
 import { useWsStore } from '@/stores/ws'
 import { useAccountsStore } from '@/stores/accounts'
@@ -19,15 +19,15 @@ const ws = useWsStore()
 
 const selectedAccountId = ref<string>(accounts.selectedAccount?.id || '')
 const symbol = ref('BTCUSDT')
-const action = ref<MarketAction>('Buy')
+const action = ref<MarketAction>(MarketAction.Buy)
 const qtyUsd = ref(50)
-const posSide = ref<PositionSide>('Long')
+const posSide = ref<PositionSide>(PositionSide.Long)
 
 function reset() {
   symbol.value = 'BTCUSDT'
-  action.value = 'Buy'
+  action.value = MarketAction.Buy
   qtyUsd.value = 50
-  posSide.value = 'Long'
+  posSide.value = PositionSide.Long
 }
 watch(
   () => props.open,

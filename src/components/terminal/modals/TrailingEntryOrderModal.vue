@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import BaseCommandModal from './BaseCommandModal.vue'
-import type { TrailingEntryOrderCommand, UserCommandPayload, PositionSide } from '@/lib/ws/protocol'
+import {
+  type TrailingEntryOrderCommand,
+  type UserCommandPayload,
+  PositionSide,
+} from '@/lib/ws/protocol'
 import { useWsStore } from '@/stores/ws'
 import { useAccountsStore } from '@/stores/accounts'
 
@@ -16,7 +20,7 @@ const activation_price = ref(58000)
 const jump_frac_threshold = ref(0.002)
 const stop_loss = ref(57000)
 const risk_amount = ref(50)
-const position_side = ref<PositionSide>('Long')
+const position_side = ref<PositionSide>(PositionSide.Long)
 
 function reset() {
   selectedAccountId.value = accounts.selectedAccount?.id || ''
@@ -24,7 +28,7 @@ function reset() {
   jump_frac_threshold.value = 0.002
   stop_loss.value = 57000
   risk_amount.value = 50
-  position_side.value = 'Long'
+  position_side.value = PositionSide.Long
 }
 watch(
   () => props.open,

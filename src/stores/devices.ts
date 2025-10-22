@@ -3,10 +3,6 @@ import { defineStore } from 'pinia'
 import {
   type MarketContext,
   MarketOrderStatus,
-  type OrderSide,
-  type PositionSide,
-  type StopGuardStatus,
-  type TrailingEntryLifecycle,
   type DeviceTeDeltaEvent,
   type DeviceMoDeltaEvent,
   type DeviceSgDeltaEvent,
@@ -15,9 +11,12 @@ import {
   type DeviceSplitDelta,
   type DeviceMoDelta,
   type DeviceSgDelta,
-  type Market,
+  OrderSide,
+  PositionSide,
+  StopGuardStatus,
+  TrailingEntryLifecycle,
+  TrailingEntryPhase,
 } from '@/lib/ws/protocol'
-import { TrailingEntryPhase } from '@/lib/ws/protocol'
 
 export const useDeviceStore = defineStore('device', () => {
   const deviceMap = ref<Record<string, Device>>({})
@@ -25,95 +24,145 @@ export const useDeviceStore = defineStore('device', () => {
   const devices = computed<Device[]>(() => Object.values(deviceMap.value))
   const tePoints = computed<number[]>(() => {
     // Find the first TrailingEntry device and return its points
-    const teDevice = devices.value.find((d) => d.kind === 'TrailingEntry') as
-      | TrailingEntry
-      | undefined
+    const teDevice = devices.value.find((d) => d.kind === 'TrailingEntry') as Device | undefined
     if (!teDevice) return []
-    return teDevice.points_snapshot
+    return (teDevice.state as TrailingEntry).points_snapshot
   })
+
+  function ensureDeviceRecord(deviceId: string, kind: string, command_id: string | null): Device {
+    if (!(deviceId in deviceMap.value)) {
+      const new_device = newDevice(deviceId, kind, command_id)
+      deviceMap.value[deviceId] = new_device
+    }
+    return deviceMap.value[deviceId]
+  }
+
+  function addDeviceChild(parentId: string, childId: string) {
+    const parentDevice = deviceMap.value[parentId]
+    const childDevice = deviceMap.value[childId]
+    if (parentDevice && childDevice) {
+      if (!parentDevice.children_devices.includes(childId)) {
+        parentDevice.children_devices.push(childId)
+      }
+      childDevice.parent_device = parentId
+    }
+  }
 
   function handleDeviceUpdate(kind: string, event: DeviceDeltaEvent) {
     console.log('Handling device update of kind:', kind, 'with event:', event)
+    let commandId = null
+    if (event.delta.kind === 'Init') {
+      commandId = event.delta.data.command_id || null
+    }
+    const device = ensureDeviceRecord(event.device_id, kind, commandId)
     switch (kind) {
       case 'DeviceTeDelta':
-        applyDeviceTeDeltaEvent(event as DeviceTeDeltaEvent)
+        applyDeviceTeDeltaEvent(device, event as DeviceTeDeltaEvent)
         break
       case 'DeviceSplitDelta':
-        applyDeviceSplitDeltaEvent(event as DeviceSplitDeltaEvent)
+        applyDeviceSplitDeltaEvent(device, event as DeviceSplitDeltaEvent)
         break
       case 'DeviceMoDelta':
-        applyDeviceMoDeltaEvent(event as DeviceMoDeltaEvent)
+        applyDeviceMoDeltaEvent(device, event as DeviceMoDeltaEvent)
         break
       case 'DeviceSgDelta':
-        applyDeviceSgDeltaEvent(event as DeviceSgDeltaEvent)
+        applyDeviceSgDeltaEvent(device, event as DeviceSgDeltaEvent)
         break
     }
   }
 
-  function applyDeviceTeDeltaEvent(event: DeviceTeDeltaEvent) {
+  function applyDeviceTeDeltaEvent(device: Device, event: DeviceTeDeltaEvent) {
     // Implementation goes here
-    const deviceId: string = event.device_id
+    const te = device.state as TrailingEntry
     const delta: DeviceTeDelta = event.delta
-    if (!(deviceId in deviceMap.value)) {
-      deviceMap.value[deviceId] = createTrailingEntry(deviceId)
-    }
-    const entry = deviceMap.value[deviceId] as TrailingEntry
     switch (delta.kind) {
       case 'Init':
-        entry.symbol = delta.data.symbol
-        entry.market_context = delta.data.market_context
-        entry.position_side = delta.data.position_side
-        entry.activation_price = delta.data.activation_price
-        entry.jump_frac_threshold = delta.data.jump_frac_threshold
-        entry.stop_loss = delta.data.stop_loss
-        entry.risk_amount = delta.data.risk_amount
-        entry.phase = delta.data.phase
-        entry.peak = delta.data.peak
-        entry.peak_index = delta.data.peak_index
-        entry.base_index = delta.data.base_index
-        entry.total_points = delta.data.total_points
-        entry.lifecycle = delta.data.lifecycle
+        {
+          const {
+            symbol,
+            market_context,
+            position_side,
+            activation_price,
+            jump_frac_threshold,
+            stop_loss,
+            risk_amount,
+            phase,
+            peak,
+            peak_index,
+            base_index,
+            total_points,
+            lifecycle,
+          } = delta.data
+          te.symbol = symbol
+          te.market_context = market_context
+          te.position_side = position_side
+          te.activation_price = activation_price
+          te.jump_frac_threshold = jump_frac_threshold
+          te.stop_loss = stop_loss
+          te.risk_amount = risk_amount
+          te.phase = phase
+          te.peak = peak
+          te.peak_index = peak_index
+          te.base_index = base_index
+          te.total_points = total_points
+          te.lifecycle = lifecycle
+        }
         break
       case 'PointsInit':
-        entry.points_snapshot = delta.data.points
-        entry.base_index = delta.data.start_idx
-        entry.total_points = delta.data.total_len
+        {
+          const { points, start_idx, total_len } = delta.data
+          te.points_snapshot = points
+          te.base_index = start_idx
+          te.total_points = total_len
+        }
         break
       case 'Point':
-        if (entry.points_snapshot.length == 0) {
-          entry.base_index = delta.data.idx
-          entry.points_snapshot.push(delta.data.price)
-        } else if (delta.data.idx >= entry.base_index) {
-          // ignore
-        } else {
-          const offset = delta.data.idx - entry.base_index
-          const len = entry.points_snapshot.length
-          if (offset == len) {
-            entry.points_snapshot.push(delta.data.price)
-          } else if (offset < len) {
-            entry.points_snapshot[offset] = delta.data.price
+        {
+          const { idx, price } = delta.data
+          if (te.points_snapshot.length == 0) {
+            te.base_index = idx
+            te.points_snapshot.push(price)
+          } else if (idx >= te.base_index) {
+            // ignore
           } else {
-            entry.base_index = delta.data.idx
-            entry.points_snapshot = [delta.data.price]
+            const offset = idx - te.base_index
+            const len = te.points_snapshot.length
+            if (offset == len) {
+              te.points_snapshot.push(price)
+            } else if (offset < len) {
+              te.points_snapshot[offset] = price
+            } else {
+              te.base_index = idx
+              te.points_snapshot = [price]
+            }
           }
+          te.total_points = Math.max(te.total_points, idx + 1)
         }
-        entry.total_points = Math.max(entry.total_points, delta.data.idx + 1)
         break
       case 'Peak':
-        entry.peak = delta.data.price
+        {
+          const { price } = delta.data
+          te.peak = price
+        }
         break
       case 'Phase':
-        switch (delta.data.to) {
-          case 'Triggered':
-            entry.phase = TrailingEntryPhase.Triggered
-            break
-          default:
-            entry.phase = TrailingEntryPhase.Initial
-            break
+        {
+          const { to } = delta.data
+          switch (to) {
+            case 'Triggered':
+              te.phase = TrailingEntryPhase.Triggered
+              break
+            default:
+              te.phase = TrailingEntryPhase.Initial
+              break
+          }
         }
         break
       case 'Lifecycle':
-        entry.lifecycle = delta.data.status
+        {
+          const { status } = delta.data
+          te.lifecycle = status
+        }
         break
       case 'TrailingStop':
         // optional visual cue
@@ -124,60 +173,216 @@ export const useDeviceStore = defineStore('device', () => {
         // TODO: find MO device with matching client_order_id and update its data
         break
       case 'Review':
-        entry.start_trigger_index = delta.data.start_trigger_index || entry.start_trigger_index
-        entry.end_trigger_index = delta.data.end_trigger_index || entry.end_trigger_index
+        {
+          const { start_trigger_index, end_trigger_index } = delta.data
+          te.start_trigger_index = start_trigger_index || te.start_trigger_index
+          te.end_trigger_index = end_trigger_index || te.end_trigger_index
+        }
         break
     }
   }
 
-  function applyDeviceSplitDeltaEvent(event: DeviceSplitDeltaEvent) {
-    // Implementation goes here
-  }
-
-  function applyDeviceMoDeltaEvent(event: DeviceMoDeltaEvent) {
-    const deviceId: string = event.device_id
+  function applyDeviceMoDeltaEvent(device: Device, event: DeviceMoDeltaEvent) {
+    const mo = device.state as MarketOrderState
     const delta: DeviceMoDelta = event.delta
-    if (!(deviceId in deviceMap.value)) {
-      deviceMap.value[deviceId] = createTrailingEntry(deviceId)
-    }
-    const entry = deviceMap.value[deviceId] as MarketOrder
     switch (delta.kind) {
       case 'Init':
-        entry.market_context = delta.data.market_context
-        entry.symbol = delta.data.symbol
-        entry.order_side = delta.data.order_side
-        entry.position_side = delta.data.position_side
-        entry.quantity = delta.data.quantity
-        entry.price = delta.data.price
-        entry.status = delta.data.status
-        entry.client_order_id = delta.data.client_order_id
+        {
+          const {
+            market_context,
+            symbol,
+            order_side,
+            position_side,
+            quantity,
+            price,
+            status,
+            client_order_id,
+            parent_device,
+          } = delta.data
+          mo.market_context = market_context
+          mo.symbol = symbol
+          mo.order_side = order_side
+          mo.position_side = position_side
+          mo.quantity = quantity
+          mo.price = price
+          mo.status = status
+          mo.client_order_id = client_order_id || null
+          if (parent_device) {
+            addDeviceChild(parent_device, device.id)
+          }
+        }
         break
       case 'Submitted':
-        entry.status = MarketOrderStatus.AlreadySentAndAwaitingFilling
+        {
+          mo.status = MarketOrderStatus.AlreadySentAndAwaitingFilling
+        }
         break
       case 'PartiallyFilled':
-        entry.status = MarketOrderStatus.PartiallyFilled
-        if (delta.data.price !== undefined && delta.data.price !== null) {
-          entry.price = delta.data.price
+        {
+          const { price } = delta.data
+          mo.status = MarketOrderStatus.PartiallyFilled
+          if (price !== undefined && price !== null) {
+            mo.price = price
+          }
         }
         break
       case 'Filled':
-        entry.status = MarketOrderStatus.Filled
-        if (delta.data.price !== undefined && delta.data.price !== null) {
-          entry.price = delta.data.price
+        {
+          const { price } = delta.data
+          mo.status = MarketOrderStatus.Filled
+          if (price !== undefined && price !== null) {
+            mo.price = price
+          }
         }
         break
       case 'Canceled':
-        entry.status = MarketOrderStatus.Canceled
+        {
+          mo.status = MarketOrderStatus.Canceled
+          device.failure_reason = null
+        }
         break
       case 'Rejected':
-        entry.status = MarketOrderStatus.Rejected
+        {
+          const { reason } = delta.data
+          mo.status = MarketOrderStatus.Rejected
+          device.failure_reason = reason || null
+        }
         break
     }
   }
 
-  function applyDeviceSgDeltaEvent(event: DeviceSgDeltaEvent) {
-    // Implementation goes here
+  function applyDeviceSgDeltaEvent(device: Device, event: DeviceSgDeltaEvent) {
+    const sg = device.state as StopGuardState
+    const delta: DeviceSgDelta = event.delta
+    switch (delta.kind) {
+      case 'Init':
+        {
+          const {
+            client_order_id,
+            covered_qty,
+            last_replacement_at,
+            last_status_check_at,
+            last_update_seen_at,
+            market_context,
+            position_side,
+            remote_order_id,
+            sent_at,
+            status,
+            stop_price,
+            symbol,
+            target_coverage,
+            topup_seq,
+            parent_device,
+          } = delta.data
+          sg.symbol = symbol
+          sg.market_context = market_context
+          sg.position_side = position_side
+          sg.stop_price = stop_price
+          sg.covered_qty = covered_qty
+          sg.target_coverage = target_coverage
+          sg.desired_qty = target_coverage
+          sg.client_order_id = client_order_id
+          sg.current_stop_client_id = client_order_id
+          sg.remote_order_id = remote_order_id
+          sg.current_stop_order_id = remote_order_id
+          sg.topup_seq = topup_seq
+          sg.sent_at = sent_at ? new Date(sent_at) : undefined
+          sg.last_update_seen_at = last_update_seen_at ? new Date(last_update_seen_at) : undefined
+          sg.last_status_check_at = last_status_check_at
+            ? new Date(last_status_check_at)
+            : undefined
+          sg.last_replacement_at = last_replacement_at ? new Date(last_replacement_at) : undefined
+          sg.last_reconcile_time = last_status_check_at ? new Date(last_status_check_at) : undefined
+          sg.last_topup_time = last_replacement_at ? new Date(last_replacement_at) : undefined
+          sg.status = status
+          if (parent_device) {
+            addDeviceChild(parent_device, device.id)
+          }
+        }
+        break
+      case 'Submitted':
+        {
+          const { order_id, quantity, topup_seq } = delta.data
+          sg.client_order_id = order_id
+          sg.current_stop_client_id = order_id
+          sg.covered_qty = quantity
+          sg.target_coverage = quantity
+          sg.desired_qty = quantity
+          sg.topup_seq = topup_seq
+          sg.sent_at = event.ts ? new Date(event.ts) : undefined
+          sg.status = StopGuardStatus.Working
+        }
+        break
+      case 'Replaced':
+        {
+          const { new_order_id, new_quantity, topup_seq } = delta.data
+          sg.client_order_id = new_order_id
+          sg.current_stop_client_id = new_order_id
+          sg.covered_qty = new_quantity
+          sg.target_coverage = new_quantity
+          sg.desired_qty = new_quantity
+          sg.topup_seq = topup_seq
+          sg.last_replacement_at = event.ts ? new Date(event.ts) : undefined
+          sg.last_topup_time = event.ts ? new Date(event.ts) : undefined
+          sg.status = StopGuardStatus.Working
+        }
+        break
+      case 'PartiallyFilled':
+        {
+          sg.status = StopGuardStatus.Triggered
+          sg.last_update_seen_at = event.ts ? new Date(event.ts) : undefined
+        }
+        break
+      case 'Filled':
+        {
+          sg.status = StopGuardStatus.Flat
+          sg.covered_qty = 0
+          sg.last_update_seen_at = event.ts ? new Date(event.ts) : undefined
+        }
+        break
+      case 'Canceled':
+        {
+          sg.status = StopGuardStatus.Canceled
+          sg.last_update_seen_at = event.ts ? new Date(event.ts) : undefined
+        }
+        break
+      case 'Rejected':
+        {
+          const { reason } = delta.data
+          sg.status = StopGuardStatus.Rejected
+          sg.last_update_seen_at = event.ts ? new Date(event.ts) : undefined
+          device.failure_reason = reason || null
+        }
+        break
+      case 'Threshold':
+        {
+          // not implemented
+        }
+        break
+      case 'Triggered':
+        {
+          // not implemented
+        }
+        break
+      case 'OrderUpdate':
+        {
+          // not implemented
+        }
+        break
+      case 'Coverage':
+        {
+          const { covered_qty, target_coverage, topup_seq } = delta.data
+          sg.covered_qty = covered_qty
+          sg.target_coverage = target_coverage
+          sg.desired_qty = target_coverage
+          sg.topup_seq = topup_seq
+        }
+        break
+    }
+  }
+
+  function applyDeviceSplitDeltaEvent(_device: Device, _event: DeviceSplitDeltaEvent) {
+    // TODO: implement handling once split deltas are defined
   }
 
   return {
@@ -189,18 +394,33 @@ export const useDeviceStore = defineStore('device', () => {
   }
 })
 
-export type Device = TrailingEntry | Split | MarketOrder | StopGuard
+export interface Device {
+  id: string
+  kind: string
+  associated_command_id: string
+
+  parent_device: string | null
+  children_devices: string[]
+  complete: boolean
+  failed: boolean
+  canceled: boolean
+  awaiting_children: boolean
+  failure_reason: string | null
+
+  state: DeviceState
+}
+
+export type DeviceState = TrailingEntry | SplitState | MarketOrderState | StopGuardState
+
 export type DeviceDeltaEvent =
   | DeviceTeDeltaEvent
   | DeviceMoDeltaEvent
   | DeviceSgDeltaEvent
   | DeviceSplitDeltaEvent
 
-export interface TrailingEntry {
-  // identity
-  id: string
-  kind: string
+export type DeviceDelta = DeviceTeDelta | DeviceSplitDelta | DeviceMoDelta | DeviceSgDelta
 
+export interface TrailingEntry {
   // parameters
   symbol: string
   market_context: MarketContext
@@ -231,27 +451,17 @@ export interface TrailingEntry {
   points_snapshot: number[]
   base_index: number // number of points discarded from the front (for absolute indexing)
   total_points: number // total points ever seen; indices are absolute in [0..total_points)
-  start_trigger_index?: number
-  end_trigger_index?: number
+  start_trigger_index: number | null
+  end_trigger_index: number | null
 }
 
-export interface Split {
-  // identity
-  id: string
-  kind: string
-
-  split_id: string // UUID as string
+export interface SplitState {
   symbol: string
   quantity: number
   price: number
 }
 
-export interface MarketOrder {
-  // identity
-  id: string
-  kind: string
-
-  market_order_id: string // UUID as string
+export interface MarketOrderState {
   market_context: MarketContext
   symbol: string
   order_side: OrderSide
@@ -260,23 +470,15 @@ export interface MarketOrder {
   price: number
 
   status: MarketOrderStatus
-  remote_id?: number
-  client_order_id?: string | null | undefined
+  remote_id: number | null
+  client_order_id: string | null
   // Runtime-only fields for reconciliation and health (not persisted)
-  sent_at?: Date
-  last_status_check_at?: Date
-  last_update_seen_at?: Date
+  sent_at: Date | null
+  last_status_check_at: Date | null
+  last_update_seen_at: Date | null
 }
 
-export interface StopGuard {
-  // identity
-  id: string
-  kind: string
-
-  // Hierarchy
-  parent_id: string // Parent TE device (UUID as string)
-  command_id: string // UUID as string
-
+export interface StopGuardState {
   // Market context
   symbol: string
   market_context: MarketContext
@@ -290,40 +492,78 @@ export interface StopGuard {
 
   // Order lifecycle
   status: StopGuardStatus
-  client_order_id?: string // Format: sg{short-uuid}-v{seq}
-  remote_order_id?: number // Exchange order ID
-  sent_at?: Date // When order was submitted
+  client_order_id?: string | null | undefined // Format: sg{short-uuid}-v{seq}
+  remote_order_id?: number | null | undefined // Exchange order ID
+  sent_at?: Date | null | undefined // When order was submitted
 
   // Reconciliation & versioning
   topup_seq: number
-  last_update_seen_at?: Date // Last WS OrderTradeUpdate
-  last_status_check_at?: Date // Last REST query
-  last_replacement_at?: Date // Last topup/resize
-  pending_replacement_from?: string // Old client_order_id being replaced, cleared on CANCELED receipt
+  last_update_seen_at?: Date | null | undefined // Last WS OrderTradeUpdate
+  last_status_check_at?: Date | null | undefined // Last REST query
+  last_replacement_at?: Date | null | undefined // Last topup/resize
+  pending_replacement_from?: string | null | undefined // Old client_order_id being replaced, cleared on CANCELED receipt
 
   created_at: Date
 
   // Legacy fields for backward compatibility
   target_split_id: string // Deprecated, use parent_id (UUID as string)
   desired_qty: number // Deprecated, use target_coverage
-  current_stop_order_id?: number // Deprecated, use remote_order_id
-  current_stop_client_id?: string // Deprecated, use client_order_id
-  last_topup_time?: Date // Deprecated, use last_replacement_at
-  last_reconcile_time?: Date // Deprecated, use last_status_check_at
+  current_stop_order_id?: number | null | undefined // Deprecated, use remote_order_id
+  current_stop_client_id?: string | null | undefined // Deprecated, use client_order_id
+  last_topup_time?: Date | null | undefined // Deprecated, use last_replacement_at
+  last_reconcile_time?: Date | null | undefined // Deprecated, use last_status_check_at
 }
 
-function createTrailingEntry(deviceId: string): TrailingEntry {
+function newDevice(deviceId: string, kind: string, command_id: string | null): Device {
+  if (command_id === null) {
+    throw new Error(`Cannot create device without associated command_id`)
+  }
+  const mappedKind =
+    {
+      DeviceTeDelta: 'TrailingEntry',
+      DeviceMoDelta: 'MarketOrder',
+      DeviceSgDelta: 'StopGuard',
+      DeviceSplitDelta: 'Split',
+    }[kind] || kind
+  const state = (() => {
+    switch (mappedKind || kind) {
+      case 'TrailingEntry':
+        return newTrailingEntryState()
+      case 'Split':
+        return newSplitSate()
+      case 'MarketOrder':
+        return newMarketOrderState()
+      case 'StopGuard':
+        return newStopGuardState()
+      default:
+        throw new Error(`Unknown device kind: ${kind}`)
+    }
+  })()
   return {
     id: deviceId,
-    kind: 'TrailingEntry',
+    kind: mappedKind,
+    associated_command_id: command_id,
+    parent_device: null,
+    children_devices: [],
+    complete: false,
+    failed: false,
+    canceled: false,
+    awaiting_children: false,
+    failure_reason: null,
+    state,
+  } as Device
+}
+
+function newTrailingEntryState(): TrailingEntry {
+  return {
     symbol: '',
-    market_context: {} as MarketContext,
-    position_side: {} as PositionSide,
+    market_context: { type: 'none' } as MarketContext,
+    position_side: PositionSide.Long,
     activation_price: 0,
     jump_frac_threshold: 0,
     stop_loss: 0,
     risk_amount: 0,
-    phase: {} as TrailingEntryPhase,
+    phase: TrailingEntryPhase.Initial,
     peak: 0,
     peak_index: 0,
     position_size: 0,
@@ -333,74 +573,64 @@ function createTrailingEntry(deviceId: string): TrailingEntry {
     cancelled: false,
     succeeded: false,
     stop_loss_hit: false,
-    lifecycle: {} as TrailingEntryLifecycle,
-    points: [],
+    points_snapshot: [],
     base_index: 0,
     total_points: 0,
-    start_trigger_index: undefined,
-    end_trigger_index: undefined,
+    start_trigger_index: null,
+    end_trigger_index: null,
+    lifecycle: TrailingEntryLifecycle.Running,
   }
 }
 
-function createSplit(deviceId: string): Split {
+function newMarketOrderState(): MarketOrderState {
   return {
-    id: deviceId,
-    kind: 'Split',
-    split_id: '',
+    market_context: { type: 'none' } as MarketContext,
+    symbol: '',
+    order_side: OrderSide.Buy,
+    quantity: 0,
+    position_side: PositionSide.Long,
+    price: 0,
+    status: MarketOrderStatus.NotYetSent,
+    remote_id: null,
+    client_order_id: null,
+    sent_at: null,
+    last_status_check_at: null,
+    last_update_seen_at: null,
+  }
+}
+
+function newSplitSate(): SplitState {
+  return {
     symbol: '',
     quantity: 0,
     price: 0,
   }
 }
 
-function createMarketOrder(deviceId: string): MarketOrder {
+function newStopGuardState(): StopGuardState {
   return {
-    id: deviceId,
-    kind: 'MarketOrder',
-    market_order_id: '',
-    market_context: {} as MarketContext,
     symbol: '',
-    order_side: {} as OrderSide,
-    quantity: 0,
-    position_side: {} as PositionSide,
-    price: 0,
-    status: {} as MarketOrderStatus,
-    remote_id: undefined,
-    client_order_id: undefined,
-    sent_at: undefined,
-    last_status_check_at: undefined,
-    last_update_seen_at: undefined,
-  }
-}
-
-function createStopGuard(deviceId: string): StopGuard {
-  return {
-    id: deviceId,
-    kind: 'StopGuard',
-    parent_id: '',
-    command_id: '',
-    symbol: '',
-    market_context: {} as MarketContext,
-    position_side: {} as PositionSide,
+    market_context: { type: 'none' } as MarketContext,
+    position_side: PositionSide.Long,
     stop_price: 0,
     use_mark_price: false,
     covered_qty: 0,
     target_coverage: 0,
-    status: {} as StopGuardStatus,
-    client_order_id: undefined,
-    remote_order_id: undefined,
-    sent_at: undefined,
+    status: StopGuardStatus.Working,
+    client_order_id: null,
+    remote_order_id: null,
+    sent_at: null,
     topup_seq: 0,
-    last_update_seen_at: undefined,
-    last_status_check_at: undefined,
-    last_replacement_at: undefined,
-    pending_replacement_from: undefined,
+    last_update_seen_at: null,
+    last_status_check_at: null,
+    last_replacement_at: null,
+    pending_replacement_from: null,
     created_at: new Date(),
     target_split_id: '',
     desired_qty: 0,
-    current_stop_order_id: undefined,
-    current_stop_client_id: undefined,
-    last_topup_time: undefined,
-    last_reconcile_time: undefined,
+    current_stop_order_id: null,
+    current_stop_client_id: null,
+    last_topup_time: null,
+    last_reconcile_time: null,
   }
 }
