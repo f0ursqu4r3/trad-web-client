@@ -1,33 +1,43 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
-  type MarketContext,
   MarketOrderStatus,
-  type DeviceTeDeltaEvent,
-  type DeviceMoDeltaEvent,
-  type DeviceSgDeltaEvent,
-  type DeviceSplitDeltaEvent,
-  type DeviceTeDelta,
-  type DeviceSplitDelta,
-  type DeviceMoDelta,
-  type DeviceSgDelta,
   OrderSide,
   PositionSide,
   StopGuardStatus,
   TrailingEntryLifecycle,
   TrailingEntryPhase,
+  type DeviceMoDelta,
+  type DeviceMoDeltaEvent,
+  type DeviceSgDelta,
+  type DeviceSgDeltaEvent,
+  type DeviceSplitDelta,
+  type DeviceSplitDeltaEvent,
+  type DeviceTeDelta,
+  type DeviceTeDeltaEvent,
+  type MarketContext,
 } from '@/lib/ws/protocol'
 
 export const useDeviceStore = defineStore('device', () => {
   const deviceMap = ref<Record<string, Device>>({})
 
   const devices = computed<Device[]>(() => Object.values(deviceMap.value))
+  const selectedDeviceId = ref<string | null>(null)
+  const selectedDevice = computed<Device | null>(() => {
+    if (!selectedDeviceId.value) return null
+    return deviceMap.value[selectedDeviceId.value] || null
+  })
+
   const tePoints = computed<number[]>(() => {
     // Find the first TrailingEntry device and return its points
     const teDevice = devices.value.find((d) => d.kind === 'TrailingEntry') as Device | undefined
     if (!teDevice) return []
     return (teDevice.state as TrailingEntry).points_snapshot
   })
+
+  function inspectDevice(deviceId: string) {
+    selectedDeviceId.value = deviceId
+  }
 
   function ensureDeviceRecord(deviceId: string, kind: string, command_id: string | null): Device {
     if (!(deviceId in deviceMap.value)) {
@@ -389,8 +399,11 @@ export const useDeviceStore = defineStore('device', () => {
     // state
     devices,
     tePoints,
+    selectedDeviceId,
+    selectedDevice,
     // actions
     handleDeviceUpdate,
+    inspectDevice,
   }
 })
 

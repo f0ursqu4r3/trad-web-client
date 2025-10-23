@@ -211,11 +211,64 @@ export const ArrowPathIcon: FunctionalComponent<{ size?: number | string }> = (p
 }
 ArrowPathIcon.displayName = 'ArrowPathIcon'
 
+export const CpuChipIcon: FunctionalComponent<{ size?: number | string }> = (props) => {
+  const size = props.size ?? 16
+  return h('svg', base(size, 'CPU Chip', 'icon cpu-chip-icon'), [
+    h('path', {
+      d: 'M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 0 0 2.25-2.25V6.75a2.25 2.25 0 0 0-2.25-2.25H6.75A2.25 2.25 0 0 0 4.5 6.75v10.5a2.25 2.25 0 0 0 2.25 2.25Zm.75-12h9v9h-9v-9Z',
+      'stroke-width': 1.5,
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+    }),
+  ])
+}
+CpuChipIcon.displayName = 'CpuChipIcon'
+
+export const ReceiptIcon: FunctionalComponent<{ size?: number | string }> = (props) => {
+  const size = props.size ?? 16
+  return h('svg', base(size, 'Receipt', 'icon receipt-icon'), [
+    h('path', {
+      d: 'M4.5 2.25A2.25 2.25 0 0 0 2.25 4.5v15a2.25 2.25 0 0 0 2.25 2.25h15a2.25 2.25 0 0 0 2.25-2.25V4.5a2.25 2.25 0 0 0-2.25-2.25H4.5Zm0 0v16.5m0-16.5h15m-15 0A2.25 2.25 0 0 1 6.75 2.25h12a2.25 2.25 0 0 1 2.25 2.25m-14.25 0v16.5m0-16.5h-2.25A2.25 2.25 0 0 0 2.25 4.5v15a2.25 2.25 0 0 0 2.25 2.25h15a2.25 2.25 0 0 0 2.25-2.25V4.5a2.25 2.25 0 0 0-2.25-2.25H4.5Z',
+    }),
+    h('path', { d: 'M7.5 7.5h9m-9 4.5h6' }),
+  ])
+}
+ReceiptIcon.displayName = 'ReceiptIcon'
+
+export const ArrowTrendingDownIcon: FunctionalComponent<{ size?: number | string }> = (props) => {
+  const size = props.size ?? 16
+  return h('svg', base(size, 'Trending Down', 'icon arrow-trending-down-icon'), [
+    h('path', {
+      d: 'M2.25 6L9 12.75l4.286-4.286a11.948 11.948 0 0 1 4.306 6.43l.776 2.898m0 0 3.182-5.511m-3.182 5.51-5.511-3.181',
+      'stroke-width': 1.5,
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+    }),
+  ])
+}
+ArrowTrendingDownIcon.displayName = 'ArrowTrendingDownIcon'
+
+export const ArrowTrendingUpIcon: FunctionalComponent<{ size?: number | string }> = (props) => {
+  const size = props.size ?? 16
+  return h('svg', base(size, 'Trending Up', 'icon arrow-trending-up-icon'), [
+    h('path', {
+      d: 'M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941',
+      'stroke-width': 1.5,
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+    }),
+  ])
+}
+ArrowTrendingUpIcon.displayName = 'ArrowTrendingUpIcon'
+
 export default {
   ArrowPathIcon,
+  ArrowTrendingDownIcon,
+  ArrowTrendingUpIcon,
   BoltIcon,
   CogIcon,
   ComputerDesktopIcon,
+  CpuChipIcon,
   DownIcon,
   FileIcon,
   FolderIcon,
@@ -225,6 +278,7 @@ export default {
   MenuDotsIcon,
   MoonIcon,
   PlusIcon,
+  ReceiptIcon,
   SparklesIcon,
   StarIcon,
   SunIcon,

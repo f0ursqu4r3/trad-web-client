@@ -29,3 +29,12 @@ export function getv(obj: Record<string, unknown>, key: string, def: unknown): u
 export function deepClone<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj))
 }
+
+export function formatName(name: string): string {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2') // camelCase to words
+    .replace(/[_\-]+/g, ' ') // underscores/hyphens to spaces
+    .replace(/\s+/g, ' ') // multiple spaces to single space
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase()) // capitalize first letter of each word
+}

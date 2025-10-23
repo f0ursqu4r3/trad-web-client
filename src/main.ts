@@ -8,13 +8,13 @@ import './assets/main.css'
 import App from './App.vue'
 import router from './router'
 
-import TerminalLogPanel from '@/components/terminal/panels/LogPanel.vue'
-import TerminalChartPanel from '@/components/terminal/panels/ChartPanel.vue'
-import TerminalOrderTree from '@/components/terminal/panels/OrderTreePanel.vue'
-import TerminalEntriesPanel from '@/components/terminal/panels/EntriesPanel.vue'
-import TerminalCommandInput from '@/components/terminal/panels/CommandInputPanel.vue'
-import TerminalDeviceDetails from '@/components/terminal/panels/DeviceDetailsPanel.vue'
-import TerminalInboundDebug from './components/terminal/panels/InboundDebugPanel.vue'
+import LogPanel from '@/components/terminal/panels/LogPanel.vue'
+import ChartPanel from '@/components/terminal/panels/ChartPanel.vue'
+import DeviceTreePanel from '@/components/terminal/panels/DeviceTreePanel.vue'
+import EntriesPanel from '@/components/terminal/panels/EntriesPanel.vue'
+import CommandInputPanel from '@/components/terminal/panels/CommandInputPanel.vue'
+import DeviceDetailsPanel from '@/components/terminal/panels/DeviceDetailsPanel.vue'
+import InboundDebugPanel from './components/terminal/panels/InboundDebugPanel.vue'
 
 import { auth0, setAuth0Client } from '@/plugins/auth0'
 import { useUiStore } from '@/stores/ui'
@@ -29,13 +29,13 @@ app.use(router)
 app.use(auth0)
 setAuth0Client(app.config.globalProperties.$auth0)
 
-app.component('LogPanel', TerminalLogPanel)
-app.component('ChartPanel', TerminalChartPanel)
-app.component('OrderTree', TerminalOrderTree)
-app.component('EntriesPanel', TerminalEntriesPanel)
-app.component('CommandInput', TerminalCommandInput)
-app.component('DeviceDetails', TerminalDeviceDetails)
-app.component('InboundDebug', TerminalInboundDebug)
+app.component('LogPanel', LogPanel)
+app.component('ChartPanel', ChartPanel)
+app.component('DeviceTreePanel', DeviceTreePanel)
+app.component('EntriesPanel', EntriesPanel)
+app.component('CommandInputPanel', CommandInputPanel)
+app.component('DeviceDetailsPanel', DeviceDetailsPanel)
+app.component('InboundDebugPanel', InboundDebugPanel)
 
 app.mount('#app')
 

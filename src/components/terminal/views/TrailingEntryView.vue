@@ -1,14 +1,14 @@
 <template>
-  <div class="dockview-wrapper dockview-theme-trad">
+  <div class="w-full h-full">
     <DockviewVue
-      class="dv-instance"
+      class="w-full h-full"
       @ready="onReady"
       :theme="currentTheme"
       single-tab-mode="fullwidth"
       :components="{
         ChartPanel: mountComponent('ChartPanel'),
         // OrderTree: mountComponent('OrderTree'),
-        EntriesPanel: mountComponent('EntriesPanel'),
+        DeviceDetailsPanel: mountComponent('DeviceDetailsPanel'),
       }"
     />
   </div>
@@ -49,8 +49,8 @@ function buildDefaultLayout(event: DockviewReadyEvent) {
     })
     event.api.addPanel({
       id: 'entries',
-      component: 'EntriesPanel',
-      title: 'Entries',
+      component: 'DeviceDetailsPanel',
+      title: 'Device Details',
       position: { referencePanel: 'chart', direction: 'below' },
     })
     // event.api.addPanel({
@@ -112,17 +112,3 @@ function mountComponent(componentName: string) {
   }
 }
 </script>
-
-<style scoped>
-.dockview-wrapper {
-  flex-grow: 1;
-  inset: 0;
-  box-sizing: border-box;
-  user-select: none;
-}
-
-.dv-instance {
-  width: 100%;
-  height: 100%;
-}
-</style>

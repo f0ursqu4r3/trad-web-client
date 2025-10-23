@@ -1,57 +1,38 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useTerminalStore } from '@/stores/terminal'
+import { useDeviceStore } from '@/stores/devices'
+import type { TrailingEntry } from '@/stores/devices'
+import TrailingEntryDevice from '@/components/terminal/devices/TrailingEntryDevice.vue'
 
-const { selectedDevice } = storeToRefs(useTerminalStore())
+const { selectedDevice } = storeToRefs(useDeviceStore())
+
+const deviceComp = computed(() => {
+  if (!selectedDevice.value) return null
+  switch (selectedDevice.value.kind) {
+    case 'TrailingEntry':
+      return TrailingEntryDevice
+    default:
+      return null
+  }
+})
 </script>
 
 <template>
-  <section class="device-details" v-if="selectedDevice">
-    <dl>
-      <div>
-        <dt>ID</dt>
-        <dd>{{ selectedDevice.id }}</dd>
-      </div>
-      <div>
-        <dt>Dir</dt>
-        <dd>{{ selectedDevice.direction }}</dd>
-      </div>
-      <div>
-        <dt>Activation</dt>
-        <dd>{{ selectedDevice.activationPrice }}</dd>
-      </div>
-      <div>
-        <dt>Status</dt>
-        <dd>{{ selectedDevice.status }}</dd>
-      </div>
-      <div v-if="selectedDevice.entryPrice">
-        <dt>Entry</dt>
-        <dd>{{ selectedDevice.entryPrice }}</dd>
-      </div>
-    </dl>
-  </section>
-  <section class="panel device-details" v-else>
-    <header class="panel-header">Device</header>
-    <div style="padding: 6px; font-size: 12px; opacity: 0.7">No device selected.</div>
+  <section class="relative flex flex-col min-h-0 w-full h-full">
+    <div v-if="selectedDevice" class="w-full h-full overflow-auto">
+      <component
+        v-if="deviceComp"
+        :is="deviceComp"
+        :device="selectedDevice.state as TrailingEntry"
+        class="w-full h-full"
+      />
+    </div>
+    <div
+      v-else
+      class="flex items-center justify-center h-full text-[var(--color-text-dim)] text-sm"
+    >
+      No device selected
+    </div>
   </section>
 </template>
-
-<style scoped>
-.device-details {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-}
-.device-details dl {
-  margin: 0;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 2px 8px;
-  padding: 6px;
-}
-.device-details dt {
-  opacity: 0.6;
-}
-</style>

@@ -28,7 +28,7 @@
     <template #secondary>
       <div class="panel">
         <div class="panel-header dim">devices</div>
-        <OrderTreePanel />
+        <DeviceTreePanel />
       </div>
     </template>
   </SplitView>
@@ -38,7 +38,7 @@
 import SplitView from '@/components/general/SplitView.vue'
 import InboundDebugPanel from '@/components/terminal/panels/InboundDebugPanel.vue'
 import CommandPanel from '@/components/terminal/panels/CommandPanel.vue'
-import OrderTreePanel from '../panels/OrderTreePanel.vue'
+import DeviceTreePanel from '../panels/DeviceTreePanel.vue'
 </script>
 
 <style scoped>
