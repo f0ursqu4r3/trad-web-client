@@ -28,12 +28,17 @@ export const useDeviceStore = defineStore('device', () => {
     return deviceMap.value[selectedDeviceId.value] || null
   })
 
-  const tePoints = computed<number[]>(() => {
+  const teDevice = computed<TrailingEntry | null>(() => {
     // Find the first TrailingEntry device and return its points
     const teDevice = devices.value.find((d) => d.kind === 'TrailingEntry') as Device | undefined
-    if (!teDevice) return []
-    return (teDevice.state as TrailingEntry).points_snapshot
+    if (!teDevice) return null
+    return teDevice.state as TrailingEntry
   })
+
+  function clearDevices() {
+    deviceMap.value = {}
+    selectedDeviceId.value = null
+  }
 
   function inspectDevice(deviceId: string) {
     selectedDeviceId.value = deviceId
@@ -398,12 +403,13 @@ export const useDeviceStore = defineStore('device', () => {
   return {
     // state
     devices,
-    tePoints,
+    teDevice,
     selectedDeviceId,
     selectedDevice,
     // actions
     handleDeviceUpdate,
     inspectDevice,
+    clearDevices,
   }
 })
 

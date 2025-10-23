@@ -145,7 +145,7 @@
   --color-text: #f5e9ff;
   --color-text-dim: #c9b2d9;
   --accent-color: #ff6ec7; /* neon magenta */
-  --color-bg-secondary: #1d1227;
+  --color-bg-secondary: #1a0f23;
   --color-bg-tertiary: #271534;
 
   /* Status / semantic */
@@ -234,6 +234,8 @@
   --panel-border-inner: #45444f; /* subtle inner separation */
   --border-color: #646365; /* border_normal */
   --color-border-strong: #f2f0e5; /* border_active (high contrast) */
+  --color-bg-secondary: #45444f;
+  --color-bg-tertiary: #45444f;
 
   /* Typography / text */
   --color-text: #f2f0e5; /* text_default */
@@ -322,6 +324,8 @@
   --panel-border-inner: #45230d; /* subtle inner line */
   --border-color: #392a1c; /* neutral border */
   --color-border-strong: #efd8a1; /* parchment highlight */
+  --color-bg-secondary: #2a1d0d;
+  --color-bg-tertiary: #392a1c;
 
   /* Text */
   --color-text: #efd8a1; /* primary readable */
@@ -402,6 +406,8 @@
   --panel-border-inner: #515151; /* selection as inner divider */
   --border-color: #515151; /* normal border */
   --color-border-strong: #666666; /* stronger edge */
+  --color-bg-secondary: #393939;
+  --color-bg-tertiary: #515151;
 
   /* Typography */
   --color-text: #cccccc; /* foreground */

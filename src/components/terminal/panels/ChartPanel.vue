@@ -7,23 +7,53 @@ import {
   type ISeriesApi,
   type AreaData,
   type UTCTimestamp,
+  type CreatePriceLineOptions,
 } from 'lightweight-charts'
 import { storeToRefs } from 'pinia'
-import { useTerminalStore } from '@/stores/terminal'
 import { useDeviceStore } from '@/stores/devices'
 
-const terminalStore = useTerminalStore()
-const deviceStore = useDeviceStore()
+const store = useDeviceStore()
 
-const { selectedDeviceId } = storeToRefs(terminalStore)
+const { selectedDeviceId, teDevice } = storeToRefs(store)
 
-const devicePoints = computed(
-  () =>
-    deviceStore.tePoints.map((price, idx) => ({
+const containerEl = ref<HTMLDivElement | null>(null)
+let chart: IChartApi | null = null
+let series: ISeriesApi<'Area'> | null = null
+// let resizeObserver: ResizeObserver | null = null
+
+const devicePoints = computed(() => {
+  if (!teDevice.value) return []
+  console.log('teDevice', teDevice.value)
+  return (
+    (teDevice.value?.points_snapshot.map((price, idx) => ({
       idx,
       price,
-    })) as Array<{ idx: number; price: number; ts?: number }>,
-)
+    })) as Array<{ idx: number; price: number; ts?: number }>) || []
+  )
+})
+
+const priceLines = computed<CreatePriceLineOptions[]>(() => {
+  const te = teDevice.value
+  if (!te) return []
+  return [
+    {
+      price: te.activation_price,
+      color: '#f7a529',
+      lineWidth: 1,
+      lineStyle: 2, // Dashed
+      axisLabelVisible: true,
+      title: 'Activation Price',
+    },
+    {
+      price: te.stop_loss,
+      color: '#f74e4e',
+      lineWidth: 1,
+      lineStyle: 2, // Dashed
+      axisLabelVisible: true,
+      title: 'Stop Loss',
+    },
+  ]
+})
 
 const chartSeriesData = computed<AreaData[]>(() => {
   const points = devicePoints.value
@@ -41,29 +71,6 @@ const chartSeriesData = computed<AreaData[]>(() => {
   })
 })
 
-const displayLastPrice = computed(() => {
-  const data = chartSeriesData.value
-  if (!data.length) return null
-  return data[data.length - 1]?.value ?? null
-})
-const containerEl = ref<HTMLDivElement | null>(null)
-let chart: IChartApi | null = null
-let series: ISeriesApi<'Area'> | null = null
-let resizeObserver: ResizeObserver | null = null
-
-function resizeChart() {
-  if (!chart || !containerEl.value) return
-  const { clientWidth: width, clientHeight: height } = containerEl.value
-  if (width === 0 || height === 0) return
-  chart.applyOptions({ width, height })
-  // Keep timescale fitted after a structural resize
-  try {
-    chart.timeScale().fitContent()
-  } catch {
-    /* noop */
-  }
-}
-
 onMounted(() => {
   if (!containerEl.value) return
   chart = createChart(containerEl.value, {
@@ -77,10 +84,9 @@ onMounted(() => {
       },
     },
     timeScale: { borderColor: '#2a3139' },
-    // Width/height will be set explicitly via resizeChart
-    width: containerEl.value.clientWidth,
-    height: containerEl.value.clientHeight,
   })
+
+  // Add area series
   series = chart.addSeries(AreaSeries, {
     lineColor: '#2f81f7',
     topColor: 'rgba(47,129,247,0.25)',
@@ -88,6 +94,12 @@ onMounted(() => {
     lineWidth: 2,
     pointMarkersVisible: false,
   })
+
+  // Add price lines
+  priceLines.value.forEach((line) => {
+    series?.createPriceLine(line)
+  })
+
   const initial = chartSeriesData.value
   if (initial.length && series) {
     series.setData(initial)
@@ -97,13 +109,6 @@ onMounted(() => {
       /* noop */
     }
   }
-
-  // Observe container resize
-  resizeObserver = new ResizeObserver(() => resizeChart())
-  resizeObserver.observe(containerEl.value)
-  window.addEventListener('resize', resizeChart)
-  // Initial explicit resize
-  resizeChart()
 })
 
 watch(
@@ -124,29 +129,49 @@ watch(
   { immediate: true },
 )
 
-watch(
-  () => selectedDeviceId.value,
-  () => {
-    if (!series) return
-    series.setData([])
-  },
-)
+watch(priceLines, (lines) => {
+  if (!series) return
+  series.priceLines().forEach((pl) => {
+    series?.removePriceLine(pl)
+  })
+  lines.forEach((line) => {
+    series?.createPriceLine(line)
+  })
+})
+
+watch(selectedDeviceId, () => {
+  if (!series) return
+  const initial = chartSeriesData.value
+  if (initial.length && series) {
+    series.setData(initial)
+    try {
+      chart?.timeScale().fitContent()
+    } catch {
+      /* noop */
+    }
+  }
+})
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', resizeChart)
-  resizeObserver?.disconnect()
+  if (!series) return
+  const initial = chartSeriesData.value
+  if (initial.length && series) {
+    series.setData(initial)
+    try {
+      chart?.timeScale().fitContent()
+    } catch {
+      /* noop */
+    }
+  }
+})
+
+onBeforeUnmount(() => {
   chart?.remove()
 })
 </script>
 
 <template>
   <section class="relative flex flex-col min-h-0 w-full h-full">
-    <header class="ml-2 text-sm font-medium flex items-center h-8 border-b border-gray-600/60">
-      Chart
-      <span class="ml-2 text-(--accent-color)">
-        {{ displayLastPrice !== null ? displayLastPrice.toFixed(2) : '—' }}
-      </span>
-    </header>
-    <div ref="containerEl" class="flex w-full h-full" />
+    <div ref="containerEl" class="w-full h-full" />
   </section>
 </template>

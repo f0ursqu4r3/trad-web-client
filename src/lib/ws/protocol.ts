@@ -14,12 +14,12 @@ export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 // ==============================================================================================
 
 export enum OrderSide {
-  Buy = 'BUY',
-  Sell = 'SELL',
+  Buy = 'Buy',
+  Sell = 'Sell',
 }
 export enum PositionSide {
-  Long = 'LONG',
-  Short = 'SHORT',
+  Long = 'Long',
+  Short = 'Short',
 }
 export enum MarketAction {
   Buy = 'Buy',

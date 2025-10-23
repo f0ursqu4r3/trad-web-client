@@ -2,7 +2,7 @@ import type { CommandDevicesListData, CommandHistoryItem, Uuid } from '@/lib/ws/
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useWsStore } from '@/stores/ws'
-
+import { useDeviceStore } from '@/stores/devices'
 export interface PendingCommand {
   commandId: string
   sentAt: number
@@ -16,6 +16,7 @@ const interestingCommandKinds = ['TrailingEntryOrder']
 
 export const useCommandStore = defineStore('command', () => {
   const ws = useWsStore()
+  const deviceStore = useDeviceStore()
 
   const pendingCommands = ref<Record<Uuid, PendingCommand>>({})
 
@@ -69,6 +70,7 @@ export const useCommandStore = defineStore('command', () => {
 
   function inspectCommand(commandId: string | null) {
     selectedCommandId.value = commandId
+    deviceStore.clearDevices()
     if (!commandId) return
     ws.inspectCommand(commandId)
   }

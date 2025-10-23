@@ -1,73 +1,119 @@
-/* Dockview theming */
-@layer components {
-  .dockview-theme-trad {
-    --dv-activegroup-background: var(--panel-bg);
-    --dv-group-view-background: var(--panel-bg);
-    --dv-tabs-container-background: var(--panel-header-bg);
-    --dv-paneview-header-background: var(--panel-header-bg);
-    --dv-color: var(--color-text-dim);
-    --dv-separator-color: var(--border-color);
-    --dv-floatingbox-shadow: 0 0 0 1px var(--border-color), 0 4px 16px rgba(0, 0, 0, 0.1);
-  }
-  [data-theme='dark'] .dockview-theme-trad,
-  [data-theme='synthwave'] .dockview-theme-trad {
-    --dv-floatingbox-shadow: 0 0 0 1px var(--border-color), 0 4px 16px rgba(0, 0, 0, 0.4);
-  }
-  .dockview-theme-trad .dv-tabs-and-actions-container {
-    font-family: var(--font-mono);
-    font-size: 11px;
-  }
-  .dockview-theme-trad .dv-tab,
-  .dockview-theme-trad .dv-default-tab {
-    align-content: center;
-    padding: 0 4px;
-  }
-  .dockview-theme-trad .dv-tab.dockview-active {
-    color: var(--color-text);
-    background: #222a31;
-    position: relative;
-  }
-  .dockview-theme-trad .dv-tab.dockview-active::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 2px;
-    background: var(--accent-color);
-  }
-  .dockview-theme-trad .dv-paneview-header {
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-size: 11px;
-  }
-  .dockview-theme-trad .dv-tab:hover:not(.dockview-active) {
-    background: #1e252b;
-    color: var(--color-text);
-  }
-  .dockview-theme-trad .dv-tab:focus-visible {
-    outline: 2px solid var(--accent-color);
-    outline-offset: -2px;
-  }
-  .dockview-theme-trad .dv-drop-target-overlay {
-    box-shadow:
-      0 0 0 1px var(--accent-color),
-      0 0 0 3px color-mix(in srgb, var(--accent-color) 35%, transparent);
-    border-radius: 4px;
-  }
-  .dockview-theme-trad .dv-sash {
-    background: transparent;
-  }
-  .dockview-theme-trad .dv-sash:hover {
-    background: #2a323a;
-  }
-  .dockview-theme-trad .dv-sash.active {
-    background: var(--accent-color);
-  }
-  [data-theme='dark'] .button {
-    --btn-bg-start: #3e3e3e;
-    --btn-bg-end: #2a2a2a;
-    --btn-border: #555;
-    --btn-fg: #e8e8e8;
-  }
+/* Dockview theme integration with design tokens */
+/* Override dockview's default theme variables with explicit targeting */
+
+/* Target the trad-dockview class and all dockview internal elements */
+.trad-dockview,
+.trad-dockview .dv-dockview,
+.trad-dockview .dv-groupview,
+.trad-dockview .dv-tabs-and-actions-container,
+.trad-dockview .dv-tab {
+  /* Core layout and sizing (matching dockview defaults) */
+  --dv-tabs-and-actions-container-font-size: 13px !important;
+  --dv-tabs-and-actions-container-height: 32px !important;
+  --dv-tab-close-icon: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><path fill="currentColor" d="M6 4.586L2.707 1.293a1 1 0 00-1.414 1.414L4.586 6 1.293 9.293a1 1 0 101.414 1.414L6 7.414l3.293 3.293a1 1 0 001.414-1.414L7.414 6l3.293-3.293a1 1 0 00-1.414-1.414L6 4.586z"/></svg>') !important;
+
+  /* Background and surface colors */
+  --dv-background-color: var(--color-bg) !important;
+  --dv-group-view-background-color: var(--panel-bg) !important;
+  --dv-tabs-and-actions-container-background-color: var(--panel-header-bg) !important;
+
+  /* Active group tabs */
+  --dv-activegroup-visiblepanel-tab-background-color: var(--panel-header-bg) !important;
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--color-bg-tertiary) !important;
+  --dv-activegroup-visiblepanel-tab-color: var(--color-text) !important;
+  --dv-activegroup-hiddenpanel-tab-color: var(--color-text-dim) !important;
+
+  /* Inactive group tabs */
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--color-bg-secondary) !important;
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--color-bg-tertiary) !important;
+  --dv-inactivegroup-visiblepanel-tab-color: var(--color-text-dim) !important;
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--color-text-dim) !important;
+
+  /* Borders and dividers */
+  --dv-separator-border: 1px solid var(--border-color) !important;
+  --dv-paneview-header-border-color: var(--panel-border-inner) !important;
+  --dv-tab-divider-color: var(--panel-border-inner) !important;
+  --dv-paneview-active-outline-color: var(--accent-color) !important;
+  --dv-active-sash-color: var(--accent-color) !important;
+  --dv-sash-color: var(--border-color) !important;
+
+  /* Interactive states */
+  --dv-icon-hover-background-color: color-mix(
+    in srgb,
+    var(--accent-color) 15%,
+    transparent
+  ) !important;
+  --dv-drag-over-background-color: color-mix(
+    in srgb,
+    var(--accent-color) 10%,
+    transparent
+  ) !important;
+  --dv-drag-over-border-color: var(--accent-color) !important;
+
+  /* Scrollbar styling */
+  --dv-tabs-container-scrollbar-color: var(--scrollbar-thumb) !important;
+  --dv-scrollbar-background-color: var(--scrollbar-track) !important;
+
+  /* Shadow for floating panels */
+  --dv-floating-box-shadow:
+    0 4px 8px color-mix(in srgb, var(--color-text) 15%, transparent),
+    0 1px 3px color-mix(in srgb, var(--color-text) 25%, transparent) !important;
+
+  /* Additional variables found in dockview source */
+  --dv-tab-font-size: inherit !important;
+  --dv-border-radius: 0px !important;
+  --dv-tab-margin: 0 !important;
+  --dv-active-sash-transition-duration: 0.1s !important;
+  --dv-active-sash-transition-delay: 0.5s !important;
+  --dv-overlay-z-index: 999 !important;
+}
+
+/* Dark theme overrides */
+[data-theme='dark'] .trad-dockview,
+[data-theme='dark'] .trad-dockview .dv-dockview,
+[data-theme='dark'] .trad-dockview .dv-groupview {
+  --dv-floating-box-shadow:
+    0 4px 16px color-mix(in srgb, #000000 40%, transparent),
+    0 1px 4px color-mix(in srgb, #000000 60%, transparent) !important;
+}
+
+/* Synthwave theme overrides */
+[data-theme='synthwave'] .trad-dockview,
+[data-theme='synthwave'] .trad-dockview .dv-dockview,
+[data-theme='synthwave'] .trad-dockview .dv-groupview {
+  --dv-floating-box-shadow:
+    0 4px 16px color-mix(in srgb, #000000 50%, transparent),
+    0 1px 4px color-mix(in srgb, var(--accent-color) 20%, transparent),
+    0 0 8px color-mix(in srgb, var(--accent-color) 10%, transparent) !important;
+
+  /* Enhanced glow effects for neon theme */
+  --dv-paneview-active-outline-color: var(--accent-color) !important;
+  --dv-active-sash-color: var(--accent-color) !important;
+}
+
+/* Legacy theme overrides */
+[data-theme='legacy'] .trad-dockview,
+[data-theme='legacy'] .trad-dockview .dv-dockview,
+[data-theme='legacy'] .trad-dockview .dv-groupview {
+  --dv-floating-box-shadow:
+    0 4px 12px color-mix(in srgb, #000000 35%, transparent),
+    0 1px 3px color-mix(in srgb, #000000 50%, transparent) !important;
+}
+
+/* Fantasy24 theme overrides */
+[data-theme='fantasy24'] .trad-dockview,
+[data-theme='fantasy24'] .trad-dockview .dv-dockview,
+[data-theme='fantasy24'] .trad-dockview .dv-groupview {
+  --dv-floating-box-shadow:
+    0 4px 12px color-mix(in srgb, #000000 45%, transparent),
+    0 1px 3px color-mix(in srgb, var(--color-text) 20%, transparent) !important;
+}
+
+/* Tomorrow Night 80s theme overrides */
+[data-theme='tomorrowNight80s'] .trad-dockview,
+[data-theme='tomorrowNight80s'] .trad-dockview .dv-dockview,
+[data-theme='tomorrowNight80s'] .trad-dockview .dv-groupview {
+  --dv-floating-box-shadow:
+    0 4px 12px color-mix(in srgb, #000000 40%, transparent),
+    0 1px 3px color-mix(in srgb, #000000 55%, transparent) !important;
 }

@@ -1,13 +1,11 @@
 <template>
-  <div class="w-full h-full">
+  <div class="w-full h-full panel">
     <DockviewVue
-      class="w-full h-full"
+      class="trad-dockview w-full h-full"
       @ready="onReady"
-      :theme="currentTheme"
       single-tab-mode="fullwidth"
       :components="{
         ChartPanel: mountComponent('ChartPanel'),
-        // OrderTree: mountComponent('OrderTree'),
         DeviceDetailsPanel: mountComponent('DeviceDetailsPanel'),
       }"
     />
@@ -15,30 +13,13 @@
 </template>
 
 <script setup lang="ts">
-import { createApp, h, type Component, ref, computed } from 'vue'
-import { DockviewVue, type DockviewReadyEvent, themeDark, themeLight } from 'dockview-vue'
-import { useUiStore } from '@/stores/ui'
+import { createApp, h, type Component, ref } from 'vue'
+import { DockviewVue, type DockviewReadyEvent } from 'dockview-vue'
 
-const ui = useUiStore()
-
-const currentTheme = computed(() => (ui.theme === 'light' ? themeLight : themeDark))
-
-const LAYOUT_KEY = 'te-long-command-layout'
+const LAYOUT_KEY = 'trailing-entry-view-layout'
 
 type DockviewApi = DockviewReadyEvent['api']
 const apiRef = ref<DockviewApi | null>(null)
-
-// interface PanelDef {
-//   id: string
-//   component: string
-//   title: string
-// }
-
-// const ALL_PANELS: PanelDef[] = [
-//   { id: 'tree', component: 'OrderTree', title: 'Tree' },
-//   { id: 'chart', component: 'ChartPanel', title: 'Chart' },
-//   { id: 'entries', component: 'EntriesPanel', title: 'Entries' },
-// ]
 
 function buildDefaultLayout(event: DockviewReadyEvent) {
   try {
@@ -53,12 +34,6 @@ function buildDefaultLayout(event: DockviewReadyEvent) {
       title: 'Device Details',
       position: { referencePanel: 'chart', direction: 'below' },
     })
-    // event.api.addPanel({
-    //   id: 'tree',
-    //   component: 'OrderTree',
-    //   title: 'Devices',
-    //   position: { referencePanel: 'entries', direction: 'below' },
-    // })
   } catch (e) {
     console.error('[Dockview Layout Error]', e)
   }
