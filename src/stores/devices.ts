@@ -400,6 +400,13 @@ export const useDeviceStore = defineStore('device', () => {
     // TODO: implement handling once split deltas are defined
   }
 
+  function setTePriceLine(line: 'activation_price' | 'stop_loss', price: number) {
+    const te = teDevice.value
+    if (!te) return
+    if (!Number.isFinite(price)) return
+    te[line] = price
+  }
+
   return {
     // state
     devices,
@@ -410,6 +417,7 @@ export const useDeviceStore = defineStore('device', () => {
     handleDeviceUpdate,
     inspectDevice,
     clearDevices,
+    setTePriceLine,
   }
 })
 

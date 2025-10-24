@@ -7,22 +7,35 @@ import {
   type ISeriesApi,
   type AreaData,
   type UTCTimestamp,
-  type CreatePriceLineOptions,
 } from 'lightweight-charts'
 import { storeToRefs } from 'pinia'
 import { useDeviceStore } from '@/stores/devices'
+import {
+  createDraggablePriceLinesPlugin,
+  type DraggablePriceLineDefinition,
+  type DraggablePriceLineDragEvent,
+  type DraggablePriceLinesPluginApi,
+} from '@/lib/chart/draggablePriceLines'
 
 const store = useDeviceStore()
 
 const { selectedDeviceId, teDevice } = storeToRefs(store)
 
+const emit = defineEmits<{
+  (e: 'price-line-drag-start', payload: DraggablePriceLineDragEvent): void
+  (e: 'price-line-drag', payload: DraggablePriceLineDragEvent): void
+  (e: 'price-line-drag-end', payload: DraggablePriceLineDragEvent): void
+  (e: 'price-line-click', payload: DraggablePriceLineDragEvent): void
+  (e: 'price-line-dblclick', payload: DraggablePriceLineDragEvent): void
+}>()
+
 const containerEl = ref<HTMLDivElement | null>(null)
 let chart: IChartApi | null = null
 let series: ISeriesApi<'Area'> | null = null
+let draggableLinesPlugin: DraggablePriceLinesPluginApi | null = null
 
 const devicePoints = computed(() => {
   if (!teDevice.value) return []
-  console.log('teDevice', teDevice.value)
   return (
     (teDevice.value?.points_snapshot.map((price, idx) => ({
       idx,
@@ -31,25 +44,31 @@ const devicePoints = computed(() => {
   )
 })
 
-const priceLines = computed<CreatePriceLineOptions[]>(() => {
+const draggableLines = computed<DraggablePriceLineDefinition[]>(() => {
   const te = teDevice.value
   if (!te) return []
   return [
     {
-      price: te.activation_price,
-      color: '#f7a529',
-      lineWidth: 1,
-      lineStyle: 2, // Dashed
-      axisLabelVisible: true,
-      title: 'Activation Price',
+      id: 'activation_price',
+      options: {
+        price: te.activation_price,
+        color: '#f7a529',
+        lineWidth: 1,
+        lineStyle: 2, // Dashed
+        axisLabelVisible: true,
+        title: 'Activation Price',
+      },
     },
     {
-      price: te.stop_loss,
-      color: '#f74e4e',
-      lineWidth: 1,
-      lineStyle: 2, // Dashed
-      axisLabelVisible: true,
-      title: 'Stop Loss',
+      id: 'stop_loss',
+      options: {
+        price: te.stop_loss,
+        color: '#f74e4e',
+        lineWidth: 1,
+        lineStyle: 2, // Dashed
+        axisLabelVisible: true,
+        title: 'Stop Loss',
+      },
     },
   ]
 })
@@ -94,10 +113,28 @@ onMounted(() => {
     pointMarkersVisible: false,
   })
 
-  // Add price lines
-  priceLines.value.forEach((line) => {
-    series?.createPriceLine(line)
-  })
+  if (series) {
+    draggableLinesPlugin = createDraggablePriceLinesPlugin(series, {
+      lines: draggableLines.value,
+      onDragStart: (event) => {
+        emitPriceLineEvent('price-line-drag-start', event)
+      },
+      onDrag: (event) => {
+        handleTrackedLineUpdate(event)
+        emitPriceLineEvent('price-line-drag', event)
+      },
+      onDragEnd: (event) => {
+        handleTrackedLineUpdate(event)
+        emitPriceLineEvent('price-line-drag-end', event)
+      },
+      onClick: (event) => {
+        emitPriceLineEvent('price-line-click', event)
+      },
+      onDblClick: (event) => {
+        emitPriceLineEvent('price-line-dblclick', event)
+      },
+    })
+  }
 
   const initial = chartSeriesData.value
   if (initial.length && series) {
@@ -128,15 +165,14 @@ watch(
   { immediate: true },
 )
 
-watch(priceLines, (lines) => {
-  if (!series) return
-  series.priceLines().forEach((pl) => {
-    series?.removePriceLine(pl)
-  })
-  lines.forEach((line) => {
-    series?.createPriceLine(line)
-  })
-})
+watch(
+  draggableLines,
+  (lines) => {
+    if (!draggableLinesPlugin) return
+    draggableLinesPlugin.setLines(lines)
+  },
+  { deep: true },
+)
 
 watch(selectedDeviceId, () => {
   if (!series) return
@@ -165,8 +201,53 @@ onBeforeUnmount(() => {
 })
 
 onBeforeUnmount(() => {
+  draggableLinesPlugin?.destroy()
+  draggableLinesPlugin = null
   chart?.remove()
+  chart = null
+  series = null
 })
+
+type PriceLineEventName =
+  | 'price-line-drag-start'
+  | 'price-line-drag'
+  | 'price-line-drag-end'
+  | 'price-line-click'
+  | 'price-line-dblclick'
+
+function emitPriceLineEvent(eventName: PriceLineEventName, event: DraggablePriceLineDragEvent) {
+  switch (eventName) {
+    case 'price-line-drag-start':
+      console.log('price-line-drag-start:', event)
+      emit('price-line-drag-start', event)
+      break
+    case 'price-line-drag':
+      console.log('price-line-drag:', event)
+      emit('price-line-drag', event)
+      break
+    case 'price-line-drag-end':
+      console.log('price-line-drag-end:', event)
+      emit('price-line-drag-end', event)
+      break
+    case 'price-line-click':
+      console.log('price-line-click:', event)
+      emit('price-line-click', event)
+      break
+    case 'price-line-dblclick':
+      console.log('price-line-dblclick:', event)
+      emit('price-line-dblclick', event)
+      break
+  }
+}
+
+function handleTrackedLineUpdate(event: DraggablePriceLineDragEvent) {
+  if (!isTrackedLine(event.id)) return
+  store.setTePriceLine(event.id, event.price)
+}
+
+function isTrackedLine(id: string): id is 'activation_price' | 'stop_loss' {
+  return id === 'activation_price' || id === 'stop_loss'
+}
 </script>
 
 <template>
