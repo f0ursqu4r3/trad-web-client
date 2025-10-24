@@ -218,23 +218,18 @@ type PriceLineEventName =
 function emitPriceLineEvent(eventName: PriceLineEventName, event: DraggablePriceLineDragEvent) {
   switch (eventName) {
     case 'price-line-drag-start':
-      console.log('price-line-drag-start:', event)
       emit('price-line-drag-start', event)
       break
     case 'price-line-drag':
-      console.log('price-line-drag:', event)
       emit('price-line-drag', event)
       break
     case 'price-line-drag-end':
-      console.log('price-line-drag-end:', event)
       emit('price-line-drag-end', event)
       break
     case 'price-line-click':
-      console.log('price-line-click:', event)
       emit('price-line-click', event)
       break
     case 'price-line-dblclick':
-      console.log('price-line-dblclick:', event)
       emit('price-line-dblclick', event)
       break
   }

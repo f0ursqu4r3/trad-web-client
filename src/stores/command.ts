@@ -1,4 +1,9 @@
-import type { CommandDevicesListData, CommandHistoryItem, Uuid } from '@/lib/ws/protocol'
+import {
+  CommandStatus,
+  type CommandDevicesListData,
+  type CommandHistoryItem,
+  type Uuid,
+} from '@/lib/ws/protocol'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useWsStore } from '@/stores/ws'
@@ -6,6 +11,7 @@ import { useDeviceStore } from '@/stores/devices'
 export interface PendingCommand {
   commandId: string
   sentAt: number
+  command: unknown
 }
 
 export interface OrderedCommandHistoryItem extends CommandHistoryItem {
@@ -50,10 +56,11 @@ export const useCommandStore = defineStore('command', () => {
     return commandMap.value[selectedCommandId.value] || null
   })
 
-  function addPendingCommand(commandId: string) {
+  function addPendingCommand(commandId: string, command: unknown) {
     pendingCommands.value[commandId] = {
       commandId,
       sentAt: performance.now(),
+      command,
     }
   }
 
@@ -63,6 +70,12 @@ export const useCommandStore = defineStore('command', () => {
     const pending = pendingCommands.value[commandId]
     const latency = now - pending.sentAt
     console.debug(`[command] Command ${commandId} acknowledged, latency=${Math.round(latency)}ms`)
+    // Move to history
+    history.value.push({
+      command_id: commandId,
+      command: pending.command,
+      status: CommandStatus.Running,
+    } as CommandHistoryItem)
     // Remove from pending
     delete pendingCommands.value[commandId]
     return latency
