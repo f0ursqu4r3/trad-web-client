@@ -19,7 +19,6 @@ const { selectedDeviceId, teDevice } = storeToRefs(store)
 const containerEl = ref<HTMLDivElement | null>(null)
 let chart: IChartApi | null = null
 let series: ISeriesApi<'Area'> | null = null
-// let resizeObserver: ResizeObserver | null = null
 
 const devicePoints = computed(() => {
   if (!teDevice.value) return []
