@@ -38,15 +38,104 @@ const horizontalPlacement = ref<'left' | 'right'>('right')
 const selectedValues = ref<Set<string | number>>(new Set())
 
 const MENU_OFFSET_PX = 8
+const VIEWPORT_PADDING_PX = 8
+const DEFAULT_MENU_MIN_WIDTH_PX = 192
 
-const menuInlineStyle = computed(() => ({
-  top: verticalPlacement.value === 'bottom' ? '100%' : 'auto',
-  bottom: verticalPlacement.value === 'top' ? '100%' : 'auto',
-  marginTop: verticalPlacement.value === 'bottom' ? `${MENU_OFFSET_PX}px` : '0px',
-  marginBottom: verticalPlacement.value === 'top' ? `${MENU_OFFSET_PX}px` : '0px',
-  left: horizontalPlacement.value === 'left' ? '0px' : 'auto',
-  right: horizontalPlacement.value === 'right' ? '0px' : 'auto',
-}))
+const menuPosition = ref({ left: 0, top: 0 })
+const triggerWidth = ref<number | null>(null)
+const menuMaxHeight = ref<number | null>(null)
+
+const menuInlineStyle = computed(() => {
+  const style: Record<string, string> = {
+    position: 'fixed',
+    top: `${menuPosition.value.top}px`,
+    left: `${menuPosition.value.left}px`,
+  }
+
+  const baseMinWidth =
+    triggerWidth.value !== null
+      ? Math.max(triggerWidth.value, DEFAULT_MENU_MIN_WIDTH_PX)
+      : DEFAULT_MENU_MIN_WIDTH_PX
+
+  style.minWidth = `${baseMinWidth}px`
+
+  if (menuMaxHeight.value !== null) {
+    style.maxHeight = `${menuMaxHeight.value}px`
+    style.overflowY = 'auto'
+  }
+
+  return style
+})
+
+function clamp(value: number, min: number, max: number): number {
+  if (value < min) {
+    return min
+  }
+  if (value > max) {
+    return max
+  }
+  return value
+}
+
+function applyMenuPosition(containerRect: DOMRect) {
+  const menuElement = menuRef.value
+  if (!menuElement) {
+    return
+  }
+
+  triggerWidth.value = containerRect.width
+
+  const menuRect = menuElement.getBoundingClientRect()
+
+  let top =
+    verticalPlacement.value === 'bottom'
+      ? containerRect.bottom + MENU_OFFSET_PX
+      : containerRect.top - MENU_OFFSET_PX - menuRect.height
+
+  let left =
+    horizontalPlacement.value === 'left' ? containerRect.left : containerRect.right - menuRect.width
+
+  const maxLeft = Math.max(
+    VIEWPORT_PADDING_PX,
+    window.innerWidth - menuRect.width - VIEWPORT_PADDING_PX,
+  )
+  const maxTop = Math.max(
+    VIEWPORT_PADDING_PX,
+    window.innerHeight - menuRect.height - VIEWPORT_PADDING_PX,
+  )
+
+  left = clamp(left, VIEWPORT_PADDING_PX, maxLeft)
+  top = clamp(top, VIEWPORT_PADDING_PX, maxTop)
+
+  menuPosition.value = { left, top }
+  menuMaxHeight.value = window.innerHeight - VIEWPORT_PADDING_PX * 2
+}
+
+function clampMenuToViewport() {
+  const menuElement = menuRef.value
+  if (!menuElement) {
+    return
+  }
+
+  const rect = menuElement.getBoundingClientRect()
+  const maxLeft = Math.max(
+    VIEWPORT_PADDING_PX,
+    window.innerWidth - rect.width - VIEWPORT_PADDING_PX,
+  )
+  const maxTop = Math.max(
+    VIEWPORT_PADDING_PX,
+    window.innerHeight - rect.height - VIEWPORT_PADDING_PX,
+  )
+
+  const left = clamp(rect.left, VIEWPORT_PADDING_PX, maxLeft)
+  const top = clamp(rect.top, VIEWPORT_PADDING_PX, maxTop)
+
+  if (left !== rect.left || top !== rect.top) {
+    menuPosition.value = { left, top }
+  }
+
+  menuMaxHeight.value = window.innerHeight - VIEWPORT_PADDING_PX * 2
+}
 
 function getItemValue(item: DropMenuItem, index: number): string | number {
   return item.value ?? item.label ?? index
@@ -79,10 +168,16 @@ function closeMenu() {
   showMenu.value = false
   verticalPlacement.value = 'bottom'
   horizontalPlacement.value = 'right'
+  triggerWidth.value = null
+  menuMaxHeight.value = null
 }
 
 function handleGlobalPointerDown(event: PointerEvent) {
-  if (!containerRef.value?.contains(event.target as Node)) {
+  const targetNode = event.target as Node | null
+  const isInTrigger = Boolean(targetNode && containerRef.value?.contains(targetNode))
+  const isInMenu = Boolean(targetNode && menuRef.value?.contains(targetNode))
+
+  if (!isInTrigger && !isInMenu) {
     closeMenu()
   }
 }
@@ -101,42 +196,60 @@ function handleViewportChange() {
 
 async function adjustMenuPlacement(options: { reset?: boolean } = {}) {
   const menuElement = menuRef.value
-  if (!menuElement) {
+  const containerElement = containerRef.value
+  if (!menuElement || !containerElement) {
     return
   }
 
   if (options.reset) {
     verticalPlacement.value = 'bottom'
     horizontalPlacement.value = 'right'
-    await nextTick()
   }
+
+  const containerRect = containerElement.getBoundingClientRect()
+
+  applyMenuPosition(containerRect)
+  await nextTick()
 
   let rect = menuElement.getBoundingClientRect()
 
   if (rect.right > window.innerWidth) {
     horizontalPlacement.value = 'left'
+    applyMenuPosition(containerRect)
     await nextTick()
     rect = menuElement.getBoundingClientRect()
   }
 
   if (rect.left < 0) {
-    horizontalPlacement.value = 'right'
+    menuPosition.value = {
+      ...menuPosition.value,
+      left: VIEWPORT_PADDING_PX,
+    }
     await nextTick()
     rect = menuElement.getBoundingClientRect()
   }
 
   if (rect.bottom > window.innerHeight && window.innerHeight >= rect.height) {
     verticalPlacement.value = 'top'
+    applyMenuPosition(containerRect)
     await nextTick()
     rect = menuElement.getBoundingClientRect()
 
     if (rect.top < 0) {
       verticalPlacement.value = 'bottom'
+      applyMenuPosition(containerRect)
+      await nextTick()
+      rect = menuElement.getBoundingClientRect()
     }
   } else if (rect.top < 0 && window.innerHeight >= rect.height) {
     verticalPlacement.value = 'bottom'
+    applyMenuPosition(containerRect)
     await nextTick()
+    rect = menuElement.getBoundingClientRect()
   }
+
+  await nextTick()
+  clampMenuToViewport()
 }
 
 async function toggleMenu() {
@@ -243,7 +356,7 @@ onBeforeUnmount(() => {
         title="Menu"
         aria-haspopup="menu"
         :aria-expanded="showMenu ? 'true' : 'false'"
-        @click="toggleMenu"
+        @click.stop="toggleMenu"
         @keydown.enter.prevent="toggleMenu"
         @keydown.space.prevent="toggleMenu"
       >
@@ -251,30 +364,32 @@ onBeforeUnmount(() => {
       </button>
     </slot>
 
-    <div
-      v-if="props.items && showMenu"
-      ref="menuRef"
-      class="absolute w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10 py-1"
-      :style="menuInlineStyle"
-      role="menu"
-    >
-      <slot name="items">
-        <button
-          v-for="(item, index) in props.items"
-          :key="index"
-          :class="[
-            'w-full flex items-center justify-between text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed gap-2',
-            props.multiple && isItemSelected(item, index) ? 'bg-gray-100 dark:bg-gray-700' : '',
-          ]"
-          :disabled="item.disabled"
-          @click="performAction(item, index)"
-          :role="props.multiple ? 'menuitemcheckbox' : 'menuitem'"
-          :aria-checked="props.multiple ? isItemSelected(item, index) : undefined"
-        >
-          <span class="flex-1 truncate">{{ item.label }}</span>
-          <span v-if="props.multiple && isItemSelected(item, index)" aria-hidden="true">✓</span>
-        </button>
-      </slot>
-    </div>
+    <Teleport to="body">
+      <div
+        v-if="props.items && showMenu"
+        ref="menuRef"
+        class="fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10 py-1"
+        :style="menuInlineStyle"
+        role="menu"
+      >
+        <slot name="items">
+          <button
+            v-for="(item, index) in props.items"
+            :key="index"
+            :class="[
+              'w-full flex items-center justify-between text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed gap-2',
+              props.multiple && isItemSelected(item, index) ? 'bg-gray-100 dark:bg-gray-700' : '',
+            ]"
+            :disabled="item.disabled"
+            @click="performAction(item, index)"
+            :role="props.multiple ? 'menuitemcheckbox' : 'menuitem'"
+            :aria-checked="props.multiple ? isItemSelected(item, index) : undefined"
+          >
+            <span class="flex-1 truncate">{{ item.label }}</span>
+            <span v-if="props.multiple && isItemSelected(item, index)" aria-hidden="true">✓</span>
+          </button>
+        </slot>
+      </div>
+    </Teleport>
   </div>
 </template>

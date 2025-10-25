@@ -94,19 +94,21 @@ function cancelCommand() {
 </script>
 
 <template>
-  <div class="flex flex-col bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+  <div
+    class="flex flex-col bg-white dark:bg-gray-800 rounded-lg shadow-sm cursor-pointer"
+    @click="emit('inspect', command_id)"
+  >
     <div class="flex items-start justify-between gap-3 px-3 py-2">
       <div class="flex items-center flex-wrap gap-2">
         <span
           class="uppercase font-bold text-[12px] tracking-[0.06em] bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded cursor-pointer"
-          @click="emit('inspect', command_id)"
         >
           Trailing Entry
         </span>
         <span
-          class="font-mono text-[10px] text-gray-500 dark:text-gray-300 cursor-pointer select-text rounded-[2px] px-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2"
+          class="font-mono text-[10px] text-gray-500 dark:text-gray-300 cursor-copy select-text rounded-[2px] px-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2"
           :title="command_id"
-          @click="copyId"
+          @click.stop="copyId"
           role="button"
           tabindex="0"
           @keydown.enter.prevent="copyId"
@@ -132,7 +134,7 @@ function cancelCommand() {
           <button
             class="btn btn-sm icon-btn"
             title="Inspect command"
-            @click="emit('inspect', command_id)"
+            @click.stop="emit('inspect', command_id)"
           >
             <MagnifyingGlassIcon class="icon" size="10" />
           </button>
@@ -140,7 +142,7 @@ function cancelCommand() {
           <button
             class="btn btn-sm icon-btn"
             title="Duplicate command"
-            @click="emit('duplicate', command_id)"
+            @click.stop="emit('duplicate', command_id)"
           >
             <DocumentDuplicateIcon class="icon" size="10" />
           </button>
@@ -150,7 +152,7 @@ function cancelCommand() {
           <button
             class="btn btn-sm icon-btn"
             :title="expanded ? 'Collapse' : 'Expand'"
-            @click="expanded = !expanded"
+            @click.stop="expanded = !expanded"
             aria-label="Toggle details"
           >
             <DownIcon
