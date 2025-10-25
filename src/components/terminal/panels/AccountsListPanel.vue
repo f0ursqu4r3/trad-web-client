@@ -49,8 +49,8 @@ onMounted(() => {
         <span class="font-semibold tracking-[0.04em] text-[var(--color-text)]"
           >Trading Accounts</span
         >
-        <span v-if="accounts.loading" class="pill-info">loading</span>
-        <span v-else-if="accounts.error" class="pill-err">error</span>
+        <span v-if="accounts.loading" class="pill pill-info">loading</span>
+        <span v-else-if="accounts.error" class="pill pill-err">error</span>
       </div>
       <div class="inline-flex items-center gap-2">
         <button
@@ -109,7 +109,7 @@ onMounted(() => {
                 <span class="chip">{{ account.network || 'Unknown' }}</span>
                 <span
                   v-if="accounts.selectedAccountId === account.id"
-                  class="pill-info text-[10px] uppercase tracking-[0.08em]"
+                  class="pill pill-info text-[10px] uppercase tracking-[0.08em]"
                 >
                   Active
                 </span>

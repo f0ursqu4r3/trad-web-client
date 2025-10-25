@@ -201,8 +201,8 @@ const returnToOrigin = window.location.origin
                 class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-[var(--accent-color)]"
               >
                 <span>Account</span>
-                <span class="pill-info" v-if="accountLoading">loading...</span>
-                <span class="pill-err" v-if="accountError">error</span>
+                <span class="pill pill-info" v-if="accountLoading">loading...</span>
+                <span class="pill pill-err" v-if="accountError">error</span>
               </header>
               <div v-if="!isAuthenticated">Not authenticated.</div>
               <div
@@ -360,9 +360,9 @@ const returnToOrigin = window.location.origin
                 class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-[var(--accent-color)]"
               >
                 <span>Preferences</span>
-                <span v-if="prefsDirty && !prefsSaving" class="pill-warn">modified</span>
-                <span v-if="prefsSaving" class="pill-info">saving...</span>
-                <span v-if="prefsSavedRecently" class="pill-ok">saved</span>
+                <span v-if="prefsDirty && !prefsSaving" class="pill pill-warn">modified</span>
+                <span v-if="prefsSaving" class="pill pill-info">saving...</span>
+                <span v-if="prefsSavedRecently" class="pill pill-ok">saved</span>
               </header>
               <p class="muted mb-2">Edit raw JSON preferences. Save replaces the full object.</p>
               <textarea

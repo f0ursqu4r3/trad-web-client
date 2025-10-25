@@ -290,7 +290,7 @@ onBeforeUnmount(() => {
         >
           Copy Tokens JSON
         </button>
-        <span v-if="copiedTokens" class="pill-ok">copied</span>
+        <span v-if="copiedTokens" class="pill pill-ok">copied</span>
       </div>
       <div v-if="showAllTokens" class="mt-3">
         <pre
@@ -415,10 +415,10 @@ onBeforeUnmount(() => {
       <h2 class="text-lg font-mono mb-2">Status Pills & Badges</h2>
       <div class="flex flex-wrap gap-2 items-center">
         <span class="pill">default</span>
-        <span class="pill-ok">ok</span>
-        <span class="pill-err">err</span>
-        <span class="pill-warn">warn</span>
-        <span class="pill-info">info</span>
+        <span class="pill pill-ok">ok</span>
+        <span class="pill pill-err">err</span>
+        <span class="pill pill-warn">warn</span>
+        <span class="pill pill-info">info</span>
         <span class="badge">badge</span>
         <span class="chip">chip</span>
       </div>
@@ -619,7 +619,7 @@ onBeforeUnmount(() => {
           <div v-for="(item, index) in ssitems" :key="index" class="row">
             <span class="time">{{ item.time }}</span>
             <span
-              class="font-bold"
+              class="font-bold pill"
               :class="
                 item.level === 'WARN'
                   ? 'pill-warn px-1.5 py-0.5 rounded-full text-[10px]'
@@ -640,7 +640,7 @@ onBeforeUnmount(() => {
       <div class="flex flex-wrap gap-3 items-center text-[12px]">
         <span class="code-inline">.code-inline</span>
         <span class="kbd">⌘K</span>
-        <span class="pill-info">.text-accent</span>
+        <span class="pill pill-info">.text-accent</span>
         <span class="badge mono">.mono</span>
         <span class="chip dim">.dim (muted)</span>
       </div>

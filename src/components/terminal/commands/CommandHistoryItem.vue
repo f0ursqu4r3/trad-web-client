@@ -5,7 +5,7 @@
         <span class="badge">{{ commandKind }}</span>
         <span class="mono dim text-[10px]">#{{ shortId }}</span>
       </div>
-      <span class="pill-info">{{ command.status }}</span>
+      <span class="pill pill-info">{{ command.status }}</span>
     </div>
     <div class="mt-2 text-[12px] whitespace-pre-wrap break-words font-mono">
       {{ JSON.stringify(command.command.data, null, 2) }}

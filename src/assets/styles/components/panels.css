@@ -72,17 +72,16 @@
     border-color: var(--border-color);
     color: var(--color-text-dim);
   }
-  .pill,
-  .pill-ok,
-  .pill-success,
-  .pill-err,
-  .pill-error,
-  .pill-warn,
-  .pill-warning,
-  .pill-info {
+  .pill {
     @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium;
     box-shadow: none;
     border: 1px solid transparent;
+  }
+  .pill-sm {
+    @apply text-[10px]/3 px-1.5 py-0.25;
+  }
+  .pill-xs {
+    @apply text-[9px]/3 px-1 py-0 font-light;
   }
   .pill {
     --_c: var(--pill-color-neutral);

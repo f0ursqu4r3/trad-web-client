@@ -21,12 +21,12 @@ function getPhaseClass(phase: TrailingEntryPhase): string {
 function getLifecycleClass(lifecycle: TrailingEntryLifecycle): string {
   switch (lifecycle) {
     case TrailingEntryLifecycle.Running:
-      return 'pill-info'
+      return 'pill pill-info'
     case TrailingEntryLifecycle.Completed:
-      return 'pill-ok'
+      return 'pill pill-ok'
     case TrailingEntryLifecycle.SpawningChildren:
     case TrailingEntryLifecycle.ChildrenSpawned:
-      return 'pill-warn'
+      return 'pill pill-warn'
     default:
       return 'pill'
   }
@@ -172,10 +172,10 @@ function getPositionSideClass(side: string): string {
 
       <!-- Status indicators -->
       <div class="flex gap-2 flex-wrap">
-        <span v-if="device.completed" class="pill-ok text-[10px] px-2 py-1">Completed</span>
-        <span v-if="device.cancelled" class="pill-warn text-[10px] px-2 py-1">Cancelled</span>
-        <span v-if="device.succeeded" class="pill-ok text-[10px] px-2 py-1">Succeeded</span>
-        <span v-if="device.stop_loss_hit" class="pill-err text-[10px] px-2 py-1"
+        <span v-if="device.completed" class="pill pill-ok text-[10px] px-2 py-1">Completed</span>
+        <span v-if="device.cancelled" class="pill pill-warn text-[10px] px-2 py-1">Cancelled</span>
+        <span v-if="device.succeeded" class="pill pill-ok text-[10px] px-2 py-1">Succeeded</span>
+        <span v-if="device.stop_loss_hit" class="pill pill-err text-[10px] px-2 py-1"
           >Stop Loss Hit</span
         >
       </div>
