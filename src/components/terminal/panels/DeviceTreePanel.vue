@@ -25,8 +25,8 @@
             class="flex items-center gap-2 justify-between w-full min-w-0 cursor-pointer"
             @click="store.inspectDevice(item.id as string)"
           >
-            <div class="flex gap-2 items-center">
-              <span>{{ item.label || item.id }}</span>
+            <div class="flex flex-wrap gap-2 items-center">
+              <span class="wrap-none">{{ item.label || item.id }}</span>
               <span v-if="item.symbol" class="text-(--color-text-dim) uppercase text-xs">
                 {{ item.symbol }}
               </span>

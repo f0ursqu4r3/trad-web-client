@@ -99,7 +99,7 @@ function cancelCommand() {
       <div class="flex items-center flex-wrap gap-2">
         <span
           class="uppercase font-bold text-[12px] tracking-[0.06em] bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded cursor-pointer"
-          @click="emit('select', command_id)"
+          @click="emit('inspect', command_id)"
         >
           Trailing Entry
         </span>
