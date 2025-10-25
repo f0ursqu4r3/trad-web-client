@@ -1,8 +1,10 @@
 <script lang="ts">
 export interface DropMenuItem {
   label: string
-  action: () => void
+  action?: () => void
   disabled?: boolean
+  value?: string | number
+  selected?: boolean
 }
 </script>
 <script setup lang="ts">
@@ -10,21 +12,22 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 
 import { MenuDotsIcon } from '@/components/icons'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
-    items?: Array<{
-      label: string
-      action: () => void
-      disabled?: boolean
-    }>
+    items?: Array<DropMenuItem>
+    multiple?: boolean
+    modelValue?: Array<string | number>
   }>(),
   {
     items: () => [],
+    multiple: false,
+    modelValue: () => [],
   },
 )
 
 const emit = defineEmits<{
-  (e: 'select', item: { label: string; action: () => void }): void
+  (e: 'select', item: DropMenuItem & { selected?: boolean }): void
+  (e: 'update:modelValue', value: Array<string | number>): void
 }>()
 
 const containerRef = ref<HTMLElement | null>(null)
@@ -32,6 +35,7 @@ const menuRef = ref<HTMLElement | null>(null)
 const showMenu = ref(false)
 const verticalPlacement = ref<'top' | 'bottom'>('bottom')
 const horizontalPlacement = ref<'left' | 'right'>('right')
+const selectedValues = ref<Set<string | number>>(new Set())
 
 const MENU_OFFSET_PX = 8
 
@@ -43,6 +47,33 @@ const menuInlineStyle = computed(() => ({
   left: horizontalPlacement.value === 'left' ? '0px' : 'auto',
   right: horizontalPlacement.value === 'right' ? '0px' : 'auto',
 }))
+
+function getItemValue(item: DropMenuItem, index: number): string | number {
+  return item.value ?? item.label ?? index
+}
+
+function isItemSelected(item: DropMenuItem, index: number): boolean {
+  return selectedValues.value.has(getItemValue(item, index))
+}
+
+function syncSelectedFromModel() {
+  if (!props.multiple) {
+    selectedValues.value = new Set()
+    return
+  }
+
+  const explicitSelection = props.modelValue?.length ? props.modelValue : undefined
+  if (explicitSelection) {
+    selectedValues.value = new Set(explicitSelection)
+    return
+  }
+
+  const inferredSelection = props.items
+    .map((item, index) => (item.selected ? getItemValue(item, index) : undefined))
+    .filter((value): value is string | number => value !== undefined)
+
+  selectedValues.value = new Set(inferredSelection)
+}
 
 function closeMenu() {
   showMenu.value = false
@@ -119,15 +150,64 @@ async function toggleMenu() {
   await adjustMenuPlacement({ reset: true })
 }
 
-function performAction(item: { label: string; action: () => void; disabled?: boolean }) {
+function performAction(item: DropMenuItem, index: number) {
   if (item.disabled) {
     return
   }
 
-  item.action()
+  if (props.multiple) {
+    toggleSelection(item, index)
+    return
+  }
+
+  item.action?.()
   closeMenu()
   emit('select', item)
 }
+
+function toggleSelection(item: DropMenuItem, index: number) {
+  const value = getItemValue(item, index)
+  const nextSelection = new Set(selectedValues.value)
+  const wasSelected = nextSelection.has(value)
+
+  if (wasSelected) {
+    nextSelection.delete(value)
+  } else {
+    nextSelection.add(value)
+  }
+
+  selectedValues.value = nextSelection
+  emit('update:modelValue', Array.from(nextSelection))
+  emit('select', { ...item, selected: !wasSelected })
+}
+
+watch(
+  () => props.multiple,
+  () => {
+    syncSelectedFromModel()
+  },
+  { immediate: true },
+)
+
+watch(
+  () => props.modelValue,
+  () => {
+    if (props.multiple) {
+      selectedValues.value = new Set(props.modelValue ?? [])
+    }
+  },
+  { deep: true },
+)
+
+watch(
+  () => props.items,
+  () => {
+    if (props.multiple && (!props.modelValue || props.modelValue.length === 0)) {
+      syncSelectedFromModel()
+    }
+  },
+  { deep: true },
+)
 
 watch(
   showMenu,
@@ -172,7 +252,7 @@ onBeforeUnmount(() => {
     </slot>
 
     <div
-      v-if="items && showMenu"
+      v-if="props.items && showMenu"
       ref="menuRef"
       class="absolute w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10 py-1"
       :style="menuInlineStyle"
@@ -180,14 +260,19 @@ onBeforeUnmount(() => {
     >
       <slot name="items">
         <button
-          v-for="(item, index) in items"
+          v-for="(item, index) in props.items"
           :key="index"
-          class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          :class="[
+            'w-full flex items-center justify-between text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed gap-2',
+            props.multiple && isItemSelected(item, index) ? 'bg-gray-100 dark:bg-gray-700' : '',
+          ]"
           :disabled="item.disabled"
-          @click="performAction(item)"
-          role="menuitem"
+          @click="performAction(item, index)"
+          :role="props.multiple ? 'menuitemcheckbox' : 'menuitem'"
+          :aria-checked="props.multiple ? isItemSelected(item, index) : undefined"
         >
-          {{ item.label }}
+          <span class="flex-1 truncate">{{ item.label }}</span>
+          <span v-if="props.multiple && isItemSelected(item, index)" aria-hidden="true">✓</span>
         </button>
       </slot>
     </div>

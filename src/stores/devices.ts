@@ -121,6 +121,8 @@ export const useDeviceStore = defineStore('device', () => {
           te.base_index = base_index
           te.total_points = total_points
           te.lifecycle = lifecycle
+
+          selectedDeviceId.value = device.id
         }
         break
       case 'PointsInit':
