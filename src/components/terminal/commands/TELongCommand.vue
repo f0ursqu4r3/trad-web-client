@@ -4,7 +4,7 @@ import type { TrailingEntryOrderCommand } from '@/lib/ws/protocol'
 import DropMenu from '@/components/general/DropMenu.vue'
 import { type DropMenuItem } from '@/components/general/DropMenu.vue'
 import StatusIndicator from '@/components/general/StatusIndicator.vue'
-import { DownIcon, MagnifyingGlassIcon, DocumentDuplicateIcon } from '@/components/icons'
+import { DownIcon } from '@/components/icons'
 
 const props = defineProps<{
   command_id: string
@@ -19,9 +19,8 @@ const emit = defineEmits<{
   (e: 'inspect', commandId: string): void
 }>()
 
-const shortId = computed(() => props.command_id.slice(0, 8))
+// const shortId = computed(() => props.command_id.slice(0, 8))
 const expanded = ref(false)
-const showMenu = ref(false)
 
 const canCancel = computed(() =>
   ['Unsent', 'Pending', 'Running', 'Malformed'].includes(props.command_status),
@@ -36,29 +35,33 @@ const statusMap: Record<string, string> = {
   Failed: 'error',
 }
 
-const menuItems: Array<DropMenuItem> = [
-  {
-    label: 'Inspect devices',
-    action: inspectDevices,
-  },
-  {
-    label: 'Duplicate command',
-    action: () => emit('duplicate', props.command_id),
-  },
-  {
-    label: 'Cancel command',
-    action: cancelCommand,
-    disabled: !canCancel.value,
-  },
-]
-
-async function copyId() {
-  try {
-    await navigator.clipboard.writeText(props.command_id)
-  } catch {
-    // no-op if clipboard blocked
+const menuItems = computed<Array<DropMenuItem>>(() => {
+  const items = [
+    {
+      label: 'Inspect',
+      action: () => emit('inspect', props.command_id),
+    },
+    {
+      label: 'Duplicate',
+      action: () => emit('duplicate', props.command_id),
+    },
+  ]
+  if (canCancel.value) {
+    items.push({
+      label: 'Cancel',
+      action: () => emit('cancel', props.command_id),
+    })
   }
-}
+  return items
+})
+
+// async function copyId() {
+//   try {
+//     await navigator.clipboard.writeText(props.command_id)
+//   } catch {
+//     // no-op if clipboard blocked
+//   }
+// }
 
 function fmtUsd(n?: number) {
   if (n == null || Number.isNaN(n)) return '—'
@@ -81,16 +84,6 @@ function fmtPct(n?: number) {
   if (n == null || Number.isNaN(n)) return '—'
   return new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 2 }).format(n)
 }
-
-function inspectDevices() {
-  emit('inspect', props.command_id)
-  showMenu.value = false
-}
-
-function cancelCommand() {
-  emit('cancel', props.command_id)
-  showMenu.value = false
-}
 </script>
 
 <template>
@@ -105,7 +98,7 @@ function cancelCommand() {
         >
           Trailing Entry
         </span>
-        <span
+        <!-- <span
           class="font-mono text-[10px] text-gray-500 dark:text-gray-300 cursor-copy select-text rounded-[2px] px-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2"
           :title="command_id"
           @click.stop="copyId"
@@ -116,7 +109,8 @@ function cancelCommand() {
           aria-label="Copy command id"
         >
           #{{ shortId }}
-        </span>
+        </span> -->
+        <span class="pill pill-sm">{{ command.symbol }}</span>
       </div>
 
       <div class="flex items-center justify-end flex-wrap gap-2">
@@ -131,22 +125,6 @@ function cancelCommand() {
         </div>
 
         <div class="flex items-center gap-2">
-          <button
-            class="btn btn-sm icon-btn"
-            title="Inspect command"
-            @click.stop="emit('inspect', command_id)"
-          >
-            <MagnifyingGlassIcon class="icon" size="10" />
-          </button>
-
-          <button
-            class="btn btn-sm icon-btn"
-            title="Duplicate command"
-            @click.stop="emit('duplicate', command_id)"
-          >
-            <DocumentDuplicateIcon class="icon" size="10" />
-          </button>
-
           <DropMenu :items="menuItems" />
 
           <button

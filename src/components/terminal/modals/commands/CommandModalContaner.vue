@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useModalStore } from '@/stores/modals'
+import { useWsStore } from '@/stores/ws'
 import { storeToRefs } from 'pinia'
 
 import MarketOrderModal from '@/components/terminal/modals/commands/MarketOrderModal.vue'
@@ -7,8 +8,10 @@ import LimitOrderModal from '@/components/terminal/modals/commands/LimitOrderMod
 import TrailingEntryOrderModal from '@/components/terminal/modals/commands/TrailingEntryOrderModal.vue'
 import SplitMarketOrderModal from '@/components/terminal/modals/commands/SplitMarketOrderModal.vue'
 import { watch, onBeforeUnmount } from 'vue'
+import type { UserCommandPayload } from '@/lib/ws/protocol'
 
 const store = useModalStore()
+const ws = useWsStore()
 
 const { openModals, modalStack } = storeToRefs(store)
 const closeModal = store.closeModal
@@ -22,6 +25,12 @@ const onKeyDown = (e: KeyboardEvent) => {
     e.preventDefault()
     closeTopModal()
   }
+}
+
+const submitOrder = (payload: UserCommandPayload) => {
+  console.log('Submitting order from CommandModalContainer', payload)
+  ws.sendUserCommand(payload)
+  closeTopModal()
 }
 
 // react to stack depth instead of array identity so pushes/pops are observed
@@ -52,6 +61,7 @@ onBeforeUnmount(() => {
     <LimitOrderModal :open="openModals['LimitOrder']" @close="closeModal('LimitOrder')" />
     <TrailingEntryOrderModal
       :open="openModals['TrailingEntryOrder']"
+      @submit="submitOrder"
       @close="closeModal('TrailingEntryOrder')"
     />
     <SplitMarketOrderModal
