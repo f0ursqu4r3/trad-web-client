@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import BaseCommandModal from './BaseCommandModal.vue'
+import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import { enumKeyName } from '@/lib/utils'
 import { NetworkType, ExchangeType } from '@/lib/ws/protocol'
 import { useAccountsStore, type AccountFormPayload } from '@/stores/accounts'

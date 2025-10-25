@@ -8,11 +8,8 @@ import './assets/main.css'
 import App from './App.vue'
 import router from './router'
 
-import LogPanel from '@/components/terminal/panels/LogPanel.vue'
 import ChartPanel from '@/components/terminal/panels/ChartPanel.vue'
 import DeviceTreePanel from '@/components/terminal/panels/DeviceTreePanel.vue'
-import EntriesPanel from '@/components/terminal/panels/EntriesPanel.vue'
-import CommandInputPanel from '@/components/terminal/panels/CommandInputPanel.vue'
 import DeviceDetailsPanel from '@/components/terminal/panels/DeviceDetailsPanel.vue'
 import InboundDebugPanel from './components/terminal/panels/InboundDebugPanel.vue'
 
@@ -29,11 +26,8 @@ app.use(router)
 app.use(auth0)
 setAuth0Client(app.config.globalProperties.$auth0)
 
-app.component('LogPanel', LogPanel)
 app.component('ChartPanel', ChartPanel)
 app.component('DeviceTreePanel', DeviceTreePanel)
-app.component('EntriesPanel', EntriesPanel)
-app.component('CommandInputPanel', CommandInputPanel)
 app.component('DeviceDetailsPanel', DeviceDetailsPanel)
 app.component('InboundDebugPanel', InboundDebugPanel)
 

@@ -1,35 +1,34 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import BaseCommandModal from './BaseCommandModal.vue'
+import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import {
   PositionSide,
-  type LimitOrderCommand,
+  type SplitMarketOrderCommand,
   type UserCommandPayload,
-  OrderSide,
+  MarketAction,
 } from '@/lib/ws/protocol'
 import { useWsStore } from '@/stores/ws'
 import { useAccountsStore } from '@/stores/accounts'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
-
 const ws = useWsStore()
 const accounts = useAccountsStore()
 
 const selectedAccountId = ref<string>(accounts.selectedAccount?.id || '')
+
 const symbol = ref('BTCUSDT')
-const side = ref<OrderSide>(OrderSide.Buy)
-const quantity = ref(0.001)
-const price = ref(58000)
-const posSide = ref<PositionSide>(PositionSide.Long)
+const action = ref<MarketAction>(MarketAction.Buy)
+const quantity_usd = ref(100)
+const position_side = ref<PositionSide>(PositionSide.Long)
+const num_splits = ref(4)
 
 function reset() {
   selectedAccountId.value = accounts.selectedAccount?.id || ''
-  symbol.value = 'BTCUSDT'
-  side.value = OrderSide.Buy
-  quantity.value = 0.001
-  price.value = 58000
-  posSide.value = PositionSide.Long
+  action.value = MarketAction.Buy
+  quantity_usd.value = 100
+  position_side.value = PositionSide.Long
+  num_splits.value = 4
 }
 watch(
   () => props.open,
@@ -44,51 +43,47 @@ function submit() {
     console.error('No market context found for account', selectedAccountId.value)
     return
   }
-  const data: LimitOrderCommand = {
-    side: side.value,
+  const data: SplitMarketOrderCommand = {
+    num_splits: num_splits.value,
+    action: action.value,
     symbol: symbol.value,
-    quantity: quantity.value,
-    price: price.value,
-    position_side: posSide.value,
+    quantity_usd: quantity_usd.value,
+    position_side: position_side.value,
     market_context: marketContext,
   }
-  const payload: Extract<UserCommandPayload, { kind: 'LimitOrder' }> = { kind: 'LimitOrder', data }
+  const payload: Extract<UserCommandPayload, { kind: 'SplitMarketOrder' }> = {
+    kind: 'SplitMarketOrder',
+    data,
+  }
   ws.sendUserCommand(payload)
   emit('close')
 }
 </script>
-
 <template>
-  <BaseCommandModal title="Limit Order" :open="open" @close="emit('close')">
-    <form id="limit-order" class="space-y-4" @submit.prevent="submit">
-      <div class="grid grid-cols-2 gap-3">
-        <label class="field">
-          <span>Account</span>
-          <select v-model="selectedAccountId" class="input">
-            <option v-for="account in accounts.accounts" :key="account.id" :value="account.id">
-              {{ account.label }} ({{ account.exchange }} - {{ account.network }})
-            </option>
-          </select>
-        </label>
+  <BaseCommandModal title="Split Market Order" :open="open" @close="emit('close')">
+    <form id="split-market-order" class="space-y-4" @submit.prevent="submit">
+      <div class="grid gap-3 md:grid-cols-2">
         <label class="field"><span>Symbol</span><input v-model="symbol" class="input" /></label>
         <label class="field">
-          <span>Side</span>
-          <select v-model="side" class="input">
+          <span>Action</span>
+          <select v-model="action" class="input">
             <option>Buy</option>
             <option>Sell</option>
+            <option>Close</option>
+            <option>CloseAll</option>
           </select>
         </label>
         <label class="field">
-          <span>Qty</span>
-          <input type="number" step="0.000001" v-model.number="quantity" class="input" />
+          <span>USD Qty (total)</span>
+          <input type="number" v-model.number="quantity_usd" class="input" />
         </label>
         <label class="field">
-          <span>Price</span>
-          <input type="number" v-model.number="price" class="input" />
+          <span>Splits</span>
+          <input type="number" min="2" max="50" v-model.number="num_splits" class="input" />
         </label>
-        <label class="field col-span-2">
+        <label class="field">
           <span>Position Side</span>
-          <select v-model="posSide" class="input">
+          <select v-model="position_side" class="input">
             <option>Long</option>
             <option>Short</option>
           </select>
@@ -98,7 +93,7 @@ function submit() {
     <template #footer>
       <div class="flex gap-2 justify-end pt-2">
         <button type="button" class="btn btn-secondary" @click="emit('close')">Cancel</button>
-        <button form="limit-order" type="submit" class="btn btn-primary">Submit</button>
+        <button form="split-market-order" type="submit" class="btn btn-primary">Submit</button>
       </div>
     </template>
   </BaseCommandModal>
@@ -116,18 +111,5 @@ function submit() {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-}
-.input {
-  background: color-mix(in srgb, var(--panel-header-bg) 70%, transparent);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 0.35rem 0.5rem;
-  font: inherit;
-  font-size: 12px;
-  color: var(--color-text);
-}
-.input:focus {
-  outline: 1px solid var(--accent-color);
-  outline-offset: 1px;
 }
 </style>

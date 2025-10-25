@@ -1,3 +1,65 @@
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import StickyScroller from '@/components/general/StickyScroller.vue'
+import { useCommandStore } from '@/stores/command'
+import { useModalStore } from '@/stores/modals'
+import { FunnelIcon } from '@/components/icons'
+
+import type { TrailingEntryPrefill } from '../modals/commands/types'
+import type { TrailingEntryOrderCommand } from '@/lib/ws/protocol'
+
+import CommandHistoryItem from '@/components/terminal/commands/CommandHistoryItem.vue'
+import TELongCommand from '@/components/terminal/commands/TELongCommand.vue'
+
+const commandStore = useCommandStore()
+const modalStore = useModalStore()
+
+const showFilters = ref(false)
+
+const hiddenCommandCount = computed(() => {
+  return commandStore.commands.length - commandStore.filteredCommands.length
+})
+
+function handleCheckboxChange(
+  option: string,
+  checkedOrEvent: boolean | Event,
+  type: 'kind' | 'status',
+): void {
+  const checked =
+    typeof checkedOrEvent === 'boolean'
+      ? checkedOrEvent
+      : ((checkedOrEvent.target as HTMLInputElement | null)?.checked ?? false)
+
+  if (checked) {
+    const idx = commandStore.commandFilters[type].indexOf(option as never)
+    if (idx > -1) {
+      commandStore.commandFilters[type].splice(idx, 1)
+    }
+  } else {
+    commandStore.commandFilters[type].push(option as never)
+  }
+}
+
+function handleInspect(commandId: string): void {
+  commandStore.inspectCommand(commandId)
+}
+
+function handleCancel(commandId: string): void {
+  commandStore.cancelCommand(commandId)
+}
+
+function handleDuplicate(commandData: TrailingEntryOrderCommand): void {
+  modalStore.openModalWithValues('TrailingEntryOrder', {
+    activation_price: commandData.activation_price,
+    jump_frac_threshold: commandData.jump_frac_threshold,
+    position_side: commandData.position_side,
+    risk_amount: commandData.risk_amount,
+    stop_loss: commandData.stop_loss,
+    symbol: commandData.symbol,
+  } as TrailingEntryPrefill)
+}
+</script>
+
 <template>
   <div class="flex flex-col h-full">
     <div class="panel">
@@ -13,9 +75,9 @@
             <div>
               <span>Kind</span>
               <div class="flex items-center flex-wrap gap-4 px-2">
-                <ul class="flex flex-col flex-wrap p-0 m-0 list-none">
+                <ul class="flex flex-col flex-wrap p-0 m-0 space-y-2 list-none">
                   <li
-                    v-for="option in store.activeCommandKinds"
+                    v-for="option in commandStore.activeCommandKinds"
                     :key="option"
                     class="inline-flex items-center gap-1 mr-4"
                   >
@@ -23,10 +85,12 @@
                       type="checkbox"
                       :id="`kind-${option}`"
                       :value="option"
-                      :checked="!store.commandFilters.kind.includes(option)"
+                      :checked="!commandStore.commandFilters.kind.includes(option)"
                       @change="handleCheckboxChange(option, $event, 'kind')"
                     />
-                    <label :for="`kind-${option}`" class="text-sm">{{ option }}</label>
+                    <label :for="`kind-${option}`" class="text-sm cursor-pointer">
+                      {{ option }}
+                    </label>
                   </li>
                 </ul>
               </div>
@@ -34,9 +98,9 @@
             <div>
               <span>Status</span>
               <span class="flex items-center flex-wrap gap-4 px-2">
-                <ul class="flex flex-col flex-wrap p-0 m-0 list-none">
+                <ul class="flex flex-col flex-wrap p-0 m-0 space-y-2 list-none">
                   <li
-                    v-for="option in store.activeCommandStatuses"
+                    v-for="option in commandStore.activeCommandStatuses"
                     :key="option"
                     class="inline-flex items-center gap-1 mr-4"
                   >
@@ -44,10 +108,12 @@
                       type="checkbox"
                       :id="`status-${option}`"
                       :value="option"
-                      :checked="!store.commandFilters.status.includes(option)"
+                      :checked="!commandStore.commandFilters.status.includes(option)"
                       @change="handleCheckboxChange(option, $event, 'status')"
                     />
-                    <label :for="`status-${option}`" class="text-sm">{{ option }}</label>
+                    <label :for="`status-${option}`" class="text-sm cursor-pointer">
+                      {{ option }}
+                    </label>
                   </li>
                 </ul>
               </span>
@@ -57,17 +123,19 @@
       </Transition>
     </div>
     <StickyScroller
-      :trigger="store.filteredCommands.length"
+      :trigger="commandStore.filteredCommands.length"
       :smooth="true"
       :showButton="true"
       class="overflow-y-auto flex-shrink-1"
     >
       <div class="flex flex-col p-2 gap-2">
-        <template v-for="cmd in store.filteredCommands" :key="cmd.command_id">
+        <template v-for="cmd in commandStore.filteredCommands" :key="cmd.command_id">
           <div
             class="rounded-lg"
             :class="
-              cmd.command_id == store.selectedCommandId ? 'ring-2 ring-[var(--accent-color)]' : ''
+              cmd.command_id == commandStore.selectedCommandId
+                ? 'ring-2 ring-[var(--accent-color)]'
+                : ''
             "
           >
             <TELongCommand
@@ -75,7 +143,9 @@
               :command_id="cmd.command_id"
               :command_status="cmd.status"
               :command="cmd.command.data"
-              @select="handleInspect"
+              @duplicate="handleDuplicate(cmd.command.data)"
+              @cancel="handleCancel"
+              @inspect="handleInspect"
             />
             <CommandHistoryItem v-else :command="cmd" />
           </div>
@@ -84,48 +154,6 @@
     </StickyScroller>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-import StickyScroller from '@/components/general/StickyScroller.vue'
-import { useCommandStore } from '@/stores/command'
-import { FunnelIcon } from '@/components/icons'
-
-import CommandHistoryItem from '@/components/terminal/commands/CommandHistoryItem.vue'
-import TELongCommand from '@/components/terminal/commands/TELongCommand.vue'
-
-const store = useCommandStore()
-
-const showFilters = ref(false)
-
-const hiddenCommandCount = computed(() => {
-  return store.commands.length - store.filteredCommands.length
-})
-
-function handleCheckboxChange(
-  option: string,
-  checkedOrEvent: boolean | Event,
-  type: 'kind' | 'status',
-) {
-  const checked =
-    typeof checkedOrEvent === 'boolean'
-      ? checkedOrEvent
-      : ((checkedOrEvent.target as HTMLInputElement | null)?.checked ?? false)
-
-  if (checked) {
-    const idx = store.commandFilters[type].indexOf(option as never)
-    if (idx > -1) {
-      store.commandFilters[type].splice(idx, 1)
-    }
-  } else {
-    store.commandFilters[type].push(option as never)
-  }
-}
-
-function handleInspect(commandId: string) {
-  store.inspectCommand(commandId)
-}
-</script>
 
 <style scoped>
 .expand-enter-active,

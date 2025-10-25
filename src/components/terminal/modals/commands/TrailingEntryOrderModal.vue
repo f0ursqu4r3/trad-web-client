@@ -1,64 +1,90 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import BaseCommandModal from './BaseCommandModal.vue'
+import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import {
   type TrailingEntryOrderCommand,
   type UserCommandPayload,
   PositionSide,
 } from '@/lib/ws/protocol'
-import { useWsStore } from '@/stores/ws'
 import { useAccountsStore } from '@/stores/accounts'
+import { useModalStore } from '@/stores/modals'
 
-const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
-const emit = defineEmits<{ (e: 'close'): void }>()
-const ws = useWsStore()
+import type { TrailingEntryPrefill } from './types'
+
+const props = withDefaults(defineProps<{ open: boolean }>(), {
+  open: false,
+})
+
+const emit = defineEmits<{
+  (e: 'submit', payload: Extract<UserCommandPayload, { kind: 'TrailingEntryOrder' }>): void
+  (e: 'close'): void
+}>()
+
 const accounts = useAccountsStore()
+const modals = useModalStore()
 
-const selectedAccountId = ref<string>(accounts.selectedAccount?.id || '')
-const symbol = ref('BTCUSDT')
-const activation_price = ref(58000)
-const jump_frac_threshold = ref(0.002)
-const stop_loss = ref(57000)
-const risk_amount = ref(50)
+const selectedAccountId = ref<string>('')
+const symbol = ref<string>('BTCUSDT')
+const activation_price = ref<number | null>(null)
+const jump_frac_threshold = ref<number | null>(null)
+const stop_loss = ref<number | null>(null)
+const risk_amount = ref<number | null>(null)
 const position_side = ref<PositionSide>(PositionSide.Long)
 
-function reset() {
-  selectedAccountId.value = accounts.selectedAccount?.id || ''
-  activation_price.value = 58000
-  jump_frac_threshold.value = 0.002
-  stop_loss.value = 57000
-  risk_amount.value = 50
-  position_side.value = PositionSide.Long
+function applyInitialValues() {
+  const preset = (modals.modalValues['TrailingEntryOrder'] as TrailingEntryPrefill) ?? {}
+  activation_price.value = preset.activation_price ?? null
+  jump_frac_threshold.value = preset.jump_frac_threshold ?? null
+  position_side.value = preset.position_side ?? PositionSide.Long
+  risk_amount.value = preset.risk_amount ?? null
+  selectedAccountId.value = preset.selectedAccountId ?? accounts.selectedAccount?.id ?? ''
+  stop_loss.value = preset.stop_loss ?? null
+  symbol.value = preset.symbol ?? 'BTCUSDT'
 }
+
 watch(
   () => props.open,
   (o) => {
-    if (o) reset()
+    if (o) applyInitialValues()
   },
 )
 
+applyInitialValues()
+
+function validate(): boolean {
+  if (!selectedAccountId.value) return false
+  if (!symbol.value) return false
+  if (activation_price.value === null) return false
+  if (jump_frac_threshold.value === null) return false
+  if (stop_loss.value === null) return false
+  if (risk_amount.value === null) return false
+  return true
+}
+
 function submit() {
-  console.log('Submitting trailing entry order')
   const marketContext = accounts.getMarketContextForAccount(selectedAccountId.value)
   if (!marketContext) {
     console.error('No market context found for account', selectedAccountId.value)
     return
   }
+  if (!validate()) {
+    console.error('Validation failed')
+    return
+  }
   const data: TrailingEntryOrderCommand = {
-    position_side: position_side.value,
-    symbol: symbol.value,
-    activation_price: activation_price.value,
-    jump_frac_threshold: jump_frac_threshold.value,
-    stop_loss: stop_loss.value,
-    risk_amount: risk_amount.value,
+    activation_price: activation_price.value as number,
+    jump_frac_threshold: jump_frac_threshold.value as number,
     market_context: marketContext,
+    position_side: position_side.value,
+    risk_amount: risk_amount.value as number,
+    stop_loss: stop_loss.value as number,
+    symbol: symbol.value,
   }
   const payload: Extract<UserCommandPayload, { kind: 'TrailingEntryOrder' }> = {
     kind: 'TrailingEntryOrder',
     data,
   }
-  ws.sendUserCommand(payload)
-  emit('close')
+  emit('submit', payload)
 }
 </script>
 <template>

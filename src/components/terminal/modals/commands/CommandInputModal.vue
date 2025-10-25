@@ -1,26 +1,22 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted, nextTick, onBeforeUpdate } from 'vue'
-import { useWsStore } from '@/stores/ws'
+import { storeToRefs } from 'pinia'
 import type { UserCommandPayload } from '@/lib/ws/protocol'
 import { XIcon } from '@/components/icons'
 import { commandRegistry, type CommandMeta } from '@/components/terminal/commands/commandRegistry'
+import { useWsStore } from '@/stores/ws'
+import { useModalStore } from '@/stores/modals'
 
-import MarketOrderModal from '@/components/terminal/modals/MarketOrderModal.vue'
-import LimitOrderModal from '@/components/terminal/modals/LimitOrderModal.vue'
-import TrailingEntryOrderModal from '@/components/terminal/modals/TrailingEntryOrderModal.vue'
-import SplitMarketOrderModal from '@/components/terminal/modals/SplitMarketOrderModal.vue'
-
-// Store
 const ws = useWsStore()
+const store = useModalStore()
+const { modalStack } = storeToRefs(store)
 
 // Simple command registry (incremental build-out). Each entry describes a user command
 // with a key (protocol kind), human label, optional description, and whether it opens a modal.
 // Central registry reference
 const allCommands = ref<CommandMeta[]>(commandRegistry)
-
-const filter = ref('')
 const showMenu = ref(false)
-const activeModal = ref<CommandMeta | null>(null)
+const filter = ref('')
 const activeIndex = ref(0)
 // When navigating with keyboard we temporarily ignore mouse hover until the user moves the mouse
 const hoverEnabled = ref(true)
@@ -42,7 +38,8 @@ const filteredCommands = computed(() => {
 // Quick submit for non-modal commands
 function submitQuick(cmd: CommandMeta) {
   if (cmd.modal) {
-    activeModal.value = cmd
+    closePalette()
+    store.openModal(cmd.kind)
     return
   }
   // Map of zero-data commands
@@ -59,14 +56,7 @@ function submitQuick(cmd: CommandMeta) {
   } else {
     console.warn('Unhandled quick command kind without modal', cmd.kind)
   }
-  showMenu.value = false
   filter.value = ''
-}
-
-// Individual modal state handlers now live inside dedicated modal components
-
-function closeActiveModal() {
-  activeModal.value = null
 }
 
 function openPalette() {
@@ -114,6 +104,7 @@ watch(activeIndex, () => {
 // Keyboard handlers: open palette with Ctrl+K / Cmd+K
 function onKey(e: KeyboardEvent) {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    if (modalStack.value.length) return
     e.preventDefault()
     if (showMenu.value) {
       closePalette()
@@ -122,7 +113,7 @@ function onKey(e: KeyboardEvent) {
     }
   }
   if (e.key === 'Escape') {
-    if (activeModal.value) return closeActiveModal()
+    if (modalStack.value.length) return
     if (showMenu.value) return closePalette()
   }
 }
@@ -132,6 +123,13 @@ function onMouseMove() {
   if (!hoverEnabled.value) hoverEnabled.value = true
 }
 window.addEventListener('mousemove', onMouseMove)
+
+// Ensure the command palette yields to dedicated modals
+watch(modalStack, (stack) => {
+  if (stack.length && showMenu.value) {
+    closePalette()
+  }
+})
 onUnmounted(() => {
   window.removeEventListener('keydown', onKey)
   window.removeEventListener('mousemove', onMouseMove)
@@ -205,17 +203,6 @@ onUnmounted(() => {
         </div>
       </div>
     </Teleport>
-
-    <MarketOrderModal :open="activeModal?.kind === 'MarketOrder'" @close="closeActiveModal" />
-    <LimitOrderModal :open="activeModal?.kind === 'LimitOrder'" @close="closeActiveModal" />
-    <TrailingEntryOrderModal
-      :open="activeModal?.kind === 'TrailingEntryOrder'"
-      @close="closeActiveModal"
-    />
-    <SplitMarketOrderModal
-      :open="activeModal?.kind === 'SplitMarketOrder'"
-      @close="closeActiveModal"
-    />
   </div>
 </template>
 

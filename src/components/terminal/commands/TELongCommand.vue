@@ -1,11 +1,10 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
 import type { TrailingEntryOrderCommand } from '@/lib/ws/protocol'
-import { useCommandStore } from '@/stores/command'
-import { DownIcon, MagnifyingGlassIcon } from '@/components/icons'
 import DropMenu from '@/components/general/DropMenu.vue'
 import { type DropMenuItem } from '@/components/general/DropMenu.vue'
 import StatusIndicator from '@/components/general/StatusIndicator.vue'
+import { DownIcon, MagnifyingGlassIcon, DocumentDuplicateIcon } from '@/components/icons'
 
 const props = defineProps<{
   command_id: string
@@ -15,13 +14,14 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'select', commandId: string): void
+  (e: 'duplicate', commandId: string): void
+  (e: 'cancel', commandId: string): void
+  (e: 'inspect', commandId: string): void
 }>()
 
 const shortId = computed(() => props.command_id.slice(0, 8))
 const expanded = ref(false)
 const showMenu = ref(false)
-
-const commandStore = useCommandStore()
 
 const canCancel = computed(() =>
   ['Unsent', 'Pending', 'Running', 'Malformed'].includes(props.command_status),
@@ -40,6 +40,10 @@ const menuItems: Array<DropMenuItem> = [
   {
     label: 'Inspect devices',
     action: inspectDevices,
+  },
+  {
+    label: 'Duplicate command',
+    action: () => emit('duplicate', props.command_id),
   },
   {
     label: 'Cancel command',
@@ -79,12 +83,12 @@ function fmtPct(n?: number) {
 }
 
 function inspectDevices() {
-  commandStore.inspectCommand(props.command_id)
+  emit('inspect', props.command_id)
   showMenu.value = false
 }
 
 function cancelCommand() {
-  commandStore.cancelCommand(props.command_id)
+  emit('cancel', props.command_id)
   showMenu.value = false
 }
 </script>
@@ -127,11 +131,21 @@ function cancelCommand() {
         <div class="flex items-center gap-2">
           <button
             class="btn btn-sm icon-btn"
-            title="Select command"
-            @click="emit('select', command_id)"
+            title="Inspect command"
+            @click="emit('inspect', command_id)"
           >
             <MagnifyingGlassIcon class="icon" size="10" />
           </button>
+
+          <button
+            class="btn btn-sm icon-btn"
+            title="Duplicate command"
+            @click="emit('duplicate', command_id)"
+          >
+            <DocumentDuplicateIcon class="icon" size="10" />
+          </button>
+
+          <DropMenu :items="menuItems" />
 
           <button
             class="btn btn-sm icon-btn"
@@ -145,8 +159,6 @@ function cancelCommand() {
               :style="{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }"
             />
           </button>
-
-          <DropMenu :items="menuItems" />
         </div>
       </div>
     </div>
