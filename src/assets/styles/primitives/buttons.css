@@ -1,4 +1,4 @@
-/* Buttons */
+/* Primitives: button system */
 @layer components {
   .btn {
     @apply inline-flex items-center gap-1 border px-2 py-1 text-[12px] font-medium rounded tracking-wide cursor-pointer transition select-none;

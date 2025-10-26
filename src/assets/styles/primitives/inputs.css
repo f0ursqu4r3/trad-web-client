@@ -1,4 +1,4 @@
-/* Forms & Inputs */
+/* Primitives: form controls & inputs */
 @layer components {
   .form-control {
     @apply appearance-none rounded border border-term-border bg-transparent px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60;
@@ -360,8 +360,6 @@
     opacity: 0.6;
   }
   /* Checkboxes & Radios */
-  /* ------------------------------------------------------------------ */
-  /* Base reset + shared styles */
   input[type='checkbox'],
   input[type='radio'],
   .checkbox,
@@ -371,13 +369,13 @@
     display: inline-grid;
     place-content: center;
     margin: 0;
-    width: 1.05rem; /* 16.8px ~ base 16 */
+    width: 1.05rem;
     height: 1.05rem;
     border: 1px solid var(--border-color);
     background: color-mix(in srgb, var(--panel-bg) 90%, transparent);
     box-shadow: 0 0 0 0 transparent;
     cursor: pointer;
-    line-height: 1; /* avoid extra inline height */
+    line-height: 1;
     transition:
       background-color 0.15s ease,
       border-color 0.15s ease,
@@ -385,7 +383,6 @@
       color 0.15s ease;
     position: relative;
   }
-  /* Radius differences */
   input[type='checkbox'],
   .checkbox {
     border-radius: 4px;
@@ -394,7 +391,6 @@
   .radio {
     border-radius: 50%;
   }
-  /* Hover */
   input[type='checkbox']:hover,
   input[type='radio']:hover,
   .checkbox:hover,
@@ -402,7 +398,6 @@
     background: color-mix(in srgb, var(--panel-bg) 70%, var(--accent-color) 8%);
     border-color: color-mix(in srgb, var(--border-color) 75%, var(--accent-color) 25%);
   }
-  /* Focus (visible) */
   input[type='checkbox']:focus-visible,
   input[type='radio']:focus-visible,
   .checkbox:focus-visible,
@@ -413,7 +408,6 @@
       0 0 0 1px var(--accent-color);
     border-color: var(--accent-color);
   }
-  /* Checked visuals */
   input[type='checkbox']::after,
   .checkbox::after {
     content: '';
@@ -447,7 +441,6 @@
   .radio:checked::after {
     transform: scale(1);
   }
-  /* Indeterminate (managed via JS: el.indeterminate = true) */
   input[type='checkbox']:indeterminate,
   .checkbox:indeterminate {
     background: var(--accent-color);
@@ -462,7 +455,6 @@
     border-radius: 2px;
     transform: scale(1);
   }
-  /* Disabled */
   input[type='checkbox']:disabled,
   input[type='radio']:disabled,
   .checkbox:disabled,
@@ -471,7 +463,6 @@
     cursor: not-allowed;
     background: color-mix(in srgb, var(--panel-bg) 70%, var(--border-color) 15%);
   }
-  /* Size variants */
   .checkbox-sm,
   .radio-sm {
     width: 0.85rem;
@@ -488,7 +479,6 @@
   .checkbox-lg::after {
     background-size: 22px 22px;
   }
-  /* Inline group helpers */
   .choice-group {
     display: flex;
     flex-wrap: wrap;

@@ -1,5 +1,5 @@
-/* Utilities & helpers */
-@layer components {
+/* Utilities: helpers, animations, quick layout tweaks */
+@layer utilities {
   .prompt-row {
     @apply mb-2 flex items-center gap-2;
   }

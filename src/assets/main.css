@@ -2,9 +2,11 @@
 @import 'tailwindcss';
 
 /* Entry point only: delegate real style definitions to modular partials */
-@import './styles/base.css'; /* global html/body, scrollbars, selection */
-@import './styles/components/forms.css'; /* inputs, fields, range sliders */
-@import './styles/components/buttons.css'; /* button system */
-@import './styles/components/panels.css'; /* panels, menus, tables, lists, badges, pills */
-@import './styles/components/dockview.css'; /* dockview theming */
-@import './styles/utilities.css'; /* utilities & small helpers */
+@import './styles/foundation/base.css'; /* global html/body, scrollbars, selection */
+
+@import './styles/primitives/buttons.css'; /* button system */
+@import './styles/primitives/inputs.css'; /* inputs, fields, range sliders */
+@import './styles/primitives/surfaces.css'; /* panels, menus, tables, lists, badges, pills */
+
+@import './styles/integrations/dockview.css'; /* dockview theming */
+@import './styles/utilities/helpers.css'; /* utilities & small helpers */
