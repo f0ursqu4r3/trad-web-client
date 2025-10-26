@@ -16,6 +16,7 @@ import {
   type DraggablePriceLineDragEvent,
   type DraggablePriceLinesPluginApi,
 } from '@/lib/chart/draggablePriceLines'
+import { TrailingEntryLifecycle } from '@/lib/ws/protocol'
 
 const store = useDeviceStore()
 
@@ -33,6 +34,7 @@ const containerEl = ref<HTMLDivElement | null>(null)
 let chart: IChartApi | null = null
 let series: ISeriesApi<'Area'> | null = null
 let draggableLinesPlugin: DraggablePriceLinesPluginApi | null = null
+let resizeObserver: ResizeObserver | null = null
 
 const devicePoints = computed(() => {
   if (!teDevice.value) return []
@@ -42,6 +44,10 @@ const devicePoints = computed(() => {
       price,
     })) as Array<{ idx: number; price: number; ts?: number }>) || []
   )
+})
+
+const teDeviceLifecycle = computed(() => {
+  return teDevice.value?.lifecycle || {}
 })
 
 const draggableLines = computed<DraggablePriceLineDefinition[]>(() => {
@@ -58,6 +64,7 @@ const draggableLines = computed<DraggablePriceLineDefinition[]>(() => {
         axisLabelVisible: true,
         title: 'Activation Price',
       },
+      draggable: teDeviceLifecycle.value === TrailingEntryLifecycle.Running,
     },
     {
       id: 'stop_loss',
@@ -69,6 +76,7 @@ const draggableLines = computed<DraggablePriceLineDefinition[]>(() => {
         axisLabelVisible: true,
         title: 'Stop Loss',
       },
+      draggable: teDeviceLifecycle.value === TrailingEntryLifecycle.Running,
     },
   ]
 })
@@ -89,6 +97,13 @@ const chartSeriesData = computed<AreaData[]>(() => {
   })
 })
 
+function syncChartSize() {
+  if (!chart || !containerEl.value) return
+  const { clientWidth, clientHeight } = containerEl.value
+  if (!clientWidth || !clientHeight) return
+  chart.resize(clientWidth, clientHeight)
+}
+
 onMounted(() => {
   if (!containerEl.value) return
   chart = createChart(containerEl.value, {
@@ -103,6 +118,10 @@ onMounted(() => {
     },
     timeScale: { borderColor: '#2a3139' },
   })
+
+  const resizeObserver = new ResizeObserver(() => syncChartSize())
+  resizeObserver.observe(containerEl.value)
+  syncChartSize()
 
   // Add area series
   series = chart.addSeries(AreaSeries, {
@@ -198,6 +217,8 @@ onBeforeUnmount(() => {
       /* noop */
     }
   }
+  resizeObserver?.disconnect()
+  resizeObserver = null
 })
 
 onBeforeUnmount(() => {

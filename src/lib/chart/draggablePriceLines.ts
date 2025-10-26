@@ -60,6 +60,7 @@ export interface DraggablePriceLinesPluginOptions {
 export interface DraggablePriceLinesPluginApi {
   setLines(lines: DraggablePriceLineDefinition[]): void
   updateLine(id: string, options: CreatePriceLineOptions): void
+  setLineDraggable(id: string, draggable: boolean): void
   destroy(): void
 }
 
@@ -103,6 +104,7 @@ class DraggablePriceLinesPrimitive<HorzScaleItem, TSeriesType extends SeriesType
   }
 
   detached(): void {
+    this.cancelActiveDrag()
     this.removeAllLines()
     this.teardownEventListeners()
     this.series = null
@@ -149,6 +151,29 @@ class DraggablePriceLinesPrimitive<HorzScaleItem, TSeriesType extends SeriesType
     if (!state || !this.series) return
     state.definition = cloneLineDefinition({ id, options, draggable: state.definition.draggable })
     state.priceLine.applyOptions(state.definition.options)
+  }
+
+  setLineDraggable(id: string, draggable: boolean): void {
+    const state = this.lines.get(id)
+    if (!state) return
+    if (state.definition.draggable === draggable) return
+
+    state.definition = {
+      ...state.definition,
+      draggable,
+    }
+
+    if (!draggable) {
+      this.cancelActiveDrag(id)
+      if (this.hoveredId === id) {
+        this.setCursor('not-allowed')
+      }
+      if (this.pointerHit?.id === id) {
+        this.pointerHit = null
+      }
+    } else if (this.hoveredId === id) {
+      this.setCursor('ns-resize')
+    }
   }
 
   destroy(): void {
@@ -286,7 +311,7 @@ class DraggablePriceLinesPrimitive<HorzScaleItem, TSeriesType extends SeriesType
     if (hitId !== this.hoveredId) {
       this.hoveredId = hitId
       if (hit) {
-        this.setCursor(hit.draggable ? 'ns-resize' : 'pointer')
+        this.setCursor(hit.draggable ? 'ns-resize' : 'not-allowed')
       } else {
         this.setCursor(null)
       }
@@ -465,6 +490,23 @@ class DraggablePriceLinesPrimitive<HorzScaleItem, TSeriesType extends SeriesType
     this.pendingClick = null
   }
 
+  private cancelActiveDrag(id?: string): void {
+    if (!this.dragging) return
+    if (id && this.dragging.id !== id) return
+
+    if (this.chartElement?.releasePointerCapture) {
+      try {
+        this.chartElement.releasePointerCapture(this.dragging.pointerId)
+      } catch {
+        // ignore browsers that throw when pointer capture is not supported
+      }
+    }
+
+    this.dragging = null
+    this.pointerHit = null
+    this.resetCursor()
+  }
+
   private setCursor(cursor: string | null): void {
     if (!this.chartElement) return
     this.chartElement.style.cursor = cursor ?? ''
@@ -503,6 +545,7 @@ export function createDraggablePriceLinesPlugin<
   return {
     setLines: (lines) => primitive.setLines(lines),
     updateLine: (id, lineOptions) => primitive.updateLine(id, lineOptions),
+    setLineDraggable: (id, draggable) => primitive.setLineDraggable(id, draggable),
     destroy: () => {
       primitive.destroy()
     },
