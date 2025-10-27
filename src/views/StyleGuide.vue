@@ -592,7 +592,7 @@ onBeforeUnmount(() => {
             <div
               v-if="openMenu"
               class="menu-dropdown"
-              style="position: absolute; right: 0; top: 110%; width: max-content"
+              style="position: absolute; left: 0; top: 110%; width: max-content"
             >
               <div class="menu-item selected">Selected Item</div>
               <div class="menu-item">Regular Item</div>
@@ -632,6 +632,35 @@ onBeforeUnmount(() => {
           </div>
           <div v-if="ssitems.length === 0" class="empty">No log messages yet.</div>
         </StickyScroller>
+      </div>
+    </section>
+
+    <section id="shadows" class="space-y-4">
+      <h2 class="text-lg font-mono mb-2">Shadows</h2>
+      <div class="flex flex-wrap gap-6 items-center">
+        <div
+          class="w-32 h-20 bg-[var(--panel-bg)] rounded shadow-sm flex items-center justify-center"
+        >
+          <span class="text-[11px] dim">shadow-sm</span>
+        </div>
+        <div class="w-32 h-20 bg-[var(--panel-bg)] rounded shadow flex items-center justify-center">
+          <span class="text-[11px] dim">shadow</span>
+        </div>
+        <div
+          class="w-32 h-20 bg-[var(--panel-bg)] rounded shadow-md flex items-center justify-center"
+        >
+          <span class="text-[11px] dim">shadow-md</span>
+        </div>
+        <div
+          class="w-32 h-20 bg-[var(--panel-bg)] rounded shadow-lg flex items-center justify-center"
+        >
+          <span class="text-[11px] dim">shadow-lg</span>
+        </div>
+        <div
+          class="w-32 h-20 bg-[var(--panel-bg)] rounded shadow-xl flex items-center justify-center"
+        >
+          <span class="text-[11px] dim">shadow-xl</span>
+        </div>
       </div>
     </section>
 

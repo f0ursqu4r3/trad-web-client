@@ -36,19 +36,17 @@
   .shadow-term {
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
   }
-  .code-inline {
-    @apply rounded border px-1.5 py-0.5 text-[12px] font-mono;
-    background: color-mix(in srgb, var(--panel-header-bg) 70%, transparent);
-    border-color: var(--border-color);
+  .shadow-sm {
+    box-shadow: var(--shadow-sm);
   }
-  .panel {
-    background: var(--panel-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
+  .shadow-md {
+    box-shadow: var(--shadow-md);
   }
-  .panel-header {
-    background: var(--panel-header-bg);
-    padding: 0 0.5rem;
+  .shadow-lg {
+    box-shadow: var(--shadow-lg);
+  }
+  .shadow-xl {
+    box-shadow: var(--shadow-xl);
   }
   .scroll-area {
     @apply overflow-auto;

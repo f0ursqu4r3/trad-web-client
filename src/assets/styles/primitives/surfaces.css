@@ -8,10 +8,25 @@
     background: var(--panel-bg);
     border-color: var(--border-color);
   }
+  .panel {
+    @apply rounded-md border;
+    background: var(--panel-bg);
+    border-color: var(--border-color);
+  }
+  .panel-header {
+    background: var(--panel-header-bg);
+    border-bottom: 1px solid var(--panel-border-inner);
+    padding: 0 0.5rem;
+  }
+  .code-inline {
+    @apply rounded border px-1.5 py-0.5 text-[12px] font-mono;
+    background: color-mix(in srgb, var(--panel-header-bg) 70%, transparent);
+    border-color: var(--border-color);
+  }
   .panel-header-row {
     @apply flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide;
     background: var(--panel-header-bg);
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--panel-border-inner);
     color: var(--color-text-dim);
   }
   .section-divider {
@@ -19,7 +34,10 @@
     background: var(--panel-border-inner);
   }
   .toolbar-row {
-    @apply flex items-center justify-between gap-2 border-b border-slate-700/60 bg-[var(--panel-header-bg)] px-2 py-1 text-[12px] text-[var(--color-text-dim)];
+    @apply flex items-center justify-between gap-2 border-b px-2 py-1 text-[12px];
+    background: var(--panel-header-bg);
+    border-color: var(--panel-border-inner);
+    color: var(--color-text-dim);
   }
   .toolbar-section {
     @apply inline-flex items-center gap-4;
@@ -41,13 +59,13 @@
     @apply cursor-pointer whitespace-nowrap px-2.5 py-1.5 flex items-center gap-2;
   }
   .menu-item:hover {
-    @apply bg-white/5;
+    background: color-mix(in srgb, var(--panel-header-bg) 24%, transparent);
   }
   .menu-item:active,
   .menu-item.selected,
   .menu-item[aria-checked='true'],
   .menu-item[data-checked='true'] {
-    @apply bg-white/10;
+    background: color-mix(in srgb, var(--accent-color) 18%, transparent);
   }
   .menu-item:disabled,
   .menu-empty {
@@ -60,10 +78,11 @@
     @apply animate-pulse rounded bg-slate-500/20 h-3;
   }
   .list-row {
-    @apply flex items-center justify-between gap-3 border-b border-slate-800/60 px-2 py-1.5 text-[13px];
+    @apply flex items-center justify-between gap-3 border-b px-2 py-1.5 text-[13px];
+    border-color: var(--panel-border-inner);
   }
-  .list-row-hover {
-    @apply hover:bg-white/5;
+  .list-row-hover:hover {
+    background: color-mix(in srgb, var(--panel-header-bg) 18%, transparent);
   }
   .badge,
   .chip {
@@ -76,6 +95,10 @@
     @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium;
     box-shadow: none;
     border: 1px solid transparent;
+    --_c: var(--pill-color-neutral);
+    background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
+    color: var(--_c);
+    border-color: color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
   }
   .pill-sm {
     @apply text-[10px]/3 px-1.5 py-0.25;
@@ -83,38 +106,20 @@
   .pill-xs {
     @apply text-[9px]/3 px-1 py-0 font-light;
   }
-  .pill {
-    --_c: var(--pill-color-neutral);
-    background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
-    color: var(--_c);
-    border-color: color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
-  }
   .pill-ok,
   .pill-success {
     --_c: var(--pill-color-ok);
-    background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
-    color: var(--_c);
-    border-color: color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
   }
   .pill-err,
   .pill-error {
     --_c: var(--pill-color-err);
-    background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
-    color: var(--_c);
-    border-color: color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
   }
   .pill-warn,
   .pill-warning {
     --_c: var(--pill-color-warn);
-    background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
-    color: var(--_c);
-    border-color: color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
   }
   .pill-info {
     --_c: var(--pill-color-info);
-    background: color-mix(in srgb, var(--_c) var(--pill-bg-alpha), transparent);
-    color: var(--_c);
-    border-color: color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
   }
   a.link-term {
     @apply text-term-accent underline underline-offset-2 hover:opacity-90;
@@ -123,20 +128,22 @@
     @apply w-full text-[12px];
   }
   .table-tiny thead th {
-    @apply py-1 text-left font-medium text-term-dim border-b border-slate-700/70;
+    @apply py-1 text-left font-medium text-term-dim border-b;
+    border-bottom-color: var(--panel-border-inner);
   }
   .table-tiny tbody td {
-    @apply py-1 align-top border-b border-slate-800/70;
+    @apply py-1 align-top border-b;
+    border-bottom-color: var(--panel-border-inner);
   }
   .table-compact tbody tr:hover {
-    @apply bg-white/5;
+    background: color-mix(in srgb, var(--panel-header-bg) 18%, transparent);
   }
   .table-compact tbody tr:last-child td {
     @apply border-b-0;
   }
   table.striped tbody tr:nth-child(odd),
   .list.striped .row:nth-child(odd) {
-    @apply bg-white/5;
+    background: color-mix(in srgb, var(--panel-header-bg) 12%, transparent);
   }
   .notice {
     @apply mt-3 text-[12px];

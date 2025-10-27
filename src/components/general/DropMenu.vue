@@ -350,7 +350,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="containerRef" class="relative">
-    <slot name="button">
+    <slot name="trigger">
       <button
         class="btn btn-sm icon-btn"
         title="Menu"
