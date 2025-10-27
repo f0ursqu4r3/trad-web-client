@@ -88,13 +88,13 @@ function fmtPct(n?: number) {
 
 <template>
   <div
-    class="flex flex-col bg-white dark:bg-gray-800 rounded-lg shadow-sm cursor-pointer"
+    class="flex flex-col bg-(--color-bg) dark:bg-(--color-bg) rounded-lg shadow-sm cursor-pointer"
     @click="emit('inspect', command_id)"
   >
     <div class="flex items-start justify-between gap-3 px-3 py-2">
       <div class="flex items-center flex-wrap gap-2">
         <span
-          class="uppercase font-bold text-[12px] tracking-[0.06em] bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded cursor-pointer"
+          class="uppercase font-bold text-[12px] tracking-[0.06em] bg-(--panel-header-bg) px-2 py-0.5 rounded cursor-pointer"
         >
           Trailing Entry
         </span>

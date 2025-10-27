@@ -1,27 +1,3 @@
-<template>
-  <div
-    ref="containerRef"
-    class="sticky-scroller"
-    :class="{
-      'is-pinned': atBottom,
-      'has-button': (props.showButton ?? true) && !atBottom,
-      'smooth-active': props.smooth && atBottom,
-    }"
-    @scroll="onScroll"
-  >
-    <slot />
-    <button
-      v-show="(props.showButton ?? true) && !atBottom"
-      class="btn icon-btn scroll-button"
-      title="Scroll to latest"
-      aria-label="Scroll to latest"
-      @click="scrollToBottom({ smooth: true })"
-    >
-      <DownIcon class="icon" />
-    </button>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 
@@ -152,39 +128,25 @@ function onScroll() {
 defineExpose({ scrollToBottom, atBottom })
 </script>
 
-<style scoped>
-.sticky-scroller {
-  position: relative;
-  overflow-y: auto;
-  height: 100%;
-  scrollbar-width: thin;
-}
-
-.sticky-scroller.smooth-active {
-  scroll-behavior: smooth;
-}
-
-.scroll-button {
-  position: sticky;
-  left: 100%;
-  margin-left: -1rem;
-  bottom: 0.25rem;
-  transform: translateX(-0.25rem);
-  box-shadow: 0 2px 4px #0006;
-  opacity: 0.9;
-  transition: opacity 0.15s;
-  z-index: 10;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
-}
-</style>
+<template>
+  <div
+    ref="containerRef"
+    :class="[
+      'relative overflow-y-auto h-auto max-h-full min-h-0 pb-8',
+      props.smooth && atBottom ? 'scroll-smooth' : '',
+    ]"
+    style="scrollbar-gutter: stable; scrollbar-width: thin"
+    @scroll="onScroll"
+  >
+    <slot />
+    <button
+      v-show="(props.showButton ?? true) && !atBottom"
+      class="btn icon-btn sticky left-full -ml-4 bottom-1 -translate-x-1 shadow opacity-90 transition-opacity z-10"
+      title="Scroll to latest"
+      aria-label="Scroll to latest"
+      @click="scrollToBottom({ smooth: true })"
+    >
+      <DownIcon class="icon" />
+    </button>
+  </div>
+</template>

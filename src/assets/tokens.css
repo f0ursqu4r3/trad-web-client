@@ -124,6 +124,9 @@
   --color-info: #2f81f7;
   --color-border-strong: #343c45;
 
+  /* Form controls */
+  --control-mark-color: var(--color-text); /* light mark on blue accent */
+
   /* Pill (status) tokens (dark) */
   --pill-color-neutral: var(--color-text-dim);
   --pill-color-ok: var(--color-success);
@@ -193,6 +196,9 @@
   --btn-bg-end: #1d0d28;
   --btn-border: #513066;
   --btn-fg: #f5e9ff;
+
+  /* Form controls */
+  --control-mark-color: var(--color-text); /* neon theme: light mark on magenta */
 
   /* Pill styling (slightly higher alpha for glow feel) */
   --pill-color-neutral: var(--color-text-dim);
@@ -291,6 +297,9 @@
   --btn-border: #646365; /* border_normal */
   --btn-fg: #f2f0e5; /* text_default */
 
+  /* Form controls */
+  --control-mark-color: var(--panel-bg); /* darker mark on cyan accent for contrast */
+
   /* Pills (similar tuning to dark theme, slight lift for contrast) */
   --pill-color-neutral: var(--color-text-dim);
   --pill-color-ok: var(--color-success);
@@ -381,6 +390,9 @@
   --btn-border: #684c3c; /* aged wood */
   --btn-fg: #efd8a1; /* parchment text */
 
+  /* Form controls */
+  --control-mark-color: var(--color-text); /* parchment mark on teal accent */
+
   /* Pills */
   --pill-color-neutral: var(--color-text-dim);
   --pill-color-ok: var(--color-success);
@@ -462,6 +474,9 @@
   --btn-bg-end: #393939; /* darker (alt) */
   --btn-border: #666666; /* strong border */
   --btn-fg: #cccccc; /* readable */
+
+  /* Form controls */
+  --control-mark-color: var(--color-text); /* light gray mark on blue accent */
 
   /* Pills */
   --pill-color-neutral: var(--color-text-dim);

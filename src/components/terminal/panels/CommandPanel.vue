@@ -61,9 +61,9 @@ function handleDuplicate(commandData: TrailingEntryOrderCommand): void {
 </script>
 
 <template>
-  <div class="flex flex-col h-full">
-    <div class="panel">
-      <div class="panel-header flex justify-end items-center gap-2">
+  <div class="panel flex flex-col h-full">
+    <div class="panel-header flex flex-col">
+      <div class="flex justify-end items-center gap-2">
         <span v-if="hiddenCommandCount" class="text-xs"> {{ hiddenCommandCount }} hidden </span>
         <button class="btn btn-sm btn-ghost" @click="showFilters = !showFilters">
           <FunnelIcon size="12" />
@@ -122,11 +122,12 @@ function handleDuplicate(commandData: TrailingEntryOrderCommand): void {
         </div>
       </Transition>
     </div>
+
     <StickyScroller
       :trigger="commandStore.filteredCommands.length"
       :smooth="true"
       :showButton="true"
-      class="overflow-y-auto flex-shrink-1"
+      class="flex-1 min-h-0 overflow-y-auto"
     >
       <div class="flex flex-col p-2 gap-2">
         <template v-for="cmd in commandStore.filteredCommands" :key="cmd.command_id">
