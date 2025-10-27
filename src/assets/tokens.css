@@ -69,6 +69,10 @@
   --font-mono:
     'SFMono-Regular', ui-monospace, 'JetBrains Mono', 'Source Code Pro', Menlo, Consolas, monospace;
 
+  /* Form control tokens */
+  --control-checked-bg: var(--accent-color);
+  --control-mark-color: #fff; /* color of checkmark/dot; override per theme if needed */
+
   /* Scrollbar (light) */
   --scrollbar-track: inherit;
   --scrollbar-thumb: #c8d1da;
