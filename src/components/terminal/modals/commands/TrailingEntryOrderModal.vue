@@ -11,9 +11,7 @@ import { useModalStore } from '@/stores/modals'
 
 import type { TrailingEntryPrefill } from './types'
 
-const props = withDefaults(defineProps<{ open: boolean }>(), {
-  open: false,
-})
+const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 
 const emit = defineEmits<{
   (e: 'submit', payload: Extract<UserCommandPayload, { kind: 'TrailingEntryOrder' }>): void
@@ -37,7 +35,6 @@ function applyInitialValues() {
   jump_frac_threshold.value = preset.jump_frac_threshold ?? null
   position_side.value = preset.position_side ?? PositionSide.Long
   risk_amount.value = preset.risk_amount ?? null
-  selectedAccountId.value = preset.selectedAccountId ?? accounts.selectedAccount?.id ?? ''
   stop_loss.value = preset.stop_loss ?? null
   symbol.value = preset.symbol ?? 'BTCUSDT'
 }

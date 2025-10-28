@@ -3,6 +3,10 @@ import {
   type CommandDevicesListData,
   type CommandHistoryItem,
   type Uuid,
+  type LimitOrderCommand,
+  type MarketOrderCommand,
+  type SplitMarketOrderCommand,
+  type TrailingEntryOrderCommand,
 } from '@/lib/ws/protocol'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
@@ -18,7 +22,18 @@ export interface OrderedCommandHistoryItem extends CommandHistoryItem {
   orderIndex: number
 }
 
-const interestingCommandKinds = ['TrailingEntryOrder']
+export enum interestingCommandKinds {
+  LimitOrder,
+  MarketOrder,
+  SplitMarketOrder,
+  TrailingEntryOrder,
+}
+
+export type InterestingCommand =
+  | LimitOrderCommand
+  | MarketOrderCommand
+  | SplitMarketOrderCommand
+  | TrailingEntryOrderCommand
 
 export const useCommandStore = defineStore(
   'command',
@@ -42,7 +57,8 @@ export const useCommandStore = defineStore(
       return history.value
         .filter(
           (cmd) =>
-            cmd.command?.kind !== undefined && interestingCommandKinds.includes(cmd.command.kind),
+            cmd.command?.kind !== undefined &&
+            Object.values(interestingCommandKinds).includes(cmd.command.kind),
         )
         .reduce<Record<string, OrderedCommandHistoryItem>>((map, cmd, index) => {
           map[cmd.command_id] = {

@@ -7,34 +7,50 @@ import {
   type MarketOrderCommand,
   type UserCommandPayload,
 } from '@/lib/ws/protocol'
-import { useWsStore } from '@/stores/ws'
 import { useAccountsStore } from '@/stores/accounts'
+import { useModalStore } from '@/stores/modals'
 
-const accounts = useAccountsStore()
+import type { MarketOrderPrefill } from './types'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
-const emit = defineEmits<{ (e: 'close'): void }>()
+const emit = defineEmits<{
+  (e: 'submit', payload: Extract<UserCommandPayload, { kind: 'MarketOrder' }>): void
+  (e: 'close'): void
+}>()
 
-const ws = useWsStore()
+const accounts = useAccountsStore()
+const modals = useModalStore()
 
-const selectedAccountId = ref<string>(accounts.selectedAccount?.id || '')
-const symbol = ref('BTCUSDT')
-const action = ref<MarketAction>(MarketAction.Buy)
-const qtyUsd = ref(50)
-const posSide = ref<PositionSide>(PositionSide.Long)
+const selectedAccountId = ref<string>('')
+const symbol = ref<string>('BTCUSDT')
+const quantity_usd = ref<number | null>(null)
+const position_side = ref<PositionSide>(PositionSide.Long)
+const action = ref<MarketAction>(MarketAction.Open)
 
-function reset() {
-  symbol.value = 'BTCUSDT'
-  action.value = MarketAction.Buy
-  qtyUsd.value = 50
-  posSide.value = PositionSide.Long
+function applyInitialValues() {
+  const preset = (modals.modalValues['MarketOrder'] as MarketOrderPrefill) ?? {}
+  selectedAccountId.value = accounts.selectedAccount?.id ?? ''
+  symbol.value = preset.symbol ?? 'BTCT'
+  quantity_usd.value = preset.quantity_usd ?? 50
+  position_side.value = preset.position_side ?? PositionSide.Long
+  action.value = preset.action ?? MarketAction.Open
 }
+
 watch(
   () => props.open,
   (o) => {
-    if (o) reset()
+    if (o) applyInitialValues()
   },
 )
+
+applyInitialValues()
+
+function validate(): boolean {
+  if (!selectedAccountId.value) return false
+  if (!symbol.value) return false
+  if (quantity_usd.value === null || quantity_usd.value <= 0) return false
+  return true
+}
 
 function submit() {
   const marketContext = accounts.getMarketContextForAccount(selectedAccountId.value)
@@ -42,19 +58,24 @@ function submit() {
     console.error('No market context found for account', selectedAccountId.value)
     return
   }
+
+  if (!validate()) {
+    console.error('Validation failed')
+    return
+  }
+
   const data: MarketOrderCommand = {
-    action: action.value,
-    symbol: symbol.value,
-    quantity_usd: qtyUsd.value,
-    position_side: posSide.value,
     market_context: marketContext,
+    symbol: symbol.value,
+    quantity_usd: quantity_usd.value!,
+    position_side: position_side.value,
+    action: action.value,
   }
   const payload: Extract<UserCommandPayload, { kind: 'MarketOrder' }> = {
     kind: 'MarketOrder',
     data,
   }
-  ws.sendUserCommand(payload)
-  emit('close')
+  emit('submit', payload)
 }
 </script>
 
@@ -74,21 +95,19 @@ function submit() {
         <label class="field">
           <span>Action</span>
           <select v-model="action" class="input">
-            <option>Buy</option>
-            <option>Sell</option>
-            <option>Close</option>
-            <option>CloseAll</option>
+            <option :value="MarketAction.Open">Open</option>
+            <option :value="MarketAction.Close">Close</option>
           </select>
         </label>
         <label class="field">
-          <span>USD Qty</span>
-          <input type="number" v-model.number="qtyUsd" class="input" />
+          <span>USD Amount</span>
+          <input type="number" v-model.number="quantity_usd" class="input" />
         </label>
         <label class="field">
           <span>Position Side</span>
-          <select v-model="posSide" class="input">
-            <option>Long</option>
-            <option>Short</option>
+          <select v-model="position_side" class="input">
+            <option :value="PositionSide.Long">Long</option>
+            <option :value="PositionSide.Short">Short</option>
           </select>
         </label>
       </div>

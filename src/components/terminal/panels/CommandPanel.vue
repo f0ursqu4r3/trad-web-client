@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, type Component } from 'vue'
 import StickyScroller from '@/components/general/StickyScroller.vue'
 import { useCommandStore } from '@/stores/command'
 import { useModalStore } from '@/stores/modals'
 import { FunnelIcon } from '@/components/icons'
 
-import type { TrailingEntryPrefill } from '../modals/commands/types'
-import type { TrailingEntryOrderCommand } from '@/lib/ws/protocol'
+import type { MarketOrderPrefill, TrailingEntryPrefill } from '../modals/commands/types'
+import type { UserCommandPayload } from '@/lib/ws/protocol'
+import { interestingCommandKinds } from '@/stores/command'
 
 import CommandHistoryItem from '@/components/terminal/commands/CommandHistoryItem.vue'
+import CommandBase from '../commands/CommandBase.vue'
 import TELongCommand from '@/components/terminal/commands/TELongCommand.vue'
+import MarketOrderCommand from '@/components/terminal/commands/MarketOrderCommand.vue'
 
 const commandStore = useCommandStore()
 const modalStore = useModalStore()
@@ -40,23 +43,58 @@ function handleCheckboxChange(
   }
 }
 
+function getCommandSymbol(command: UserCommandPayload): string {
+  switch (command.kind) {
+    case 'MarketOrder':
+    case 'TrailingEntryOrder':
+      return command.data.symbol
+    default:
+      return ''
+  }
+}
+
+function getCommandComponent(command: UserCommandPayload): Component | string {
+  switch (command.kind) {
+    case 'MarketOrder':
+      return MarketOrderCommand
+    case 'TrailingEntryOrder':
+      return TELongCommand
+    default:
+      return 'div'
+  }
+}
+
+function handleDuplicate(command: UserCommandPayload): void {
+  switch (command.kind) {
+    case 'TrailingEntryOrder':
+      modalStore.openModalWithValues('TrailingEntryOrder', {
+        activation_price: command.data.activation_price,
+        jump_frac_threshold: command.data.jump_frac_threshold,
+        position_side: command.data.position_side,
+        risk_amount: command.data.risk_amount,
+        stop_loss: command.data.stop_loss,
+        symbol: command.data.symbol,
+      } as TrailingEntryPrefill)
+      break
+    case 'MarketOrder':
+      modalStore.openModalWithValues('MarketOrder', {
+        symbol: command.data.symbol,
+        quantity_usd: command.data.quantity_usd,
+        position_side: command.data.position_side,
+        action: command.data.action,
+      } as MarketOrderPrefill)
+      break
+    default:
+      break
+  }
+}
+
 function handleInspect(commandId: string): void {
   commandStore.inspectCommand(commandId)
 }
 
 function handleCancel(commandId: string): void {
   commandStore.cancelCommand(commandId)
-}
-
-function handleDuplicate(commandData: TrailingEntryOrderCommand): void {
-  modalStore.openModalWithValues('TrailingEntryOrder', {
-    activation_price: commandData.activation_price,
-    jump_frac_threshold: commandData.jump_frac_threshold,
-    position_side: commandData.position_side,
-    risk_amount: commandData.risk_amount,
-    stop_loss: commandData.stop_loss,
-    symbol: commandData.symbol,
-  } as TrailingEntryPrefill)
 }
 </script>
 
@@ -139,15 +177,18 @@ function handleDuplicate(commandData: TrailingEntryOrderCommand): void {
                 : ''
             "
           >
-            <TELongCommand
-              v-if="cmd.command.kind === 'TrailingEntryOrder'"
-              :command_id="cmd.command_id"
-              :command_status="cmd.status"
-              :command="cmd.command.data"
-              @duplicate="handleDuplicate(cmd.command.data)"
+            <CommandBase
+              v-if="Object.values(interestingCommandKinds).includes(cmd.command.kind)"
+              :commandId="cmd.command_id"
+              :commandStatus="cmd.status"
+              :commandSymbol="getCommandSymbol(cmd.command)"
+              :label="cmd.command.kind"
+              @duplicate="handleDuplicate(cmd.command)"
               @cancel="handleCancel"
               @inspect="handleInspect"
-            />
+            >
+              <component :is="getCommandComponent(cmd.command)" :command="cmd.command.data" />
+            </CommandBase>
             <CommandHistoryItem v-else :command="cmd" />
           </div>
         </template>

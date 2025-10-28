@@ -25,7 +25,7 @@
     </div>
     <UserSettings :open="settingsOpen" @close="settingsOpen = false" />
     <slot></slot>
-    <CommandModalContaner />
+    <CommandModalContainer />
   </div>
 </template>
 
@@ -38,7 +38,7 @@ import WsIndicator from '@/components/general/WsIndicator.vue'
 import UserSettings from '@/components/terminal/modals/UserSettings.vue'
 import AccountSelect from '@/components/general/AccountSelect.vue'
 import CommandInputModal from '@/components/terminal/modals/commands/CommandInputModal.vue'
-import CommandModalContaner from '@/components/terminal/modals/commands/CommandModalContaner.vue'
+import CommandModalContainer from '@/components/terminal/modals/commands/CommandModalContainer.vue'
 
 const userStore = useUserStore()
 

@@ -57,7 +57,11 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="body">
-    <MarketOrderModal :open="openModals['MarketOrder']" @close="closeModal('MarketOrder')" />
+    <MarketOrderModal
+      :open="openModals['MarketOrder']"
+      @submit="submitOrder"
+      @close="closeModal('MarketOrder')"
+    />
     <LimitOrderModal :open="openModals['LimitOrder']" @close="closeModal('LimitOrder')" />
     <TrailingEntryOrderModal
       :open="openModals['TrailingEntryOrder']"
