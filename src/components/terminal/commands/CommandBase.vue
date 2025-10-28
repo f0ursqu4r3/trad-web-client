@@ -4,6 +4,7 @@ import DropMenu from '@/components/general/DropMenu.vue'
 import { type DropMenuItem } from '@/components/general/DropMenu.vue'
 import StatusIndicator from '@/components/general/StatusIndicator.vue'
 import { DownIcon } from '@/components/icons'
+import { formatName } from '@/lib/utils'
 
 const props = withDefaults(
   defineProps<{
@@ -81,7 +82,7 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
         <span
           class="uppercase font-bold text-[12px] tracking-[0.06em] bg-(--panel-header-bg) px-2 py-0.5 rounded cursor-pointer"
         >
-          {{ label }}
+          {{ formatName(label) }}
         </span>
         <!-- <span
           class="font-mono text-[10px] text-gray-500 dark:text-gray-300 cursor-copy select-text rounded-[2px] px-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2"
