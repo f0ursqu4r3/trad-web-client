@@ -1,31 +1,22 @@
 <template>
   <SplitView
-    orientation="horizontal"
-    storage-key="terminal-orders-column-main"
-    :initial-sizes="[70, 30]"
+    orientation="vertical"
+    storage-key="terminal-orders-column"
+    :initial-sizes="[35, 35, 30]"
   >
-    <template #primary>
-      <SplitView
-        orientation="vertical"
-        storage-key="terminal-orders-column"
-        :initial-sizes="[35, 35, 30]"
-      >
-        <template #inbound-debug>
-          <div class="panel">
-            <div class="panel-header dim">messages</div>
-            <InboundDebugPanel />
-          </div>
-        </template>
-        <template #command-history>
-          <div class="panel">
-            <div class="panel-header dim">commands</div>
-            <CommandPanel />
-          </div>
-        </template>
-      </SplitView>
+    <template #inbound-debug>
+      <div class="panel">
+        <div class="panel-header dim">messages</div>
+        <InboundDebugPanel />
+      </div>
     </template>
-
-    <template #secondary>
+    <template #command-history>
+      <div class="panel">
+        <div class="panel-header dim">commands</div>
+        <CommandPanel />
+      </div>
+    </template>
+    <template #device-tree>
       <div class="panel">
         <div class="panel-header dim">devices</div>
         <DeviceTreePanel />

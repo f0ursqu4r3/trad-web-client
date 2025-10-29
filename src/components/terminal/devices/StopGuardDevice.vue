@@ -1,56 +1,60 @@
 <script setup lang="ts">
-import type { TrailingEntryState } from '@/stores/devices'
-import { TrailingEntryPhase, TrailingEntryLifecycle } from '@/lib/ws/protocol'
+import type { StopGuardState } from '@/stores/devices'
+import { StopGuardStatus } from '@/lib/ws/protocol'
 
 defineProps<{
-  device: TrailingEntryState
+  device: StopGuardState
 }>()
 
 function formatPrice(price: number): string {
   return price.toFixed(2)
 }
 
-function formatPercent(value: number): string {
-  return (value * 100).toFixed(2) + '%'
+function formatQty(qty: number): string {
+  return qty.toLocaleString(undefined, { maximumFractionDigits: 6 })
 }
 
-function getPhaseClass(phase: TrailingEntryPhase): string {
-  return phase === TrailingEntryPhase.Triggered ? 'pill-ok' : 'pill'
-}
-
-function getLifecycleClass(lifecycle: TrailingEntryLifecycle): string {
-  switch (lifecycle) {
-    case TrailingEntryLifecycle.Running:
-      return 'pill pill-info'
-    case TrailingEntryLifecycle.Completed:
+function getStatusClass(status: StopGuardStatus): string {
+  switch (status) {
+    case StopGuardStatus.Flat:
       return 'pill pill-ok'
-    case TrailingEntryLifecycle.SpawningChildren:
-    case TrailingEntryLifecycle.ChildrenSpawned:
+    case StopGuardStatus.Working:
+      return 'pill pill-info'
+    case StopGuardStatus.Triggered:
       return 'pill pill-warn'
+    case StopGuardStatus.Canceled:
+      return 'pill pill-warn'
+    case StopGuardStatus.Rejected:
+      return 'pill pill-err'
     default:
       return 'pill'
   }
 }
 
-function getPositionSideClass(side: string): string {
-  return side === 'LONG' ? 'text-success' : 'text-danger'
+function getPositionSideClass(side: unknown): string {
+  const s = String(side).toUpperCase()
+  return s === 'LONG' ? 'text-success' : 'text-danger'
+}
+
+function fmtDate(d?: Date | null): string {
+  if (!d) return '-'
+  try {
+    return new Date(d).toLocaleString()
+  } catch {
+    return '-'
+  }
 }
 </script>
 
 <template>
   <div class="space-y-4 p-3">
-    <!-- Header Section -->
+    <!-- Header -->
     <div class="space-y-2">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-mono text-[var(--color-text)] m-0">Trailing Entry Device</h3>
-        <div class="flex items-center gap-2">
-          <span :class="getPhaseClass(device.phase)" class="text-[10px] px-2 py-1">
-            {{ device.phase }}
-          </span>
-          <span :class="getLifecycleClass(device.lifecycle)" class="text-[10px] px-2 py-1">
-            {{ device.lifecycle }}
-          </span>
-        </div>
+        <h3 class="text-sm font-mono text-[var(--color-text)] m-0">Stop Guard Device</h3>
+        <span :class="getStatusClass(device.status)" class="text-[10px] px-2 py-1">
+          {{ device.status }}
+        </span>
       </div>
       <div class="text-[11px] text-[var(--color-text-dim)] font-mono">
         {{ device.symbol }} •
@@ -58,7 +62,7 @@ function getPositionSideClass(side: string): string {
       </div>
     </div>
 
-    <!-- Parameters Section -->
+    <!-- Parameters -->
     <div class="space-y-3">
       <h4
         class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)] m-0 border-b border-[var(--border-color)] pb-1"
@@ -68,146 +72,109 @@ function getPositionSideClass(side: string): string {
       <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
         <div>
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Activation Price
+            Stop Price
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">
-            ${{ formatPrice(device.activation_price) }}
+            ${{ formatPrice(device.stop_price) }}
           </dd>
         </div>
         <div>
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Jump Threshold
+            Use Mark Price
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">
-            {{ formatPercent(device.jump_frac_threshold) }}
+            {{ device.use_mark_price ? 'Yes' : 'No' }}
           </dd>
         </div>
         <div>
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Stop Loss
+            Covered Qty
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">
-            ${{ formatPrice(device.stop_loss) }}
+            {{ formatQty(device.covered_qty) }}
           </dd>
         </div>
         <div>
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Risk Amount
+            Target Coverage
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">
-            ${{ formatPrice(device.risk_amount) }}
+            {{ formatQty(device.target_coverage) }}
           </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Topup Seq
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">{{ device.topup_seq }}</dd>
         </div>
       </div>
     </div>
 
-    <!-- Current State Section -->
+    <!-- Identifiers & Timing -->
     <div class="space-y-3">
       <h4
         class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)] m-0 border-b border-[var(--border-color)] pb-1"
       >
-        Current State
+        Order Info
       </h4>
       <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
         <div>
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Peak Price
+            Client Order ID
           </dt>
-          <dd class="m-0 font-mono text-[var(--color-text)]">${{ formatPrice(device.peak) }}</dd>
+          <dd class="m-0 font-mono text-[var(--color-text)] text-[10px]">
+            {{ device.client_order_id || '-' }}
+          </dd>
         </div>
         <div>
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Peak Index
+            Remote Order ID
           </dt>
-          <dd class="m-0 font-mono text-[var(--color-text)]">{{ device.peak_index }}</dd>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ device.remote_order_id ?? '-' }}
+          </dd>
         </div>
         <div>
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Base Index
+            Created At
           </dt>
-          <dd class="m-0 font-mono text-[var(--color-text)]">{{ device.base_index }}</dd>
+          <dd class="m-0 font-mono text-[var(--color-text)]">{{ fmtDate(device.created_at) }}</dd>
         </div>
         <div>
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Total Points
+            Sent At
           </dt>
-          <dd class="m-0 font-mono text-[var(--color-text)]">{{ device.total_points }}</dd>
+          <dd class="m-0 font-mono text-[var(--color-text)]">{{ fmtDate(device.sent_at) }}</dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Last Replacement
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ fmtDate(device.last_replacement_at) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Last Status Check
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ fmtDate(device.last_status_check_at) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Last Update Seen
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ fmtDate(device.last_update_seen_at) }}
+          </dd>
         </div>
       </div>
     </div>
 
-    <!-- Results Section (only show if device has completed data) -->
-    <div v-if="device.completed || device.cancelled || device.succeeded" class="space-y-3">
-      <h4
-        class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)] m-0 border-b border-[var(--border-color)] pb-1"
-      >
-        Results
-      </h4>
-      <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
-        <div v-if="device.position_size > 0">
-          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Position Size
-          </dt>
-          <dd class="m-0 font-mono text-[var(--color-text)]">
-            {{ device.position_size.toFixed(6) }}
-          </dd>
-        </div>
-        <div v-if="device.actual_activation_price > 0">
-          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Actual Activation
-          </dt>
-          <dd class="m-0 font-mono text-[var(--color-text)]">
-            ${{ formatPrice(device.actual_activation_price) }}
-          </dd>
-        </div>
-        <div v-if="device.buy_or_sell_price > 0">
-          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Entry Price
-          </dt>
-          <dd class="m-0 font-mono text-[var(--color-text)]">
-            ${{ formatPrice(device.buy_or_sell_price) }}
-          </dd>
-        </div>
-      </div>
-
-      <!-- Status indicators -->
-      <div class="flex gap-2 flex-wrap">
-        <span v-if="device.completed" class="pill pill-ok text-[10px] px-2 py-1">Completed</span>
-        <span v-if="device.cancelled" class="pill pill-warn text-[10px] px-2 py-1">Cancelled</span>
-        <span v-if="device.succeeded" class="pill pill-ok text-[10px] px-2 py-1">Succeeded</span>
-        <span v-if="device.stop_loss_hit" class="pill pill-err text-[10px] px-2 py-1"
-          >Stop Loss Hit</span
-        >
-      </div>
-    </div>
-
-    <!-- Trigger Points (only show if available) -->
-    <div
-      v-if="device.start_trigger_index !== null || device.end_trigger_index !== null"
-      class="space-y-3"
-    >
-      <h4
-        class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)] m-0 border-b border-[var(--border-color)] pb-1"
-      >
-        Trigger Points
-      </h4>
-      <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
-        <div v-if="device.start_trigger_index !== null">
-          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Start Trigger
-          </dt>
-          <dd class="m-0 font-mono text-[var(--color-text)]">{{ device.start_trigger_index }}</dd>
-        </div>
-        <div v-if="device.end_trigger_index !== null">
-          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            End Trigger
-          </dt>
-          <dd class="m-0 font-mono text-[var(--color-text)]">{{ device.end_trigger_index }}</dd>
-        </div>
-      </div>
-    </div>
-
-    <!-- Market Context Info -->
+    <!-- Market Context -->
     <div class="space-y-3">
       <h4
         class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)] m-0 border-b border-[var(--border-color)] pb-1"

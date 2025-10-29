@@ -29,11 +29,11 @@ export const useDeviceStore = defineStore('device', () => {
     return deviceMap.value[selectedDeviceId.value] || null
   })
 
-  const teDevice = computed<TrailingEntry | null>(() => {
+  const teDevice = computed<TrailingEntryState | null>(() => {
     // Find the first TrailingEntry device and return its points
     const teDevice = devices.value.find((d) => d.kind === 'TrailingEntry') as Device | undefined
     if (!teDevice) return null
-    return teDevice.state as TrailingEntry
+    return teDevice.state as TrailingEntryState
   })
 
   function clearDevices() {
@@ -92,7 +92,7 @@ export const useDeviceStore = defineStore('device', () => {
     }
     switch (snapshot.kind) {
       case 'TrailingEntry': {
-        const te = device.state as TrailingEntry
+        const te = device.state as TrailingEntryState
         const s = snapshot.data
         te.symbol = s.symbol
         te.market_context = s.market_context
@@ -194,7 +194,7 @@ export const useDeviceStore = defineStore('device', () => {
 
   function applyDeviceTeDeltaEvent(device: Device, event: DeviceTeDeltaEvent) {
     // Implementation goes here
-    const te = device.state as TrailingEntry
+    const te = device.state as TrailingEntryState
     const delta: DeviceTeDelta = event.delta
     switch (delta.kind) {
       case 'Init':
@@ -546,7 +546,7 @@ export interface Device {
   state: DeviceState
 }
 
-export type DeviceState = TrailingEntry | SplitState | MarketOrderState | StopGuardState
+export type DeviceState = TrailingEntryState | SplitState | MarketOrderState | StopGuardState
 
 export type DeviceDeltaEvent =
   | DeviceTeDeltaEvent
@@ -556,7 +556,7 @@ export type DeviceDeltaEvent =
 
 export type DeviceDelta = DeviceTeDelta | DeviceSplitDelta | DeviceMoDelta | DeviceSgDelta
 
-export interface TrailingEntry {
+export interface TrailingEntryState {
   // parameters
   symbol: string
   market_context: MarketContext
@@ -690,7 +690,7 @@ function newDevice(deviceId: string, kind: string, command_id: string | null): D
   } as Device
 }
 
-function newTrailingEntryState(): TrailingEntry {
+function newTrailingEntryState(): TrailingEntryState {
   return {
     symbol: '',
     market_context: { type: 'none' } as MarketContext,

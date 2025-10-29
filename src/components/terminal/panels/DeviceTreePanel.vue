@@ -54,7 +54,7 @@ import { storeToRefs } from 'pinia'
 import { formatName } from '@/lib/utils'
 import { TreeView, type TreeItem } from '@/components/general/TreeView'
 import { FolderIcon, FolderOpenIcon, ArrowTrendingDownIcon } from '@/components/icons'
-import { useDeviceStore, type Device, type TrailingEntry } from '@/stores/devices'
+import { useDeviceStore, type Device, type TrailingEntryState } from '@/stores/devices'
 
 const store = useDeviceStore()
 
@@ -75,7 +75,7 @@ const treeData = computed<TreeItem[]>(() => {
       children: [],
       label: formatName(device.kind),
       symbol: device.state.symbol,
-      lifecycle: (device.state as TrailingEntry)?.lifecycle || '',
+      lifecycle: (device.state as TrailingEntryState)?.lifecycle || '',
     })
   }
 

@@ -2,8 +2,10 @@
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useDeviceStore } from '@/stores/devices'
-import type { TrailingEntry } from '@/stores/devices'
 import TrailingEntryDevice from '@/components/terminal/devices/TrailingEntryDevice.vue'
+import MarketOrderDevice from '@/components/terminal/devices/MarketOrderDevice.vue'
+import StopGuardDevice from '@/components/terminal/devices/StopGuardDevice.vue'
+import SplitDevice from '@/components/terminal/devices/SplitDevice.vue'
 
 const { selectedDevice } = storeToRefs(useDeviceStore())
 
@@ -12,6 +14,12 @@ const deviceComp = computed(() => {
   switch (selectedDevice.value.kind) {
     case 'TrailingEntry':
       return TrailingEntryDevice
+    case 'MarketOrder':
+      return MarketOrderDevice
+    case 'StopGuard':
+      return StopGuardDevice
+    case 'Split':
+      return SplitDevice
     default:
       return null
   }
@@ -24,7 +32,7 @@ const deviceComp = computed(() => {
       <component
         v-if="deviceComp"
         :is="deviceComp"
-        :device="selectedDevice.state as TrailingEntry"
+        :device="selectedDevice.state as any"
         class="w-full h-full"
       />
     </div>
