@@ -6,7 +6,13 @@
     >
       Select a command to view its device tree.
     </div>
-    <tree-view v-else v-model:expanded-ids="expanded" :items="treeData" :indent="12" inline-toggle>
+    <tree-view
+      v-else
+      v-model:collapsed-ids="collapsed"
+      :items="treeData"
+      :indent="12"
+      inline-toggle
+    >
       <template #default="{ item, isLeaf, toggle, expanded: isExpanded }">
         <div
           class="flex items-center gap-2 px-2 border-slate-800/60 text-[13px] hover:bg-white/5 select-none cursor-default w-full rounded-lg"
@@ -52,18 +58,10 @@ import { useDeviceStore, type Device, type TrailingEntry } from '@/stores/device
 
 const store = useDeviceStore()
 
-const props = withDefaults(
-  defineProps<{
-    expanded?: boolean
-  }>(),
-  {
-    expanded: false,
-  },
-)
-
 const { devices, selectedDeviceId } = storeToRefs(store)
 
-const expanded = ref<(string | number)[]>(props.expanded ? devices.value.map((d) => d.id) : [])
+// Start fully expanded by default: track only collapsed ids
+const collapsed = ref<(string | number)[]>([])
 
 const treeData = computed<TreeItem[]>(() => {
   const list = devices.value as Device[]

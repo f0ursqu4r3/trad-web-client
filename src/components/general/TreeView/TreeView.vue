@@ -31,8 +31,11 @@ import TreeNode from './TreeNode.vue'
 const props = withDefaults(
   defineProps<{
     items: TreeItem[]
-    /** When provided, enables v-model style control over expansion state */
-    expandedIds?: Id[]
+    /**
+     * Collapsed ids model — preferred. When provided, enables v-model style control over collapse state.
+     * Default behavior without this prop is: everything expanded (collapsedIds = []).
+     */
+    collapsedIds?: Id[]
     /** Indentation in pixels for each level */
     indent?: number
     /** Expand all nodes on mount (only applies when component mounts) */
@@ -53,33 +56,39 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+  (e: 'update:collapsedIds', value: Id[]): void
+  /** Deprecated: emitted for backward compatibility when model is manipulated via UI */
   (e: 'update:expandedIds', value: Id[]): void
 }>()
 
 const indentPx = computed(() => props.indent ?? 16)
 
-// internal expanded set mirrors prop when provided, emits updates on change
-const internalExpanded = ref<Set<Id>>(new Set(props.expandedIds ?? []))
+// Internal collapsed set mirrors prop when provided, emits updates on change
+const internalCollapsed = ref<Set<Id>>(new Set(props.collapsedIds ?? []))
 
 watch(
-  () => props.expandedIds,
+  () => props.collapsedIds,
   (v) => {
-    if (v) internalExpanded.value = new Set(v)
-    else internalExpanded.value = new Set()
+    if (v) internalCollapsed.value = new Set(v)
+    else internalCollapsed.value = new Set()
   },
   { immediate: true },
 )
 
 function isExpandedId(id: Id) {
-  return internalExpanded.value.has(id)
+  return !internalCollapsed.value.has(id)
 }
 
 function setExpanded(id: Id, expanded: boolean) {
-  const next = new Set(internalExpanded.value)
-  if (expanded) next.add(id)
-  else next.delete(id)
-  internalExpanded.value = next
-  emit('update:expandedIds', Array.from(next))
+  const next = new Set(internalCollapsed.value)
+  if (expanded) next.delete(id)
+  else next.add(id)
+  internalCollapsed.value = next
+  emit('update:collapsedIds', Array.from(next))
+  // Back-compat emit for expandedIds
+  const all = collectAllIds(props.items)
+  const expandedNow = Array.from(all).filter((x) => !next.has(x))
+  emit('update:expandedIds', expandedNow)
 }
 
 function toggleId(id: Id) {
@@ -97,8 +106,10 @@ function collectAllIds(items: TreeItem[], acc: Set<Id> = new Set()): Set<Id> {
 
 onMounted(() => {
   if (props.defaultExpandAll) {
+    // defaultExpandAll => collapsed = [] (already the default), but normalize state and emit
+    internalCollapsed.value = new Set()
+    emit('update:collapsedIds', [])
     const all = collectAllIds(props.items)
-    internalExpanded.value = all
     emit('update:expandedIds', Array.from(all))
   }
 })
