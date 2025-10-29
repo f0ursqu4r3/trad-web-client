@@ -33,12 +33,12 @@
           >
             <div class="flex flex-wrap gap-x-2 items-center">
               <span class="wrap-none">{{ item.label || item.id }}</span>
-              <span v-if="item.symbol" class="pill pill-xs">
+              <!-- <span v-if="item.symbol" class="pill pill-xs">
                 {{ item.symbol }}
-              </span>
+              </span> -->
             </div>
             <span v-if="item.lifecycle" class="text-(--color-text-dim) uppercase text-xs">
-              {{ item.lifecycle }}
+              {{ formatName(item.lifecycle) }}
             </span>
           </div>
         </div>
