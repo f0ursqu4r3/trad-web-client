@@ -11,6 +11,7 @@ import {
   type DeviceMoDeltaEvent,
   type DeviceSgDelta,
   type DeviceSgDeltaEvent,
+  type DeviceSnapshotLiteData,
   type DeviceSplitDelta,
   type DeviceSplitDeltaEvent,
   type DeviceTeDelta,
@@ -60,6 +61,111 @@ export const useDeviceStore = defineStore('device', () => {
         parentDevice.children_devices.push(childId)
       }
       childDevice.parent_device = parentId
+    }
+  }
+
+  function handleDeviceSnapshotLite(data: DeviceSnapshotLiteData) {
+    console.log('Handling device snapshot lite:', data)
+    const deviceId = data.device_id
+    const snapshot = data.snapshot
+    if (!(deviceId in deviceMap.value)) {
+      const new_device = newDevice(deviceId, snapshot.kind, data.associated_command_id)
+      deviceMap.value[deviceId] = new_device
+    }
+    const device = deviceMap.value[deviceId]
+    device.complete = data.complete
+    device.failed = data.failed
+    device.canceled = data.canceled
+    device.awaiting_children = data.awaiting_children
+    // parent/children topology (best-effort; children may not exist yet)
+    if (Object.prototype.hasOwnProperty.call(data, 'parent_device')) {
+      device.parent_device = data.parent_device ?? null
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'children_devices') && data.children_devices) {
+      const merged = new Set<string>([...device.children_devices, ...data.children_devices])
+      device.children_devices = Array.from(merged)
+      // If any child already exists, set its parent pointer for consistency
+      device.children_devices.forEach((childId) => {
+        const child = deviceMap.value[childId]
+        if (child) child.parent_device = device.id
+      })
+    }
+    switch (snapshot.kind) {
+      case 'TrailingEntry': {
+        const te = device.state as TrailingEntry
+        const s = snapshot.data
+        te.symbol = s.symbol
+        te.market_context = s.market_context
+        te.position_side = s.position_side
+        te.activation_price = s.activation_price
+        te.jump_frac_threshold = s.jump_frac_threshold
+        te.stop_loss = s.stop_loss
+        te.risk_amount = s.risk_amount
+        te.phase = s.phase
+        te.peak = s.peak
+        te.peak_index = s.peak_index
+        te.position_size = s.position_size
+        te.actual_activation_price = s.actual_activation_price
+        te.buy_or_sell_price = s.buy_or_sell_price
+        te.completed = s.completed
+        te.cancelled = s.cancelled
+        te.succeeded = s.succeeded
+        te.stop_loss_hit = s.stop_loss_hit
+        te.base_index = s.base_index
+        te.total_points = s.total_points
+        te.start_trigger_index = s.start_trigger_index ?? te.start_trigger_index
+        te.end_trigger_index = s.end_trigger_index ?? te.end_trigger_index
+        if (s.lifecycle) te.lifecycle = s.lifecycle
+        break
+      }
+      case 'MarketOrder': {
+        const mo = device.state as MarketOrderState
+        const s = snapshot.data
+        mo.market_context = s.market_context
+        mo.symbol = s.symbol
+        mo.order_side = s.order_side
+        mo.quantity = s.quantity
+        mo.position_side = s.position_side
+        mo.price = s.price
+        mo.status = s.status
+        mo.remote_id = s.remote_id ?? null
+        mo.client_order_id = s.client_order_id ?? null
+        break
+      }
+      case 'Split': {
+        const sp = device.state as SplitState
+        const s = snapshot.data
+        sp.symbol = s.symbol
+        sp.quantity = s.quantity
+        sp.price = s.price
+        break
+      }
+      case 'StopGuard': {
+        const sg = device.state as StopGuardState
+        const s = snapshot.data
+        sg.symbol = s.symbol
+        sg.market_context = s.market_context
+        sg.position_side = s.position_side
+        sg.stop_price = s.stop_price
+        sg.covered_qty = s.covered_qty
+        sg.target_coverage = s.target_coverage
+        sg.client_order_id = s.client_order_id ?? null
+        sg.remote_order_id = s.remote_order_id ?? null
+        sg.topup_seq = s.topup_seq
+        sg.sent_at = s.sent_at ? new Date(s.sent_at) : null
+        sg.last_update_seen_at = s.last_update_seen_at ? new Date(s.last_update_seen_at) : null
+        sg.last_status_check_at = s.last_status_check_at ? new Date(s.last_status_check_at) : null
+        sg.last_replacement_at = s.last_replacement_at ? new Date(s.last_replacement_at) : null
+        sg.status = s.status
+        sg.pending_replacement_from = s.pending_replacement_from ?? null
+        // Legacy/mirror fields for backward compatibility
+        sg.desired_qty = s.target_coverage
+        sg.current_stop_client_id = s.client_order_id ?? null
+        sg.current_stop_order_id = s.remote_order_id ?? null
+        sg.last_topup_time = s.last_replacement_at ? new Date(s.last_replacement_at) : null
+        sg.last_reconcile_time = s.last_status_check_at ? new Date(s.last_status_check_at) : null
+        break
+      }
     }
   }
 
@@ -417,6 +523,7 @@ export const useDeviceStore = defineStore('device', () => {
     selectedDevice,
     // actions
     handleDeviceUpdate,
+    handleDeviceSnapshotLite,
     inspectDevice,
     clearDevices,
     setTePriceLine,

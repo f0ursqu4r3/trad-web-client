@@ -28,7 +28,7 @@
     <template #secondary>
       <div class="panel">
         <div class="panel-header dim">devices</div>
-        <DeviceTreePanel />
+        <DeviceTreePanel :expanded="false" />
       </div>
     </template>
   </SplitView>

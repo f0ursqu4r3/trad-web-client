@@ -52,17 +52,47 @@ import { useDeviceStore, type Device, type TrailingEntry } from '@/stores/device
 
 const store = useDeviceStore()
 
+const props = withDefaults(
+  defineProps<{
+    expanded?: boolean
+  }>(),
+  {
+    expanded: false,
+  },
+)
+
 const { devices, selectedDeviceId } = storeToRefs(store)
 
-const expanded = ref<(string | number)[]>([])
+const expanded = ref<(string | number)[]>(props.expanded ? devices.value.map((d) => d.id) : [])
 
-const treeData = computed<TreeItem[]>(() =>
-  (devices.value as Device[]).map((device) => ({
-    id: device.id,
-    children: [],
-    label: formatName(device.kind),
-    symbol: device.state.symbol,
-    lifecycle: (device.state as TrailingEntry)?.lifecycle || '',
-  })),
-)
+const treeData = computed<TreeItem[]>(() => {
+  const list = devices.value as Device[]
+  const nodes = new Map<string, TreeItem>()
+  const roots: TreeItem[] = []
+
+  // First pass: create all nodes
+  for (const device of list) {
+    nodes.set(device.id, {
+      id: device.id,
+      children: [],
+      label: formatName(device.kind),
+      symbol: device.state.symbol,
+      lifecycle: (device.state as TrailingEntry)?.lifecycle || '',
+    })
+  }
+
+  // Second pass: wire up parent/children by parent_device
+  for (const device of list) {
+    const node = nodes.get(device.id)!
+    const parentId = device.parent_device
+    if (parentId && nodes.has(parentId)) {
+      const parent = nodes.get(parentId)!
+      parent.children!.push(node)
+    } else {
+      roots.push(node)
+    }
+  }
+
+  return roots
+})
 </script>

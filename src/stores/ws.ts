@@ -169,7 +169,7 @@ export const useWsStore = defineStore('ws', () => {
   function onServerMessage(msg: ServerToClientMessage) {
     const payload = msg.payload
     inbound.value.push({ ts: Date.now(), kind: payload.kind, payload: payload.data })
-    if (inbound.value.length > 300) inbound.value.shift()
+    if (inbound.value.length > 3000) inbound.value.shift()
 
     // Handle different message kinds
     const handlers = {
@@ -184,13 +184,20 @@ export const useWsStore = defineStore('ws', () => {
       CommandHistory: handleCommandHistory,
       SetCommandStatus: handleSetCommandStatus,
       CommandDevicesList: handleCommandDevicesList,
+      DeviceSnapshotLite: handleDeviceSnapshotLite,
       DeviceTeDelta: handleDeviceTeDelta,
+      DeviceSplitDelta: handleDeviceSplitDelta,
+      DeviceMoDelta: handleDeviceMoDelta,
     } as Record<string, (p: ServerToClientMessage['payload']) => void>
-    const handler = handlers[payload.kind]
-    handler?.(payload)
+    const handler = handlers[payload.kind] || handleUnknowServerMessage
+    handler(payload)
   }
 
   /* Handlers for inbound message kinds */
+  function handleUnknowServerMessage(payload: ServerToClientMessage['payload']): void {
+    console.warn('[ws] Unknown server message kind received:', payload.kind, payload.data)
+  }
+
   function handleClientIdAssignment(payload: ServerToClientMessage['payload']): void {
     const data = (
       payload as Extract<ServerToClientMessage['payload'], { kind: 'ClientIdAssignment' }>
@@ -289,8 +296,26 @@ export const useWsStore = defineStore('ws', () => {
     commandStore.devices[data.command_id] = data
   }
 
+  function handleDeviceSnapshotLite(payload: ServerToClientMessage['payload']): void {
+    const data = payload as Extract<
+      ServerToClientMessage['payload'],
+      { kind: 'DeviceSnapshotLite' }
+    >
+    deviceStore.handleDeviceSnapshotLite(data.data)
+  }
+
   function handleDeviceTeDelta(payload: ServerToClientMessage['payload']): void {
     const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceTeDelta' }>
+    deviceStore.handleDeviceUpdate(data.kind, data.data)
+  }
+
+  function handleDeviceMoDelta(payload: ServerToClientMessage['payload']): void {
+    const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceMoDelta' }>
+    deviceStore.handleDeviceUpdate(data.kind, data.data)
+  }
+
+  function handleDeviceSplitDelta(payload: ServerToClientMessage['payload']): void {
+    const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceSplitDelta' }>
     deviceStore.handleDeviceUpdate(data.kind, data.data)
   }
 
