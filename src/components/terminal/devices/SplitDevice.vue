@@ -1,26 +1,10 @@
 <script setup lang="ts">
 import type { SplitState } from '@/stores/devices'
+import { formatPrice, formatQty } from './utils'
 
 defineProps<{
   device: SplitState
 }>()
-
-function formatPrice(price: number): string {
-  if (!Number.isFinite(price)) return '-'
-  return new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(price)
-}
-
-function formatQty(qty: number): string {
-  if (!Number.isFinite(qty)) return '-'
-  // Show up to 6 decimals for crypto-style quantities
-  return new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 6,
-  }).format(qty)
-}
 </script>
 
 <template>

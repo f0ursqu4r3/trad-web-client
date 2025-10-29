@@ -1,26 +1,11 @@
 <script setup lang="ts">
 import type { StopGuardState } from '@/stores/devices'
 import { StopGuardStatus } from '@/lib/ws/protocol'
+import { formatPrice, formatQty, getPositionSideClass, formatSide } from './utils'
 
 defineProps<{
   device: StopGuardState
 }>()
-
-function formatPrice(price: number): string {
-  if (!Number.isFinite(price)) return '-'
-  return new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(price)
-}
-
-function formatQty(qty: number): string {
-  if (!Number.isFinite(qty)) return '-'
-  return new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 6,
-  }).format(qty)
-}
 
 function getStatusClass(status: StopGuardStatus): string {
   switch (status) {
@@ -39,15 +24,7 @@ function getStatusClass(status: StopGuardStatus): string {
   }
 }
 
-function getPositionSideClass(side: unknown): string {
-  const s = String(side).toUpperCase()
-  return s === 'LONG' ? 'text-success' : 'text-danger'
-}
-
-function formatSide(side: unknown): string {
-  const s = String(side).toUpperCase()
-  return s === 'LONG' ? 'Long' : 'Short'
-}
+// side helpers imported from ./utils
 
 function fmtDate(d?: Date | null): string {
   if (!d) return '-'
@@ -70,8 +47,10 @@ function fmtDate(d?: Date | null): string {
         </span>
       </div>
       <div class="text-[11px] text-[var(--color-text-dim)] font-mono">
-  {{ device.symbol }} •
-  <span :class="getPositionSideClass(device.position_side)">{{ formatSide(device.position_side) }}</span>
+        {{ device.symbol }} •
+        <span :class="getPositionSideClass(device.position_side)">{{
+          formatSide(device.position_side)
+        }}</span>
       </div>
     </div>
 

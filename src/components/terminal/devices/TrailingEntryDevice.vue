@@ -1,55 +1,17 @@
 <script setup lang="ts">
 import type { TrailingEntryState } from '@/stores/devices'
-import { TrailingEntryPhase, TrailingEntryLifecycle } from '@/lib/ws/protocol'
+import {
+  formatPrice,
+  formatPercent,
+  getPhaseClass,
+  getLifecycleClass,
+  getPositionSideClass,
+  formatSide,
+} from './utils'
 
 defineProps<{
   device: TrailingEntryState
 }>()
-
-function formatPrice(price: number): string {
-  if (!Number.isFinite(price)) return '-'
-  return new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(price)
-}
-
-function formatPercent(value: number): string {
-  if (!Number.isFinite(value)) return '-'
-  return new Intl.NumberFormat(undefined, {
-    style: 'percent',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)
-}
-
-function getPhaseClass(phase: TrailingEntryPhase): string {
-  return phase === TrailingEntryPhase.Triggered ? 'pill pill-ok' : 'pill'
-}
-
-function getLifecycleClass(lifecycle: TrailingEntryLifecycle): string {
-  switch (lifecycle) {
-    case TrailingEntryLifecycle.Running:
-      return 'pill pill-info'
-    case TrailingEntryLifecycle.Completed:
-      return 'pill pill-ok'
-    case TrailingEntryLifecycle.SpawningChildren:
-    case TrailingEntryLifecycle.ChildrenSpawned:
-      return 'pill pill-warn'
-    default:
-      return 'pill'
-  }
-}
-
-function getPositionSideClass(side: unknown): string {
-  const s = String(side).toUpperCase()
-  return s === 'LONG' ? 'text-success' : 'text-danger'
-}
-
-function formatSide(side: unknown): string {
-  const s = String(side).toUpperCase()
-  return s === 'LONG' ? 'Long' : 'Short'
-}
 </script>
 
 <template>
@@ -69,7 +31,9 @@ function formatSide(side: unknown): string {
       </div>
       <div class="text-[11px] text-[var(--color-text-dim)] font-mono">
         {{ device.symbol }} •
-        <span :class="getPositionSideClass(device.position_side)">{{ formatSide(device.position_side) }}</span>
+        <span :class="getPositionSideClass(device.position_side)">
+          {{ formatSide(device.position_side) }}
+        </span>
       </div>
     </div>
 
@@ -190,9 +154,9 @@ function formatSide(side: unknown): string {
         <span v-if="device.completed" class="pill pill-ok text-[10px] px-2 py-1">Completed</span>
         <span v-if="device.cancelled" class="pill pill-warn text-[10px] px-2 py-1">Cancelled</span>
         <span v-if="device.succeeded" class="pill pill-ok text-[10px] px-2 py-1">Succeeded</span>
-        <span v-if="device.stop_loss_hit" class="pill pill-err text-[10px] px-2 py-1"
-          >Stop Loss Hit</span
-        >
+        <span v-if="device.stop_loss_hit" class="pill pill-err text-[10px] px-2 py-1">
+          Stop Loss Hit
+        </span>
       </div>
     </div>
 
