@@ -7,15 +7,24 @@ defineProps<{
 }>()
 
 function formatPrice(price: number): string {
-  return price.toFixed(2)
+  if (!Number.isFinite(price)) return '-'
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(price)
 }
 
 function formatPercent(value: number): string {
-  return (value * 100).toFixed(2) + '%'
+  if (!Number.isFinite(value)) return '-'
+  return new Intl.NumberFormat(undefined, {
+    style: 'percent',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value)
 }
 
 function getPhaseClass(phase: TrailingEntryPhase): string {
-  return phase === TrailingEntryPhase.Triggered ? 'pill-ok' : 'pill'
+  return phase === TrailingEntryPhase.Triggered ? 'pill pill-ok' : 'pill'
 }
 
 function getLifecycleClass(lifecycle: TrailingEntryLifecycle): string {
@@ -32,8 +41,14 @@ function getLifecycleClass(lifecycle: TrailingEntryLifecycle): string {
   }
 }
 
-function getPositionSideClass(side: string): string {
-  return side === 'LONG' ? 'text-success' : 'text-danger'
+function getPositionSideClass(side: unknown): string {
+  const s = String(side).toUpperCase()
+  return s === 'LONG' ? 'text-success' : 'text-danger'
+}
+
+function formatSide(side: unknown): string {
+  const s = String(side).toUpperCase()
+  return s === 'LONG' ? 'Long' : 'Short'
 }
 </script>
 
@@ -54,7 +69,7 @@ function getPositionSideClass(side: string): string {
       </div>
       <div class="text-[11px] text-[var(--color-text-dim)] font-mono">
         {{ device.symbol }} •
-        <span :class="getPositionSideClass(device.position_side)">{{ device.position_side }}</span>
+        <span :class="getPositionSideClass(device.position_side)">{{ formatSide(device.position_side) }}</span>
       </div>
     </div>
 

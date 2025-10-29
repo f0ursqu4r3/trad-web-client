@@ -7,11 +7,19 @@ defineProps<{
 }>()
 
 function formatPrice(price: number): string {
-  return price.toFixed(2)
+  if (!Number.isFinite(price)) return '-'
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(price)
 }
 
 function formatQty(qty: number): string {
-  return qty.toLocaleString(undefined, { maximumFractionDigits: 6 })
+  if (!Number.isFinite(qty)) return '-'
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 6,
+  }).format(qty)
 }
 
 function getStatusClass(status: StopGuardStatus): string {
@@ -36,6 +44,11 @@ function getPositionSideClass(side: unknown): string {
   return s === 'LONG' ? 'text-success' : 'text-danger'
 }
 
+function formatSide(side: unknown): string {
+  const s = String(side).toUpperCase()
+  return s === 'LONG' ? 'Long' : 'Short'
+}
+
 function fmtDate(d?: Date | null): string {
   if (!d) return '-'
   try {
@@ -57,8 +70,8 @@ function fmtDate(d?: Date | null): string {
         </span>
       </div>
       <div class="text-[11px] text-[var(--color-text-dim)] font-mono">
-        {{ device.symbol }} •
-        <span :class="getPositionSideClass(device.position_side)">{{ device.position_side }}</span>
+  {{ device.symbol }} •
+  <span :class="getPositionSideClass(device.position_side)">{{ formatSide(device.position_side) }}</span>
       </div>
     </div>
 
