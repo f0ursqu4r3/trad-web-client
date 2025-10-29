@@ -6,7 +6,7 @@ import { DownIcon } from '@/components/icons'
 interface Props {
   /** Number that changes when content grows; we watch it to decide to scroll */
   trigger?: number
-  /** Pixel distance from bottom considered "at bottom" */
+  /** Pixel distance from bottom considered "at bottom" (fallback when sentinel isn't intersecting) */
   bottomThreshold?: number
   /** If true, applies smooth scroll behavior while pinned */
   smooth?: boolean
@@ -24,9 +24,11 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const containerRef = ref<HTMLElement | null>(null)
+const sentinelRef = ref<HTMLDivElement | null>(null)
 const atBottom = ref(false)
+
 let resizeObs: ResizeObserver | null = null
-let mutationObs: MutationObserver | null = null
+let interObs: IntersectionObserver | null = null
 
 function threshold() {
   // Ensure non-negative threshold
@@ -52,6 +54,7 @@ function scrollToBottom(opts?: { smooth?: boolean }) {
   } else {
     el.scrollTop = el.scrollHeight
   }
+  // Let the sentinel event eventually flip the state, but optimistically set now
   atBottom.value = true
 }
 
@@ -66,62 +69,61 @@ watch(
   },
 )
 
-onMounted(() => {
+onMounted(async () => {
   const el = containerRef.value
   if (!el) return
 
+  // IntersectionObserver on a sentinel keeps at-bottom state robustly
+  if ('IntersectionObserver' in window) {
+    interObs = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0]
+        // If the sentinel is visible within the scroller, we are at bottom
+        atBottom.value = !!entry?.isIntersecting
+      },
+      { root: el, threshold: 0.999 }, // nearly fully visible
+    )
+    if (sentinelRef.value) interObs.observe(sentinelRef.value)
+  }
+
   // Initial position
+  await nextTick()
   if (props.stickOnMount) {
     scrollToBottom()
   } else {
     updateAtBottom()
   }
 
-  // Observe size/content changes automatically when trigger is not provided
-  if (typeof props.trigger === 'undefined') {
-    // ResizeObserver handles scrollHeight changes (e.g., images loading)
-    if ('ResizeObserver' in window) {
-      resizeObs = new ResizeObserver(() => {
-        if (atBottom.value) scrollToBottom({ smooth: props.smooth })
-      })
-      resizeObs.observe(el)
-    }
-
-    // MutationObserver watches child additions (new messages, etc.)
-    if ('MutationObserver' in window) {
-      mutationObs = new MutationObserver(() => {
-        if (atBottom.value) scrollToBottom({ smooth: props.smooth })
-      })
-      mutationObs.observe(el, { childList: true, subtree: true })
-    }
+  // ResizeObserver handles scrollHeight changes (e.g., images/fonts)
+  if ('ResizeObserver' in window) {
+    resizeObs = new ResizeObserver(() => {
+      if (atBottom.value) scrollToBottom({ smooth: props.smooth })
+    })
+    resizeObs.observe(el)
   }
+})
 
-  // Keep atBottom state fresh on resize & scroll
-  const onScroll = () => updateAtBottom()
-  const onResize = () => updateAtBottom()
-  el.addEventListener('scroll', onScroll, { passive: true })
-  window.addEventListener('resize', onResize)
-
-  // Cleanup
-  onBeforeUnmount(() => {
-    el.removeEventListener('scroll', onScroll)
-    window.removeEventListener('resize', onResize)
-    if (resizeObs) {
-      try {
-        resizeObs.disconnect()
-      } catch {}
-      resizeObs = null
-    }
-    if (mutationObs) {
-      try {
-        mutationObs.disconnect()
-      } catch {}
-      mutationObs = null
-    }
-  })
+onBeforeUnmount(() => {
+  const el = containerRef.value
+  if (el) {
+    // no manual listeners to remove; Vue handles @scroll binding
+  }
+  if (resizeObs) {
+    try {
+      resizeObs.disconnect()
+    } catch {}
+    resizeObs = null
+  }
+  if (interObs) {
+    try {
+      interObs.disconnect()
+    } catch {}
+    interObs = null
+  }
 })
 
 function onScroll() {
+  // Fallback to math if sentinel isn't supported/ready
   updateAtBottom()
 }
 
@@ -129,19 +131,24 @@ defineExpose({ scrollToBottom, atBottom })
 </script>
 
 <template>
-  <div
-    ref="containerRef"
-    :class="[
-      'relative overflow-y-auto h-auto max-h-full min-h-0 pb-8',
-      props.smooth && atBottom ? 'scroll-smooth' : '',
-    ]"
-    style="scrollbar-gutter: stable; scrollbar-width: thin"
-    @scroll="onScroll"
-  >
-    <slot />
+  <div class="relative h-full min-h-0">
+    <div
+      ref="containerRef"
+      :class="[
+        'overflow-y-auto h-auto max-h-full min-h-0',
+        props.smooth && atBottom ? 'scroll-smooth' : '',
+      ]"
+      @scroll="onScroll"
+    >
+      <slot />
+      <!-- Sentinel used to detect bottom intersection reliably across content growth -->
+      <div ref="sentinelRef" aria-hidden="true" style="height: 1px"></div>
+    </div>
+
+    <!-- Absolute overlay: pinned to bottom-right of the scroll area without affecting layout -->
     <button
       v-show="(props.showButton ?? true) && !atBottom"
-      class="btn icon-btn sticky left-full -ml-4 bottom-1 -translate-x-1 shadow opacity-90 transition-opacity z-10"
+      class="btn icon-btn absolute bottom-2 right-3 pointer-events-auto shadow opacity-90 transition-opacity z-10"
       title="Scroll to latest"
       aria-label="Scroll to latest"
       @click="scrollToBottom({ smooth: true })"

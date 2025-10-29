@@ -99,7 +99,7 @@ function handleCancel(commandId: string): void {
 </script>
 
 <template>
-  <div class="panel flex flex-col h-full">
+  <div class="panel flex flex-col h-full min-h-0">
     <div class="panel-header flex flex-col">
       <div class="flex justify-end items-center gap-2">
         <span v-if="hiddenCommandCount" class="text-xs"> {{ hiddenCommandCount }} hidden </span>
@@ -165,7 +165,7 @@ function handleCancel(commandId: string): void {
       :trigger="commandStore.filteredCommands.length"
       :smooth="true"
       :showButton="true"
-      class="flex-1 min-h-0 overflow-y-auto"
+      class="flex-1 min-h-0"
     >
       <div class="flex flex-col p-2 gap-2">
         <template v-for="cmd in commandStore.filteredCommands" :key="cmd.command_id">
@@ -200,7 +200,7 @@ function handleCancel(commandId: string): void {
 <style scoped>
 .expand-enter-active,
 .expand-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
 }
 .expand-enter-from,
 .expand-leave-to {
