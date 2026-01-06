@@ -31,7 +31,7 @@ export const useBillingStore = defineStore('billing', () => {
     if (!isAuthenticated.value) return
     try {
       // Backend should create a Stripe Billing Portal session and return { url }
-      const { url } = await apiPost<{ url: string }>('/billing/portal', undefined, {
+      const { url } = await apiPost<{ url: string }>('/billing/portal-session', undefined, {
         throwOnHTTPError: true,
       })
       if (url) window.location.assign(url)
