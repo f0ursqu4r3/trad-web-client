@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
+import { useUserStore } from '@/stores/user'
 
 const routes: RouteRecordRaw[] = [
   { path: '/', redirect: '/terminal' },
@@ -13,7 +14,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/terminal',
     component: () => import('@/views/TradingTerminal.vue'),
-    meta: { requiresAuth: true, layout: 'authenticated' },
+    meta: { requiresAuth: true, requiresEntitlement: true, layout: 'authenticated' },
   },
   {
     path: '/style-guide',
@@ -52,6 +53,17 @@ router.beforeEach(async (to) => {
   if (to.meta.requiresAuth && !authed) {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
+
+  if (to.meta.requiresEntitlement && authed) {
+    const userStore = useUserStore()
+    if (!userStore.lastFetchedAt && !userStore.loading) {
+      await userStore.fetchMe()
+    }
+    if (userStore.entitled === false) {
+      return { path: '/subscriptions', query: { redirect: to.fullPath } }
+    }
+  }
+
   if (to.path === '/login' && authed) {
     return { path: '/terminal' }
   }

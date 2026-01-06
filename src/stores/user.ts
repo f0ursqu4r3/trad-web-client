@@ -31,6 +31,7 @@ export const useUserStore = defineStore('user', () => {
   const error = ref<string | null>(null)
   const lastFetchedAt = ref<number | null>(null)
   const isServerAuthenticated = ref<boolean>(false)
+  const entitled = ref<boolean | null>(null)
 
   const displayName = computed(
     () =>
@@ -41,8 +42,11 @@ export const useUserStore = defineStore('user', () => {
 
   interface MeResponseShape {
     user_id: string
+    entitled?: boolean
     client_profile: ClientProfile
     accounts: AccountRecord[]
+    error?: string
+    code?: string
   }
 
   async function fetchMe() {
@@ -59,9 +63,19 @@ export const useUserStore = defineStore('user', () => {
         throwOnHTTPError: false,
       })
       if (data && typeof data === 'object') {
-        if ('user_id' in data) {
+        if ('error' in data && typeof data.error === 'string' && !('user_id' in data)) {
+          error.value = data.error
+          if ('code' in data && data.code === 'subscription_required') {
+            entitled.value = false
+          }
+          userId.value = null
+          profile.value = { display_name: null, meta: { preferences: {} } }
+        } else if ('user_id' in data) {
           userId.value = data.user_id || null
           profile.value = data.client_profile || { meta: { preferences: {} } }
+          if (typeof data.entitled === 'boolean') {
+            entitled.value = data.entitled
+          }
           accountsStore.accountsRaw = data.accounts || []
           if (userId.value) {
             setSessionUserId(userId.value)
@@ -74,6 +88,7 @@ export const useUserStore = defineStore('user', () => {
       } else {
         userId.value = null
         profile.value = { display_name: null, meta: { preferences: {} } }
+        entitled.value = null
       }
       lastFetchedAt.value = Date.now()
       uiStore.theme =
@@ -83,6 +98,7 @@ export const useUserStore = defineStore('user', () => {
       error.value = e instanceof Error ? e.message : String(e)
       userId.value = null
       profile.value = { display_name: null, meta: { preferences: {} } }
+      entitled.value = null
       clearSessionUserId()
     } finally {
       loading.value = false
@@ -113,6 +129,7 @@ export const useUserStore = defineStore('user', () => {
     profile.value = { display_name: null, meta: { preferences: {} } }
     error.value = null
     lastFetchedAt.value = null
+    entitled.value = null
     clearSessionUserId()
   }
 
@@ -134,6 +151,7 @@ export const useUserStore = defineStore('user', () => {
     error,
     lastFetchedAt,
     isServerAuthenticated,
+    entitled,
     // getters
     displayName,
     // actions

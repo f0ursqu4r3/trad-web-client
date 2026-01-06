@@ -56,7 +56,27 @@ export const useAccountsStore = defineStore(
     const hasAccounts = computed(() => accounts.value.length > 0)
 
     async function fetchAccounts(): Promise<void> {
-      const response = await apiGet<AccountRecord[]>('/accounts')
+      loading.value = true
+      error.value = null
+      let response: AccountRecord[] | { error?: string; code?: string }
+      try {
+        response = await apiGet<AccountRecord[] | { error?: string; code?: string }>('/accounts', {
+          throwOnHTTPError: false,
+        })
+      } catch (err) {
+        error.value = err instanceof Error ? err.message : String(err)
+        accountsRaw.value = []
+        loading.value = false
+        return
+      }
+
+      if (!Array.isArray(response)) {
+        error.value = response?.error || 'Failed to load accounts'
+        accountsRaw.value = []
+        loading.value = false
+        return
+      }
+
       accountsRaw.value = response
 
       const fetchedIds = new Set(response.map((account) => account.id))
@@ -78,6 +98,7 @@ export const useAccountsStore = defineStore(
       }
 
       lastFetchedAt.value = Date.now()
+      loading.value = false
     }
 
     async function addAccount(payload: AccountFormPayload): Promise<void> {

@@ -12,6 +12,11 @@
       </button>
     </div>
 
+    <p v-if="showEntitlementNotice" class="notice-warn">
+      Subscription required to access the trading terminal. Choose a plan or manage billing to
+      continue.
+    </p>
+
     <p v-if="!publishableKey || !pricingTableId" class="notice-err">
       Missing Stripe configuration. Set VITE_STRIPE_PUBLISHABLE_KEY and
       VITE_STRIPE_PRICING_TABLE_ID.
@@ -28,6 +33,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useHead } from '@unhead/vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { useBillingStore } from '@/stores/billing'
@@ -45,6 +51,7 @@ useHead({
 const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
 const pricingTableId = import.meta.env.VITE_STRIPE_PRICING_TABLE_ID
 
+const route = useRoute()
 const { isAuthenticated } = useAuth0()
 const billing = useBillingStore()
 
@@ -53,4 +60,5 @@ if (isAuthenticated.value) billing.fetchBillingInfo()
 
 // Expose a boolean for template (Auth0 exposes a Ref<boolean>)
 const authIsAuthenticated = computed(() => isAuthenticated.value)
+const showEntitlementNotice = computed(() => Boolean(route.query.redirect))
 </script>

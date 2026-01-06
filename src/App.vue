@@ -3,10 +3,12 @@ import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRouter, RouterView } from 'vue-router'
 import { useAuth0 } from '@auth0/auth0-vue'
+import { useUserStore } from '@/stores/user'
 
 import AuthenticatedLayout from '@/layouts/Authenticated.vue'
 
 const { isAuthenticated } = useAuth0()
+const userStore = useUserStore()
 const router = useRouter()
 
 // Simple Nuxt-like layout selection using route meta
@@ -33,6 +35,18 @@ watch(
     const requiresAuth = route.meta?.requiresAuth
     if (!isAuth && requiresAuth) {
       router.replace({ path: '/login', query: { redirect: route.fullPath } })
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => [userStore.entitled, isAuthenticated.value, route.fullPath],
+  ([entitled, isAuth]) => {
+    const requiresEntitlement = route.meta?.requiresEntitlement
+    if (!isAuth || !requiresEntitlement) return
+    if (entitled === false && route.path !== '/subscriptions') {
+      router.replace({ path: '/subscriptions', query: { redirect: route.fullPath } })
     }
   },
   { immediate: true },
