@@ -63,9 +63,13 @@ export const useUserStore = defineStore('user', () => {
         throwOnHTTPError: false,
       })
       if (data && typeof data === 'object') {
-        if ('error' in data && typeof data.error === 'string' && !('user_id' in data)) {
-          error.value = data.error
-          if ('code' in data && data.code === 'subscription_required') {
+        if (
+          'error' in data &&
+          typeof (data as { error?: unknown }).error === 'string' &&
+          !('user_id' in data)
+        ) {
+          error.value = (data as { error: string }).error
+          if ('code' in data && (data as { code?: string }).code === 'subscription_required') {
             entitled.value = false
           }
           userId.value = null
