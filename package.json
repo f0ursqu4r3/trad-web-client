@@ -20,6 +20,7 @@
   "dependencies": {
     "@auth0/auth0-vue": "^2.4.0",
     "@tailwindcss/vite": "^4.1.13",
+    "@unhead/vue": "^2.0.19",
     "dockview-vue": "^4.7.1",
     "lightweight-charts": "^5.0.8",
     "pinia": "^3.0.3",

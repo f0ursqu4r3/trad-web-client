@@ -1,4 +1,5 @@
 import { createApp } from 'vue'
+import { createHead } from '@unhead/vue/client'
 import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 
@@ -18,11 +19,15 @@ import { useUiStore } from '@/stores/ui'
 
 const app = createApp(App)
 
+const head = createHead()
+app.use(head)
+
 const pinia = createPinia()
 pinia.use(piniaPluginPersistedstate)
 app.use(pinia)
 
 app.use(router)
+
 app.use(auth0)
 setAuth0Client(app.config.globalProperties.$auth0)
 

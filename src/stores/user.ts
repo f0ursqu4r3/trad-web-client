@@ -119,8 +119,8 @@ export const useUserStore = defineStore('user', () => {
   // React to auth changes; fetch when authenticated, clear when logged out
   watch(
     () => isAuthenticated.value,
-    (authed) => {
-      if (authed) fetchMe()
+    (authenticated) => {
+      if (authenticated) fetchMe()
       else clear()
     },
     { immediate: true },

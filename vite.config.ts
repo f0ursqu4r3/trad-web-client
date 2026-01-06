@@ -41,7 +41,14 @@ export default defineConfig(({ mode }) => {
     plugins: [
       // simple logger plugin for dev-time visibility
       loggerPlugin,
-      vue(),
+      vue({
+        template: {
+          compilerOptions: {
+            // treat all components with a dash as custom elements
+            isCustomElement: (tag) => tag.includes('stripe-pricing-table'),
+          },
+        },
+      }),
       vueDevTools(),
       tailwindcss(),
     ],
