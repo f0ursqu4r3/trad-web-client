@@ -13,7 +13,7 @@ const accounts = useAccountsStore()
 const DEFAULT_NETWORK: NetworkType = NetworkType.Mainnet
 const NETWORK_OPTIONS: NetworkType[] = [NetworkType.Mainnet, NetworkType.Testnet]
 const DEFAULT_EXCHANGE: ExchangeType = ExchangeType.Binance
-const EXCHANGE_OPTIONS: ExchangeType[] = [ExchangeType.Binance]
+const EXCHANGE_OPTIONS: ExchangeType[] = [ExchangeType.Binance, ExchangeType.Bifake]
 
 const network = ref<NetworkType>(DEFAULT_NETWORK)
 const exchange = ref<ExchangeType>(DEFAULT_EXCHANGE)
@@ -84,7 +84,7 @@ async function submit() {
         </label>
         <label class="field">
           <span>Exchange</span>
-          <select v-model="exchange" class="input" disabled>
+          <select v-model="exchange" class="input">
             <option v-for="option in EXCHANGE_OPTIONS" :key="option" :value="option">
               {{ enumKeyName(ExchangeType, option) || option }}
             </option>
