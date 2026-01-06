@@ -274,11 +274,26 @@ export const useWsStore = defineStore('ws', () => {
     console.error('[ws] FatalServerError received. status -> error', data.error)
   }
 
+  function isAuthError(message: string | undefined | null): boolean {
+    if (!message) return false
+    const msg = message.toLowerCase()
+    return (
+      msg.includes('unauthorized') ||
+      msg.includes('token') ||
+      msg.includes('auth') ||
+      msg.includes('does not belong to user')
+    )
+  }
+
   function handleServerError(payload: ServerToClientMessage['payload']): void {
     const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'ServerError' }>)
       .data
     authAccepted.value = false
     authError.value = data.error
+    if (isAuthError(data.error)) {
+      localStorage.removeItem('auth_token')
+      console.warn('[ws] cleared cached auth token after auth error')
+    }
   }
 
   function handleCommandHistory(payload: ServerToClientMessage['payload']): void {
