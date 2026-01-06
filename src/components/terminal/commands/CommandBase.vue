@@ -25,7 +25,7 @@ const emit = defineEmits<{
   (e: 'inspect', commandId: string): void
 }>()
 
-// const shortId = computed(() => props.command_id.slice(0, 8))
+const shortId = computed(() => props.commandId.slice(0, 8))
 const expanded = ref(false)
 
 const canCancel = computed(() =>
@@ -61,13 +61,13 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
   return items
 })
 
-// async function copyId() {
-//   try {
-//     await navigator.clipboard.writeText(props.command_id)
-//   } catch {
-//     // no-op if clipboard blocked
-//   }
-// }
+async function copyId() {
+  try {
+    await navigator.clipboard.writeText(props.commandId)
+  } catch {
+    // no-op if clipboard blocked
+  }
+}
 
 // Detail formatting is handled by child components using this wrapper.
 </script>
@@ -84,9 +84,9 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
         >
           {{ formatName(label) }}
         </span>
-        <!-- <span
+        <span
           class="font-mono text-[10px] text-gray-500 dark:text-gray-300 cursor-copy select-text rounded-[2px] px-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2"
-          :title="command_id"
+          :title="props.commandId"
           @click.stop="copyId"
           role="button"
           tabindex="0"
@@ -95,7 +95,7 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
           aria-label="Copy command id"
         >
           #{{ shortId }}
-        </span> -->
+        </span>
         <span v-if="commandSymbol" class="pill pill-sm">{{ commandSymbol }}</span>
       </div>
 

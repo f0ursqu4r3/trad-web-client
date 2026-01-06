@@ -30,7 +30,7 @@ const action = ref<MarketAction>(MarketAction.Open)
 function applyInitialValues() {
   const preset = (modals.modalValues['MarketOrder'] as MarketOrderPrefill) ?? {}
   selectedAccountId.value = accounts.selectedAccount?.id ?? ''
-  symbol.value = preset.symbol ?? 'BTCT'
+  symbol.value = preset.symbol ?? 'BTCUSDT'
   quantity_usd.value = preset.quantity_usd ?? 50
   position_side.value = preset.position_side ?? PositionSide.Long
   action.value = preset.action ?? MarketAction.Open

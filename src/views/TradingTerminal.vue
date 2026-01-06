@@ -8,6 +8,7 @@ import SplitView from '@/components/general/SplitView.vue'
 import OrdersColumn from '@/components/terminal/layout/OrdersColumn.vue'
 
 import TrailingEntryView from '@/components/terminal/views/TrailingEntryView.vue'
+import DeviceDetailsView from '@/components/terminal/views/DeviceDetailsView.vue'
 
 const ws = useWsStore()
 const commandStore = useCommandStore()
@@ -18,7 +19,10 @@ const componentMap: Record<string, Component> = {
 
 const currentComponent = computed<Component | null>(() => {
   if (!commandStore.selectedCommand) return null
-  return getv(componentMap, commandStore.selectedCommand?.command.kind, null) || null
+  return (
+    getv(componentMap, commandStore.selectedCommand?.command.kind, DeviceDetailsView) ||
+    DeviceDetailsView
+  )
 })
 
 onMounted(() => {
