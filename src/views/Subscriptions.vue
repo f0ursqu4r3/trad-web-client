@@ -26,6 +26,8 @@
       v-else
       :publishable-key="publishableKey"
       :pricing-table-id="pricingTableId"
+      :client-reference-id="userId"
+      :customer-email="authIsAuthenticated ? userEmail : null"
     >
     </stripe-pricing-table>
   </div>
@@ -37,6 +39,7 @@ import { useRoute } from 'vue-router'
 import { useHead } from '@unhead/vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { useBillingStore } from '@/stores/billing'
+import { useUserStore } from '@/stores/user'
 
 // Load Stripe Pricing Table script
 useHead({
@@ -52,8 +55,9 @@ const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
 const pricingTableId = import.meta.env.VITE_STRIPE_PRICING_TABLE_ID
 
 const route = useRoute()
-const { isAuthenticated } = useAuth0()
+const { isAuthenticated, user } = useAuth0()
 const billing = useBillingStore()
+const userStore = useUserStore()
 
 // Optional: ensure we have fresh billing info if already authenticated
 if (isAuthenticated.value) billing.fetchBillingInfo()
@@ -61,4 +65,6 @@ if (isAuthenticated.value) billing.fetchBillingInfo()
 // Expose a boolean for template (Auth0 exposes a Ref<boolean>)
 const authIsAuthenticated = computed(() => isAuthenticated.value)
 const showEntitlementNotice = computed(() => Boolean(route.query.redirect))
+const userId = computed(() => userStore.userId)
+const userEmail = computed(() => user?.value?.email || '')
 </script>
