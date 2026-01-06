@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { apiGet, apiPut } from '@/lib/apiClient'
 import { setv } from '@/lib/utils'
+import { clearSessionUserId, setSessionUserId } from '@/lib/userSession'
 import { useUiStore } from '@/stores/ui'
 import { type AccountRecord, useAccountsStore } from '@/stores/accounts'
 
@@ -62,6 +63,10 @@ export const useUserStore = defineStore('user', () => {
           userId.value = data.user_id || null
           profile.value = data.client_profile || { meta: { preferences: {} } }
           accountsStore.accountsRaw = data.accounts || []
+          if (userId.value) {
+            setSessionUserId(userId.value)
+            accountsStore.loadPersistedState(userId.value)
+          }
         } else {
           // Flat profile object
           profile.value = data as ClientProfile
@@ -78,6 +83,7 @@ export const useUserStore = defineStore('user', () => {
       error.value = e instanceof Error ? e.message : String(e)
       userId.value = null
       profile.value = { display_name: null, meta: { preferences: {} } }
+      clearSessionUserId()
     } finally {
       loading.value = false
     }
@@ -107,6 +113,7 @@ export const useUserStore = defineStore('user', () => {
     profile.value = { display_name: null, meta: { preferences: {} } }
     error.value = null
     lastFetchedAt.value = null
+    clearSessionUserId()
   }
 
   // React to auth changes; fetch when authenticated, clear when logged out

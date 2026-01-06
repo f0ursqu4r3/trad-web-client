@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { apiPut, apiGet, apiDelete } from '@/lib/apiClient'
 import { ExchangeType, type MarketContext, type NetworkType } from '@/lib/ws/protocol'
+import { accountsStoreKey, getSessionUserId } from '@/lib/userSession'
 
 export interface AccountFormPayload {
   label: string
@@ -136,6 +137,54 @@ export const useAccountsStore = defineStore(
       return ctx
     }
 
+    function persistState(): void {
+      const userId = getSessionUserId()
+      if (!userId) return
+      const payload = {
+        selectedAccountId: selectedAccountId.value,
+        accountOrder: accountOrder.value,
+      }
+      try {
+        localStorage.setItem(accountsStoreKey(userId), JSON.stringify(payload))
+      } catch {
+        /* ignore storage failures */
+      }
+    }
+
+    function loadPersistedState(userId: string): void {
+      try {
+        const raw = localStorage.getItem(accountsStoreKey(userId))
+        if (!raw) return
+        const parsed = JSON.parse(raw) as {
+          selectedAccountId?: string | null
+          accountOrder?: string[]
+        }
+        if (Array.isArray(parsed.accountOrder)) {
+          accountOrder.value = parsed.accountOrder
+        }
+        if (typeof parsed.selectedAccountId === 'string') {
+          selectedAccountId.value = parsed.selectedAccountId
+        } else if (parsed.selectedAccountId === null) {
+          selectedAccountId.value = null
+        }
+      } catch {
+        /* ignore invalid persisted state */
+      }
+
+      if (accountsRaw.value.length === 0) {
+        selectedAccountId.value = null
+        return
+      }
+      const existingIds = new Set(accountsRaw.value.map((account) => account.id))
+      accountOrder.value = accountOrder.value.filter((id) => existingIds.has(id))
+      if (
+        !selectedAccountId.value ||
+        !accountsRaw.value.some((account) => account.id === selectedAccountId.value)
+      ) {
+        selectedAccountId.value = accountsRaw.value[0].id
+      }
+    }
+
     watch(
       () => isAuthenticated.value,
       (authed) => {
@@ -148,6 +197,14 @@ export const useAccountsStore = defineStore(
         }
       },
       { immediate: true },
+    )
+
+    watch(
+      [selectedAccountId, accountOrder],
+      () => {
+        persistState()
+      },
+      { deep: true },
     )
 
     return {
@@ -167,12 +224,7 @@ export const useAccountsStore = defineStore(
       removeAccount,
       reorderAccounts,
       getMarketContextForAccount,
+      loadPersistedState,
     }
-  },
-  {
-    persist: {
-      key: 'trad-accounts-store',
-      pick: ['selectedAccountId', 'accountOrder'],
-    },
   },
 )
