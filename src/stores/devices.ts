@@ -93,6 +93,9 @@ export const useDeviceStore = defineStore('device', () => {
         if (child) child.parent_device = device.id
       })
     }
+    if (!selectedDeviceId.value) {
+      selectedDeviceId.value = deviceId
+    }
     switch (snapshot.kind) {
       case 'TrailingEntry': {
         const te = device.state as TrailingEntryState
