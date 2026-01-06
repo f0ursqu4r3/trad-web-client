@@ -237,6 +237,8 @@ export const useDeviceStore = defineStore('device', () => {
           te.points_snapshot = points
           te.base_index = start_idx
           te.total_points = total_len
+          // Ensure reactive update for chart watchers.
+          te.points_snapshot = [...te.points_snapshot]
         }
         break
       case 'Point':
@@ -245,8 +247,8 @@ export const useDeviceStore = defineStore('device', () => {
           if (te.points_snapshot.length == 0) {
             te.base_index = idx
             te.points_snapshot.push(price)
-          } else if (idx >= te.base_index) {
-            // ignore
+          } else if (idx < te.base_index) {
+            // ignore out-of-window points that precede the current base
           } else {
             const offset = idx - te.base_index
             const len = te.points_snapshot.length
@@ -260,6 +262,8 @@ export const useDeviceStore = defineStore('device', () => {
             }
           }
           te.total_points = Math.max(te.total_points, idx + 1)
+          // Force array ref update so computed chart data reacts to point changes.
+          te.points_snapshot = [...te.points_snapshot]
         }
         break
       case 'Peak':

@@ -5,6 +5,7 @@ import { formatPrice, formatQty, getPositionSideClass, formatSide } from './util
 
 defineProps<{
   device: StopGuardState
+  failureReason?: string | null
 }>()
 
 function getStatusClass(status: StopGuardStatus): string {
@@ -164,6 +165,18 @@ function fmtDate(d?: Date | null): string {
           </dd>
         </div>
       </div>
+    </div>
+
+    <div
+      v-if="failureReason"
+      class="space-y-2 rounded-md border border-[var(--border-color)] bg-[var(--color-surface-alt)] p-2"
+    >
+      <h4 class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)] m-0">
+        Rejection Reason
+      </h4>
+      <p class="m-0 text-[12px] font-mono text-[var(--color-text)] break-words">
+        {{ failureReason }}
+      </p>
     </div>
 
     <!-- Market Context -->

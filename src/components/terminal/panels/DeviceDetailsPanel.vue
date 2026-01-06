@@ -33,6 +33,7 @@ const deviceComp = computed(() => {
         v-if="deviceComp"
         :is="deviceComp"
         :device="selectedDevice.state as any"
+        :failure-reason="selectedDevice.failure_reason"
         class="w-full h-full"
       />
     </div>
