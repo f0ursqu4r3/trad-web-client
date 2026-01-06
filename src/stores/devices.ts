@@ -77,6 +77,9 @@ export const useDeviceStore = defineStore('device', () => {
     device.failed = data.failed
     device.canceled = data.canceled
     device.awaiting_children = data.awaiting_children
+    if (Object.prototype.hasOwnProperty.call(data, 'failure_reason')) {
+      device.failure_reason = data.failure_reason ?? null
+    }
     // parent/children topology (best-effort; children may not exist yet)
     if (Object.prototype.hasOwnProperty.call(data, 'parent_device')) {
       device.parent_device = data.parent_device ?? null

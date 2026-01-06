@@ -465,6 +465,7 @@ export type DeviceSnapshotLiteData = {
   failed: boolean
   canceled: boolean
   awaiting_children: boolean
+  failure_reason?: string | null
   snapshot: DeviceSnapshotLite
 }
 
