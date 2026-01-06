@@ -9,6 +9,7 @@ import { defineStore } from 'pinia'
 import { TradWebClient } from '@/lib/ws/websocketClient'
 import { useCommandStore } from '@/stores/command'
 import { useDeviceStore } from '@/stores/devices'
+import { getBearerToken } from '@/lib/auth0Helpers'
 import { useUserStore } from './user'
 
 // Connection phases
@@ -211,14 +212,22 @@ export const useWsStore = defineStore('ws', () => {
     protocolVersion.value = data.protocol_version
     status.value = 'ready'
     console.info('[ws] ServerHello received. status -> ready, protocol=', data.protocol_version)
-    // send TokenLogin if we have a token stored
-    const token = localStorage.getItem('auth_token')
-    if (token) {
-      console.info('[ws] sending TokenLogin with stored token')
-      sendTokenLogin(token)
-    } else {
-      console.info('[ws] no stored token found')
-    }
+    void (async () => {
+      const freshToken = await getBearerToken()
+      if (freshToken) {
+        localStorage.setItem('auth_token', freshToken)
+        console.info('[ws] sending TokenLogin with fresh token')
+        sendTokenLogin(freshToken)
+        return
+      }
+      const cachedToken = localStorage.getItem('auth_token')
+      if (cachedToken) {
+        console.info('[ws] sending TokenLogin with stored token')
+        sendTokenLogin(cachedToken)
+      } else {
+        console.info('[ws] no stored token found')
+      }
+    })()
     // reset reconnect count on successful connection
     reconnectCount.value = 0
   }

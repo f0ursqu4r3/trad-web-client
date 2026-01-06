@@ -143,6 +143,8 @@ export const useAccountsStore = defineStore(
           accountsRaw.value = []
           error.value = null
           lastFetchedAt.value = null
+          accountOrder.value = []
+          selectedAccountId.value = null
         }
       },
       { immediate: true },
