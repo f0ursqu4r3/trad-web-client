@@ -487,10 +487,10 @@ const returnToOrigin = window.location.origin
               </div>
             </section>
 
-            <hr class="section-divider" />
+            <!-- <hr class="section-divider" /> -->
 
             <!-- Preferences JSON -->
-            <section>
+            <!-- <section>
               <header
                 class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-[var(--accent-color)]"
               >
@@ -534,7 +534,7 @@ const returnToOrigin = window.location.origin
               </div>
               <div v-if="prefsError" class="notice-err">{{ prefsError }}</div>
               <div v-else-if="prefsSavedRecently" class="notice-ok">Preferences saved.</div>
-            </section>
+            </section> -->
           </div>
           <CreateAccountModal :open="isCreateAccountOpen" @close="isCreateAccountOpen = false" />
         </div>
