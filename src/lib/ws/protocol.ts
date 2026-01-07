@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 5
+export const PROTOCOL_VERSION = 6
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -238,6 +238,7 @@ export type TrailingEntryOrderCommand = {
   risk_amount: number
   market_context: MarketContext
 }
+export type CloseTrailingEntryPositionCommand = { command_id: Uuid }
 export type ListDevicesCommand = { filter: DeviceFilter }
 export type GetDeviceTreeCommand = { device_id: Uuid }
 export type CancelDeviceCommand = { device_id: Uuid }
@@ -274,6 +275,7 @@ export type UserCommandPayload =
   | { kind: 'CancelAllDevicesCommand'; data?: undefined }
   | { kind: 'CancelDevice'; data: CancelDeviceCommand }
   | { kind: 'CancelPosition'; data: CancelPositionCommand }
+  | { kind: 'CloseTrailingEntryPosition'; data: CloseTrailingEntryPositionCommand }
   | { kind: 'ControlSimMarket'; data: ControlSimMarketCommand }
   | { kind: 'CreateHistoricSimMarket'; data: CreateHistoricSimMarketCommand }
   | { kind: 'CreateSimMarket'; data: CreateSimMarketCommand }
@@ -508,12 +510,14 @@ export type TrailingEntrySnapshot = {
 
 export type MarketOrderSnapshot = {
   market_context: MarketContext
+  market_action: MarketAction
   symbol: string
   order_side: OrderSide
   quantity: number
   position_side: PositionSide
   price: number
   status: MarketOrderStatus
+  filled_qty?: number | null
   remote_id?: number | null
   client_order_id?: string | null
   sent_at?: string | null
@@ -616,12 +620,14 @@ export type DeviceMoDelta =
         parent_device?: Uuid | null
         command_id: Uuid
         market_context: MarketContext
+        market_action: MarketAction
         symbol: string
         order_side: OrderSide
         position_side: PositionSide
         quantity: number
         price: number
         status: MarketOrderStatus
+        filled_qty?: number | null
         client_order_id?: string | null
       }
     }

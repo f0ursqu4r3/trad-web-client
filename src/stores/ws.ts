@@ -128,10 +128,10 @@ export const useWsStore = defineStore('ws', () => {
     })
   }
 
-  function sendCancelPosition(symbol: string, market_context: MarketContext) {
+  function sendCloseTrailingEntryPosition(commandId: Uuid) {
     sendUserCommand({
-      kind: 'CancelPosition',
-      data: { symbol, market_context },
+      kind: 'CloseTrailingEntryPosition',
+      data: { command_id: commandId },
     })
   }
 
@@ -404,7 +404,7 @@ export const useWsStore = defineStore('ws', () => {
     sendLogout,
     sendUserCommand,
     sendCancelCommand,
-    sendCancelPosition,
+    sendCloseTrailingEntryPosition,
     sendRefreshAccountKeys,
     getDeviceTree,
   }

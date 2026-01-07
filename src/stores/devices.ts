@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
+  MarketAction,
   MarketOrderStatus,
   OrderSide,
   PositionSide,
@@ -149,12 +150,14 @@ export const useDeviceStore = defineStore('device', () => {
         const mo = device.state as MarketOrderState
         const s = snapshot.data
         mo.market_context = normalizeMarketContext(s.market_context as MarketContext)
+        mo.market_action = s.market_action
         mo.symbol = s.symbol
         mo.order_side = s.order_side
         mo.quantity = s.quantity
         mo.position_side = s.position_side
         mo.price = s.price
         mo.status = s.status
+        mo.filled_qty = s.filled_qty ?? null
         mo.remote_id = s.remote_id ?? null
         mo.client_order_id = s.client_order_id ?? null
         mo.sent_at = s.sent_at ? new Date(s.sent_at) : null
@@ -348,22 +351,26 @@ export const useDeviceStore = defineStore('device', () => {
         {
           const {
             market_context,
+            market_action,
             symbol,
             order_side,
             position_side,
             quantity,
             price,
             status,
+            filled_qty,
             client_order_id,
             parent_device,
           } = delta.data
           mo.market_context = normalizeMarketContext(market_context as MarketContext)
+          mo.market_action = market_action
           mo.symbol = symbol
           mo.order_side = order_side
           mo.position_side = position_side
           mo.quantity = quantity
           mo.price = price
           mo.status = status
+          mo.filled_qty = filled_qty ?? null
           mo.client_order_id = client_order_id || null
           if (parent_device) {
             addDeviceChild(parent_device, device.id)
@@ -389,10 +396,13 @@ export const useDeviceStore = defineStore('device', () => {
         break
       case 'PartiallyFilled':
         {
-          const { price } = delta.data
+          const { price, cum_qty } = delta.data
           mo.status = MarketOrderStatus.PartiallyFilled
           if (price !== undefined && price !== null) {
             mo.price = price
+          }
+          if (cum_qty !== undefined && cum_qty !== null) {
+            mo.filled_qty = cum_qty
           }
           if (eventTime) {
             mo.last_update_seen_at = eventTime
@@ -402,10 +412,13 @@ export const useDeviceStore = defineStore('device', () => {
         break
       case 'Filled':
         {
-          const { price } = delta.data
+          const { price, cum_qty } = delta.data
           mo.status = MarketOrderStatus.Filled
           if (price !== undefined && price !== null) {
             mo.price = price
+          }
+          if (cum_qty !== undefined && cum_qty !== null) {
+            mo.filled_qty = cum_qty
           }
           if (eventTime) {
             mo.last_update_seen_at = eventTime
@@ -662,6 +675,7 @@ export interface SplitState {
 
 export interface MarketOrderState {
   market_context: MarketContext
+  market_action: MarketAction
   symbol: string
   order_side: OrderSide
   quantity: number
@@ -669,6 +683,7 @@ export interface MarketOrderState {
   price: number
 
   status: MarketOrderStatus
+  filled_qty: number | null
   remote_id: number | null
   client_order_id: string | null
   // Runtime-only fields for reconciliation and health (not persisted)
@@ -784,12 +799,14 @@ function newTrailingEntryState(): TrailingEntryState {
 function newMarketOrderState(): MarketOrderState {
   return {
     market_context: { type: 'none' } as MarketContext,
+    market_action: MarketAction.Open,
     symbol: '',
     order_side: OrderSide.Buy,
     quantity: 0,
     position_side: PositionSide.Long,
     price: 0,
     status: MarketOrderStatus.NotYetSent,
+    filled_qty: null,
     remote_id: null,
     client_order_id: null,
     sent_at: null,

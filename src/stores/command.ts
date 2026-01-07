@@ -6,7 +6,6 @@ import {
   type LimitOrderCommand,
   type MarketOrderCommand,
   type SplitMarketOrderCommand,
-  type TrailingEntryOrderCommand,
 } from '@/lib/ws/protocol'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
@@ -145,8 +144,8 @@ export const useCommandStore = defineStore(
       ws.sendCancelCommand(commandId)
     }
 
-    function closePosition(command: TrailingEntryOrderCommand) {
-      ws.sendCancelPosition(command.symbol, command.market_context)
+    function closePosition(commandId: string) {
+      ws.sendCloseTrailingEntryPosition(commandId)
     }
 
     return {

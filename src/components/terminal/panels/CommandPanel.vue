@@ -100,7 +100,7 @@ function handleCancel(commandId: string): void {
 function handleClosePosition(commandId: string): void {
   const cmd = commandStore.commandMap[commandId]
   if (!cmd || cmd.command.kind !== 'TrailingEntryOrder') return
-  commandStore.closePosition(cmd.command.data)
+  commandStore.closePosition(commandId)
 }
 </script>
 
