@@ -188,6 +188,7 @@ export const useWsStore = defineStore('ws', () => {
       InspectReady: handleInspectReady,
       DeviceSnapshotLite: handleDeviceSnapshotLite,
       DeviceTeDelta: handleDeviceTeDelta,
+      DeviceSgDelta: handleDeviceSgDelta,
       DeviceSplitDelta: handleDeviceSplitDelta,
       DeviceMoDelta: handleDeviceMoDelta,
     } as Record<string, (p: ServerToClientMessage['payload']) => void>
@@ -349,6 +350,11 @@ export const useWsStore = defineStore('ws', () => {
 
   function handleDeviceMoDelta(payload: ServerToClientMessage['payload']): void {
     const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceMoDelta' }>
+    deviceStore.handleDeviceUpdate(data.kind, data.data)
+  }
+
+  function handleDeviceSgDelta(payload: ServerToClientMessage['payload']): void {
+    const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceSgDelta' }>
     deviceStore.handleDeviceUpdate(data.kind, data.data)
   }
 

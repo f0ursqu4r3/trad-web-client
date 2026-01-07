@@ -40,6 +40,12 @@
             <span v-if="item.lifecycle" class="text-(--color-text-dim) uppercase text-xs">
               {{ formatName(item.lifecycle) }}
             </span>
+            <span
+              v-else-if="item.status"
+              class="text-(--color-text-dim) uppercase text-xs"
+            >
+              {{ item.status }}
+            </span>
           </div>
         </div>
       </template>
@@ -68,14 +74,25 @@ const treeData = computed<TreeItem[]>(() => {
   const nodes = new Map<string, TreeItem>()
   const roots: TreeItem[] = []
 
+  const statusLabel = (device: Device): string => {
+    if (device.failed) return 'Failed'
+    if (device.canceled) return 'Canceled'
+    if (device.complete) return 'Completed'
+    if (device.awaiting_children) return 'Waiting'
+    return 'Running'
+  }
+
   // First pass: create all nodes
   for (const device of list) {
+    const teLifecycle =
+      device.kind === 'TrailingEntry' ? (device.state as TrailingEntryState)?.lifecycle || '' : ''
     nodes.set(device.id, {
       id: device.id,
       children: [],
       label: formatName(device.kind),
       symbol: device.state.symbol,
-      lifecycle: (device.state as TrailingEntryState)?.lifecycle || '',
+      lifecycle: device.complete || device.failed || device.canceled ? '' : teLifecycle,
+      status: statusLabel(device),
     })
   }
 
