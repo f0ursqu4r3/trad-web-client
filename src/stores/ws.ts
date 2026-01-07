@@ -185,6 +185,7 @@ export const useWsStore = defineStore('ws', () => {
       CommandHistory: handleCommandHistory,
       SetCommandStatus: handleSetCommandStatus,
       CommandDevicesList: handleCommandDevicesList,
+      InspectReady: handleInspectReady,
       DeviceSnapshotLite: handleDeviceSnapshotLite,
       DeviceTeDelta: handleDeviceTeDelta,
       DeviceSplitDelta: handleDeviceSplitDelta,
@@ -322,6 +323,15 @@ export const useWsStore = defineStore('ws', () => {
       payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandDevicesList' }>
     ).data
     commandStore.devices[data.command_id] = data
+  }
+
+  function handleInspectReady(payload: ServerToClientMessage['payload']): void {
+    const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'InspectReady' }>)
+      .data
+    sendSystemCommand({
+      kind: 'InspectReadyAck',
+      data: { command_id: data.command_id },
+    })
   }
 
   function handleDeviceSnapshotLite(payload: ServerToClientMessage['payload']): void {
