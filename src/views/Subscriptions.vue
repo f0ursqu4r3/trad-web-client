@@ -8,14 +8,19 @@
           <img src="/favicon.png" alt="TRAD" class="h-5 w-5 rounded-sm" />
           <span class="tracking-wide">TRAD Terminal</span>
         </div>
-        <button
-          v-if="authIsAuthenticated"
-          type="button"
-          class="btn-secondary btn-sm cursor-pointer"
-          @click="billing.openCustomerPortal()"
-        >
-          Manage billing
-        </button>
+        <div class="flex items-center gap-2">
+          <RouterLink v-if="authIsAuthenticated" to="/" class="btn-secondary btn-sm">
+            ← Back to Terminal
+          </RouterLink>
+          <button
+            v-if="authIsAuthenticated"
+            type="button"
+            class="btn-secondary btn-sm cursor-pointer"
+            @click="billing.openCustomerPortal()"
+          >
+            ↑ Manage billing
+          </button>
+        </div>
       </div>
 
       <!-- Body -->
