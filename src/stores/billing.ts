@@ -9,10 +9,24 @@ export interface BillingInfo {
   current_period_end: string
 }
 
+export interface PricingPlan {
+  id: string
+  name: string
+  description: string
+  price: number
+  currency: string
+  interval: 'month' | 'year'
+  features: string[]
+  highlighted?: boolean
+  priceId: string
+}
+
 export const useBillingStore = defineStore('billing', () => {
   const { isAuthenticated } = useAuth0()
 
   const billingInfo = ref<BillingInfo | null>(null)
+  const plans = ref<PricingPlan[]>([])
+  const checkoutLoading = ref(false)
 
   async function fetchBillingInfo() {
     if (!isAuthenticated.value) return
@@ -24,6 +38,36 @@ export const useBillingStore = defineStore('billing', () => {
       // Non-fatal: leave as null and log to console
       console.warn('Failed to fetch billing info', err)
       billingInfo.value = null
+    }
+  }
+
+  async function fetchPlans() {
+    try {
+      const data = await apiGet<PricingPlan[]>('/billing/plans', { throwOnHTTPError: false })
+      plans.value = data ?? []
+    } catch (err) {
+      console.warn('Failed to fetch plans', err)
+      // Fallback to hardcoded plans if API fails
+      plans.value = getDefaultPlans()
+    }
+  }
+
+  async function createCheckoutSession(priceId: string) {
+    if (!isAuthenticated.value) return
+    checkoutLoading.value = true
+    try {
+      const { url } = await apiPost<{ url: string }>(
+        '/billing/checkout-session',
+        { priceId },
+        {
+          throwOnHTTPError: true,
+        },
+      )
+      if (url) window.location.assign(url)
+    } catch (err) {
+      console.error('Failed to create checkout session', err)
+    } finally {
+      checkoutLoading.value = false
     }
   }
 
@@ -52,8 +96,69 @@ export const useBillingStore = defineStore('billing', () => {
   return {
     // state
     billingInfo,
+    plans,
+    checkoutLoading,
     // actions
     fetchBillingInfo,
+    fetchPlans,
+    createCheckoutSession,
     openCustomerPortal,
   }
 })
+
+// Default/fallback plans - customize these to match your Stripe products
+function getDefaultPlans(): PricingPlan[] {
+  return [
+    {
+      id: 'starter',
+      name: 'Starter',
+      description: 'Perfect for individual traders getting started',
+      price: 29,
+      currency: 'USD',
+      interval: 'month',
+      features: [
+        '1 trading account',
+        'Basic order types',
+        'Real-time market data',
+        'Email support',
+      ],
+      priceId: import.meta.env.VITE_STRIPE_PRICE_STARTER || 'price_starter',
+    },
+    {
+      id: 'pro',
+      name: 'Pro',
+      description: 'For serious traders who need more power',
+      price: 79,
+      currency: 'USD',
+      interval: 'month',
+      features: [
+        '5 trading accounts',
+        'Advanced order types',
+        'Real-time market data',
+        'Priority support',
+        'Custom alerts',
+        'API access',
+      ],
+      highlighted: true,
+      priceId: import.meta.env.VITE_STRIPE_PRICE_PRO || 'price_pro',
+    },
+    {
+      id: 'enterprise',
+      name: 'Enterprise',
+      description: 'Full power for professional trading operations',
+      price: 199,
+      currency: 'USD',
+      interval: 'month',
+      features: [
+        'Unlimited trading accounts',
+        'All order types',
+        'Real-time market data',
+        'Dedicated support',
+        'Custom alerts & webhooks',
+        'Full API access',
+        'Custom integrations',
+      ],
+      priceId: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE || 'price_enterprise',
+    },
+  ]
+}
