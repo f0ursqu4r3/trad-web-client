@@ -516,6 +516,9 @@ export type MarketOrderSnapshot = {
   status: MarketOrderStatus
   remote_id?: number | null
   client_order_id?: string | null
+  sent_at?: string | null
+  last_update_seen_at?: string | null
+  last_status_check_at?: string | null
 }
 
 export type SplitSnapshot = {
@@ -622,7 +625,15 @@ export type DeviceMoDelta =
         client_order_id?: string | null
       }
     }
-  | { kind: 'Submitted'; data: { qty?: number | null; price?: number | null } }
+  | {
+      kind: 'Submitted'
+      data: {
+        qty?: number | null
+        price?: number | null
+        remote_id?: number | null
+        sent_at?: string | null
+      }
+    }
   | {
       kind: 'PartiallyFilled'
       data: { cum_qty?: number | null; last_qty?: number | null; price?: number | null }

@@ -36,6 +36,27 @@ export const useDeviceStore = defineStore('device', () => {
     return teDevice.state as TrailingEntryState
   })
 
+  function normalizeMarketContext(raw: MarketContext | Record<string, unknown>): MarketContext {
+    if (!raw || typeof raw !== 'object') return { type: 'none' }
+    const maybe = raw as Record<string, unknown>
+    if ('type' in maybe) {
+      return raw as MarketContext
+    }
+    if ('binance' in maybe) {
+      const ctx = maybe.binance as { account_id?: string } | undefined
+      return { type: 'binance', account_id: ctx?.account_id || '' }
+    }
+    if ('bifake' in maybe) {
+      const ctx = maybe.bifake as { account_id?: string } | undefined
+      return { type: 'bifake', account_id: ctx?.account_id || '' }
+    }
+    if ('sim' in maybe) {
+      const ctx = maybe.sim as { sim_market_id?: string } | undefined
+      return { type: 'sim', sim_market_id: ctx?.sim_market_id || '' }
+    }
+    return { type: 'none' }
+  }
+
   function clearDevices() {
     deviceMap.value = {}
     selectedDeviceId.value = null
@@ -101,7 +122,7 @@ export const useDeviceStore = defineStore('device', () => {
         const te = device.state as TrailingEntryState
         const s = snapshot.data
         te.symbol = s.symbol
-        te.market_context = s.market_context
+        te.market_context = normalizeMarketContext(s.market_context as MarketContext)
         te.position_side = s.position_side
         te.activation_price = s.activation_price
         te.jump_frac_threshold = s.jump_frac_threshold
@@ -127,7 +148,7 @@ export const useDeviceStore = defineStore('device', () => {
       case 'MarketOrder': {
         const mo = device.state as MarketOrderState
         const s = snapshot.data
-        mo.market_context = s.market_context
+        mo.market_context = normalizeMarketContext(s.market_context as MarketContext)
         mo.symbol = s.symbol
         mo.order_side = s.order_side
         mo.quantity = s.quantity
@@ -136,6 +157,9 @@ export const useDeviceStore = defineStore('device', () => {
         mo.status = s.status
         mo.remote_id = s.remote_id ?? null
         mo.client_order_id = s.client_order_id ?? null
+        mo.sent_at = s.sent_at ? new Date(s.sent_at) : null
+        mo.last_update_seen_at = s.last_update_seen_at ? new Date(s.last_update_seen_at) : null
+        mo.last_status_check_at = s.last_status_check_at ? new Date(s.last_status_check_at) : null
         break
       }
       case 'Split': {
@@ -150,7 +174,7 @@ export const useDeviceStore = defineStore('device', () => {
         const sg = device.state as StopGuardState
         const s = snapshot.data
         sg.symbol = s.symbol
-        sg.market_context = s.market_context
+        sg.market_context = normalizeMarketContext(s.market_context as MarketContext)
         sg.position_side = s.position_side
         sg.stop_price = s.stop_price
         sg.covered_qty = s.covered_qty
@@ -221,7 +245,7 @@ export const useDeviceStore = defineStore('device', () => {
             lifecycle,
           } = delta.data
           te.symbol = symbol
-          te.market_context = market_context
+          te.market_context = normalizeMarketContext(market_context as MarketContext)
           te.position_side = position_side
           te.activation_price = activation_price
           te.jump_frac_threshold = jump_frac_threshold
@@ -318,6 +342,7 @@ export const useDeviceStore = defineStore('device', () => {
   function applyDeviceMoDeltaEvent(device: Device, event: DeviceMoDeltaEvent) {
     const mo = device.state as MarketOrderState
     const delta: DeviceMoDelta = event.delta
+    const eventTime = event.ts ? new Date(event.ts) : null
     switch (delta.kind) {
       case 'Init':
         {
@@ -332,7 +357,7 @@ export const useDeviceStore = defineStore('device', () => {
             client_order_id,
             parent_device,
           } = delta.data
-          mo.market_context = market_context
+          mo.market_context = normalizeMarketContext(market_context as MarketContext)
           mo.symbol = symbol
           mo.order_side = order_side
           mo.position_side = position_side
@@ -348,6 +373,18 @@ export const useDeviceStore = defineStore('device', () => {
       case 'Submitted':
         {
           mo.status = MarketOrderStatus.AlreadySentAndAwaitingFilling
+          if (delta.data.remote_id !== undefined && delta.data.remote_id !== null) {
+            mo.remote_id = delta.data.remote_id
+          }
+          if (delta.data.sent_at) {
+            mo.sent_at = new Date(delta.data.sent_at)
+          } else if (eventTime) {
+            mo.sent_at = eventTime
+          }
+          if (eventTime) {
+            mo.last_update_seen_at = eventTime
+            mo.last_status_check_at = eventTime
+          }
         }
         break
       case 'PartiallyFilled':
@@ -356,6 +393,10 @@ export const useDeviceStore = defineStore('device', () => {
           mo.status = MarketOrderStatus.PartiallyFilled
           if (price !== undefined && price !== null) {
             mo.price = price
+          }
+          if (eventTime) {
+            mo.last_update_seen_at = eventTime
+            mo.last_status_check_at = eventTime
           }
         }
         break
@@ -366,12 +407,20 @@ export const useDeviceStore = defineStore('device', () => {
           if (price !== undefined && price !== null) {
             mo.price = price
           }
+          if (eventTime) {
+            mo.last_update_seen_at = eventTime
+            mo.last_status_check_at = eventTime
+          }
         }
         break
       case 'Canceled':
         {
           mo.status = MarketOrderStatus.Canceled
           device.failure_reason = null
+          if (eventTime) {
+            mo.last_update_seen_at = eventTime
+            mo.last_status_check_at = eventTime
+          }
         }
         break
       case 'Rejected':
@@ -379,6 +428,10 @@ export const useDeviceStore = defineStore('device', () => {
           const { reason } = delta.data
           mo.status = MarketOrderStatus.Rejected
           device.failure_reason = reason || null
+          if (eventTime) {
+            mo.last_update_seen_at = eventTime
+            mo.last_status_check_at = eventTime
+          }
         }
         break
     }
@@ -408,7 +461,7 @@ export const useDeviceStore = defineStore('device', () => {
             parent_device,
           } = delta.data
           sg.symbol = symbol
-          sg.market_context = market_context
+          sg.market_context = normalizeMarketContext(market_context as MarketContext)
           sg.position_side = position_side
           sg.stop_price = stop_price
           sg.covered_qty = covered_qty

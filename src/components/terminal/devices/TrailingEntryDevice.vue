@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { TrailingEntryState } from '@/stores/devices'
+import { useAccountsStore } from '@/stores/accounts'
 import {
   formatPrice,
   formatPercent,
@@ -9,9 +11,19 @@ import {
   formatSide,
 } from './utils'
 
-defineProps<{
+const props = defineProps<{
   device: TrailingEntryState
 }>()
+const accounts = useAccountsStore()
+
+const networkLabel = computed(() => {
+  const ctx = props.device.market_context
+  if (ctx.type === 'binance' || ctx.type === 'bifake') {
+    const account = accounts.accounts.find((item) => item.id === ctx.account_id)
+    return account?.network ?? '-'
+  }
+  return '-'
+})
 </script>
 
 <template>
@@ -194,13 +206,26 @@ defineProps<{
         Market Context
       </h4>
       <div class="text-[12px]">
-        <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-          Type
-        </dt>
-        <dd class="m-0 font-mono text-[var(--color-text)]">{{ device.market_context.type }}</dd>
+        <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+          <div>
+            <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+              Type
+            </dt>
+            <dd class="m-0 font-mono text-[var(--color-text)]">{{ device.market_context.type }}</dd>
+          </div>
+          <div>
+            <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+              Network
+            </dt>
+            <dd class="m-0 font-mono text-[var(--color-text)]">{{ networkLabel }}</dd>
+          </div>
+        </div>
         <div
-          v-if="device.market_context.type === 'binance' && 'account_id' in device.market_context"
-          class="mt-1"
+          v-if="
+            (device.market_context.type === 'binance' ||
+              device.market_context.type === 'bifake') &&
+            'account_id' in device.market_context
+          "
         >
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
             Account ID
