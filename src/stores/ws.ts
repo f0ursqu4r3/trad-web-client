@@ -254,7 +254,11 @@ export const useWsStore = defineStore('ws', () => {
   function handleCommandResponse(payload: ServerToClientMessage['payload']): void {
     const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandResponse' }>)
       .data
+    const pending = commandStore.pendingCommands[data.request_uuid]
     commandStore.verifyPendingCommand(data.request_uuid)
+    if (pending && (pending.command as { kind?: string }).kind === 'TrailingEntryOrder') {
+      commandStore.inspectCommand(data.request_uuid)
+    }
   }
 
   function handlePong(): void {
