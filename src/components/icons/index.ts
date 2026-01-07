@@ -58,6 +58,14 @@ export const LogoutIcon: FunctionalComponent<{ size?: number | string }> = (prop
 }
 LogoutIcon.displayName = 'LogoutIcon'
 
+export const CheckIcon: FunctionalComponent<{ size?: number | string }> = (props) => {
+  const size = props.size ?? 16
+  return h('svg', base(size, 'Check', 'icon check-icon'), [
+    h('polyline', { points: '20 6 9 17 4 12' }),
+  ])
+}
+CheckIcon.displayName = 'CheckIcon'
+
 export const MenuDotsIcon: FunctionalComponent<{ size?: number | string }> = (props) => {
   const size = props.size ?? 16
   return h('svg', base(size, 'Menu', 'icon menu-dots-icon'), [
@@ -297,6 +305,7 @@ export default {
   ArrowTrendingDownIcon,
   ArrowTrendingUpIcon,
   BoltIcon,
+  CheckIcon,
   CogIcon,
   ComputerDesktopIcon,
   CpuChipIcon,

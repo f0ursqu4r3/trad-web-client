@@ -30,19 +30,16 @@
           continue.
         </p>
 
-        <p v-if="!publishableKey || !pricingTableId" class="notice-err">
-          Missing Stripe configuration. Set VITE_STRIPE_PUBLISHABLE_KEY and
-          VITE_STRIPE_PRICING_TABLE_ID.
+        <p v-if="!authIsAuthenticated" class="notice-info mb-4">
+          <a href="/login" class="link-term">Sign in</a> to subscribe to a plan.
         </p>
 
-        <div v-else class="pricing-table-container">
-          <stripe-pricing-table
-            :publishable-key="publishableKey"
-            :pricing-table-id="pricingTableId"
-            :client-reference-id="userId"
-            :customer-email="authIsAuthenticated ? userEmail : null"
-          />
-        </div>
+        <PricingTable
+          :plans="billing.plans"
+          :current-plan-id="billing.billingInfo?.plan"
+          :loading="billing.checkoutLoading"
+          @subscribe="handleSubscribe"
+        />
 
         <div class="section-divider" />
 
@@ -57,39 +54,42 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useHead } from '@unhead/vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { useBillingStore } from '@/stores/billing'
-import { useUserStore } from '@/stores/user'
-
-// Load Stripe Pricing Table script
-useHead({
-  script: [
-    {
-      src: 'https://js.stripe.com/v3/pricing-table.js',
-      async: true,
-    },
-  ],
-})
-
-const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
-const pricingTableId = import.meta.env.VITE_STRIPE_PRICING_TABLE_ID
+import PricingTable from '@/components/billing/PricingTable.vue'
 
 const route = useRoute()
-const { isAuthenticated, user } = useAuth0()
+const { isAuthenticated, loginWithRedirect } = useAuth0()
 const billing = useBillingStore()
-const userStore = useUserStore()
 
-// Optional: ensure we have fresh billing info if already authenticated
-if (isAuthenticated.value) billing.fetchBillingInfo()
+// Fetch plans on mount
+onMounted(() => {
+  billing.fetchPlans()
+  if (isAuthenticated.value) {
+    billing.fetchBillingInfo()
+  }
+})
 
 // Expose a boolean for template (Auth0 exposes a Ref<boolean>)
 const authIsAuthenticated = computed(() => isAuthenticated.value)
 const showEntitlementNotice = computed(() => Boolean(route.query.redirect))
-const userId = computed(() => userStore.userId)
-const userEmail = computed(() => user?.value?.email || '')
+
+async function handleSubscribe(priceId: string) {
+  if (!isAuthenticated.value) {
+    // Redirect to login, then back here
+    await loginWithRedirect({
+      appState: { targetUrl: route.fullPath },
+      authorizationParams: {
+        audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+        scope: import.meta.env.VITE_AUTH0_SCOPE,
+      },
+    })
+    return
+  }
+  await billing.createCheckoutSession(priceId)
+}
 </script>
 
 <style scoped>
@@ -115,16 +115,6 @@ const userEmail = computed(() => user?.value?.email || '')
 
 .subscriptions-card {
   width: 100%;
-  max-width: 720px;
-}
-
-.pricing-table-container {
-  border-radius: 0.375rem;
-  overflow: hidden;
-}
-
-/* Style Stripe pricing table to blend with theme */
-.pricing-table-container :deep(stripe-pricing-table) {
-  --stripe-font-family: inherit;
+  max-width: 900px;
 }
 </style>
