@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useWsStore } from '@/stores/ws'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
+import { useBillingStore } from '@/stores/billing'
 import { apiPut } from '@/lib/apiClient'
 import { useAuth0 } from '@auth0/auth0-vue'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
@@ -14,9 +16,11 @@ const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 // Stores
+const router = useRouter()
 const userStore = useUserStore()
 const wsStore = useWsStore()
 const accountsStore = useAccountsStore()
+const billing = useBillingStore()
 const { logout, isAuthenticated } = useAuth0()
 
 // Local editable preferences JSON
@@ -146,10 +150,34 @@ watch(
       accountsStore.fetchAccounts().catch((err) => {
         prefsError.value = err instanceof Error ? err.message : String(err)
       })
+      billing.fetchBillingInfo()
     }
   },
   { immediate: true },
 )
+
+// Billing helpers
+function goToSubscriptions() {
+  close()
+  router.push('/subscriptions')
+}
+
+const formatBillingDate = (dateStr: string) => {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+const formatPrice = (unitAmount: number, currency: string) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(unitAmount / 100)
+}
 
 // Logout redirect origin constant to avoid template global lookup typing issues
 const returnToOrigin = window.location.origin
@@ -283,6 +311,113 @@ const returnToOrigin = window.location.origin
             </section>
 
             <hr class="section-divider" />
+
+            <!-- Billing -->
+            <section v-if="isAuthenticated">
+              <header
+                class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-[var(--accent-color)]"
+              >
+                <span>Billing</span>
+              </header>
+              <div v-if="billing.billingInfo" class="space-y-3">
+                <!-- Plan name and price -->
+                <div class="grid gap-2 sm:grid-cols-2">
+                  <div>
+                    <div class="dim text-[11px]">Plan</div>
+                    <div>
+                      {{
+                        billing.billingInfo.plan_details?.product_name ||
+                        billing.billingInfo.plan ||
+                        '—'
+                      }}
+                    </div>
+                  </div>
+                  <div v-if="billing.billingInfo.plan_details?.unit_amount">
+                    <div class="dim text-[11px]">Price</div>
+                    <div>
+                      {{
+                        formatPrice(
+                          billing.billingInfo.plan_details.unit_amount,
+                          billing.billingInfo.plan_details.currency,
+                        )
+                      }}/{{ billing.billingInfo.plan_details.billing_interval || 'month' }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Status row -->
+                <div class="grid gap-2 sm:grid-cols-3">
+                  <div>
+                    <div class="dim text-[11px]">Status</div>
+                    <div>
+                      <span
+                        :class="{
+                          'pill-ok': billing.billingInfo.status === 'active',
+                          'pill-warn': billing.billingInfo.status === 'trialing',
+                          'pill-err': ['canceled', 'past_due', 'unpaid'].includes(
+                            billing.billingInfo.status,
+                          ),
+                        }"
+                        class="pill"
+                      >
+                        {{ billing.billingInfo.status }}
+                      </span>
+                    </div>
+                  </div>
+                  <div
+                    v-if="
+                      billing.billingInfo.status === 'trialing' && billing.billingInfo.trial_end
+                    "
+                  >
+                    <div class="dim text-[11px]">Trial Ends</div>
+                    <div>{{ formatBillingDate(billing.billingInfo.trial_end) }}</div>
+                  </div>
+                  <div
+                    v-else-if="
+                      billing.billingInfo.current_period_end && !billing.billingInfo.cancel_at
+                    "
+                  >
+                    <div class="dim text-[11px]">Renews</div>
+                    <div>{{ formatBillingDate(billing.billingInfo.current_period_end) }}</div>
+                  </div>
+                  <div v-if="billing.billingInfo.cancel_at">
+                    <div class="dim text-[11px]">Cancels On</div>
+                    <div class="text-red-400">
+                      {{ formatBillingDate(billing.billingInfo.cancel_at) }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Cancellation notice -->
+                <p v-if="billing.billingInfo.cancel_at" class="notice-warn text-[12px]">
+                  Your subscription is set to cancel on
+                  {{ formatBillingDate(billing.billingInfo.cancel_at) }}. You'll retain access until
+                  then.
+                </p>
+                <p
+                  v-if="billing.billingInfo.canceled_at && !billing.billingInfo.cancel_at"
+                  class="notice-err text-[12px]"
+                >
+                  Subscription was canceled on
+                  {{ formatBillingDate(billing.billingInfo.canceled_at) }}.
+                </p>
+              </div>
+              <div v-else class="text-[var(--color-text-dim)]">No active subscription.</div>
+              <div class="mt-3 flex flex-wrap gap-2">
+                <button class="btn btn-secondary btn-sm" @click="goToSubscriptions">
+                  View Plans
+                </button>
+                <button
+                  v-if="billing.billingInfo"
+                  class="btn btn-secondary btn-sm"
+                  @click="billing.openCustomerPortal()"
+                >
+                  Manage Billing
+                </button>
+              </div>
+            </section>
+
+            <hr v-if="isAuthenticated" class="section-divider" />
 
             <!-- Session / Connection -->
             <section>

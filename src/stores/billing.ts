@@ -3,10 +3,26 @@ import { ref, watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { apiGet, apiPost } from '@/lib/apiClient'
 
+export interface PlanDetails {
+  price_id: string
+  product_name: string
+  product_description?: string
+  price_nickname?: string
+  currency: string
+  unit_amount?: number
+  billing_interval?: string
+  billing_interval_count?: number
+  features: string[] | Record<string, unknown>
+}
+
 export interface BillingInfo {
   plan: string
   status: string
-  current_period_end: string
+  current_period_end?: string
+  trial_end?: string
+  cancel_at?: string
+  canceled_at?: string
+  plan_details?: PlanDetails
 }
 
 export interface PricingPlan {
