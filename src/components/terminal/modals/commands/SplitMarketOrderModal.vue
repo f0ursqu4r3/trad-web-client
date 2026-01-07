@@ -17,7 +17,7 @@ const accounts = useAccountsStore()
 
 const selectedAccountId = ref<string>(accounts.selectedAccount?.id || '')
 
-const symbol = ref('BTCUSDT')
+const symbol = ref(accounts.getDefaultSymbolForAccount(selectedAccountId.value))
 const action = ref<MarketAction>(MarketAction.Open)
 const quantity_usd = ref(100)
 const position_side = ref<PositionSide>(PositionSide.Long)
@@ -25,6 +25,7 @@ const num_splits = ref(4)
 
 function reset() {
   selectedAccountId.value = accounts.selectedAccount?.id || ''
+  symbol.value = accounts.getDefaultSymbolForAccount(selectedAccountId.value)
   action.value = MarketAction.Open
   quantity_usd.value = 100
   position_side.value = PositionSide.Long

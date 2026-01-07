@@ -158,6 +158,13 @@ export const useAccountsStore = defineStore(
       return ctx
     }
 
+    function getDefaultSymbolForAccount(accountId: string): string {
+      const account = accounts.value.find((a) => a.id === accountId)
+      if (!account) return 'BTCUSDT'
+      if (account.exchange.toLowerCase() === 'bifake') return 'APPLE'
+      return 'BTCUSDT'
+    }
+
     function persistState(): void {
       const userId = getSessionUserId()
       if (!userId) return
@@ -245,6 +252,7 @@ export const useAccountsStore = defineStore(
       removeAccount,
       reorderAccounts,
       getMarketContextForAccount,
+      getDefaultSymbolForAccount,
       loadPersistedState,
     }
   },

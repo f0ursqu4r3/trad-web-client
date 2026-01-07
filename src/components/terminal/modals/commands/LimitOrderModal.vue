@@ -17,7 +17,8 @@ const ws = useWsStore()
 const accounts = useAccountsStore()
 
 const selectedAccountId = ref<string>(accounts.selectedAccount?.id || '')
-const symbol = ref('BTCUSDT')
+const symbol = ref(accounts.getDefaultSymbolForAccount(selectedAccountId.value))
+const lastAccountId = ref<string>('')
 const side = ref<OrderSide>(OrderSide.Buy)
 const quantity = ref(0.001)
 const price = ref(58000)
@@ -25,7 +26,8 @@ const posSide = ref<PositionSide>(PositionSide.Long)
 
 function reset() {
   selectedAccountId.value = accounts.selectedAccount?.id || ''
-  symbol.value = 'BTCUSDT'
+  symbol.value = accounts.getDefaultSymbolForAccount(selectedAccountId.value)
+  lastAccountId.value = selectedAccountId.value
   side.value = OrderSide.Buy
   quantity.value = 0.001
   price.value = 58000
@@ -37,6 +39,15 @@ watch(
     if (o) reset()
   },
 )
+
+watch(selectedAccountId, (next, prev) => {
+  const prevDefault = accounts.getDefaultSymbolForAccount(prev || lastAccountId.value)
+  const nextDefault = accounts.getDefaultSymbolForAccount(next)
+  if (!symbol.value || symbol.value === prevDefault) {
+    symbol.value = nextDefault
+  }
+  lastAccountId.value = next
+})
 
 function submit() {
   const marketContext = accounts.getMarketContextForAccount(selectedAccountId.value)

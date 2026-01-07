@@ -23,6 +23,7 @@ const modals = useModalStore()
 
 const selectedAccountId = ref<string>('')
 const symbol = ref<string>('BTCUSDT')
+const lastAccountId = ref<string>('')
 const activation_price = ref<number | null>(null)
 const jump_frac_threshold = ref<number | null>(null)
 const stop_loss = ref<number | null>(null)
@@ -31,12 +32,14 @@ const position_side = ref<PositionSide>(PositionSide.Long)
 
 function applyInitialValues() {
   const preset = (modals.modalValues['TrailingEntryOrder'] as TrailingEntryPrefill) ?? {}
+  selectedAccountId.value = accounts.selectedAccount?.id ?? ''
   activation_price.value = preset.activation_price ?? null
   jump_frac_threshold.value = preset.jump_frac_threshold ?? null
   position_side.value = preset.position_side ?? PositionSide.Long
   risk_amount.value = preset.risk_amount ?? null
   stop_loss.value = preset.stop_loss ?? null
-  symbol.value = preset.symbol ?? 'BTCUSDT'
+  symbol.value = preset.symbol ?? accounts.getDefaultSymbolForAccount(selectedAccountId.value)
+  lastAccountId.value = selectedAccountId.value
 }
 
 watch(
@@ -47,6 +50,15 @@ watch(
 )
 
 applyInitialValues()
+
+watch(selectedAccountId, (next, prev) => {
+  const prevDefault = accounts.getDefaultSymbolForAccount(prev || lastAccountId.value)
+  const nextDefault = accounts.getDefaultSymbolForAccount(next)
+  if (!symbol.value || symbol.value === prevDefault) {
+    symbol.value = nextDefault
+  }
+  lastAccountId.value = next
+})
 
 function validate(): boolean {
   if (!selectedAccountId.value) return false

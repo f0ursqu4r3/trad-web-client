@@ -23,6 +23,7 @@ const modals = useModalStore()
 
 const selectedAccountId = ref<string>('')
 const symbol = ref<string>('BTCUSDT')
+const lastAccountId = ref<string>('')
 const quantity_usd = ref<number | null>(null)
 const position_side = ref<PositionSide>(PositionSide.Long)
 const action = ref<MarketAction>(MarketAction.Open)
@@ -30,7 +31,8 @@ const action = ref<MarketAction>(MarketAction.Open)
 function applyInitialValues() {
   const preset = (modals.modalValues['MarketOrder'] as MarketOrderPrefill) ?? {}
   selectedAccountId.value = accounts.selectedAccount?.id ?? ''
-  symbol.value = preset.symbol ?? 'BTCUSDT'
+  symbol.value = preset.symbol ?? accounts.getDefaultSymbolForAccount(selectedAccountId.value)
+  lastAccountId.value = selectedAccountId.value
   quantity_usd.value = preset.quantity_usd ?? 50
   position_side.value = preset.position_side ?? PositionSide.Long
   action.value = preset.action ?? MarketAction.Open
@@ -44,6 +46,15 @@ watch(
 )
 
 applyInitialValues()
+
+watch(selectedAccountId, (next, prev) => {
+  const prevDefault = accounts.getDefaultSymbolForAccount(prev || lastAccountId.value)
+  const nextDefault = accounts.getDefaultSymbolForAccount(next)
+  if (!symbol.value || symbol.value === prevDefault) {
+    symbol.value = nextDefault
+  }
+  lastAccountId.value = next
+})
 
 function validate(): boolean {
   if (!selectedAccountId.value) return false
