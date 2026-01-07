@@ -5,7 +5,7 @@ import { useUserStore } from '@/stores/user'
 import { useWsStore } from '@/stores/ws'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import { useBillingStore } from '@/stores/billing'
-import { apiPut } from '@/lib/apiClient'
+// import { apiPut } from '@/lib/apiClient'
 import { useAuth0 } from '@auth0/auth0-vue'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 
@@ -27,8 +27,8 @@ const { logout, isAuthenticated } = useAuth0()
 const prefsEditor = ref('')
 const prefsDirty = ref(false)
 const prefsError = ref<string | null>(null)
-const prefsSaving = ref(false)
-const prefsSavedAt = ref<number | null>(null)
+// const prefsSaving = ref(false)
+// const prefsSavedAt = ref<number | null>(null)
 
 const isCreateAccountOpen = ref(false)
 
@@ -45,41 +45,41 @@ watch(
   { immediate: true },
 )
 
-// Preferences saving logic
-async function savePreferences() {
-  prefsError.value = null
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(prefsEditor.value || '{}')
-  } catch (e) {
-    prefsError.value = 'Invalid JSON: ' + (e instanceof Error ? e.message : String(e))
-    return
-  }
-  prefsSaving.value = true
-  try {
-    // Assumption: backend accepts PUT /me/preferences with full object & returns updated prefs
-    const updated = await apiPut<Record<string, unknown>>(
-      '/me/preferences',
-      parsed as Record<string, unknown>,
-      {
-        throwOnHTTPError: true,
-      },
-    )
-    userStore.profile!.meta = userStore.profile!.meta || { preferences: {} }
-    userStore.profile!.meta.preferences = updated
-    prefsDirty.value = false
-    prefsSavedAt.value = Date.now()
-  } catch (e) {
-    prefsError.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    prefsSaving.value = false
-  }
-}
+// // Preferences saving logic
+// async function savePreferences() {
+//   prefsError.value = null
+//   let parsed: unknown
+//   try {
+//     parsed = JSON.parse(prefsEditor.value || '{}')
+//   } catch (e) {
+//     prefsError.value = 'Invalid JSON: ' + (e instanceof Error ? e.message : String(e))
+//     return
+//   }
+//   prefsSaving.value = true
+//   try {
+//     // Assumption: backend accepts PUT /me/preferences with full object & returns updated prefs
+//     const updated = await apiPut<Record<string, unknown>>(
+//       '/me/preferences',
+//       parsed as Record<string, unknown>,
+//       {
+//         throwOnHTTPError: true,
+//       },
+//     )
+//     userStore.profile!.meta = userStore.profile!.meta || { preferences: {} }
+//     userStore.profile!.meta.preferences = updated
+//     prefsDirty.value = false
+//     prefsSavedAt.value = Date.now()
+//   } catch (e) {
+//     prefsError.value = e instanceof Error ? e.message : String(e)
+//   } finally {
+//     prefsSaving.value = false
+//   }
+// }
 
-// Handle editor changes
-function onPrefsInput() {
-  prefsDirty.value = true
-}
+// // Handle editor changes
+// function onPrefsInput() {
+//   prefsDirty.value = true
+// }
 
 // Refresh account info
 async function refreshAccount() {
@@ -130,10 +130,10 @@ onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 // Success / status helpers
-const prefsSavedRecently = computed(() => {
-  if (!prefsSavedAt.value) return false
-  return Date.now() - prefsSavedAt.value < 4000
-})
+// const prefsSavedRecently = computed(() => {
+//   if (!prefsSavedAt.value) return false
+//   return Date.now() - prefsSavedAt.value < 4000
+// })
 
 // Derived states
 const accountLoading = computed(() => userStore.loading)
