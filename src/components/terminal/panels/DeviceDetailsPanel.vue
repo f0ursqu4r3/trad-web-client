@@ -34,6 +34,9 @@ const deviceComp = computed(() => {
         :is="deviceComp"
         :device="selectedDevice.state as any"
         :failure-reason="selectedDevice.failure_reason"
+        :failed="selectedDevice.failed"
+        :canceled="selectedDevice.canceled"
+        :complete="selectedDevice.complete"
         class="w-full h-full"
       />
     </div>

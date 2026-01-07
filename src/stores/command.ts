@@ -145,6 +145,10 @@ export const useCommandStore = defineStore(
       ws.sendCancelCommand(commandId)
     }
 
+    function closePosition(command: TrailingEntryOrderCommand) {
+      ws.sendCancelPosition(command.symbol, command.market_context)
+    }
+
     return {
       /* state */
       history,
@@ -161,6 +165,7 @@ export const useCommandStore = defineStore(
       /* actions */
       inspectCommand,
       cancelCommand,
+      closePosition,
       addPendingCommand,
       verifyPendingCommand,
     }

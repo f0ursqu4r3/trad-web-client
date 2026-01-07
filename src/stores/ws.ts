@@ -1,4 +1,5 @@
 import {
+  type MarketContext,
   type ServerToClientMessage,
   type SystemMessagePayload,
   type UserCommandPayload,
@@ -124,6 +125,13 @@ export const useWsStore = defineStore('ws', () => {
     sendSystemCommand({
       kind: 'CancelCommand',
       data: { command_id: commandId },
+    })
+  }
+
+  function sendCancelPosition(symbol: string, market_context: MarketContext) {
+    sendUserCommand({
+      kind: 'CancelPosition',
+      data: { symbol, market_context },
     })
   }
 
@@ -396,6 +404,7 @@ export const useWsStore = defineStore('ws', () => {
     sendLogout,
     sendUserCommand,
     sendCancelCommand,
+    sendCancelPosition,
     sendRefreshAccountKeys,
     getDeviceTree,
   }

@@ -23,6 +23,7 @@ const emit = defineEmits<{
   (e: 'duplicate', commandId: string): void
   (e: 'cancel', commandId: string): void
   (e: 'inspect', commandId: string): void
+  (e: 'close-position', commandId: string): void
 }>()
 
 const shortId = computed(() => props.commandId.slice(0, 8))
@@ -52,6 +53,12 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
       action: () => emit('duplicate', props.commandId),
     },
   ]
+  if (props.label === 'TrailingEntryOrder') {
+    items.push({
+      label: 'Close Position',
+      action: () => emit('close-position', props.commandId),
+    })
+  }
   if (canCancel.value) {
     items.push({
       label: 'Cancel',

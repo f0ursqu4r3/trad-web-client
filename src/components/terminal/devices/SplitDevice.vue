@@ -4,6 +4,9 @@ import { formatPrice, formatQty } from './utils'
 
 defineProps<{
   device: SplitState
+  failed?: boolean | null
+  canceled?: boolean | null
+  complete?: boolean | null
 }>()
 </script>
 
@@ -13,6 +16,24 @@ defineProps<{
     <div class="space-y-2">
       <div class="flex items-center justify-between">
         <h3 class="text-sm font-mono text-[var(--color-text)] m-0">Split Device</h3>
+        <span
+          v-if="failed"
+          class="pill pill-err text-[10px] px-2 py-1"
+        >
+          Failed
+        </span>
+        <span
+          v-else-if="canceled"
+          class="pill pill-warn text-[10px] px-2 py-1"
+        >
+          Canceled
+        </span>
+        <span
+          v-else-if="complete"
+          class="pill pill-ok text-[10px] px-2 py-1"
+        >
+          Completed
+        </span>
       </div>
       <div class="text-[11px] text-[var(--color-text-dim)] font-mono">
         {{ device.symbol }}

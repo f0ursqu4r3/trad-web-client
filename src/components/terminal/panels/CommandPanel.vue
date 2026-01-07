@@ -96,6 +96,12 @@ function handleInspect(commandId: string): void {
 function handleCancel(commandId: string): void {
   commandStore.cancelCommand(commandId)
 }
+
+function handleClosePosition(commandId: string): void {
+  const cmd = commandStore.commandMap[commandId]
+  if (!cmd || cmd.command.kind !== 'TrailingEntryOrder') return
+  commandStore.closePosition(cmd.command.data)
+}
 </script>
 
 <template>
@@ -186,6 +192,7 @@ function handleCancel(commandId: string): void {
               @duplicate="handleDuplicate(cmd.command)"
               @cancel="handleCancel"
               @inspect="handleInspect"
+              @close-position="handleClosePosition"
             >
               <component :is="getCommandComponent(cmd.command)" :command="cmd.command.data" />
             </CommandBase>
