@@ -50,7 +50,26 @@ export const useUiStore = defineStore(
       return getComputedStyle(document.documentElement).getPropertyValue(name).trim() ?? fallback
     }
 
-    return { theme, effectiveTheme, systemPrefersDark, setTheme, toggleTheme, getVar }
+    // Settings modal state
+    const settingsOpen = ref(false)
+    function openSettings() {
+      settingsOpen.value = true
+    }
+    function closeSettings() {
+      settingsOpen.value = false
+    }
+
+    return {
+      theme,
+      effectiveTheme,
+      systemPrefersDark,
+      setTheme,
+      toggleTheme,
+      getVar,
+      settingsOpen,
+      openSettings,
+      closeSettings,
+    }
   },
   {
     persist: { key: 'trad-ui-store', pick: ['theme'] },

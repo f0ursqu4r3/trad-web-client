@@ -15,7 +15,7 @@
         <WsIndicator />
         <button
           class="btn icon-btn"
-          @click="settingsOpen = true"
+          @click="ui.openSettings()"
           title="Settings"
           aria-label="Settings"
         >
@@ -23,16 +23,17 @@
         </button>
       </div>
     </div>
-    <UserSettings :open="settingsOpen" @close="settingsOpen = false" />
+    <UserSettings :open="ui.settingsOpen" @close="ui.closeSettings()" />
     <slot></slot>
     <CommandModalContainer />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { CogIcon } from '@/components/icons'
 import { useUserStore } from '@/stores/user'
+import { useUiStore } from '@/stores/ui'
 
 import WsIndicator from '@/components/general/WsIndicator.vue'
 import UserSettings from '@/components/terminal/modals/UserSettings.vue'
@@ -41,8 +42,7 @@ import CommandInputModal from '@/components/terminal/modals/commands/CommandInpu
 import CommandModalContainer from '@/components/terminal/modals/commands/CommandModalContainer.vue'
 
 const userStore = useUserStore()
-
-const settingsOpen = ref(false)
+const ui = useUiStore()
 
 const username = computed(() => userStore.displayName || 'anonymous')
 </script>

@@ -1,8 +1,10 @@
 <script lang="ts" setup>
 import { onBeforeUnmount, onMounted } from 'vue'
 import { useAccountsStore } from '@/stores/accounts'
+import { useUiStore } from '@/stores/ui'
 
 const accounts = useAccountsStore()
+const ui = useUiStore()
 
 function onKeyDown(event: KeyboardEvent) {
   if (event.ctrlKey || event.metaKey) {
@@ -43,5 +45,6 @@ onBeforeUnmount(() => {
         {{ acc.label }}
       </option>
     </select>
+    <button v-else class="link-term" @click="ui.openSettings()">No accounts — configure</button>
   </div>
 </template>
