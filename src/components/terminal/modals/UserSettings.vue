@@ -228,7 +228,7 @@ const returnToOrigin = window.location.origin
               <header
                 class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-[var(--accent-color)]"
               >
-                <span>Account</span>
+                <span>User Account</span>
                 <span class="pill pill-info" v-if="accountLoading">loading...</span>
                 <span class="pill pill-err" v-if="accountError">error</span>
               </header>
