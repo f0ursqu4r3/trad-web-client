@@ -273,7 +273,7 @@ const returnToOrigin = window.location.origin
                   Loading accounts...
                 </p>
                 <OrderedList
-                  v-else-if="accountsStore.accounts.length"
+                  v-else-if="accountsStore.accounts.length > 0"
                   :items="accountsStore.accounts"
                   item-key="id"
                   @update:items="handleAccountsReorder"

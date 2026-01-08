@@ -1,44 +1,3 @@
-<template>
-  <div
-    ref="rootEl"
-    class="sv-wrapper"
-    :data-orientation="props.orientation"
-    :data-dragging="dragging ? 'true' : null"
-    :style="gridStyle"
-  >
-    <!-- Default-mode: render a single pane with default slot -->
-    <template v-if="isDefaultMode">
-      <div class="sv-pane">
-        <div class="sv-slot"><slot /></div>
-      </div>
-    </template>
-    <!-- Named panes mode: render named slots in order -->
-    <template v-else>
-      <template v-for="(name, i) in namedPaneNames" :key="name">
-        <div class="sv-pane">
-          <div class="sv-slot"><slot :name="name" /></div>
-        </div>
-        <div
-          v-if="i < namedPaneNames.length - 1"
-          class="sv-gutter"
-          role="separator"
-          tabindex="0"
-          :aria-orientation="props.orientation"
-          @pointerdown="onGutterPointerDown(i, $event)"
-          @dblclick="resetSizes"
-        />
-      </template>
-    </template>
-    <div v-if="paneCount === 0" class="sv-empty">
-      <slot>
-        <div class="sv-empty-fallback">No panes provided</div>
-      </slot>
-    </div>
-  </div>
-  <!-- Optional debug overlay -->
-  <!-- <pre class="sv-debug">{{ sizes.join('% | ') }}</pre> -->
-</template>
-
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch, useSlots } from 'vue'
 
@@ -319,6 +278,47 @@ function resetSizes() {
   emit('resize', sizes.value.slice())
 }
 </script>
+
+<template>
+  <div
+    ref="rootEl"
+    class="sv-wrapper"
+    :data-orientation="props.orientation"
+    :data-dragging="dragging ? 'true' : null"
+    :style="gridStyle"
+  >
+    <!-- Default-mode: render a single pane with default slot -->
+    <template v-if="isDefaultMode">
+      <div class="sv-pane">
+        <div class="sv-slot"><slot /></div>
+      </div>
+    </template>
+    <!-- Named panes mode: render named slots in order -->
+    <template v-else>
+      <template v-for="(name, i) in namedPaneNames" :key="name">
+        <div class="sv-pane">
+          <div class="sv-slot"><slot :name="name" /></div>
+        </div>
+        <div
+          v-if="i < namedPaneNames.length - 1"
+          class="sv-gutter"
+          role="separator"
+          tabindex="0"
+          :aria-orientation="props.orientation"
+          @pointerdown="onGutterPointerDown(i, $event)"
+          @dblclick="resetSizes"
+        />
+      </template>
+    </template>
+    <div v-if="paneCount === 0" class="sv-empty">
+      <slot>
+        <div class="sv-empty-fallback">No panes provided</div>
+      </slot>
+    </div>
+  </div>
+  <!-- Optional debug overlay -->
+  <!-- <pre class="sv-debug">{{ sizes.join('% | ') }}</pre> -->
+</template>
 
 <style scoped>
 .sv-wrapper {
