@@ -100,7 +100,7 @@ async function copyId() {
 
 <template>
   <div
-    class="flex flex-col bg-(--color-bg) dark:bg-(--color-bg) rounded-lg shadow-sm cursor-pointer command-row"
+    class="flex flex-col bg-(--color-bg) dark:bg-(--color-bg) shadow-sm cursor-pointer command-row"
     :class="statusClass"
     @click="emit('inspect', commandId)"
   >

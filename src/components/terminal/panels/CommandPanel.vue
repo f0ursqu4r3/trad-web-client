@@ -176,7 +176,6 @@ function handleClosePosition(commandId: string): void {
       <div class="flex flex-col p-2 gap-2">
         <template v-for="cmd in commandStore.filteredCommands" :key="cmd.command_id">
           <div
-            class="rounded-lg"
             :class="
               cmd.command_id == commandStore.selectedCommandId
                 ? 'ring-2 ring-[var(--accent-color)]'
