@@ -18,7 +18,7 @@
           class="flex items-center gap-2 px-2 border-slate-800/60 text-[13px] hover:bg-white/5 select-none cursor-default w-full device-row"
           :class="[
             rowClass(item),
-            item.id == selectedDeviceId ? 'ring-2 ring-(--accent-color)' : '',
+            item.id == selectedDeviceId ? 'ring-2 ring-[var(--color-text)]' : '',
           ]"
         >
           <span

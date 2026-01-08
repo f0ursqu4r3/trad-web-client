@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, ref } from 'vue'
+import { computed, ref, type Component } from 'vue'
 import DropMenu from '@/components/general/DropMenu.vue'
 import { type DropMenuItem } from '@/components/general/DropMenu.vue'
 import { DownIcon } from '@/components/icons'
@@ -9,13 +9,14 @@ const props = withDefaults(
   defineProps<{
     commandId: string
     commandStatus: string
-    commandSymbol?: string
     label?: string
     createdAt?: string | null
+    icon?: Component | null
   }>(),
   {
     label: 'Trailing Entry',
     createdAt: null,
+    icon: null,
   },
 )
 
@@ -58,7 +59,7 @@ const statusClass = computed(() => {
     Failed: 'error',
   }
   const key = map[props.commandStatus] || 'neutral'
-  return `command-row-${key}`
+  return `command-status-${key}`
 })
 
 const menuItems = computed<Array<DropMenuItem>>(() => {
@@ -100,15 +101,14 @@ async function copyId() {
 
 <template>
   <div
-    class="flex flex-col bg-(--color-bg) dark:bg-(--color-bg) shadow-sm cursor-pointer command-row"
-    :class="statusClass"
+    class="flex flex-col bg-(--color-bg) dark:bg-(--color-bg) shadow-sm cursor-pointer command-row relative"
     @click="emit('inspect', commandId)"
   >
+    <div class="command-status-bar" :class="statusClass"></div>
     <div class="flex items-start justify-between gap-3 px-3 py-2">
       <div class="flex items-center flex-wrap gap-2">
-        <span
-          class="uppercase font-bold text-[12px] tracking-[0.06em] bg-(--panel-header-bg) px-2 py-0.5 rounded cursor-pointer"
-        >
+        <component v-if="icon" :is="icon" size="14" class="text-[var(--color-text-dim)]" />
+        <span class="uppercase font-bold text-[12px] tracking-[0.06em] cursor-pointer">
           {{ formatName(label) }}
         </span>
         <span
@@ -123,7 +123,6 @@ async function copyId() {
         >
           #{{ shortId }}
         </span>
-        <span v-if="commandSymbol" class="pill pill-sm">{{ commandSymbol }}</span>
       </div>
 
       <div class="flex items-center justify-end flex-wrap gap-2">
@@ -160,19 +159,26 @@ async function copyId() {
 </template>
 
 <style scoped>
-.command-row-success {
-  background-color: color-mix(in srgb, var(--color-success) 12%, transparent);
+.command-status-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
 }
-.command-row-error {
-  background-color: color-mix(in srgb, var(--color-error) 14%, transparent);
+.command-status-success {
+  background-color: var(--color-success);
 }
-.command-row-warning {
-  background-color: color-mix(in srgb, var(--color-warning) 12%, transparent);
+.command-status-error {
+  background-color: var(--color-error);
 }
-.command-row-info {
-  background-color: color-mix(in srgb, var(--color-info) 12%, transparent);
+.command-status-warning {
+  background-color: var(--color-warning);
 }
-.command-row-neutral {
-  background-color: color-mix(in srgb, var(--color-text-dim) 6%, transparent);
+.command-status-info {
+  background-color: var(--color-info);
+}
+.command-status-neutral {
+  background-color: var(--color-text-dim);
 }
 </style>

@@ -3,7 +3,7 @@ import { ref, computed, type Component } from 'vue'
 import StickyScroller from '@/components/general/StickyScroller.vue'
 import { useCommandStore } from '@/stores/command'
 import { useModalStore } from '@/stores/modals'
-import { FunnelIcon } from '@/components/icons'
+import { ArrowTrendingDownIcon, BoltIcon, FolderIcon, FunnelIcon, StarIcon } from '@/components/icons'
 
 import type { MarketOrderPrefill, TrailingEntryPrefill } from '../modals/commands/types'
 import type { UserCommandPayload } from '@/lib/ws/protocol'
@@ -43,13 +43,18 @@ function handleCheckboxChange(
   }
 }
 
-function getCommandSymbol(command: UserCommandPayload): string {
-  switch (command.kind) {
-    case 'MarketOrder':
+function getCommandIcon(kind: UserCommandPayload['kind']) {
+  switch (kind) {
     case 'TrailingEntryOrder':
-      return command.data.symbol
+      return BoltIcon
+    case 'MarketOrder':
+      return ArrowTrendingDownIcon
+    case 'SplitMarketOrder':
+      return FolderIcon
+    case 'LimitOrder':
+      return StarIcon
     default:
-      return ''
+      return null
   }
 }
 
@@ -176,9 +181,10 @@ function handleClosePosition(commandId: string): void {
       <div class="flex flex-col p-2 gap-2">
         <template v-for="cmd in commandStore.filteredCommands" :key="cmd.command_id">
           <div
+            class="border border-[var(--border-color)]"
             :class="
               cmd.command_id == commandStore.selectedCommandId
-                ? 'ring-2 ring-[var(--accent-color)]'
+                ? 'ring-2 ring-[var(--color-text)]'
                 : ''
             "
           >
@@ -186,9 +192,9 @@ function handleClosePosition(commandId: string): void {
               v-if="Object.values(interestingCommandKinds).includes(cmd.command.kind)"
               :commandId="cmd.command_id"
               :commandStatus="cmd.status"
-              :commandSymbol="getCommandSymbol(cmd.command)"
               :label="cmd.command.kind"
               :createdAt="cmd.created_at"
+              :icon="getCommandIcon(cmd.command.kind)"
               @duplicate="handleDuplicate(cmd.command)"
               @cancel="handleCancel"
               @inspect="handleInspect"
