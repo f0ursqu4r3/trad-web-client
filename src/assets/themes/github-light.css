@@ -1,0 +1,111 @@
+/* GitHub Light theme (clean, modern interface) */
+/* Inspired by GitHub's light mode */
+[data-theme='githubLight'] {
+  /* GitHub Light palette:
+     Backgrounds: #ffffff #f6f8fa #eaeef2 #d0d7de
+     Text: #1f2328 #656d76 #8b949e
+     Accents: #0969da #1a7f37 #cf222e #9a6700 #8250df */
+
+  /* Surfaces */
+  --color-bg: #ffffff;
+  --color-bg-alt: #f6f8fa;
+  --panel-bg: #ffffff;
+  --panel-header-bg: #f6f8fa;
+  --panel-border-inner: #eaeef2;
+  --border-color: #d0d7de;
+  --color-border-strong: #afb8c1;
+  --color-bg-secondary: #f6f8fa;
+  --color-bg-tertiary: #eaeef2;
+
+  /* Typography */
+  --color-text: #1f2328;
+  --color-text-dim: #656d76;
+  --accent-color: #0969da;
+
+  /* Semantic */
+  --color-success: #1a7f37;
+  --color-error: #cf222e;
+  --color-warning: #9a6700;
+  --color-info: #0969da;
+
+  /* Terminal */
+  --color-term-bg: #ffffff;
+  --color-term-fg: #1f2328;
+  --color-term-dim: #656d76;
+  --color-term-accent: #0969da;
+  --color-term-border: #d0d7de;
+  --color-term-ok: #1a7f37;
+  --color-term-err: #cf222e;
+  --color-term-warn: #9a6700;
+  --color-term-info: #0969da;
+
+  /* Buttons */
+  --btn-bg-start: #f6f8fa;
+  --btn-bg-end: #eaeef2;
+  --btn-border: #d0d7de;
+  --btn-fg: #1f2328;
+
+  /* Form controls */
+  --control-mark-color: #ffffff;
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 10%;
+  --pill-ring-alpha: 30%;
+
+  /* Button variants */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #6e7781;
+  --btn-color-neutral-fg: #1f2328;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 30%;
+  --btn-alpha-surface: 10%;
+  --btn-alpha-surface-hover: 16%;
+  --btn-alpha-surface-active: 24%;
+  --btn-alpha-outline-border: 45%;
+  --btn-alpha-outline-surface-hover: 10%;
+  --btn-alpha-outline-surface-active: 16%;
+  --btn-alpha-ghost-hover: 10%;
+  --btn-alpha-ghost-active: 16%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #d0d7de;
+  --scrollbar-thumb-hover: #afb8c1;
+
+  /* Account rail palette */
+  --account-color-1: #0969da; /* blue */
+  --account-color-2: #8250df; /* purple */
+  --account-color-3: #1a7f37; /* green */
+  --account-color-4: #9a6700; /* yellow */
+  --account-color-5: #cf222e; /* red */
+  --account-color-6: #bf3989; /* pink */
+  --account-color-7: #0550ae; /* dark blue */
+  --account-color-8: #bc4c00; /* orange */
+  --account-color-9: #1b7c83; /* teal */
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 12%;
+  --account-rail-border-alpha: 30%;
+
+  /* Chart tokens */
+  --chart-bg: transparent;
+  --chart-text: #656d76;
+  --chart-grid: #eaeef2;
+  --chart-border: #d0d7de;
+  --chart-line: #1f2328;
+  --chart-area-top: rgba(31, 35, 40, 0);
+  --chart-area-bottom: rgba(31, 35, 40, 0);
+  --chart-crosshair: #8b949e;
+  --chart-price-line-activation: #9a6700;
+  --chart-price-line-stop: #cf222e;
+}

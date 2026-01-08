@@ -1,0 +1,111 @@
+/* One Light theme (Atom editor light theme) */
+/* Source: https://github.com/atom/atom/tree/master/packages/one-light-ui */
+[data-theme='oneLight'] {
+  /* One Light palette:
+     Backgrounds: #fafafa #f0f0f1 #e5e5e6 #dcdcdd
+     Text: #383a42 #696c77 #a0a1a7
+     Syntax: #e45649 #c18401 #50a14f #0184bc #4078f2 #a626a4 */
+
+  /* Surfaces */
+  --color-bg: #fafafa;
+  --color-bg-alt: #f0f0f1;
+  --panel-bg: #fafafa;
+  --panel-header-bg: #eaeaeb;
+  --panel-border-inner: #e5e5e6;
+  --border-color: #dcdcdd;
+  --color-border-strong: #c8c8c9;
+  --color-bg-secondary: #f0f0f1;
+  --color-bg-tertiary: #e5e5e6;
+
+  /* Typography */
+  --color-text: #383a42;
+  --color-text-dim: #696c77;
+  --accent-color: #4078f2;
+
+  /* Semantic */
+  --color-success: #50a14f;
+  --color-error: #e45649;
+  --color-warning: #c18401;
+  --color-info: #0184bc;
+
+  /* Terminal */
+  --color-term-bg: #fafafa;
+  --color-term-fg: #383a42;
+  --color-term-dim: #696c77;
+  --color-term-accent: #4078f2;
+  --color-term-border: #dcdcdd;
+  --color-term-ok: #50a14f;
+  --color-term-err: #e45649;
+  --color-term-warn: #c18401;
+  --color-term-info: #0184bc;
+
+  /* Buttons */
+  --btn-bg-start: #f0f0f1;
+  --btn-bg-end: #e5e5e6;
+  --btn-border: #c8c8c9;
+  --btn-fg: #383a42;
+
+  /* Form controls */
+  --control-mark-color: #fafafa;
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 12%;
+  --pill-ring-alpha: 32%;
+
+  /* Button variants */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #a0a1a7;
+  --btn-color-neutral-fg: #383a42;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 32%;
+  --btn-alpha-surface: 12%;
+  --btn-alpha-surface-hover: 18%;
+  --btn-alpha-surface-active: 26%;
+  --btn-alpha-outline-border: 48%;
+  --btn-alpha-outline-surface-hover: 12%;
+  --btn-alpha-outline-surface-active: 18%;
+  --btn-alpha-ghost-hover: 12%;
+  --btn-alpha-ghost-active: 18%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #d0d0d1;
+  --scrollbar-thumb-hover: #b8b8b9;
+
+  /* Account rail palette */
+  --account-color-1: #4078f2; /* blue */
+  --account-color-2: #a626a4; /* purple */
+  --account-color-3: #50a14f; /* green */
+  --account-color-4: #c18401; /* yellow/orange */
+  --account-color-5: #e45649; /* red */
+  --account-color-6: #986801; /* brown */
+  --account-color-7: #0184bc; /* cyan */
+  --account-color-8: #ca1243; /* magenta */
+  --account-color-9: #0b76c4; /* dark blue */
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 14%;
+  --account-rail-border-alpha: 32%;
+
+  /* Chart tokens */
+  --chart-bg: transparent;
+  --chart-text: #696c77;
+  --chart-grid: #e5e5e6;
+  --chart-border: #dcdcdd;
+  --chart-line: #383a42;
+  --chart-area-top: rgba(56, 58, 66, 0);
+  --chart-area-bottom: rgba(56, 58, 66, 0);
+  --chart-crosshair: #a0a1a7;
+  --chart-price-line-activation: #c18401;
+  --chart-price-line-stop: #e45649;
+}

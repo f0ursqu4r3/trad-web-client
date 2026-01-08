@@ -1,0 +1,112 @@
+/* Rosé Pine Dawn theme (warm, elegant light palette) */
+/* Source: https://rosepinetheme.com */
+[data-theme='rosePineDawn'] {
+  /* Rosé Pine Dawn palette:
+     Base: #faf4ed  Surface: #fffaf3  Overlay: #f2e9e1
+     Muted: #9893a5  Subtle: #797593  Text: #575279
+     Love: #b4637a  Gold: #ea9d34  Rose: #d7827e
+     Pine: #286983  Foam: #56949f  Iris: #907aa9 */
+
+  /* Surfaces */
+  --color-bg: #faf4ed;
+  --color-bg-alt: #fffaf3;
+  --panel-bg: #faf4ed;
+  --panel-header-bg: #f4ede8;
+  --panel-border-inner: #f2e9e1;
+  --border-color: #dfdad9;
+  --color-border-strong: #cecacd;
+  --color-bg-secondary: #f4ede8;
+  --color-bg-tertiary: #f2e9e1;
+
+  /* Typography */
+  --color-text: #575279;
+  --color-text-dim: #797593;
+  --accent-color: #907aa9; /* iris */
+
+  /* Semantic */
+  --color-success: #56949f;
+  --color-error: #b4637a;
+  --color-warning: #ea9d34;
+  --color-info: #286983;
+
+  /* Terminal */
+  --color-term-bg: #faf4ed;
+  --color-term-fg: #575279;
+  --color-term-dim: #797593;
+  --color-term-accent: #907aa9;
+  --color-term-border: #f2e9e1;
+  --color-term-ok: #56949f;
+  --color-term-err: #b4637a;
+  --color-term-warn: #ea9d34;
+  --color-term-info: #286983;
+
+  /* Buttons */
+  --btn-bg-start: #f4ede8;
+  --btn-bg-end: #f2e9e1;
+  --btn-border: #cecacd;
+  --btn-fg: #575279;
+
+  /* Form controls */
+  --control-mark-color: #faf4ed;
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 14%;
+  --pill-ring-alpha: 35%;
+
+  /* Button variants */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #9893a5;
+  --btn-color-neutral-fg: #575279;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 35%;
+  --btn-alpha-surface: 18%;
+  --btn-alpha-surface-hover: 25%;
+  --btn-alpha-surface-active: 32%;
+  --btn-alpha-outline-border: 50%;
+  --btn-alpha-outline-surface-hover: 14%;
+  --btn-alpha-outline-surface-active: 20%;
+  --btn-alpha-ghost-hover: 14%;
+  --btn-alpha-ghost-active: 20%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #dfdad9;
+  --scrollbar-thumb-hover: #cecacd;
+
+  /* Account rail palette */
+  --account-color-1: #907aa9; /* iris */
+  --account-color-2: #286983; /* pine */
+  --account-color-3: #56949f; /* foam */
+  --account-color-4: #ea9d34; /* gold */
+  --account-color-5: #b4637a; /* love */
+  --account-color-6: #d7827e; /* rose */
+  --account-color-7: #9893a5; /* muted */
+  --account-color-8: #c26d3a; /* burnt gold */
+  --account-color-9: #3d8a8a; /* teal */
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 18%;
+  --account-rail-border-alpha: 38%;
+
+  /* Chart tokens */
+  --chart-bg: transparent;
+  --chart-text: #797593;
+  --chart-grid: #f2e9e1;
+  --chart-border: #dfdad9;
+  --chart-line: #575279;
+  --chart-area-top: rgba(87, 82, 121, 0);
+  --chart-area-bottom: rgba(87, 82, 121, 0);
+  --chart-crosshair: #9893a5;
+  --chart-price-line-activation: #ea9d34;
+  --chart-price-line-stop: #b4637a;
+}

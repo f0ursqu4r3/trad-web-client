@@ -1,0 +1,112 @@
+/* Nord Light theme (arctic, bluish light palette) */
+/* Source: https://www.nordtheme.com - Snow Storm variant */
+[data-theme='nordLight'] {
+  /* Nord palette:
+     Snow Storm: #d8dee9 #e5e9f0 #eceff4
+     Polar Night: #2e3440 #3b4252 #434c5e #4c566a
+     Frost: #8fbcbb #88c0d0 #81a1c1 #5e81ac
+     Aurora: #bf616a #d08770 #ebcb8b #a3be8c #b48ead */
+
+  /* Surfaces */
+  --color-bg: #eceff4;
+  --color-bg-alt: #e5e9f0;
+  --panel-bg: #eceff4;
+  --panel-header-bg: #e5e9f0;
+  --panel-border-inner: #d8dee9;
+  --border-color: #d0d6e1;
+  --color-border-strong: #b8c0cc;
+  --color-bg-secondary: #e5e9f0;
+  --color-bg-tertiary: #d8dee9;
+
+  /* Typography */
+  --color-text: #2e3440;
+  --color-text-dim: #4c566a;
+  --accent-color: #5e81ac; /* frost deep blue */
+
+  /* Semantic */
+  --color-success: #8fad56;
+  --color-error: #bf616a;
+  --color-warning: #d08770;
+  --color-info: #5e81ac;
+
+  /* Terminal */
+  --color-term-bg: #eceff4;
+  --color-term-fg: #2e3440;
+  --color-term-dim: #4c566a;
+  --color-term-accent: #5e81ac;
+  --color-term-border: #d8dee9;
+  --color-term-ok: #8fad56;
+  --color-term-err: #bf616a;
+  --color-term-warn: #d08770;
+  --color-term-info: #5e81ac;
+
+  /* Buttons */
+  --btn-bg-start: #e5e9f0;
+  --btn-bg-end: #d8dee9;
+  --btn-border: #c2c9d6;
+  --btn-fg: #2e3440;
+
+  /* Form controls */
+  --control-mark-color: #eceff4;
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 14%;
+  --pill-ring-alpha: 35%;
+
+  /* Button variants */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #8491a3;
+  --btn-color-neutral-fg: #2e3440;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 35%;
+  --btn-alpha-surface: 14%;
+  --btn-alpha-surface-hover: 20%;
+  --btn-alpha-surface-active: 28%;
+  --btn-alpha-outline-border: 50%;
+  --btn-alpha-outline-surface-hover: 12%;
+  --btn-alpha-outline-surface-active: 18%;
+  --btn-alpha-ghost-hover: 14%;
+  --btn-alpha-ghost-active: 20%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #c8ceda;
+  --scrollbar-thumb-hover: #b8c0cc;
+
+  /* Account rail palette */
+  --account-color-1: #5e81ac; /* frost deep blue */
+  --account-color-2: #81a1c1; /* frost blue */
+  --account-color-3: #8fad56; /* muted aurora green */
+  --account-color-4: #d08770; /* aurora orange */
+  --account-color-5: #bf616a; /* aurora red */
+  --account-color-6: #b48ead; /* aurora purple */
+  --account-color-7: #6e9cb8; /* frost teal muted */
+  --account-color-8: #c1963f; /* aurora yellow muted */
+  --account-color-9: #8fbcbb; /* frost teal */
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 18%;
+  --account-rail-border-alpha: 35%;
+
+  /* Chart tokens */
+  --chart-bg: transparent;
+  --chart-text: #4c566a;
+  --chart-grid: #d8dee9;
+  --chart-border: #c8ceda;
+  --chart-line: #2e3440;
+  --chart-area-top: rgba(46, 52, 64, 0);
+  --chart-area-bottom: rgba(46, 52, 64, 0);
+  --chart-crosshair: #8491a3;
+  --chart-price-line-activation: #d08770;
+  --chart-price-line-stop: #bf616a;
+}

@@ -1,6 +1,7 @@
 /* Theme Index - All application themes */
 /* Each theme is loaded separately for better maintainability */
 
+/* Dark themes */
 @import './dark.css';
 @import './synthwave.css';
 @import './legacy.css';
@@ -17,3 +18,10 @@
 @import './bloomberg.css';
 @import './cyberpunk.css';
 @import './rose-pine.css';
+
+/* Light themes */
+@import './solarized-light.css';
+@import './github-light.css';
+@import './one-light.css';
+@import './nord-light.css';
+@import './rose-pine-dawn.css';

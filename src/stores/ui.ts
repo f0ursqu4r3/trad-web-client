@@ -21,6 +21,11 @@ export type ThemeMode =
   | 'bloomberg'
   | 'cyberpunk'
   | 'rosePine'
+  | 'solarizedLight'
+  | 'githubLight'
+  | 'oneLight'
+  | 'nordLight'
+  | 'rosePineDawn'
 
 export const useUiStore = defineStore(
   'ui',

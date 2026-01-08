@@ -28,7 +28,14 @@ interface ThemeOption {
 
 const themeOptions: ThemeOption[] = [
   { label: 'System', value: 'system', icon: Monitor },
+  // Light themes
   { label: 'Light', value: 'light', icon: Sun },
+  { label: 'GitHub Light', value: 'githubLight', icon: Sun },
+  { label: 'Solarized Light', value: 'solarizedLight', icon: Sun },
+  { label: 'One Light', value: 'oneLight', icon: Sun },
+  { label: 'Nord Light', value: 'nordLight', icon: Sun },
+  { label: 'Rosé Pine Dawn', value: 'rosePineDawn', icon: Sun },
+  // Dark themes
   { label: 'Dark', value: 'dark', icon: Moon },
   { label: 'Synthwave', value: 'synthwave', icon: Moon },
   { label: 'Legacy', value: 'legacy', icon: Moon },
