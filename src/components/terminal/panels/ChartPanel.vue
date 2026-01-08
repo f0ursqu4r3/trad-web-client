@@ -116,7 +116,7 @@ onMounted(() => {
         bottom: 0.2,
       },
     },
-    timeScale: { borderColor: '#2a3139' },
+    timeScale: { visible: false, borderColor: '#2a3139' },
   })
 
   const resizeObserver = new ResizeObserver(() => syncChartSize())

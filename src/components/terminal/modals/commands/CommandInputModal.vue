@@ -2,7 +2,7 @@
 import { ref, computed, watch, onUnmounted, nextTick, onBeforeUpdate } from 'vue'
 import { storeToRefs } from 'pinia'
 import type { UserCommandPayload } from '@/lib/ws/protocol'
-import { XIcon } from '@/components/icons'
+import { X } from 'lucide-vue-next'
 import { commandRegistry, type CommandMeta } from '@/components/terminal/commands/commandRegistry'
 import { useWsStore } from '@/stores/ws'
 import { useModalStore } from '@/stores/modals'
@@ -171,7 +171,7 @@ onUnmounted(() => {
               class="btn btn-ghost btn-sm absolute right-2 top-1/2 transform -translate-y-1/2"
               @click="filter = ''"
             >
-              <XIcon />
+              <X :size="12" />
             </button>
           </div>
           <div class="max-h-80 overflow-auto scroll-smooth">

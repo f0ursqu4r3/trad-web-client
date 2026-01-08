@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 
-import { DownIcon } from '@/components/icons'
+import { ChevronDown } from 'lucide-vue-next'
 
 interface Props {
   /** Number that changes when content grows; we watch it to decide to scroll */
@@ -153,7 +153,7 @@ defineExpose({ scrollToBottom, atBottom })
       aria-label="Scroll to latest"
       @click="scrollToBottom({ smooth: true })"
     >
-      <DownIcon class="icon" />
+      <ChevronDown class="icon" :size="12" />
     </button>
   </div>
 </template>

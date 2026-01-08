@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import { SunIcon, MoonIcon, ComputerDesktopIcon, SparklesIcon } from '@/components/icons'
+import { Sun, Moon, Monitor, Sparkles, type LucideIcon } from 'lucide-vue-next'
 import { useUiStore, type ThemeMode } from '@/stores/ui'
 
 const uiStore = useUiStore()
@@ -17,23 +17,23 @@ const currentThemeLabel = computed(
 )
 
 const currentThemeIcon = computed(
-  () => themeOptions.find((option) => option.value === currentTheme.value)?.icon || SparklesIcon,
+  () => themeOptions.find((option) => option.value === currentTheme.value)?.icon || Sparkles,
 )
 
 interface ThemeOption {
   label: string
   value: ThemeMode
-  icon: typeof SunIcon | typeof MoonIcon | typeof ComputerDesktopIcon
+  icon: LucideIcon
 }
 
 const themeOptions: ThemeOption[] = [
-  { label: 'System', value: 'system', icon: ComputerDesktopIcon },
-  { label: 'Light', value: 'light', icon: SunIcon },
-  { label: 'Dark', value: 'dark', icon: MoonIcon },
-  { label: 'Synthwave', value: 'synthwave', icon: MoonIcon },
-  { label: 'Legacy', value: 'legacy', icon: MoonIcon },
-  { label: 'Fantasy24', value: 'fantasy24', icon: MoonIcon },
-  { label: 'Tomorrow Night 80s', value: 'tomorrowNight80s', icon: MoonIcon },
+  { label: 'System', value: 'system', icon: Monitor },
+  { label: 'Light', value: 'light', icon: Sun },
+  { label: 'Dark', value: 'dark', icon: Moon },
+  { label: 'Synthwave', value: 'synthwave', icon: Moon },
+  { label: 'Legacy', value: 'legacy', icon: Moon },
+  { label: 'Fantasy24', value: 'fantasy24', icon: Moon },
+  { label: 'Tomorrow Night 80s', value: 'tomorrowNight80s', icon: Moon },
 ]
 
 function toggleMenu() {
@@ -117,7 +117,7 @@ onBeforeUnmount(() => {
       @keydown.enter.prevent="toggleMenu"
       @keydown.space.prevent="toggleMenu"
     >
-      <component :is="currentThemeIcon" size="16" />
+      <component :is="currentThemeIcon" :size="16" />
       {{ currentThemeLabel }}
     </button>
 
@@ -140,7 +140,7 @@ onBeforeUnmount(() => {
         @keydown.enter.prevent="setTheme(option.value)"
         @keydown.space.prevent="setTheme(option.value)"
       >
-        <component :is="option.icon" class="icon" size="12" /> {{ option.label }}
+        <component :is="option.icon" class="icon" :size="12" /> {{ option.label }}
       </button>
     </div>
   </div>

@@ -12,7 +12,7 @@ export interface DropMenuItem {
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 
-import { MenuDotsIcon } from '@/components/icons'
+import { EllipsisVertical } from 'lucide-vue-next'
 
 const props = withDefaults(
   defineProps<{
@@ -368,7 +368,7 @@ onBeforeUnmount(() => {
         @keydown.space.prevent="toggleMenu"
       >
         <span v-if="props.triggerText">{{ props.triggerText }}</span>
-        <MenuDotsIcon v-else class="icon" size="10" />
+        <EllipsisVertical v-else class="icon" :size="10" />
       </button>
     </slot>
 

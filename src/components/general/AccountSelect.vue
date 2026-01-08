@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, onMounted } from 'vue'
+import { ChevronDown } from 'lucide-vue-next'
 import { useAccountsStore } from '@/stores/accounts'
 import { useUiStore } from '@/stores/ui'
 import DropMenu, { type DropMenuItem } from '@/components/general/DropMenu.vue'
-import { DownIcon } from '@/components/icons'
 import { accountColorFromId } from '@/lib/accountColors'
 
 const accounts = useAccountsStore()
@@ -76,7 +76,7 @@ onBeforeUnmount(() => {
           @click.stop="toggle"
         >
           <span class="account-trigger-label">{{ accountLabel }}</span>
-          <DownIcon size="12" class="icon" />
+          <ChevronDown :size="12" class="icon" />
         </button>
       </template>
     </DropMenu>

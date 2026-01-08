@@ -6,6 +6,7 @@ import {
   type LimitOrderCommand,
   type MarketOrderCommand,
   type SplitMarketOrderCommand,
+  type TrailingEntryOrderCommand,
 } from '@/lib/ws/protocol'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'

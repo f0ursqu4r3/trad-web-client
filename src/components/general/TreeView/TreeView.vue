@@ -1,28 +1,3 @@
-<template>
-  <ul class="list-none p-0 m-0" role="tree">
-    <TreeNode
-      v-for="(item, idx) in items"
-      :key="getId(item)"
-      :item="item"
-      :level="0"
-      :index="idx"
-      :path="[idx]"
-      :indent="indentPx"
-      :isExpanded="isExpandedId"
-      :toggle="toggleId"
-      :getId="getId"
-      :getChildren="props.getChildren"
-      :inlineToggle="props.inlineToggle"
-    >
-      <template #default="slotProps">
-        <slot v-bind="slotProps">
-          <span class="select-none">{{ getId(slotProps.item) }}</span>
-        </slot>
-      </template>
-    </TreeNode>
-  </ul>
-</template>
-
 <script lang="ts" setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { type Id, type TreeItem } from './types'
@@ -117,4 +92,30 @@ onMounted(() => {
 // Expose getters so template and slots can use them
 const getId = (item: TreeItem) => props.getId(item)
 </script>
+
+<template>
+  <ul class="list-none p-0 m-0" role="tree">
+    <TreeNode
+      v-for="(item, idx) in items"
+      :key="getId(item)"
+      :item="item"
+      :level="0"
+      :index="idx"
+      :path="[idx]"
+      :indent="indentPx"
+      :isExpanded="isExpandedId"
+      :toggle="toggleId"
+      :getId="getId"
+      :getChildren="props.getChildren"
+      :inlineToggle="props.inlineToggle"
+    >
+      <template #default="slotProps">
+        <slot v-bind="slotProps">
+          <span class="select-none">{{ getId(slotProps.item) }}</span>
+        </slot>
+      </template>
+    </TreeNode>
+  </ul>
+</template>
+
 <style scoped></style>

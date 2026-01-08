@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { useUiStore } from '@/stores/ui'
 import { useRouter } from 'vue-router'
-import { SunIcon, MoonIcon } from '@/components/icons'
+import { Sun, Moon } from 'lucide-vue-next'
 
 import WsIndicator from '@/components/general/WsIndicator.vue'
 
@@ -15,9 +15,9 @@ const { loginWithRedirect, logout, isAuthenticated, user } = useAuth0()
 
 const themeIcon = computed(() => {
   // For synthwave show a sun icon to indicate next will be light (reuse)
-  if (ui.theme === 'dark') return SunIcon
-  if (ui.theme === 'synthwave') return MoonIcon // going to light next, show moon-to-light cue
-  return MoonIcon
+  if (ui.theme === 'dark') return Sun
+  if (ui.theme === 'synthwave') return Moon // going to light next, show moon-to-light cue
+  return Moon
 })
 const themeToggleLabel = computed(() => {
   switch (ui.theme) {

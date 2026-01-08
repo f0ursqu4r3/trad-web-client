@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CheckIcon } from '@/components/icons'
+import { Check } from 'lucide-vue-next'
 
 export interface PricingPlan {
   price_id: string
@@ -69,7 +69,7 @@ const isCurrentPlan = (plan: PricingPlan) => {
       <!-- Features -->
       <ul v-if="plan.features?.length" class="plan-features">
         <li v-for="feature in plan.features" :key="feature" class="feature-item">
-          <CheckIcon :size="14" class="feature-icon" />
+          <Check :size="14" class="feature-icon" />
           <span>{{ feature }}</span>
         </li>
       </ul>

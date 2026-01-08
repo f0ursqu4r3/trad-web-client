@@ -1,71 +1,10 @@
-<template>
-  <div class="w-full h-full scroll-area p-2">
-    <div
-      v-if="!treeData.length"
-      class="h-full flex items-center justify-center text-(--color-text-dim) text-center text-xs"
-    >
-      Select a command to view its device tree.
-    </div>
-    <tree-view
-      v-else
-      v-model:collapsed-ids="collapsed"
-      :items="treeData"
-      :indent="24"
-      inline-toggle
-    >
-      <template #default="{ item, isLeaf, toggle, expanded: isExpanded }">
-        <div
-          class="flex items-center gap-2 border-slate-800/60 text-[13px] hover:bg-white/5 select-none cursor-default w-full device-row"
-          :class="[
-            rowClass(item),
-            item.id == selectedDeviceId ? 'ring-2 ring-[var(--color-text)]' : '',
-          ]"
-        >
-          <span
-            @dblclick="!isLeaf && toggle()"
-            @click="!isLeaf && toggle()"
-            class="inline-flex w-4 shrink-0 items-center justify-center text-term-dim"
-          >
-            <FolderOpenIcon v-if="!isLeaf && isExpanded" />
-            <FolderIcon v-else-if="!isLeaf" />
-            <ArrowTrendingDownIcon v-else />
-          </span>
-          <div
-            class="flex items-center gap-2 justify-between w-full min-w-0 cursor-pointer"
-            @click="store.inspectDevice(item.id as string)"
-          >
-            <div class="flex flex-wrap gap-x-2 items-center">
-              <span class="wrap-none">{{ item.label || item.id }}</span>
-              <span v-if="item.intent" class="pill pill-xs">
-                {{ item.intent }}
-              </span>
-              <!-- <span v-if="item.symbol" class="pill pill-xs">
-                {{ item.symbol }}
-              </span> -->
-            </div>
-            <span v-if="item.lifecycle" class="text-(--color-text-dim) uppercase text-xs">
-              {{ formatName(item.lifecycle) }}
-            </span>
-            <span
-              v-else-if="item.status"
-              class="text-(--color-text-dim) uppercase text-xs"
-            >
-              {{ item.status }}
-            </span>
-          </div>
-        </div>
-      </template>
-    </tree-view>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 
 import { formatName } from '@/lib/utils'
 import { TreeView, type TreeItem } from '@/components/general/TreeView'
-import { FolderIcon, FolderOpenIcon, ArrowTrendingDownIcon } from '@/components/icons'
+import { Folder, FolderOpen, TrendingDown } from 'lucide-vue-next'
 import { useDeviceStore, type Device, type TrailingEntryState } from '@/stores/devices'
 import { MarketAction } from '@/lib/ws/protocol'
 
@@ -187,11 +126,68 @@ const rowClass = (item: TreeItem): string => {
 }
 </script>
 
+<template>
+  <div class="w-full h-full scroll-area p-2">
+    <div
+      v-if="!treeData.length"
+      class="h-full flex items-center justify-center text-(--color-text-dim) text-center text-xs"
+    >
+      Select a command to view its device tree.
+    </div>
+    <tree-view
+      v-else
+      v-model:collapsed-ids="collapsed"
+      :items="treeData"
+      :indent="24"
+      inline-toggle
+    >
+      <template #default="{ item, isLeaf, toggle, expanded: isExpanded }">
+        <div
+          class="flex items-center gap-2 border-slate-800/60 text-[13px] hover:bg-white/5 select-none cursor-default w-full device-row"
+          :class="[
+            rowClass(item),
+            item.id == selectedDeviceId ? 'ring-2 ring-[var(--color-text)]' : '',
+          ]"
+        >
+          <span
+            @dblclick="!isLeaf && toggle()"
+            @click="!isLeaf && toggle()"
+            class="inline-flex w-4 shrink-0 items-center justify-center text-term-dim"
+          >
+            <FolderOpen v-if="!isLeaf && isExpanded" :size="12" />
+            <Folder v-else-if="!isLeaf" :size="12" />
+            <TrendingDown v-else :size="12" />
+          </span>
+          <div
+            class="flex items-center gap-2 justify-between w-full min-w-0 cursor-pointer"
+            @click="store.inspectDevice(item.id as string)"
+          >
+            <div class="flex flex-wrap gap-x-2 items-center">
+              <span class="wrap-none">{{ item.label || item.id }}</span>
+              <span v-if="item.intent" class="pill pill-xs">
+                {{ item.intent }}
+              </span>
+              <!-- <span v-if="item.symbol" class="pill pill-xs">
+                {{ item.symbol }}
+              </span> -->
+            </div>
+            <span v-if="item.lifecycle" class="text-(--color-text-dim) uppercase text-xs">
+              {{ formatName(item.lifecycle) }}
+            </span>
+            <span v-else-if="item.status" class="text-(--color-text-dim) uppercase text-xs">
+              {{ item.status }}
+            </span>
+          </div>
+        </div>
+      </template>
+    </tree-view>
+  </div>
+</template>
+
 <style scoped>
 .device-row {
-  margin-left: var(--tree-indent, 0px);
-  width: calc(100% - var(--tree-indent, 0px));
-  padding: 0 0.5rem;
+  width: 100%;
+  padding: 0 0.5rem 0 calc(var(--tree-indent, 0px) + 0.5rem);
 }
 
 .device-row-failed {

@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
-import { XIcon } from '@/components/icons'
+import { X } from 'lucide-vue-next'
 
 const accounts = useAccountsStore()
 
@@ -122,7 +122,7 @@ onMounted(() => {
               title="Delete"
               @click="deleteAccount(account)"
             >
-              <XIcon />
+              <X :size="12" />
             </button>
           </div>
         </li>

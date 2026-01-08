@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import DropMenu from '@/components/general/DropMenu.vue'
 import { type DropMenuItem } from '@/components/general/DropMenu.vue'
-import { DownIcon } from '@/components/icons'
+import { ChevronDown } from 'lucide-vue-next'
 import { formatName } from '@/lib/utils'
 
 const props = withDefaults(
@@ -141,9 +141,9 @@ async function copyId() {
             @click.stop="expanded = !expanded"
             aria-label="Toggle details"
           >
-            <DownIcon
+            <ChevronDown
               class="icon"
-              size="10"
+              :size="10"
               :style="{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }"
             />
           </button>

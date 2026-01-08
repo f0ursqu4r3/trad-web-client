@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { XIcon } from '@/components/icons'
+import { X } from 'lucide-vue-next'
 withDefaults(
   defineProps<{
     title: string
@@ -31,7 +31,7 @@ function close() {
           <div class="flex items-center justify-between w-full">
             <span>{{ title }}</span>
             <button class="btn btn-ghost" @click="close">
-              <XIcon />
+              <X :size="12" />
             </button>
           </div>
         </header>

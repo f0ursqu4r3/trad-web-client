@@ -3,7 +3,7 @@ import { ref, computed, type Component } from 'vue'
 import StickyScroller from '@/components/general/StickyScroller.vue'
 import { useCommandStore } from '@/stores/command'
 import { useModalStore } from '@/stores/modals'
-import { FunnelIcon } from '@/components/icons'
+import { Filter } from 'lucide-vue-next'
 
 import type { MarketOrderPrefill, TrailingEntryPrefill } from '../modals/commands/types'
 import type { UserCommandPayload } from '@/lib/ws/protocol'
@@ -42,7 +42,6 @@ function handleCheckboxChange(
     commandStore.commandFilters[type].push(option as never)
   }
 }
-
 
 function getCommandComponent(command: UserCommandPayload): Component | string {
   switch (command.kind) {
@@ -106,7 +105,7 @@ function handleClosePosition(commandId: string): void {
       <div class="flex justify-end items-center gap-2">
         <span v-if="hiddenCommandCount" class="text-xs"> {{ hiddenCommandCount }} hidden </span>
         <button class="btn btn-sm btn-ghost" @click="showFilters = !showFilters">
-          <FunnelIcon size="12" />
+          <Filter :size="12" />
         </button>
       </div>
       <Transition name="expand">
