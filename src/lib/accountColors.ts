@@ -1,13 +1,13 @@
 const ACCOUNT_PALETTE = [
-  '#56cfe1',
-  '#5b8cff',
-  '#3fd28c',
-  '#f7a529',
-  '#e45757',
-  '#9d7bff',
-  '#21b8c5',
-  '#8bc34a',
-  '#ff9f1c',
+  'var(--account-color-1)',
+  'var(--account-color-2)',
+  'var(--account-color-3)',
+  'var(--account-color-4)',
+  'var(--account-color-5)',
+  'var(--account-color-6)',
+  'var(--account-color-7)',
+  'var(--account-color-8)',
+  'var(--account-color-9)',
 ]
 
 export function accountColorFromId(id: string, fallback = 'var(--color-text-dim)'): string {

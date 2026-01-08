@@ -1,8 +1,15 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="relative w-full h-full overflow-hidden flex">
-    <div class="account-rail" :style="{ '--account-rail-color': railColor }">
-      <div class="account-rail-text">{{ railLabel }}</div>
+    <div
+      class="account-rail flex justify-center items-start px-1 py-2 h-full"
+      :style="{ '--account-rail-color': railColor }"
+    >
+      <div
+        class="writing-vertical-rl text-xs tracking-wide text-[var(--color-text)] uppercase opacity-85 whitespace-nowrap"
+      >
+        {{ railLabel }}
+      </div>
     </div>
     <div class="flex flex-col w-full h-full overflow-hidden">
       <div class="toolbar-row">
@@ -72,28 +79,9 @@ const railColor = computed(() => {
 
 <style scoped>
 .account-rail {
-  width: 22px;
-  background: color-mix(in srgb, var(--account-rail-color) 70%, var(--panel-header-bg));
-  border-right: 1px solid color-mix(in srgb, var(--account-rail-color) 45%, var(--border-color));
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  padding: 6px 0 8px 4px;
-  flex-shrink: 0;
-}
-
-.account-rail-text {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--color-text);
-  text-transform: uppercase;
-  opacity: 0.85;
-  white-space: nowrap;
-  margin-left: 0;
-  margin-top: auto;
-  text-align: left;
-  width: 100%;
+  --_rail-color: var(--account-rail-color, var(--color-text-dim));
+  background: color-mix(in srgb, var(--_rail-color) var(--account-rail-bg-alpha), transparent);
+  border-right: 1px solid
+    color-mix(in srgb, var(--_rail-color) var(--account-rail-border-alpha), var(--border-color));
 }
 </style>

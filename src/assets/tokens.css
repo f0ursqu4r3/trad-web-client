@@ -69,6 +69,21 @@
   --font-mono:
     'SFMono-Regular', ui-monospace, 'JetBrains Mono', 'Source Code Pro', Menlo, Consolas, monospace;
 
+  /* Account rail palette (used to colorize per-account visuals) */
+  --account-color-1: #56cfe1;
+  --account-color-2: #5b8cff;
+  --account-color-3: #3fd28c;
+  --account-color-4: #f7a529;
+  --account-color-5: #e45757;
+  --account-color-6: #9d7bff;
+  --account-color-7: #21b8c5;
+  --account-color-8: #8bc34a;
+  --account-color-9: #ff9f1c;
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 20%;
+  --account-rail-border-alpha: 40%;
+
   /* Form control tokens */
   --control-checked-bg: var(--accent-color);
   --control-mark-color: #fff; /* color of checkmark/dot; override per theme if needed */
@@ -160,6 +175,21 @@
   --scrollbar-track: inherit;
   --scrollbar-thumb: #2a3037;
   --scrollbar-thumb-hover: #343c45;
+
+  /* Account rail palette (dark - slightly muted for dark bg) */
+  --account-color-1: #4db8c7;
+  --account-color-2: #5b8cff;
+  --account-color-3: #3fd28c;
+  --account-color-4: #e69a24;
+  --account-color-5: #e45757;
+  --account-color-6: #9d7bff;
+  --account-color-7: #21b8c5;
+  --account-color-8: #7cb342;
+  --account-color-9: #f09000;
+
+  /* Account rail styling (dark) */
+  --account-rail-bg-alpha: 25%;
+  --account-rail-border-alpha: 45%;
 }
 
 /* Synthwave (retro neon) theme overrides */
@@ -235,6 +265,21 @@
   --scrollbar-track: inherit;
   --scrollbar-thumb: #3b224d;
   --scrollbar-thumb-hover: #4a2b61;
+
+  /* Account rail palette (synthwave - neon vibrant) */
+  --account-color-1: #7ad7ff; /* cyan */
+  --account-color-2: #ff6ec7; /* magenta */
+  --account-color-3: #47f4c2; /* mint */
+  --account-color-4: #ffc857; /* amber */
+  --account-color-5: #ff4d6d; /* hot pink */
+  --account-color-6: #b26dff; /* lavender */
+  --account-color-7: #00e5ff; /* bright cyan */
+  --account-color-8: #76ff7a; /* neon green */
+  --account-color-9: #ffab40; /* orange */
+
+  /* Account rail styling (synthwave - more glow) */
+  --account-rail-bg-alpha: 30%;
+  --account-rail-border-alpha: 50%;
 }
 
 /* Legacy (CC29 palette) theme overrides */
@@ -333,6 +378,21 @@
   --scrollbar-track: inherit;
   --scrollbar-thumb: #3b3a40; /* mix of bg_interactive + dim */
   --scrollbar-thumb-hover: #4a4950;
+
+  /* Account rail palette (legacy - muted retro) */
+  --account-color-1: #68c2d3; /* cyan accent */
+  --account-color-2: #4b80ca; /* syntax keyword blue */
+  --account-color-3: #8ab060; /* success green */
+  --account-color-4: #d3a068; /* syntax number */
+  --account-color-5: #b45252; /* error red */
+  --account-color-6: #cf8acb; /* syntax symbol */
+  --account-color-7: #5aa0a8; /* muted cyan */
+  --account-color-8: #b2b47e; /* arg name yellow */
+  --account-color-9: #a77b5b; /* warning brown */
+
+  /* Account rail styling (legacy) */
+  --account-rail-bg-alpha: 22%;
+  --account-rail-border-alpha: 40%;
 }
 
 /* Fantasy24 theme overrides (earthy arcane palette) */
@@ -426,6 +486,21 @@
   --scrollbar-track: inherit;
   --scrollbar-thumb: #392a1c;
   --scrollbar-thumb-hover: #45230d;
+
+  /* Account rail palette (fantasy24 - earthy arcane) */
+  --account-color-1: #3c9f9c; /* teal accent */
+  --account-color-2: #276468; /* deep teal */
+  --account-color-3: #39571c; /* forest green */
+  --account-color-4: #efac28; /* bright amber */
+  --account-color-5: #ef3a0c; /* molten red */
+  --account-color-6: #a58c27; /* muted gold */
+  --account-color-7: #ef692f; /* ember orange */
+  --account-color-8: #a56243; /* rust */
+  --account-color-9: #ab5c1c; /* burnt orange */
+
+  /* Account rail styling (fantasy24) */
+  --account-rail-bg-alpha: 28%;
+  --account-rail-border-alpha: 45%;
 }
 
 /* Tomorrow Night Eighties theme (canonical palette) */
@@ -511,6 +586,21 @@
   --scrollbar-track: inherit;
   --scrollbar-thumb: #393939;
   --scrollbar-thumb-hover: #515151;
+
+  /* Account rail palette (tomorrowNight80s - canonical syntax colors) */
+  --account-color-1: #66cccc; /* aqua */
+  --account-color-2: #6699cc; /* blue */
+  --account-color-3: #99cc99; /* green */
+  --account-color-4: #ffcc66; /* yellow */
+  --account-color-5: #f2777a; /* red */
+  --account-color-6: #cc99cc; /* purple */
+  --account-color-7: #5fbfbf; /* muted aqua */
+  --account-color-8: #8fbf8f; /* muted green */
+  --account-color-9: #f99157; /* orange */
+
+  /* Account rail styling (tomorrowNight80s) */
+  --account-rail-bg-alpha: 24%;
+  --account-rail-border-alpha: 42%;
 }
 
 /* Body inheritance helper */

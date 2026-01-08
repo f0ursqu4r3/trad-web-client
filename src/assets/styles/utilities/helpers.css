@@ -1,4 +1,14 @@
 /* Utilities: helpers, animations, quick layout tweaks */
+@utility writing-* {
+  writing-mode: --value(
+    'horizontal-tb',
+    'vertical-rl',
+    'vertical-lr',
+    'sideways-rl',
+    'sideways-lr'
+  );
+}
+
 @layer utilities {
   .prompt-row {
     @apply mb-2 flex items-center gap-2;
