@@ -5,6 +5,7 @@ import { CogIcon } from '@/components/icons'
 import { useUserStore } from '@/stores/user'
 import { useUiStore } from '@/stores/ui'
 import { useAccountsStore } from '@/stores/accounts'
+import { useAuth0 } from '@auth0/auth0-vue'
 import { accountColorFromId } from '@/lib/accountColors'
 
 import WsIndicator from '@/components/general/WsIndicator.vue'
@@ -16,9 +17,16 @@ import CommandModalContainer from '@/components/terminal/modals/commands/Command
 const userStore = useUserStore()
 const ui = useUiStore()
 const accounts = useAccountsStore()
+const { logout } = useAuth0()
 
 const username = computed(() => userStore.displayName || 'anonymous')
 const selectedAccount = computed(() => accounts.selectedAccount)
+
+function confirmLogout() {
+  if (window.confirm('Are you sure you want to log out?')) {
+    logout({ logoutParams: { returnTo: window.location.origin } })
+  }
+}
 
 const railLabel = computed(() => {
   if (!selectedAccount.value) return 'No account selected'
@@ -51,7 +59,13 @@ const railColor = computed(() => {
       <div class="toolbar-row">
         <div class="toolbar-section">
           <span class="muted">logged in as</span>
-          <span class="text-[var(--color-text)]">{{ username }}</span>
+          <button
+            class="text-[var(--color-text)] hover:text-[var(--accent-color)] cursor-pointer transition-colors"
+            title="Click to log out"
+            @click="confirmLogout"
+          >
+            {{ username }}
+          </button>
           <span class="muted">|</span>
           <AccountSelect />
         </div>
