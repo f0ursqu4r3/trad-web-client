@@ -101,7 +101,7 @@ async function copyId() {
 
 <template>
   <div
-    class="flex flex-col bg-(--color-bg) dark:bg-(--color-bg) shadow-sm cursor-pointer command-row relative"
+    class="flex flex-col shadow-sm cursor-pointer command-row relative"
     @click="emit('inspect', commandId)"
   >
     <div class="command-status-bar" :class="statusClass"></div>
@@ -111,7 +111,7 @@ async function copyId() {
           {{ formatName(label) }}
         </span>
         <span
-          class="font-mono text-[10px] text-gray-500 dark:text-gray-300 cursor-copy select-text rounded-[2px] px-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2"
+          class="font-mono text-[10px] text-[var(--color-text-dim)] cursor-copy select-text rounded-[2px] px-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2"
           :title="props.commandId"
           @click.stop="copyId"
           role="button"
@@ -125,7 +125,7 @@ async function copyId() {
       </div>
 
       <div class="flex items-center justify-end flex-wrap gap-2">
-        <span v-if="createdAtLabel" class="text-[10px] text-gray-500 font-mono">
+        <span v-if="createdAtLabel" class="text-[10px] text-[var(--color-text-dim)] font-mono">
           {{ createdAtLabel }}
         </span>
         <span class="text-[11px] text-[var(--color-text-dim)] uppercase tracking-[0.04em]">

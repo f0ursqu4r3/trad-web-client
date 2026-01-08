@@ -404,7 +404,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .dropmenu-panel {
   background: var(--panel-bg);
-  border: 1px solid var(--color-text);
+  border: 1px solid var(--border-color);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
   border-radius: var(--radius-menu);
   padding: 0;
@@ -420,7 +420,7 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: var(--color-text);
   background: transparent;
-  border-top: 1px solid var(--color-text-dim);
+  border-top: 1px solid var(--border-color);
   cursor: pointer;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -429,7 +429,7 @@ onBeforeUnmount(() => {
   border-top: none;
 }
 .dropmenu-item:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--panel-bg) 70%, var(--color-text) 8%);
+  background: var(--panel-header-bg);
 }
 .dropmenu-item:disabled {
   opacity: 0.5;

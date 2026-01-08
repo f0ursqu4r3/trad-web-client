@@ -53,33 +53,45 @@ function fmtSplitSummary(split?: TrailingEntryOrderCommand['split_settings']) {
 <template>
   <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 m-0">
     <div>
-      <dt class="text-[10px] uppercase tracking-[0.04em] text-gray-500 mb-1">Symbol</dt>
+      <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+        Symbol
+      </dt>
       <dd class="m-0 text-[12px] font-mono">{{ command.symbol }}</dd>
     </div>
 
     <div>
-      <dt class="text-[10px] uppercase tracking-[0.04em] text-gray-500 mb-1">Activation</dt>
+      <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+        Activation
+      </dt>
       <dd class="m-0 text-[12px]">{{ fmtPrice(command.activation_price) }}</dd>
     </div>
 
     <div>
-      <dt class="text-[10px] uppercase tracking-[0.04em] text-gray-500 mb-1">Jump Frac</dt>
+      <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+        Jump Frac
+      </dt>
       <dd class="m-0 text-[12px]">{{ fmtPct(command.jump_frac_threshold) }}</dd>
     </div>
 
     <div>
-      <dt class="text-[10px] uppercase tracking-[0.04em] text-gray-500 mb-1">Stop Loss</dt>
+      <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+        Stop Loss
+      </dt>
       <dd class="m-0 text-[12px]">{{ fmtPrice(command.stop_loss) }}</dd>
     </div>
 
     <div>
-      <dt class="text-[10px] uppercase tracking-[0.04em] text-gray-500 mb-1">Risk</dt>
+      <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+        Risk
+      </dt>
       <dd class="m-0 text-[12px]">{{ fmtUsd(command.risk_amount) }}</dd>
     </div>
 
     <div class="sm:col-span-2">
-      <dt class="text-[10px] uppercase tracking-[0.04em] text-gray-500 mb-1">Splits</dt>
-      <dd class="m-0 text-[12px] font-mono text-gray-300">
+      <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+        Splits
+      </dt>
+      <dd class="m-0 text-[12px] font-mono text-[var(--color-text-dim)]">
         {{ fmtSplitSummary(command.split_settings) }}
       </dd>
     </div>
