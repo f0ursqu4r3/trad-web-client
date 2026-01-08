@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import DropMenu from '@/components/general/DropMenu.vue'
 import { type DropMenuItem } from '@/components/general/DropMenu.vue'
-import StatusIndicator from '@/components/general/StatusIndicator.vue'
 import { DownIcon } from '@/components/icons'
 import { formatName } from '@/lib/utils'
 
@@ -49,14 +48,18 @@ const canCancel = computed(() =>
   ['Unsent', 'Pending', 'Running', 'Malformed'].includes(props.commandStatus),
 )
 
-const statusMap: Record<string, string> = {
-  Unsent: 'neutral',
-  Pending: 'neutral',
-  Malformed: 'error',
-  Running: 'info',
-  Succeeded: 'success',
-  Failed: 'error',
-}
+const statusClass = computed(() => {
+  const map: Record<string, string> = {
+    Unsent: 'neutral',
+    Pending: 'neutral',
+    Malformed: 'error',
+    Running: 'info',
+    Succeeded: 'success',
+    Failed: 'error',
+  }
+  const key = map[props.commandStatus] || 'neutral'
+  return `command-row-${key}`
+})
 
 const menuItems = computed<Array<DropMenuItem>>(() => {
   const items = [
@@ -97,7 +100,8 @@ async function copyId() {
 
 <template>
   <div
-    class="flex flex-col bg-(--color-bg) dark:bg-(--color-bg) rounded-lg shadow-sm cursor-pointer"
+    class="flex flex-col bg-(--color-bg) dark:bg-(--color-bg) rounded-lg shadow-sm cursor-pointer command-row"
+    :class="statusClass"
     @click="emit('inspect', commandId)"
   >
     <div class="flex items-start justify-between gap-3 px-3 py-2">
@@ -126,15 +130,9 @@ async function copyId() {
         <span v-if="createdAtLabel" class="text-[10px] text-gray-500 font-mono">
           {{ createdAtLabel }}
         </span>
-        <div
-          class="pill flex gap-2"
-          :class="`pill-${statusMap[commandStatus]}`"
-          :aria-label="commandStatus"
-          role="status"
-        >
-          <StatusIndicator :status="statusMap[commandStatus]" />
-          <span class="text-[11px]">{{ commandStatus }}</span>
-        </div>
+        <span class="text-[11px] text-[var(--color-text-dim)] uppercase tracking-[0.04em]">
+          {{ commandStatus }}
+        </span>
 
         <div class="flex items-center gap-2">
           <DropMenu :items="menuItems" />
@@ -160,3 +158,21 @@ async function copyId() {
     </div>
   </div>
 </template>
+
+<style scoped>
+.command-row-success {
+  background-color: color-mix(in srgb, var(--color-success) 12%, transparent);
+}
+.command-row-error {
+  background-color: color-mix(in srgb, var(--color-error) 14%, transparent);
+}
+.command-row-warning {
+  background-color: color-mix(in srgb, var(--color-warning) 12%, transparent);
+}
+.command-row-info {
+  background-color: color-mix(in srgb, var(--color-info) 12%, transparent);
+}
+.command-row-neutral {
+  background-color: color-mix(in srgb, var(--color-text-dim) 6%, transparent);
+}
+</style>

@@ -15,8 +15,11 @@
     >
       <template #default="{ item, isLeaf, toggle, expanded: isExpanded }">
         <div
-          class="flex items-center gap-2 px-2 border-slate-800/60 text-[13px] hover:bg-white/5 select-none cursor-default w-full rounded-lg"
-          :class="item.id == selectedDeviceId ? 'ring-2 ring-(--accent-color)' : ''"
+          class="flex items-center gap-2 px-2 border-slate-800/60 text-[13px] hover:bg-white/5 select-none cursor-default w-full rounded-lg device-row"
+          :class="[
+            rowClass(item),
+            item.id == selectedDeviceId ? 'ring-2 ring-(--accent-color)' : '',
+          ]"
         >
           <span
             @dblclick="!isLeaf && toggle()"
@@ -167,4 +170,37 @@ const treeData = computed<TreeItem[]>(() => {
 
   return roots
 })
+
+const rowClass = (item: TreeItem): string => {
+  switch (item.status) {
+    case 'Failed':
+      return 'device-row-failed'
+    case 'Canceled':
+      return 'device-row-canceled'
+    case 'Completed':
+      return 'device-row-complete'
+    case 'Waiting':
+      return 'device-row-waiting'
+    default:
+      return 'device-row-active'
+  }
+}
 </script>
+
+<style scoped>
+.device-row-failed {
+  background-color: color-mix(in srgb, var(--color-error) 14%, transparent);
+}
+.device-row-canceled {
+  background-color: color-mix(in srgb, var(--color-error) 10%, transparent);
+}
+.device-row-complete {
+  background-color: color-mix(in srgb, var(--color-success) 12%, transparent);
+}
+.device-row-waiting {
+  background-color: color-mix(in srgb, var(--color-info) 12%, transparent);
+}
+.device-row-active {
+  background-color: color-mix(in srgb, var(--color-warning) 12%, transparent);
+}
+</style>
