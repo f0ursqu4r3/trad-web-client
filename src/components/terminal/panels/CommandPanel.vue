@@ -183,6 +183,7 @@ function handleClosePosition(commandId: string): void {
               v-if="Object.values(interestingCommandKinds).includes(cmd.command.kind)"
               :commandId="cmd.command_id"
               :commandStatus="cmd.status"
+              :commandKind="cmd.command.kind"
               :label="getCommandLabel(cmd.command)"
               :createdAt="cmd.created_at"
               @duplicate="handleDuplicate(cmd.command)"

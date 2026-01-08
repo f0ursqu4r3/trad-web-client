@@ -86,24 +86,19 @@ function formatPayload(p: unknown): string {
 
 <template>
   <div class="font-mono flex flex-col h-full overflow-hidden">
-    <div class="flex items-center gap-2 px-1.5 py-1 text-sm border-b border-gray-600/60 w-full">
-      <span class="font-normal">Inbound Messages</span>
-      <div class="flex items-center gap-2 ml-auto">
-        <div class="flex gap-2 justify-between opacity-70 text-xs">
-          <span>Total: {{ ws.inbound.length }}</span>
-          <span v-if="ws.authAccepted === true">Auth: ✅</span>
-          <span v-else-if="ws.authAccepted === false">Auth: ❌</span>
-          <span v-if="ws.authError">Err: {{ ws.authError }}</span>
-        </div>
-        <button
-          type="button"
-          class="btn btn-ghost-neutral btn-xs text-[var(--color-text-dim)]"
-          :disabled="messages.length === 0"
-          @click="clearMessages"
-        >
-          Clear
-        </button>
+    <div class="inbound-header">
+      <div class="inbound-header-left">
+        <span class="inbound-title">Inbound Messages</span>
+        <span class="inbound-total">Total: {{ ws.inbound.length }}</span>
       </div>
+      <button
+        type="button"
+        class="btn btn-ghost-neutral btn-xs text-[var(--color-text-dim)]"
+        :disabled="messages.length === 0"
+        @click="clearMessages"
+      >
+        Clear
+      </button>
     </div>
 
     <StickyScroller
@@ -142,3 +137,32 @@ function formatPayload(p: unknown): string {
     </StickyScroller>
   </div>
 </template>
+
+<style scoped>
+.inbound-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0.35rem 0.6rem;
+  background: var(--panel-header-bg);
+  border-bottom: 1px solid var(--panel-border-inner);
+}
+
+.inbound-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.inbound-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.inbound-total {
+  font-size: 11px;
+  color: var(--color-text-dim);
+}
+</style>

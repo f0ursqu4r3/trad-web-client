@@ -9,10 +9,12 @@ const props = withDefaults(
   defineProps<{
     commandId: string
     commandStatus: string
+    commandKind?: string
     label?: string
     createdAt?: string | null
   }>(),
   {
+    commandKind: '',
     label: 'Trailing Entry',
     createdAt: null,
   },
@@ -71,7 +73,7 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
       action: () => emit('duplicate', props.commandId),
     },
   ]
-  if (props.label === 'TrailingEntryOrder') {
+  if (props.commandKind === 'TrailingEntryOrder') {
     items.push({
       label: 'Close Position',
       action: () => emit('close-position', props.commandId),
