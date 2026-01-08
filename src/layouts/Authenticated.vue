@@ -1,4 +1,40 @@
 <!-- eslint-disable vue/multi-word-component-names -->
+<script setup lang="ts">
+import { computed } from 'vue'
+import { CogIcon } from '@/components/icons'
+import { useUserStore } from '@/stores/user'
+import { useUiStore } from '@/stores/ui'
+import { useAccountsStore } from '@/stores/accounts'
+import { accountColorFromId } from '@/lib/accountColors'
+
+import WsIndicator from '@/components/general/WsIndicator.vue'
+import UserSettings from '@/components/terminal/modals/UserSettings.vue'
+import AccountSelect from '@/components/general/AccountSelect.vue'
+import CommandInputModal from '@/components/terminal/modals/commands/CommandInputModal.vue'
+import CommandModalContainer from '@/components/terminal/modals/commands/CommandModalContainer.vue'
+
+const userStore = useUserStore()
+const ui = useUiStore()
+const accounts = useAccountsStore()
+
+const username = computed(() => userStore.displayName || 'anonymous')
+const selectedAccount = computed(() => accounts.selectedAccount)
+
+const railLabel = computed(() => {
+  if (!selectedAccount.value) return 'No account selected'
+  const label = selectedAccount.value.label
+  const exchange = selectedAccount.value.exchange
+  const network = selectedAccount.value.network
+  return `${label} • ${exchange} • ${network}`
+})
+
+const railColor = computed(() => {
+  if (!selectedAccount.value) return 'var(--color-text-dim)'
+  const id = selectedAccount.value.id || selectedAccount.value.label
+  return accountColorFromId(id)
+})
+</script>
+
 <template>
   <div class="relative w-full h-full overflow-hidden flex">
     <div
@@ -40,42 +76,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { computed } from 'vue'
-import { CogIcon } from '@/components/icons'
-import { useUserStore } from '@/stores/user'
-import { useUiStore } from '@/stores/ui'
-import { useAccountsStore } from '@/stores/accounts'
-import { accountColorFromId } from '@/lib/accountColors'
-
-import WsIndicator from '@/components/general/WsIndicator.vue'
-import UserSettings from '@/components/terminal/modals/UserSettings.vue'
-import AccountSelect from '@/components/general/AccountSelect.vue'
-import CommandInputModal from '@/components/terminal/modals/commands/CommandInputModal.vue'
-import CommandModalContainer from '@/components/terminal/modals/commands/CommandModalContainer.vue'
-
-const userStore = useUserStore()
-const ui = useUiStore()
-const accounts = useAccountsStore()
-
-const username = computed(() => userStore.displayName || 'anonymous')
-const selectedAccount = computed(() => accounts.selectedAccount)
-
-const railLabel = computed(() => {
-  if (!selectedAccount.value) return 'No account selected'
-  const label = selectedAccount.value.label
-  const exchange = selectedAccount.value.exchange
-  const network = selectedAccount.value.network
-  return `${label} • ${exchange} • ${network}`
-})
-
-const railColor = computed(() => {
-  if (!selectedAccount.value) return 'var(--color-text-dim)'
-  const id = selectedAccount.value.id || selectedAccount.value.label
-  return accountColorFromId(id)
-})
-</script>
 
 <style scoped>
 .account-rail {

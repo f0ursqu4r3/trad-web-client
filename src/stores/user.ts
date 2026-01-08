@@ -25,6 +25,7 @@ export interface UserMeta {
 export const useUserStore = defineStore('user', () => {
   const { isAuthenticated } = useAuth0()
 
+  const email = ref<string | null>(null)
   const userId = ref<string | null>(null)
   const profile = ref<ClientProfile>({ display_name: null, meta: { preferences: {} } })
   const loading = ref(false)
@@ -36,11 +37,13 @@ export const useUserStore = defineStore('user', () => {
   const displayName = computed(
     () =>
       profile.value?.display_name ||
+      email.value ||
       userId.value ||
       (isAuthenticated.value ? 'authenticated user' : 'guest'),
   )
 
   interface MeResponseShape {
+    email: string
     user_id: string
     entitled?: boolean
     client_profile: ClientProfile
@@ -72,9 +75,11 @@ export const useUserStore = defineStore('user', () => {
           if ('code' in data && (data as { code?: string }).code === 'subscription_required') {
             entitled.value = false
           }
+          email.value = null
           userId.value = null
           profile.value = { display_name: null, meta: { preferences: {} } }
         } else if ('user_id' in data) {
+          email.value = data.email || null
           userId.value = data.user_id || null
           profile.value = data.client_profile || { meta: { preferences: {} } }
           if (typeof data.entitled === 'boolean') {
