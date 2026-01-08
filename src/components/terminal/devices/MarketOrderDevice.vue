@@ -126,7 +126,8 @@ function fmtDate(d?: Date | null): string {
 
     <div
       v-if="failureReason"
-      class="space-y-2 rounded-md border border-[var(--border-color)] bg-[var(--color-surface-alt)] p-2"
+      class="space-y-2 border border-[var(--border-color)] bg-[var(--color-surface-alt)] p-2"
+      :style="{ borderRadius: 'var(--radius-base)' }"
     >
       <h4 class="text-[11px] uppercase tracking-wide dim m-0">Rejection Reason</h4>
       <p class="m-0 text-[12px] font-mono text-primary break-words">

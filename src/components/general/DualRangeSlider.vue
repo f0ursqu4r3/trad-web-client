@@ -255,7 +255,7 @@ onBeforeUnmount(() => {
   width: 100%;
   height: var(--dualr-track-thickness);
   background: color-mix(in srgb, var(--border-color) 55%, transparent);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 .dualr-range {
@@ -315,7 +315,7 @@ onBeforeUnmount(() => {
   color: var(--color-text-dim);
   font-size: 11px;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   pointer-events: none;
   line-height: 1.2;
   white-space: nowrap;

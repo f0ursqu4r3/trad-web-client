@@ -87,7 +87,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .account-trigger {
   min-width: 280px;
-  border-radius: 0;
+  border-radius: var(--radius-btn);
   background: color-mix(in srgb, var(--account-color) 70%, var(--panel-header-bg));
   border-color: color-mix(in srgb, var(--account-color) 45%, var(--border-color));
   color: #f5f7fa;

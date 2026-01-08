@@ -196,7 +196,8 @@ const returnToOrigin = window.location.origin
         @click.self="close"
       >
         <div
-          class="relative mx-auto w-full max-w-4xl flex flex-col max-h-[80vh] rounded-lg border border-[var(--border-color)] bg-[var(--panel-bg)] text-[var(--color-text)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--border-color)_65%,transparent),0_8px_28px_rgba(0,0,0,0.45)]"
+          class="relative mx-auto w-full max-w-4xl flex flex-col max-h-[80vh] border border-[var(--border-color)] bg-[var(--panel-bg)] text-[var(--color-text)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--border-color)_65%,transparent),0_8px_28px_rgba(0,0,0,0.45)]"
+          :style="{ borderRadius: 'var(--radius-lg)' }"
           role="document"
         >
           <!-- Header -->
@@ -280,7 +281,8 @@ const returnToOrigin = window.location.origin
                 >
                   <template #default="{ item: account, index }">
                     <div
-                      class="flex items-center justify-between gap-3 p-2 border rounded-md bg-[var(--panel-bg-alt)] border-[var(--border-color)]"
+                      class="flex items-center justify-between gap-3 p-2 border bg-[var(--panel-bg-alt)] border-[var(--border-color)]"
+                      :style="{ borderRadius: 'var(--radius-base)' }"
                     >
                       <div class="flex items-center gap-3">
                         <span v-if="index < 9" class="kbd">ctrl+{{ index + 1 }}</span>

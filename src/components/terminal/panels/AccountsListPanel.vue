@@ -86,12 +86,13 @@ onMounted(() => {
           v-for="account in sortedAccounts"
           :key="account.id"
           :class="[
-            'flex items-center gap-2 rounded-md border border-[var(--panel-border-inner)] bg-[color-mix(in_srgb,var(--panel-bg)_95%,transparent)] transition-colors',
+            'flex items-center gap-2 border border-[var(--panel-border-inner)] bg-[color-mix(in_srgb,var(--panel-bg)_95%,transparent)] transition-colors',
             {
               'border-[var(--accent-color)] bg-[color-mix(in_srgb,var(--accent-color)_18%,var(--panel-bg))]':
                 accounts.selectedAccountId === account.id,
             },
           ]"
+          :style="{ borderRadius: 'var(--radius-base)' }"
         >
           <div class="flex flex-1 items-center justify-between gap-3 px-3 py-2">
             <button

@@ -144,7 +144,7 @@ async function submit() {
 .input {
   background: color-mix(in srgb, var(--panel-header-bg) 70%, transparent);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--radius-input);
   padding: 0.35rem 0.5rem;
   font: inherit;
   font-size: 12px;

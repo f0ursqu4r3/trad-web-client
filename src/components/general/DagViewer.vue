@@ -665,7 +665,7 @@ watch(
 .node .badge {
   display: inline-block;
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-lg);
   font-size: 12px;
   line-height: 1;
   background: #00000030;
@@ -704,7 +704,7 @@ watch(
   right: 12px;
   top: 12px;
   background: #00000030;
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   padding: 6px 10px;
   backdrop-filter: blur(6px);
   font-size: 12px;
@@ -733,7 +733,7 @@ watch(
   background: #00000040;
   color: #fff;
   border: 1px solid #ffffff30;
-  border-radius: 6px;
+  border-radius: var(--radius-lg);
   padding: 4px 10px;
   font-size: 12px;
   cursor: pointer;
@@ -757,7 +757,7 @@ watch(
   background: #00000040;
   backdrop-filter: blur(4px);
   border: 1px solid #ffffff20;
-  border-radius: 8px;
+  border-radius: var(--radius-xl);
   padding: 6px;
   cursor: crosshair;
   touch-action: none;
@@ -787,7 +787,7 @@ watch(
   border: 2px solid #ffffffaa;
   background: #ffffff20;
   box-shadow: 0 0 0 1px #00000040 inset;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   cursor: grab;
 }
 .mini-viewport:active {

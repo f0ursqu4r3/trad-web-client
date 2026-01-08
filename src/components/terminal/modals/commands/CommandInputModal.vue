@@ -155,14 +155,16 @@ onUnmounted(() => {
         @click.self="showMenu = false"
       >
         <div
-          class="absolute top-[10%] left-1/2 -translate-x-1/2 w-[min(640px,90%)] bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-lg shadow-2xl text-[color:var(--color-text)] overflow-hidden"
+          class="absolute top-[10%] left-1/2 -translate-x-1/2 w-[min(640px,90%)] bg-[var(--panel-bg)] border border-[var(--border-color)] shadow-2xl text-[color:var(--color-text)] overflow-hidden"
+          :style="{ borderRadius: 'var(--radius-lg)' }"
         >
           <div class="relative p-2 border-b border-[var(--border-color)] flex items-center gap-2">
             <input
               id="cmd-filter"
               v-model="filter"
               placeholder="Search commands..."
-              class="flex-1 bg-transparent border border-[var(--border-color)] rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] placeholder:opacity-60"
+              class="flex-1 bg-transparent border border-[var(--border-color)] px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] placeholder:opacity-60"
+              :style="{ borderRadius: 'var(--radius-input)' }"
               autocomplete="off"
               spellcheck="false"
               @keydown.down.prevent="moveSelection(1)"

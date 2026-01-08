@@ -190,7 +190,7 @@ async function copyId() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0;
+  border-radius: var(--radius-btn);
   background: transparent;
   box-shadow: none;
 }

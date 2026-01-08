@@ -41,7 +41,7 @@ const createdAtLabel = computed(() => {
 
 <style scoped>
 .command-history-card {
-  border-radius: 0;
+  border-radius: var(--radius-panel);
   box-shadow: none;
 }
 </style>

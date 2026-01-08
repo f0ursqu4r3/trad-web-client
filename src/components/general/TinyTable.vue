@@ -294,7 +294,7 @@ function handleRowKeydown(e: KeyboardEvent, row: unknown, idx: number) {
   line-height: 1.3;
   color: var(--tt-text-color);
   border: 1px solid var(--tt-border-color);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   background: var(--tt-bg);
   overflow: hidden;
 }

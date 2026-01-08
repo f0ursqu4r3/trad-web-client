@@ -1,16 +1,18 @@
 /* Primitives: surfaces, menus, status indicators */
 @layer components {
   .terminal-card {
-    @apply w-full max-w-[720px] overflow-hidden rounded-lg border border-term-border bg-term-bg text-term-fg shadow-xl;
+    @apply w-full max-w-[720px] overflow-hidden border border-term-border bg-term-bg text-term-fg shadow-xl;
+    border-radius: var(--radius-xl);
   }
   .panel-card {
     @apply border shadow-sm;
-    border-radius: 0;
+    border-radius: var(--radius-card);
     background: var(--panel-bg);
     border-color: var(--border-color);
   }
   .panel {
     @apply border;
+    border-radius: var(--radius-panel);
     background: var(--panel-bg);
     border-color: var(--border-color);
   }
@@ -26,7 +28,8 @@
     color: var(--color-text-dim);
   }
   .code-inline {
-    @apply rounded border px-1.5 py-0.5 text-[12px] font-mono;
+    @apply border px-1.5 py-0.5 text-[12px] font-mono;
+    border-radius: var(--radius-sm);
     background: color-mix(in srgb, var(--panel-header-bg) 70%, transparent);
     border-color: var(--border-color);
   }
@@ -56,7 +59,8 @@
     @apply relative;
   }
   .menu-dropdown {
-    @apply absolute right-0 top-[110%] z-50 min-w-[140px] flex flex-col rounded border py-1 text-[13px] shadow-lg;
+    @apply absolute right-0 top-[110%] z-50 min-w-[140px] flex flex-col border py-1 text-[13px] shadow-lg;
+    border-radius: var(--radius-menu);
     background: var(--panel-bg);
     border-color: var(--border-color);
     color: var(--color-text);
@@ -79,10 +83,12 @@
     @apply px-2.5 py-1.5 text-[12px] text-term-dim;
   }
   .skeleton {
-    @apply animate-pulse rounded bg-slate-500/20;
+    @apply animate-pulse bg-slate-500/20;
+    border-radius: var(--radius-sm);
   }
   .skeleton-line {
-    @apply animate-pulse rounded bg-slate-500/20 h-3;
+    @apply animate-pulse bg-slate-500/20 h-3;
+    border-radius: var(--radius-sm);
   }
   .list-row {
     @apply flex items-center justify-between gap-3 border-b px-2 py-1.5 text-[13px];
@@ -93,13 +99,15 @@
   }
   .badge,
   .chip {
-    @apply inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px];
+    @apply inline-flex items-center gap-1 border px-1.5 py-0.5 text-[11px];
+    border-radius: var(--radius-badge);
     background: var(--panel-header-bg);
     border-color: var(--border-color);
     color: var(--color-text-dim);
   }
   .pill {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium;
+    @apply inline-flex items-center px-2 py-0.5 text-[11px] font-medium;
+    border-radius: var(--radius-pill);
     box-shadow: none;
     border: 1px solid transparent;
     --_c: var(--pill-color-neutral);

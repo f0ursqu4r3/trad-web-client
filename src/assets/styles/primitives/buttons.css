@@ -1,7 +1,8 @@
 /* Primitives: button system */
 @layer components {
   .btn {
-    @apply inline-flex items-center gap-1 border px-2 py-1 text-[12px] font-medium rounded tracking-wide cursor-pointer transition select-none;
+    @apply inline-flex items-center gap-1 border px-2 py-1 text-[12px] font-medium tracking-wide cursor-pointer transition select-none;
+    border-radius: var(--radius-btn);
     border-color: var(--btn-border);
     background: var(--btn-bg, var(--btn-bg-start));
     color: var(--btn-fg);
@@ -324,7 +325,8 @@
     background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-active), transparent);
   }
   .icon-btn {
-    @apply inline-flex items-center justify-center border rounded text-[12px] font-medium tracking-wide cursor-pointer transition select-none px-1.5 py-1 gap-1;
+    @apply inline-flex items-center justify-center border text-[12px] font-medium tracking-wide cursor-pointer transition select-none px-1.5 py-1 gap-1;
+    border-radius: var(--radius-btn);
   }
   .icon-btn:hover:not(:disabled) {
     opacity: 0.95;

@@ -65,7 +65,8 @@
     color: var(--color-text-dim);
   }
   .kbd {
-    @apply inline-block rounded border px-1.5 py-0.5 text-[11px] font-mono text-term-dim tracking-widest;
+    @apply inline-block border px-1.5 py-0.5 text-[11px] font-mono text-term-dim tracking-widest;
+    border-radius: var(--radius-sm);
   }
   .text-accent {
     color: var(--accent-color);

@@ -312,7 +312,7 @@ function formatNumber(value: number, digits: number) {
 }
 .preview {
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: var(--radius-lg);
   padding: 0.75rem;
   font-size: 12px;
   display: grid;

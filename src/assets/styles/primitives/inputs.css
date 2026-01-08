@@ -1,7 +1,8 @@
 /* Primitives: form controls & inputs */
 @layer components {
   .form-control {
-    @apply appearance-none rounded border border-term-border bg-transparent px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60;
+    @apply appearance-none border border-term-border bg-transparent px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60;
+    border-radius: var(--radius-input);
     line-height: 1.25;
   }
   .form-control:focus {
@@ -19,7 +20,8 @@
   input[type='tel'],
   select,
   textarea {
-    @apply appearance-none rounded border border-term-border bg-transparent px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60;
+    @apply appearance-none border border-term-border bg-transparent px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60;
+    border-radius: var(--radius-input);
     line-height: 1.25;
   }
   input[type='text']:focus,
@@ -46,17 +48,20 @@
   /* Generic semantic aliases */
   .input,
   .input-term {
-    @apply flex-1 appearance-none rounded border border-term-border bg-transparent px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60;
+    @apply flex-1 appearance-none border border-term-border bg-transparent px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60;
+    border-radius: var(--radius-input);
     line-height: 1.25;
   }
   .select,
   .select-term {
-    @apply flex-1 appearance-none rounded border border-term-border bg-transparent px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60 pr-6;
+    @apply flex-1 appearance-none border border-term-border bg-transparent px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60 pr-6;
+    border-radius: var(--radius-input);
     line-height: 1.25;
   }
   .textarea,
   .textarea-term {
-    @apply flex-1 appearance-none rounded border border-term-border bg-transparent px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60 min-h-[90px];
+    @apply flex-1 appearance-none border border-term-border bg-transparent px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60 min-h-[90px];
+    border-radius: var(--radius-input);
     line-height: 1.25;
     resize: vertical;
   }
@@ -273,7 +278,8 @@
     height: 1.4rem;
   }
   .range-bubble {
-    @apply absolute -top-2 translate-y-[-100%] rounded px-1.5 py-0.5 text-[11px] font-mono border;
+    @apply absolute -top-2 translate-y-[-100%] px-1.5 py-0.5 text-[11px] font-mono border;
+    border-radius: var(--radius-sm);
     background: var(--panel-header-bg);
     border-color: var(--border-color);
     color: var(--color-text-dim);

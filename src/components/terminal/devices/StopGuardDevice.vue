@@ -181,7 +181,8 @@ function fmtDate(d?: Date | null): string {
 
     <div
       v-if="failureReason"
-      class="space-y-2 rounded-md border border-[var(--border-color)] bg-[var(--color-surface-alt)] p-2"
+      class="space-y-2 border border-[var(--border-color)] bg-[var(--color-surface-alt)] p-2"
+      :style="{ borderRadius: 'var(--radius-base)' }"
     >
       <h4 class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)] m-0">
         Rejection Reason
@@ -215,8 +216,7 @@ function fmtDate(d?: Date | null): string {
         </div>
         <div
           v-if="
-            (device.market_context.type === 'binance' ||
-              device.market_context.type === 'bifake') &&
+            (device.market_context.type === 'binance' || device.market_context.type === 'bifake') &&
             'account_id' in device.market_context
           "
         >

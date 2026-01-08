@@ -103,7 +103,7 @@ const isCurrentPlan = (plan: PricingPlan) => {
   display: flex;
   flex-direction: column;
   padding: 1.5rem;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
   background: var(--panel-bg);
   transition:
@@ -137,7 +137,7 @@ const isCurrentPlan = (plan: PricingPlan) => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
   background: var(--accent-color);
   color: #fff;
 }
@@ -213,7 +213,7 @@ const isCurrentPlan = (plan: PricingPlan) => {
   justify-content: center;
   padding: 0.625rem 1rem;
   font-size: 0.8125rem;
-  border-radius: 0.375rem;
+  border-radius: var(--radius-btn);
   cursor: pointer;
   transition: all 0.15s ease;
 }

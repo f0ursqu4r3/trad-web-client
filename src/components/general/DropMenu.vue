@@ -406,7 +406,7 @@ onBeforeUnmount(() => {
   background: var(--panel-bg);
   border: 1px solid var(--color-text);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
-  border-radius: 0;
+  border-radius: var(--radius-menu);
   padding: 0;
 }
 .dropmenu-item {
