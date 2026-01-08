@@ -122,6 +122,7 @@ const treeData = computed<TreeItem[]>(() => {
       lifecycle: device.complete || device.failed || device.canceled ? '' : teLifecycle,
       status: statusLabel(device),
       intent,
+      created_at: device.created_at,
     })
   }
 
@@ -147,6 +148,9 @@ const treeData = computed<TreeItem[]>(() => {
 
   const sortNodes = (items: TreeItem[]) => {
     items.sort((a, b) => {
+      const aTime = a.created_at instanceof Date ? a.created_at.getTime() : 0
+      const bTime = b.created_at instanceof Date ? b.created_at.getTime() : 0
+      if (aTime !== bTime) return aTime - bTime
       const intentDelta = intentRank(a.intent as string) - intentRank(b.intent as string)
       if (intentDelta !== 0) return intentDelta
       const labelA = (a.label || '').toString()

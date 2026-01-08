@@ -189,6 +189,7 @@ function handleClosePosition(commandId: string): void {
               :commandStatus="cmd.status"
               :commandSymbol="getCommandSymbol(cmd.command)"
               :label="cmd.command.kind"
+              :createdAt="cmd.created_at"
               @duplicate="handleDuplicate(cmd.command)"
               @cancel="handleCancel"
               @inspect="handleInspect"

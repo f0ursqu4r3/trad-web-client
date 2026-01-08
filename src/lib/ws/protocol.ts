@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 7
+export const PROTOCOL_VERSION = 9
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -468,6 +468,7 @@ export type CommandHistoryItem = {
   command_id: Uuid
   command: UserCommandPayload
   status: CommandStatus
+  created_at: string
 }
 
 export type CommandHistoryData = {
@@ -508,6 +509,7 @@ export type DeviceSnapshotLiteData = {
   associated_command_id: Uuid
   parent_device?: Uuid | null
   children_devices?: Uuid[] | null
+  created_at: string
   complete: boolean
   failed: boolean
   canceled: boolean
@@ -633,6 +635,7 @@ export type DeviceTeDelta =
         peak_index: number
         base_index: number
         total_points: number
+        created_at: string
         lifecycle: TrailingEntryLifecycle
       }
     }
@@ -674,6 +677,7 @@ export type DeviceMoDelta =
         status: MarketOrderStatus
         filled_qty?: number | null
         client_order_id?: string | null
+        created_at: string
       }
     }
   | {
@@ -720,6 +724,7 @@ export type DeviceSgDelta =
         last_status_check_at?: string | null
         last_replacement_at?: string | null
         status: StopGuardStatus
+        created_at: string
       }
     }
   | { kind: 'Submitted'; data: { order_id: string; quantity: number; topup_seq: number } }
@@ -765,6 +770,7 @@ export type DeviceSplitDelta =
         price: number
         quantity: number
         expected_children: number
+        created_at: string
       }
     }
   | { kind: 'ChildAdded'; data: { child_id: Uuid } }

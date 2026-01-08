@@ -127,6 +127,7 @@ export const useCommandStore = defineStore(
         command_id: commandId,
         command: pending.command,
         status: CommandStatus.Running,
+        created_at: new Date().toISOString(),
       } as CommandHistoryItem)
       // Remove from pending
       delete pendingCommands.value[commandId]

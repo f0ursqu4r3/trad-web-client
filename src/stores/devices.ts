@@ -100,6 +100,9 @@ export const useDeviceStore = defineStore('device', () => {
     device.failed = data.failed
     device.canceled = data.canceled
     device.awaiting_children = data.awaiting_children
+    if (data.created_at) {
+      device.created_at = new Date(data.created_at)
+    }
     if (Object.prototype.hasOwnProperty.call(data, 'failure_reason')) {
       device.failure_reason = data.failure_reason ?? null
     }
@@ -211,6 +214,11 @@ export const useDeviceStore = defineStore('device', () => {
       commandId = event.delta.data.command_id || null
     }
     const device = ensureDeviceRecord(event.device_id, kind, commandId)
+    if (event.delta.kind === 'Init' && event.delta.data.created_at) {
+      device.created_at = new Date(event.delta.data.created_at)
+    } else if (!device.created_at && event.ts) {
+      device.created_at = new Date(event.ts)
+    }
     switch (kind) {
       case 'DeviceTeDelta':
         applyDeviceTeDeltaEvent(device, event as DeviceTeDeltaEvent)
@@ -614,6 +622,7 @@ export interface Device {
   id: string
   kind: string
   associated_command_id: string
+  created_at: Date
 
   parent_device: string | null
   children_devices: string[]
@@ -762,6 +771,7 @@ function newDevice(deviceId: string, kind: string, command_id: string | null): D
     id: deviceId,
     kind: mappedKind,
     associated_command_id: command_id,
+    created_at: new Date(),
     parent_device: null,
     children_devices: [],
     complete: false,

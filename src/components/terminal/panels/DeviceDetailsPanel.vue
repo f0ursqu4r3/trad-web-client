@@ -9,6 +9,15 @@ import SplitDevice from '@/components/terminal/devices/SplitDevice.vue'
 
 const { selectedDevice } = storeToRefs(useDeviceStore())
 
+function fmtDate(d?: Date | null): string {
+  if (!d) return '-'
+  try {
+    return new Date(d).toLocaleString()
+  } catch {
+    return '-'
+  }
+}
+
 const deviceComp = computed(() => {
   if (!selectedDevice.value) return null
   switch (selectedDevice.value.kind) {
@@ -30,16 +39,20 @@ const deviceComp = computed(() => {
   <section class="relative flex flex-col min-h-0 w-full h-full">
     <div v-if="selectedDevice" class="w-full h-full overflow-auto">
       <div class="flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)]">
-        <div class="text-[11px] uppercase tracking-[0.04em] text-[var(--color-text-dim)]">
-          {{ selectedDevice.kind }} · Device ID
-        </div>
         <button
-          class="font-mono text-[11px] text-[var(--color-text)] hover:text-white"
+          class="font-mono text-[11px] text-[var(--color-text-dim)] hover:text-white"
           type="button"
           @click="navigator.clipboard?.writeText(selectedDevice.id)"
         >
-          {{ selectedDevice.id }}
+          Device ID:
+          <span class="text-[var(--color-text)]">{{ selectedDevice.id }}</span>
         </button>
+        <div class="text-[11px] text-[var(--color-text-dim)]">
+          Created:
+          <span class="font-mono text-[var(--color-text)]">{{
+            fmtDate(selectedDevice.created_at)
+          }}</span>
+        </div>
       </div>
       <component
         v-if="deviceComp"

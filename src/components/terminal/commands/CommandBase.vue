@@ -12,9 +12,11 @@ const props = withDefaults(
     commandStatus: string
     commandSymbol?: string
     label?: string
+    createdAt?: string | null
   }>(),
   {
     label: 'Trailing Entry',
+    createdAt: null,
   },
 )
 
@@ -28,6 +30,20 @@ const emit = defineEmits<{
 
 const shortId = computed(() => props.commandId.slice(0, 8))
 const expanded = ref(false)
+const createdAtLabel = computed(() => {
+  if (!props.createdAt) return ''
+  try {
+    return new Date(props.createdAt).toLocaleString(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return ''
+  }
+})
 
 const canCancel = computed(() =>
   ['Unsent', 'Pending', 'Running', 'Malformed'].includes(props.commandStatus),
@@ -107,6 +123,9 @@ async function copyId() {
       </div>
 
       <div class="flex items-center justify-end flex-wrap gap-2">
+        <span v-if="createdAtLabel" class="text-[10px] text-gray-500 font-mono">
+          {{ createdAtLabel }}
+        </span>
         <div
           class="pill flex gap-2"
           :class="`pill-${statusMap[commandStatus]}`"
