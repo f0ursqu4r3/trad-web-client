@@ -33,11 +33,25 @@ const deviceComp = computed(() => {
       return null
   }
 })
+
+const deviceStatusClass = computed(() => {
+  const device = selectedDevice.value
+  if (!device) return ''
+  if (device.failed) return 'device-details-failed'
+  if (device.canceled) return 'device-details-canceled'
+  if (device.complete) return 'device-details-complete'
+  if (device.awaiting_children) return 'device-details-waiting'
+  return 'device-details-active'
+})
 </script>
 
 <template>
   <section class="relative flex flex-col min-h-0 w-full h-full">
-    <div v-if="selectedDevice" class="w-full h-full overflow-auto">
+    <div
+      v-if="selectedDevice"
+      class="w-full h-full overflow-auto device-details"
+      :class="deviceStatusClass"
+    >
       <div class="flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)]">
         <button
           class="font-mono text-[11px] text-[var(--color-text-dim)] hover:text-white"
@@ -74,3 +88,21 @@ const deviceComp = computed(() => {
     </div>
   </section>
 </template>
+
+<style scoped>
+.device-details-failed {
+  background-color: color-mix(in srgb, var(--color-error) 10%, transparent);
+}
+.device-details-canceled {
+  background-color: color-mix(in srgb, var(--color-error) 8%, transparent);
+}
+.device-details-complete {
+  background-color: color-mix(in srgb, var(--color-success) 8%, transparent);
+}
+.device-details-waiting {
+  background-color: color-mix(in srgb, var(--color-info) 8%, transparent);
+}
+.device-details-active {
+  background-color: color-mix(in srgb, var(--color-warning) 8%, transparent);
+}
+</style>
