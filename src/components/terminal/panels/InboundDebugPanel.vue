@@ -87,7 +87,7 @@ function formatPayload(p: unknown): string {
 <template>
   <div class="font-mono flex flex-col h-full overflow-hidden">
     <div class="flex items-center gap-2 px-1.5 py-1 text-sm border-b border-gray-600/60 w-full">
-      <strong class="font-semibold">Inbound Messages</strong>
+      <span class="font-normal">Inbound Messages</span>
       <div class="flex items-center gap-2 ml-auto">
         <div class="flex gap-2 justify-between opacity-70 text-xs">
           <span>Total: {{ ws.inbound.length }}</span>
