@@ -126,8 +126,8 @@ onMounted(() => {
   // Add area series
   series = chart.addSeries(AreaSeries, {
     lineColor: '#f5f7fa',
-    topColor: 'rgba(245,247,250,0.28)',
-    bottomColor: 'rgba(245,247,250,0.04)',
+    topColor: 'rgba(245,247,250,0)',
+    bottomColor: 'rgba(245,247,250,0)',
     lineWidth: 2,
     pointMarkersVisible: false,
   })
