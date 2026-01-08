@@ -405,45 +405,42 @@
 }
 
 /* Fantasy24 theme overrides (earthy arcane palette) */
+/* Source: https://lospec.com/palette-list/fantasy-24 by Gabriel C */
 [data-theme='fantasy24'] {
-  /* Source colors reference (ordered as provided)
-     1: #1f240a (deep olive)            2: #39571c (forest green)
-     3: #a58c27 (muted gold)            4: #efac28 (bright amber)
-     5: #efd8a1 (parchment)             6: #ab5c1c (burnt orange)
-     7: #183f39 (deep teal)             8: #ef692f (ember orange)
-     9: #efb775 (soft peach gold)      10: #a56243 (rust light)
-    11: #773421 (deep rust)            12: #724113 (brown ochre)
-    13: #2a1d0d (dark sepia)           14: #392a1c (mid sepia)
-    15: #684c3c (aged wood)            16: #927e6a (faded parchment)
-    17: #276468 (teal medium)          18: #ef3a0c (molten red/orange)
-    19: #45230d (soot brown)           20: #3c9f9c (cerulean teal)
-    21: #9b1a0a (deep blood)           22: #36170c (charred brown)
-    23: #550f0a (dark ember)           24: #300f0a (coal ember) */
+  /* Full Fantasy 24 palette reference:
+     #1f240a (deep olive)       #39571c (forest green)    #a58c27 (muted gold)
+     #efac28 (bright amber)     #efd8a1 (parchment)       #ab5c1c (burnt orange)
+     #183f39 (deep teal)        #ef692f (ember orange)    #efb775 (soft peach)
+     #a56243 (rust light)       #773421 (deep rust)       #724113 (brown ochre)
+     #2a1d0d (dark sepia)       #392a1c (mid sepia)       #684c3c (aged wood)
+     #927e6a (faded parchment)  #276468 (teal medium)     #ef3a0c (molten red)
+     #45230d (soot brown)       #3c9f9c (cerulean teal)   #9b1a0a (deep blood)
+     #36170c (charred brown)    #550f0a (dark ember)      #300f0a (coal ember) */
 
-  /* Core surfaces (layered depth: bg < alt < tertiary) */
-  --color-bg: #1f240a; /* base cavern */
-  --color-bg-alt: #2a1d0d; /* deeper chamber */
-  --panel-bg: #2a1d0d; /* panels match alt */
-  --panel-header-bg: #392a1c; /* slightly lifted header */
-  --panel-border-inner: #45230d; /* subtle inner line */
-  --border-color: #392a1c; /* neutral border */
-  --color-border-strong: #efd8a1; /* parchment highlight */
-  --color-bg-secondary: #2a1d0d;
-  --color-bg-tertiary: #392a1c;
+  /* Core surfaces (layered depth from darkest to lightest) */
+  --color-bg: #2a1d0d; /* dark sepia - primary background */
+  --color-bg-alt: #392a1c; /* mid sepia - elevated surface */
+  --panel-bg: #2a1d0d; /* align with bg */
+  --panel-header-bg: #392a1c; /* mid sepia header */
+  --panel-border-inner: #45230d; /* soot brown inner line */
+  --border-color: #684c3c; /* aged wood */
+  --color-border-strong: #efb775; /* soft peach highlight */
+  --color-bg-secondary: #392a1c;
+  --color-bg-tertiary: #45230d;
 
   /* Text */
-  --color-text: #efd8a1; /* primary readable */
-  --color-text-dim: #927e6a; /* secondary */
-  --accent-color: #3c9f9c; /* cool contrast accent (teal) */
+  --color-text: #efd8a1; /* parchment - primary */
+  --color-text-dim: #927e6a; /* faded parchment - secondary */
+  --accent-color: #3c9f9c; /* cerulean teal - cool contrast */
 
   /* Semantic status */
   --color-success: #39571c; /* forest green */
-  --color-error: #ef3a0c; /* molten error */
+  --color-error: #ef3a0c; /* molten red */
   --color-warning: #efac28; /* bright amber */
-  --color-info: #3c9f9c; /* teal reused */
+  --color-info: #3c9f9c; /* cerulean teal */
 
-  /* Terminal (harmonized) */
-  --color-term-bg: #1f240a;
+  /* Terminal (harmonized with palette) */
+  --color-term-bg: #2a1d0d;
   --color-term-fg: #efd8a1;
   --color-term-dim: #927e6a;
   --color-term-accent: #3c9f9c;
@@ -453,10 +450,10 @@
   --color-term-warn: #efac28;
   --color-term-info: #3c9f9c;
 
-  /* Buttons (primary gradient draws from rust → deep rust) */
-  --btn-bg-start: #a56243; /* lighter rust */
-  --btn-bg-end: #773421; /* deep rust */
-  --btn-border: #684c3c; /* aged wood */
+  /* Buttons (gradient from rust tones) */
+  --btn-bg-start: #684c3c; /* aged wood (lighter) */
+  --btn-bg-end: #45230d; /* soot brown (darker) */
+  --btn-border: #724113; /* brown ochre */
   --btn-fg: #efd8a1; /* parchment text */
 
   /* Form controls */
@@ -468,48 +465,48 @@
   --pill-color-err: var(--color-error);
   --pill-color-warn: var(--color-warning);
   --pill-color-info: var(--color-info);
-  --pill-bg-alpha: 15%; /* slightly higher for dark earthy surfaces */
-  --pill-ring-alpha: 42%;
+  --pill-bg-alpha: 18%; /* higher for dark earthy surfaces */
+  --pill-ring-alpha: 45%;
 
   /* Button semantic variants */
-  --btn-color-primary: var(--accent-color); /* teal */
-  --btn-color-danger: #9b1a0a; /* deeper blood tone */
+  --btn-color-primary: var(--accent-color); /* cerulean teal */
+  --btn-color-danger: #9b1a0a; /* deep blood */
   --btn-color-success: var(--color-success);
   --btn-color-warn: var(--color-warning);
   --btn-color-info: var(--color-info);
-  --btn-color-neutral: #684c3c; /* wood neutral */
+  --btn-color-neutral: #684c3c; /* aged wood */
   --btn-color-neutral-fg: #efd8a1; /* parchment */
 
-  /* Alpha tuning (slightly stronger fills than legacy) */
-  --btn-alpha-border: 45%;
-  --btn-alpha-surface: 18%;
-  --btn-alpha-surface-hover: 26%;
-  --btn-alpha-surface-active: 34%;
-  --btn-alpha-outline-border: 65%;
-  --btn-alpha-outline-surface-hover: 16%;
-  --btn-alpha-outline-surface-active: 22%;
-  --btn-alpha-ghost-hover: 18%;
-  --btn-alpha-ghost-active: 28%;
+  /* Alpha tuning (stronger fills for earthy tones) */
+  --btn-alpha-border: 50%;
+  --btn-alpha-surface: 20%;
+  --btn-alpha-surface-hover: 30%;
+  --btn-alpha-surface-active: 40%;
+  --btn-alpha-outline-border: 70%;
+  --btn-alpha-outline-surface-hover: 18%;
+  --btn-alpha-outline-surface-active: 26%;
+  --btn-alpha-ghost-hover: 20%;
+  --btn-alpha-ghost-active: 32%;
 
   /* Scrollbar */
   --scrollbar-track: inherit;
-  --scrollbar-thumb: #392a1c;
-  --scrollbar-thumb-hover: #45230d;
+  --scrollbar-thumb: #45230d; /* soot brown */
+  --scrollbar-thumb-hover: #684c3c; /* aged wood */
 
-  /* Account rail palette (fantasy24 - earthy arcane) */
-  --account-color-1: #3c9f9c; /* teal accent */
-  --account-color-2: #276468; /* deep teal */
+  /* Account rail palette (all 9 from fantasy24 spectrum) */
+  --account-color-1: #3c9f9c; /* cerulean teal */
+  --account-color-2: #276468; /* teal medium */
   --account-color-3: #39571c; /* forest green */
   --account-color-4: #efac28; /* bright amber */
   --account-color-5: #ef3a0c; /* molten red */
   --account-color-6: #a58c27; /* muted gold */
   --account-color-7: #ef692f; /* ember orange */
-  --account-color-8: #a56243; /* rust */
-  --account-color-9: #ab5c1c; /* burnt orange */
+  --account-color-8: #ab5c1c; /* burnt orange */
+  --account-color-9: #9b1a0a; /* deep blood */
 
   /* Account rail styling (fantasy24) */
   --account-rail-bg-alpha: 28%;
-  --account-rail-border-alpha: 45%;
+  --account-rail-border-alpha: 48%;
 }
 
 /* Tomorrow Night Eighties theme (canonical palette) */
@@ -610,6 +607,106 @@
   /* Account rail styling (tomorrowNight80s) */
   --account-rail-bg-alpha: 24%;
   --account-rail-border-alpha: 42%;
+}
+
+/* Monokai theme (classic syntax highlighting palette) */
+/* Source: https://monokai.pro - Original by Wimer Hazenberg */
+[data-theme='monokai'] {
+  /* Canonical Monokai palette:
+     Background: #272822    Foreground: #F8F8F2    Comment: #75715E
+     Red/Pink: #F92672      Orange: #FD971F       Yellow: #E6DB74
+     Green: #A6E22E         Cyan: #66D9EF         Purple: #AE81FF */
+
+  /* Surfaces (warm dark with subtle green undertone) */
+  --color-bg: #272822; /* classic monokai background */
+  --color-bg-alt: #3e3d32; /* elevated surface */
+  --panel-bg: #272822; /* panels flush with bg */
+  --panel-header-bg: #3e3d32; /* lifted header */
+  --panel-border-inner: #49483e; /* subtle divider */
+  --border-color: #49483e; /* normal border */
+  --color-border-strong: #75715e; /* comment gray as strong */
+  --color-bg-secondary: #3e3d32;
+  --color-bg-tertiary: #49483e;
+
+  /* Typography */
+  --color-text: #f8f8f2; /* bright foreground */
+  --color-text-dim: #75715e; /* comment gray */
+  --accent-color: #66d9ef; /* cyan as primary accent */
+
+  /* Semantic (map to canonical syntax colors) */
+  --color-success: #a6e22e; /* green */
+  --color-error: #f92672; /* pink/red */
+  --color-warning: #e6db74; /* yellow */
+  --color-info: #66d9ef; /* cyan */
+
+  /* Terminal */
+  --color-term-bg: #272822;
+  --color-term-fg: #f8f8f2;
+  --color-term-dim: #75715e;
+  --color-term-accent: #66d9ef;
+  --color-term-border: #3e3d32;
+  --color-term-ok: #a6e22e;
+  --color-term-err: #f92672;
+  --color-term-warn: #e6db74;
+  --color-term-info: #66d9ef;
+
+  /* Buttons (warm gray gradient) */
+  --btn-bg-start: #49483e; /* lighter */
+  --btn-bg-end: #3e3d32; /* darker */
+  --btn-border: #75715e; /* comment gray border */
+  --btn-fg: #f8f8f2; /* bright text */
+
+  /* Form controls */
+  --control-mark-color: #272822; /* dark mark on cyan accent */
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 15%;
+  --pill-ring-alpha: 42%;
+
+  /* Button semantic variants */
+  --btn-color-primary: var(--accent-color); /* cyan */
+  --btn-color-danger: var(--color-error); /* pink */
+  --btn-color-success: var(--color-success); /* green */
+  --btn-color-warn: var(--color-warning); /* yellow */
+  --btn-color-info: var(--color-info); /* cyan */
+  --btn-color-neutral: #75715e; /* comment gray */
+  --btn-color-neutral-fg: #f8f8f2;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 45%;
+  --btn-alpha-surface: 18%;
+  --btn-alpha-surface-hover: 28%;
+  --btn-alpha-surface-active: 38%;
+  --btn-alpha-outline-border: 65%;
+  --btn-alpha-outline-surface-hover: 15%;
+  --btn-alpha-outline-surface-active: 22%;
+  --btn-alpha-ghost-hover: 18%;
+  --btn-alpha-ghost-active: 28%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #3e3d32;
+  --scrollbar-thumb-hover: #49483e;
+
+  /* Account rail palette (monokai syntax spectrum) */
+  --account-color-1: #66d9ef; /* cyan */
+  --account-color-2: #a6e22e; /* green */
+  --account-color-3: #f92672; /* pink */
+  --account-color-4: #e6db74; /* yellow */
+  --account-color-5: #fd971f; /* orange */
+  --account-color-6: #ae81ff; /* purple */
+  --account-color-7: #56c2d6; /* muted cyan */
+  --account-color-8: #8fc029; /* muted green */
+  --account-color-9: #e91e63; /* hot pink */
+
+  /* Account rail styling (monokai) */
+  --account-rail-bg-alpha: 26%;
+  --account-rail-border-alpha: 45%;
 }
 
 /* Body inheritance helper */

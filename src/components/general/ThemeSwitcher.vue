@@ -34,6 +34,7 @@ const themeOptions: ThemeOption[] = [
   { label: 'Legacy', value: 'legacy', icon: Moon },
   { label: 'Fantasy24', value: 'fantasy24', icon: Moon },
   { label: 'Tomorrow Night 80s', value: 'tomorrowNight80s', icon: Moon },
+  { label: 'Monokai', value: 'monokai', icon: Moon },
 ]
 
 function toggleMenu() {

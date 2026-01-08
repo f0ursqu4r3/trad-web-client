@@ -10,6 +10,7 @@ export type ThemeMode =
   | 'legacy'
   | 'fantasy24'
   | 'tomorrowNight80s'
+  | 'monokai'
 
 export const useUiStore = defineStore(
   'ui',

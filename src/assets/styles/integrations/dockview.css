@@ -118,6 +118,15 @@
     0 1px 3px color-mix(in srgb, #000000 55%, transparent) !important;
 }
 
+/* Monokai theme overrides */
+[data-theme='monokai'] .trad-dockview,
+[data-theme='monokai'] .trad-dockview .dv-dockview,
+[data-theme='monokai'] .trad-dockview .dv-groupview {
+  --dv-floating-box-shadow:
+    0 4px 12px color-mix(in srgb, #000000 42%, transparent),
+    0 1px 3px color-mix(in srgb, #000000 55%, transparent) !important;
+}
+
 /* Dockview header alignment + disable close actions */
 .trad-dockview .dv-tabs-and-actions-container {
   padding: 0 0.5rem;
