@@ -37,9 +37,14 @@ const railLabel = computed(() => {
 })
 
 const railColor = computed(() => {
-  if (!selectedAccount.value) return 'var(--color-text-dim)'
+  if (!selectedAccount.value) return undefined
   const id = selectedAccount.value.id || selectedAccount.value.label
   return accountColorFromId(id)
+})
+
+const railTextColor = computed(() => {
+  // Match AccountSelect: light text on colored bg, dim text when no account
+  return selectedAccount.value ? '#f5f7fa' : 'var(--color-text-dim)'
 })
 </script>
 
@@ -47,10 +52,11 @@ const railColor = computed(() => {
   <div class="relative w-full h-full overflow-hidden flex">
     <div
       class="account-rail flex justify-center items-end px-1 py-2 h-full"
-      :style="{ '--account-rail-color': railColor }"
+      :style="railColor ? { '--account-rail-color': railColor } : {}"
     >
       <div
-        class="writing-sideways-lr text-xs tracking-wide text-primary uppercase opacity-85 whitespace-nowrap"
+        class="writing-sideways-lr text-xs tracking-wide uppercase whitespace-nowrap"
+        :style="{ color: railTextColor }"
       >
         {{ railLabel }}
       </div>
@@ -94,8 +100,11 @@ const railColor = computed(() => {
 
 <style scoped>
 .account-rail {
-  --_rail-color: var(--account-rail-color, var(--color-text-dim));
-  background: color-mix(in srgb, var(--_rail-color) var(--account-rail-bg-alpha), transparent);
+  --_rail-color: var(--account-rail-color, var(--panel-header-bg));
+  --_has-account: var(--account-rail-color, transparent);
+  /* When account selected: mix 70% color with panel-header-bg (like AccountSelect)
+     When no account: fall back to panel-header-bg (like toolbar-row) */
+  background: color-mix(in srgb, var(--_rail-color) 70%, var(--panel-header-bg));
   border-right: 1px solid
     color-mix(in srgb, var(--_rail-color) var(--account-rail-border-alpha), var(--border-color));
 }
