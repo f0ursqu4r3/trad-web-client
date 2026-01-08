@@ -4,6 +4,8 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import StickyScroller from '@/components/general/StickyScroller.vue'
 import ThemeSwitcher from '@/components/general/ThemeSwitcher.vue'
 import TinyTable from '@/components/general/TinyTable.vue'
+import DualRangeSlider from '@/components/general/DualRangeSlider.vue'
+import RangeSlider from '@/components/general/RangeSlider.vue'
 import type { TinyTableColumn } from '@/components/general/TinyTable.vue'
 
 // Live nav/scrollspy state
@@ -116,50 +118,35 @@ const playPressed = ref(false)
 const playDisabled = ref(false)
 const playLabel = ref('Click Me')
 const copiedBtnMarkup = ref(false)
-// (unused after Tailwind migration)
+
+// Generate the proper .btn class based on playground selections
 const playClass = computed(() => {
-  const size =
-    playSize.value === 'sm'
-      ? 'px-2 py-1 text-xs'
-      : playSize.value === 'lg'
-        ? 'px-4 py-2 text-base'
-        : 'px-3 py-1.5 text-sm'
+  const classes = ['btn']
 
-  const base = `inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/20 disabled:opacity-50 disabled:pointer-events-none ${size}`
+  // Size modifier
+  if (playSize.value === 'sm') classes.push('btn-sm')
+  else if (playSize.value === 'lg') classes.push('btn-lg')
 
-  const solid: Record<typeof playVariant.value, string> = {
-    primary: 'bg-sky-600 hover:bg-sky-500 text-white',
-    secondary: 'bg-zinc-700 hover:bg-zinc-600 text-white',
-    danger: 'bg-rose-600 hover:bg-rose-500 text-white',
-    success: 'bg-emerald-600 hover:bg-emerald-500 text-white',
-    neutral: 'bg-slate-600 hover:bg-slate-500 text-white',
-    warn: 'bg-amber-500 hover:bg-amber-400 text-slate-900',
-    info: 'bg-cyan-600 hover:bg-cyan-500 text-white',
+  // Style + variant combination
+  if (playStyle.value === 'solid') {
+    classes.push(`btn-${playVariant.value}`)
+  } else if (playStyle.value === 'outline') {
+    // outline uses btn-outline for primary, btn-outline-{variant} for others
+    if (playVariant.value === 'primary') {
+      classes.push('btn-outline')
+    } else {
+      classes.push(`btn-outline-${playVariant.value}`)
+    }
+  } else if (playStyle.value === 'ghost') {
+    // ghost uses btn-ghost for primary, btn-ghost-{variant} for others
+    if (playVariant.value === 'primary') {
+      classes.push('btn-ghost')
+    } else {
+      classes.push(`btn-ghost-${playVariant.value}`)
+    }
   }
 
-  const outline: Record<typeof playVariant.value, string> = {
-    primary: 'border border-sky-500 text-sky-300 hover:bg-sky-500/10',
-    secondary: 'border border-zinc-500 text-zinc-300 hover:bg-zinc-600/20',
-    danger: 'border border-rose-500 text-rose-300 hover:bg-rose-500/10',
-    success: 'border border-emerald-500 text-emerald-300 hover:bg-emerald-500/10',
-    neutral: 'border border-slate-500 text-slate-300 hover:bg-slate-500/10',
-    warn: 'border border-amber-500 text-amber-300 hover:bg-amber-500/10',
-    info: 'border border-cyan-500 text-cyan-300 hover:bg-cyan-500/10',
-  }
-
-  const ghost: Record<typeof playVariant.value, string> = {
-    primary: 'text-sky-300 hover:bg-sky-500/10',
-    secondary: 'text-zinc-300 hover:bg-zinc-600/20',
-    danger: 'text-rose-300 hover:bg-rose-500/10',
-    success: 'text-emerald-300 hover:bg-emerald-500/10',
-    neutral: 'text-slate-300 hover:bg-slate-500/10',
-    warn: 'text-amber-300 hover:bg-amber-500/10',
-    info: 'text-cyan-300 hover:bg-cyan-500/10',
-  }
-
-  const styleMap =
-    playStyle.value === 'solid' ? solid : playStyle.value === 'outline' ? outline : ghost
-  return `${base} ${styleMap[playVariant.value]}`
+  return classes.join(' ')
 })
 const playMarkup = computed(
   () =>
@@ -182,9 +169,8 @@ const checkA = ref(true)
 const checkB = ref(false)
 const radio = ref('a')
 const rangeValue = ref(40)
-const rangeValueSm = ref(25)
-const rangeDualMin = ref(20)
-const rangeDualMax = ref(70)
+const rangeDualMin = ref(10)
+const rangeDualMax = ref(30)
 const vertValue = ref(50)
 
 // Menu demo
@@ -258,7 +244,8 @@ for (let i = 0; i < 80; i++) {
       :class="{ hidden: !asideOpen }"
     >
       <div
-        class="flex flex-col gap-4 p-3 border border-(--border-color) bg-(--panel-bg) rounded-lg shadow-sm h-full"
+        class="flex flex-col gap-4 p-3 border border-(--border-color) bg-(--panel-bg) shadow-sm h-full"
+        style="border-radius: var(--radius-lg)"
       >
         <div class="flex items-center justify-between">
           <h1 class="m-0 text-[13px] font-mono text-[var(--color-text-dim)]">UI Style Guide</h1>
@@ -271,15 +258,17 @@ for (let i = 0; i < 80; i++) {
             v-model="filter"
             placeholder="Filter sections…"
             type="text"
-            class="w-full rounded-md border border-slate-600 bg-[var(--panel-bg)] text-[var(--color-text)] placeholder:text-[var(--color-text-dim)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
+            class="w-full border border-slate-600 bg-[var(--panel-bg)] text-[var(--color-text)] placeholder:text-[var(--color-text-dim)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
+            style="border-radius: var(--radius-input)"
           />
         </div>
         <nav class="flex flex-col gap-2 overflow-y-auto">
           <template v-for="s in filteredSections" :key="s.id">
             <a
               href="#"
-              class="rounded color-(--color-text) px-2 py-1 text-[12px] hover:bg-(--color-bg-alt) hover:text-(--accent-color) [&.active]:bg-(--accent-color)/14 [&.active]:text-(--accent-color)"
+              class="color-(--color-text) px-2 py-1 text-[12px] hover:bg-(--color-bg-alt) hover:text-(--accent-color) [&.active]:bg-(--accent-color)/14 [&.active]:text-(--accent-color)"
               :class="{ active: activeSection === s.id }"
+              style="border-radius: var(--radius-sm)"
               @click.prevent="scrollToSection(s.id)"
             >
               {{ s.title }}
@@ -304,7 +293,8 @@ for (let i = 0; i < 80; i++) {
           <p class="text-[var(--color-text-dim)]">Core design tokens, theming and usage.</p>
         </header>
         <div
-          class="rounded-lg border border-[var(--border-color)] bg-[var(--panel-bg)] shadow p-0 overflow-hidden"
+          class="border border-[var(--border-color)] bg-[var(--panel-bg)] shadow p-0 overflow-hidden"
+          style="border-radius: var(--radius-lg)"
         >
           <table class="w-full text-[12px]">
             <thead class="sticky top-0 bg-[var(--panel-header-bg)]">
@@ -320,8 +310,8 @@ for (let i = 0; i < 80; i++) {
                 <td class="px-3 py-2 font-mono text-[var(--color-text-dim)]">{{ row.value }}</td>
                 <td class="px-3 py-2">
                   <span
-                    class="inline-block w-6 h-4 rounded border border-[var(--border-color)]"
-                    :style="{ background: row.value }"
+                    class="inline-block w-6 h-4 border border-[var(--border-color)]"
+                    :style="{ background: row.value, borderRadius: 'var(--radius-sm)' }"
                   ></span>
                 </td>
               </tr>
@@ -330,32 +320,37 @@ for (let i = 0; i < 80; i++) {
         </div>
         <div class="flex flex-wrap gap-3 items-center text-[11px] font-mono mt-2">
           <button
-            class="inline-flex items-center justify-center rounded-md border border-cyan-500 text-cyan-300 hover:bg-cyan-500/10 px-2 py-1 text-xs"
+            class="inline-flex items-center justify-center border border-cyan-500 text-cyan-300 hover:bg-cyan-500/10 px-2 py-1 text-xs"
+            style="border-radius: var(--radius-btn)"
             @click="showAllTokens = !showAllTokens"
           >
             {{ showAllTokens ? 'Hide All Tokens' : 'Show All Tokens' }}
           </button>
           <button
-            class="inline-flex items-center justify-center rounded-md border border-slate-500 text-slate-300 hover:bg-slate-500/10 px-2 py-1 text-xs"
+            class="inline-flex items-center justify-center border border-slate-500 text-slate-300 hover:bg-slate-500/10 px-2 py-1 text-xs"
+            style="border-radius: var(--radius-btn)"
             @click="copyAllTokens"
           >
             Copy Tokens JSON
           </button>
           <button
-            class="inline-flex items-center justify-center rounded-md bg-slate-600 hover:bg-slate-500 text-white px-2 py-1 text-xs"
+            class="inline-flex items-center justify-center bg-slate-600 hover:bg-slate-500 text-white px-2 py-1 text-xs"
+            style="border-radius: var(--radius-btn)"
             @click="refreshAllTokens"
           >
             Refresh
           </button>
           <span
             v-if="copiedTokens"
-            class="inline-flex items-center rounded-full bg-emerald-600 text-white px-2 py-0.5 text-[10px] font-semibold"
+            class="inline-flex items-center bg-emerald-600 text-white px-2 py-0.5 text-[10px] font-semibold"
+            style="border-radius: var(--radius-pill)"
             >copied</span
           >
         </div>
         <div v-if="showAllTokens" class="mt-3">
           <pre
-            class="block whitespace-pre-wrap max-h-64 overflow-auto text-[11px] leading-snug font-mono bg-[var(--panel-bg)] border border-[var(--border-color)] rounded p-2"
+            class="block whitespace-pre-wrap max-h-64 overflow-auto text-[11px] leading-snug font-mono bg-[var(--panel-bg)] border border-[var(--border-color)] p-2"
+            style="border-radius: var(--radius-base)"
             >{{ allTokensJson }}</pre
           >
         </div>
@@ -372,68 +367,74 @@ for (let i = 0; i < 80; i++) {
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <div class="flex flex-col gap-1.5">
             <div
-              class="inline-flex items-center rounded-full border border-[var(--border-color)] px-2 py-0.5 text-[11px] font-mono text-[var(--color-text-dim)]"
+              class="inline-flex items-center border border-[var(--border-color)] px-2 py-0.5 text-[11px] font-mono text-[var(--color-text-dim)]"
+              style="border-radius: var(--radius-pill)"
             >
               --accent-color
             </div>
             <div
-              class="h-12 rounded border border-[var(--border-color)]"
-              style="background: var(--accent-color)"
+              class="h-12 border border-[var(--border-color)]"
+              style="background: var(--accent-color); border-radius: var(--radius-base)"
             ></div>
           </div>
           <div class="flex flex-col gap-1.5">
             <div
-              class="inline-flex items-center rounded-full border border-[var(--border-color)] px-2 py-0.5 text-[11px] font-mono text-[var(--color-text-dim)]"
+              class="inline-flex items-center border border-[var(--border-color)] px-2 py-0.5 text-[11px] font-mono text-[var(--color-text-dim)]"
+              style="border-radius: var(--radius-pill)"
             >
               --color-success
             </div>
             <div
-              class="h-12 rounded border border-[var(--border-color)]"
-              style="background: var(--color-success)"
+              class="h-12 border border-[var(--border-color)]"
+              style="background: var(--color-success); border-radius: var(--radius-base)"
             ></div>
           </div>
           <div class="flex flex-col gap-1.5">
             <div
-              class="inline-flex items-center rounded-full border border-[var(--border-color)] px-2 py-0.5 text-[11px] font-mono text-[var(--color-text-dim)]"
+              class="inline-flex items-center border border-[var(--border-color)] px-2 py-0.5 text-[11px] font-mono text-[var(--color-text-dim)]"
+              style="border-radius: var(--radius-pill)"
             >
               --color-error
             </div>
             <div
-              class="h-12 rounded border border-[var(--border-color)]"
-              style="background: var(--color-error)"
+              class="h-12 border border-[var(--border-color)]"
+              style="background: var(--color-error); border-radius: var(--radius-base)"
             ></div>
           </div>
           <div class="flex flex-col gap-1.5">
             <div
-              class="inline-flex items-center rounded-full border border-[var(--border-color)] px-2 py-0.5 text-[11px] font-mono text-[var(--color-text-dim)]"
+              class="inline-flex items-center border border-[var(--border-color)] px-2 py-0.5 text-[11px] font-mono text-[var(--color-text-dim)]"
+              style="border-radius: var(--radius-pill)"
             >
               --color-warning
             </div>
             <div
-              class="h-12 rounded border border-[var(--border-color)]"
-              style="background: var(--color-warning)"
+              class="h-12 border border-[var(--border-color)]"
+              style="background: var(--color-warning); border-radius: var(--radius-base)"
             ></div>
           </div>
           <div class="flex flex-col gap-1.5">
             <div
-              class="inline-flex items-center rounded-full border border-[var(--border-color)] px-2 py-0.5 text-[11px] font-mono text-[var(--color-text-dim)]"
+              class="inline-flex items-center border border-[var(--border-color)] px-2 py-0.5 text-[11px] font-mono text-[var(--color-text-dim)]"
+              style="border-radius: var(--radius-pill)"
             >
               --color-info
             </div>
             <div
-              class="h-12 rounded border border-[var(--border-color)]"
-              style="background: var(--color-info)"
+              class="h-12 border border-[var(--border-color)]"
+              style="background: var(--color-info); border-radius: var(--radius-base)"
             ></div>
           </div>
           <div class="flex flex-col gap-1.5">
             <div
-              class="inline-flex items-center rounded-full border border-[var(--border-color)] px-2 py-0.5 text-[11px] font-mono text-[var(--color-text-dim)]"
+              class="inline-flex items-center border border-[var(--border-color)] px-2 py-0.5 text-[11px] font-mono text-[var(--color-text-dim)]"
+              style="border-radius: var(--radius-pill)"
             >
               --color-text
             </div>
             <div
-              class="h-12 rounded border border-[var(--border-color)]"
-              style="background: var(--color-text)"
+              class="h-12 border border-[var(--border-color)]"
+              style="background: var(--color-text); border-radius: var(--radius-base)"
             ></div>
           </div>
         </div>
@@ -481,10 +482,10 @@ for (let i = 0; i < 80; i++) {
 
         <div class="panel-card shadow p-3 flex flex-col gap-3 max-w-2xl">
           <h3 class="m-0 text-sm font-mono">Playground</h3>
-          <div class="grid sm:grid-cols-3 gap-3 text-[12px] items-start">
+          <div class="grid sm:grid-cols-3 gap-3 text-[12px]">
             <label class="flex items-center gap-2">
-              <span class="w-16 dim font-mono">Variant</span>
-              <select v-model="playVariant as any" class="input">
+              <span class="w-14 shrink-0 dim font-mono">Variant</span>
+              <select v-model="playVariant as any" class="input flex-1">
                 <option value="primary">primary</option>
                 <option value="secondary">secondary</option>
                 <option value="danger">danger</option>
@@ -495,32 +496,38 @@ for (let i = 0; i < 80; i++) {
               </select>
             </label>
             <label class="flex items-center gap-2">
-              <span class="w-16 dim font-mono">Style</span>
-              <select v-model="playStyle as any" class="input">
+              <span class="w-14 shrink-0 dim font-mono">Style</span>
+              <select v-model="playStyle as any" class="input flex-1">
                 <option value="solid">solid</option>
                 <option value="outline">outline</option>
                 <option value="ghost">ghost</option>
               </select>
             </label>
             <label class="flex items-center gap-2">
-              <span class="w-16 dim font-mono">Size</span>
-              <select v-model="playSize as any" class="input">
+              <span class="w-14 shrink-0 dim font-mono">Size</span>
+              <select v-model="playSize as any" class="input flex-1">
                 <option value="default">default</option>
                 <option value="sm">sm</option>
                 <option value="lg">lg</option>
               </select>
             </label>
             <label class="flex items-center gap-2">
-              <span class="w-16 dim font-mono">Label</span>
-              <input v-model="playLabel" class="input" />
+              <span class="w-14 shrink-0 dim font-mono">Label</span>
+              <input v-model="playLabel" class="input flex-1" />
             </label>
             <label class="flex items-center gap-2">
-              <input type="checkbox" v-model="playPressed" />
-              <span class="dim font-mono">aria-pressed</span>
+              <span class="w-14 shrink-0 dim font-mono">Flags</span>
+              <label class="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" v-model="playPressed" />
+                <span class="dim font-mono">pressed</span>
+              </label>
             </label>
             <label class="flex items-center gap-2">
-              <input type="checkbox" v-model="playDisabled" />
-              <span class="dim font-mono">disabled</span>
+              <span class="w-14 shrink-0"></span>
+              <label class="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" v-model="playDisabled" />
+                <span class="dim font-mono">disabled</span>
+              </label>
             </label>
           </div>
           <div class="flex items-center justify-center gap-4 my-6">
@@ -530,20 +537,23 @@ for (let i = 0; i < 80; i++) {
           </div>
           <div class="flex items-center gap-4 justify-end">
             <button
-              class="inline-flex items-center justify-center rounded-md border border-slate-500 text-slate-300 hover:bg-slate-500/10 px-2 py-1 text-xs"
+              class="inline-flex items-center justify-center border border-slate-500 text-slate-300 hover:bg-slate-500/10 px-2 py-1 text-xs"
+              style="border-radius: var(--radius-btn)"
               @click="copyPlaygroundMarkup"
             >
               Copy markup
             </button>
             <span
               v-if="copiedBtnMarkup"
-              class="inline-flex items-center rounded-full bg-emerald-600 text-white px-2 py-0.5 text-[10px] font-semibold"
+              class="inline-flex items-center bg-emerald-600 text-white px-2 py-0.5 text-[10px] font-semibold"
+              style="border-radius: var(--radius-pill)"
             >
               copied
             </span>
           </div>
           <pre
-            class="font-mono text-[11px] whitespace-pre-wrap bg-[var(--panel-bg)] border border-[var(--border-color)] rounded p-2"
+            class="font-mono text-[11px] whitespace-pre-wrap bg-[var(--panel-bg)] border border-[var(--border-color)] p-2"
+            style="border-radius: var(--radius-base)"
             >{{ playMarkup }}</pre
           >
         </div>
@@ -562,7 +572,8 @@ for (let i = 0; i < 80; i++) {
               <input
                 v-model="inputA"
                 placeholder="Placeholder"
-                class="w-full rounded-md border border-slate-600 bg-[var(--panel-bg)] text-[var(--color-text)] placeholder:text-[var(--color-text-dim)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
+                class="w-full border border-slate-600 bg-[var(--panel-bg)] text-[var(--color-text)] placeholder:text-[var(--color-text-dim)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
+                style="border-radius: var(--radius-input)"
               />
               <span class="text-[var(--color-text-dim)] text-[11px]">Helper text</span>
             </label>
@@ -571,14 +582,16 @@ for (let i = 0; i < 80; i++) {
               <input
                 disabled
                 placeholder="Disabled"
-                class="w-full rounded-md border border-slate-600 bg-[var(--panel-bg)] text-[var(--color-text)] placeholder:text-[var(--color-text-dim)] px-3 py-2 text-sm opacity-50 cursor-not-allowed"
+                class="w-full border border-slate-600 bg-[var(--panel-bg)] text-[var(--color-text)] placeholder:text-[var(--color-text-dim)] px-3 py-2 text-sm opacity-50 cursor-not-allowed"
+                style="border-radius: var(--radius-input)"
               />
             </label>
             <label class="flex flex-col gap-1">
               <span class="font-mono text-[11px] text-[var(--color-text-dim)]">Invalid</span>
               <input
                 placeholder="Invalid"
-                class="w-full rounded-md border border-rose-600 bg-[var(--panel-bg)] text-[var(--color-text)] placeholder:text-[var(--color-text-dim)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-600 focus:border-transparent"
+                class="w-full border border-rose-600 bg-[var(--panel-bg)] text-[var(--color-text)] placeholder:text-[var(--color-text-dim)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-600 focus:border-transparent"
+                style="border-radius: var(--radius-input)"
               />
               <span class="text-[11px] text-rose-400">Error message</span>
             </label>
@@ -588,7 +601,8 @@ for (let i = 0; i < 80; i++) {
               <span class="font-mono text-[11px] text-[var(--color-text-dim)]">Select</span>
               <select
                 v-model="inputB"
-                class="w-full rounded-md border border-slate-600 bg-[var(--panel-bg)] text-[var(--color-text)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
+                class="w-full border border-slate-600 bg-[var(--panel-bg)] text-[var(--color-text)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
+                style="border-radius: var(--radius-input)"
               >
                 <option>Some value</option>
                 <option>Another value</option>
@@ -622,7 +636,7 @@ for (let i = 0; i < 80; i++) {
       <section id="ranges" class="py-2">
         <header class="sg-section-header">
           <h2>Ranges</h2>
-          <p class="dim">Native sliders styled with the theme.</p>
+          <p class="dim">Slider components with custom styling.</p>
         </header>
         <div class="grid gap-10 md:grid-cols-2 max-w-5xl">
           <div class="space-y-2">
@@ -630,28 +644,40 @@ for (let i = 0; i < 80; i++) {
               <span class="font-mono text-[11px] dim">Standard</span>
               <span class="font-mono">{{ rangeValue }}</span>
             </div>
-            <input type="range" v-model="rangeValue" class="range" />
+            <RangeSlider v-model="rangeValue" />
           </div>
           <div class="space-y-2">
             <div class="flex items-center justify-between">
               <span class="font-mono text-[11px] dim">Small</span>
-              <span class="font-mono">{{ rangeValueSm }}</span>
+              <span class="font-mono">{{ rangeValue }}</span>
             </div>
-            <input type="range" v-model="rangeValueSm" class="range range-sm" />
+            <RangeSlider v-model="rangeValue" size="sm" />
           </div>
           <div class="space-y-2 md:col-span-2">
             <div class="flex items-center justify-between">
-              <span class="font-mono text-[11px] dim">Dual (two inputs)</span>
+              <span class="font-mono text-[11px] dim">Dual Range</span>
               <span class="font-mono">{{ rangeDualMin }} – {{ rangeDualMax }}</span>
             </div>
-            <div class="flex items-center gap-3">
-              <input type="range" v-model="rangeDualMin" class="range flex-1" />
-              <input type="range" v-model="rangeDualMax" class="range flex-1" />
-            </div>
+            <DualRangeSlider
+              v-model:minValue="rangeDualMin"
+              v-model:maxValue="rangeDualMax"
+              :min="0"
+              :max="rangeValue"
+            />
           </div>
           <div class="space-y-2">
-            <span class="font-mono text-[11px] dim">Vertical</span>
-            <input type="range" v-model="vertValue" class="range vertical-range" />
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] dim">Vertical</span>
+              <span class="font-mono">{{ vertValue }}</span>
+            </div>
+            <RangeSlider v-model="vertValue" vertical show-bubble :height="160" />
+          </div>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] dim">With Bubble</span>
+              <span class="font-mono">{{ rangeValue }}</span>
+            </div>
+            <RangeSlider v-model="rangeValue" show-bubble />
           </div>
         </div>
       </section>
@@ -710,9 +736,10 @@ for (let i = 0; i < 80; i++) {
             <template #cell-side="{ value }">
               <span
                 :class="[
-                  'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold',
+                  'inline-flex items-center px-2 py-0.5 text-xs font-semibold',
                   value === 'BUY' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white',
                 ]"
+                :style="{ borderRadius: 'var(--radius-pill)' }"
                 >{{ value }}</span
               >
             </template>
@@ -730,9 +757,13 @@ for (let i = 0; i < 80; i++) {
           <p class="text-[var(--color-text-dim)]">Panel shells, headings, and anchored menus.</p>
         </header>
         <div class="grid md:grid-cols-2 gap-6 max-w-4xl">
-          <div class="rounded-lg border border-[var(--border-color)] bg-[var(--panel-bg)] shadow">
+          <div
+            class="border border-[var(--border-color)] bg-[var(--panel-bg)] shadow"
+            style="border-radius: var(--radius-lg)"
+          >
             <div
-              class="px-3 py-2 border-b border-[var(--border-color)] bg-[var(--panel-header-bg)] rounded-t-lg text-[13px] font-medium"
+              class="px-3 py-2 border-b border-[var(--border-color)] bg-[var(--panel-header-bg)] text-[13px] font-medium"
+              style="border-radius: var(--radius-lg) var(--radius-lg) 0 0"
             >
               Panel Header
             </div>
@@ -742,28 +773,33 @@ for (let i = 0; i < 80; i++) {
           </div>
           <div class="relative" ref="menuAnchorRef">
             <button
-              class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium border border-slate-500 text-slate-300 hover:bg-slate-500/10"
+              class="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium border border-slate-500 text-slate-300 hover:bg-slate-500/10"
+              style="border-radius: var(--radius-btn)"
               @click="openMenu = !openMenu"
             >
               Toggle Menu
             </button>
             <div
               v-if="openMenu"
-              class="absolute left-0 mt-1 min-w-[180px] rounded-lg border border-[var(--border-color)] bg-[var(--panel-bg)] shadow-xl p-1 z-20"
+              class="absolute left-0 mt-1 min-w-[180px] border border-[var(--border-color)] bg-[var(--panel-bg)] shadow-xl p-1 z-20"
+              style="border-radius: var(--radius-menu)"
               role="menu"
             >
               <button
-                class="w-full text-left px-2 py-1.5 rounded-md text-sm hover:bg-[var(--color-bg-alt)]"
+                class="w-full text-left px-2 py-1.5 text-sm hover:bg-[var(--color-bg-alt)]"
+                style="border-radius: var(--radius-base)"
               >
                 New
               </button>
               <button
-                class="w-full text-left px-2 py-1.5 rounded-md text-sm hover:bg-[var(--color-bg-alt)]"
+                class="w-full text-left px-2 py-1.5 text-sm hover:bg-[var(--color-bg-alt)]"
+                style="border-radius: var(--radius-base)"
               >
                 Duplicate
               </button>
               <button
-                class="w-full text-left px-2 py-1.5 rounded-md text-sm hover:bg-[var(--color-bg-alt)]"
+                class="w-full text-left px-2 py-1.5 text-sm hover:bg-[var(--color-bg-alt)]"
+                style="border-radius: var(--radius-base)"
                 @click="closeDemoMenu"
               >
                 Close
@@ -805,27 +841,32 @@ for (let i = 0; i < 80; i++) {
         </header>
         <div class="flex flex-wrap gap-6 items-center">
           <div
-            class="w-28 h-16 bg-[var(--panel-bg)] rounded-lg shadow-sm flex items-center justify-center text-[11px] dim"
+            class="w-28 h-16 bg-[var(--panel-bg)] shadow-sm flex items-center justify-center text-[11px] dim"
+            style="border-radius: var(--radius-lg)"
           >
             sm
           </div>
           <div
-            class="w-28 h-16 bg-[var(--panel-bg)] rounded-lg shadow flex items-center justify-center text-[11px] dim"
+            class="w-28 h-16 bg-[var(--panel-bg)] shadow flex items-center justify-center text-[11px] dim"
+            style="border-radius: var(--radius-lg)"
           >
             base
           </div>
           <div
-            class="w-28 h-16 bg-[var(--panel-bg)] rounded-lg shadow-md flex items-center justify-center text-[11px] dim"
+            class="w-28 h-16 bg-[var(--panel-bg)] shadow-md flex items-center justify-center text-[11px] dim"
+            style="border-radius: var(--radius-lg)"
           >
             md
           </div>
           <div
-            class="w-28 h-16 bg-[var(--panel-bg)] rounded-lg shadow-lg flex items-center justify-center text-[11px] dim"
+            class="w-28 h-16 bg-[var(--panel-bg)] shadow-lg flex items-center justify-center text-[11px] dim"
+            style="border-radius: var(--radius-lg)"
           >
             lg
           </div>
           <div
-            class="w-28 h-16 bg-[var(--panel-bg)] rounded-lg shadow-xl flex items-center justify-center text-[11px] dim"
+            class="w-28 h-16 bg-[var(--panel-bg)] shadow-xl flex items-center justify-center text-[11px] dim"
+            style="border-radius: var(--radius-lg)"
           >
             xl
           </div>
@@ -864,14 +905,6 @@ for (let i = 0; i < 80; i++) {
     monospace;
   font-size: 16px;
   scroll-margin-top: 72px;
-}
-
-.vertical-range {
-  writing-mode: bt-lr; /* Firefox */
-  -webkit-appearance: slider-vertical; /* Chrome/Safari */
-  appearance: slider-vertical;
-  height: 160px;
-  max-width: 32px;
 }
 
 @media (max-width: 960px) {

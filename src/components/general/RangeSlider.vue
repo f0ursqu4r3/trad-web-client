@@ -1,3 +1,75 @@
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+interface Props {
+  modelValue: number
+  min?: number
+  max?: number
+  step?: number
+  size?: 'default' | 'sm'
+  vertical?: boolean
+  showBubble?: boolean
+  disabled?: boolean
+  height?: number | string
+  trackThickness?: number
+  ariaLabel?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  min: 0,
+  max: 100,
+  step: 1,
+  size: 'default',
+  vertical: false,
+  showBubble: false,
+  disabled: false,
+  height: 160,
+  trackThickness: 4,
+})
+
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: number): void
+  (e: 'change', value: number): void
+}>()
+
+const inputRef = ref<HTMLInputElement | null>(null)
+
+const pct = computed(() => {
+  const span = props.max - props.min
+  if (span <= 0) return 0
+  return ((props.modelValue - props.min) / span) * 100
+})
+
+const fillStyle = computed(() => {
+  return props.vertical
+    ? { height: pct.value + '%', width: '100%', bottom: 0 }
+    : { width: pct.value + '%', height: '100%' }
+})
+
+const bubbleStyle = computed(() => {
+  if (props.vertical) {
+    return {
+      bottom: `calc(${pct.value}% - 7px)`,
+      transform: 'translateX(-50%)',
+    }
+  }
+  return { left: `${pct.value}%`, transform: 'translateX(-50%) translateY(-50%)' }
+})
+
+const rootStyle = computed(() => ({
+  '--rslider-track-thickness': props.trackThickness + 'px',
+  ...(props.vertical
+    ? { height: typeof props.height === 'number' ? props.height + 'px' : props.height }
+    : {}),
+}))
+
+function onInput(e: Event) {
+  const target = e.target as HTMLInputElement
+  const val = Number(target.value)
+  emit('update:modelValue', val)
+}
+</script>
+
 <template>
   <div
     class="rslider"
@@ -32,72 +104,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-
-interface Props {
-  modelValue: number
-  min?: number
-  max?: number
-  step?: number
-  size?: 'default' | 'sm'
-  vertical?: boolean
-  showBubble?: boolean
-  disabled?: boolean
-  height?: number | string
-  trackThickness?: number
-  ariaLabel?: string
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  min: 0,
-  max: 100,
-  step: 1,
-  size: 'default',
-  vertical: false,
-  showBubble: true,
-  disabled: false,
-  height: 160,
-  trackThickness: 4,
-})
-
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: number): void
-  (e: 'change', value: number): void
-}>()
-
-const inputRef = ref<HTMLInputElement | null>(null)
-
-const pct = computed(() => {
-  const span = props.max - props.min
-  if (span <= 0) return 0
-  return ((props.modelValue - props.min) / span) * 100
-})
-
-const fillStyle = computed(() => {
-  return props.vertical
-    ? { height: pct.value + '%', width: '100%', bottom: 0 }
-    : { width: pct.value + '%', height: '100%' }
-})
-
-const bubbleStyle = computed(() => {
-  return props.vertical ? { bottom: pct.value + '%' } : { left: pct.value + '%' }
-})
-
-const rootStyle = computed(() => ({
-  '--rslider-track-thickness': props.trackThickness + 'px',
-  ...(props.vertical
-    ? { height: typeof props.height === 'number' ? props.height + 'px' : props.height }
-    : {}),
-}))
-
-function onInput(e: Event) {
-  const target = e.target as HTMLInputElement
-  const val = Number(target.value)
-  emit('update:modelValue', val)
-}
-</script>
 
 <style scoped>
 .rslider {
@@ -158,9 +164,10 @@ function onInput(e: Event) {
   cursor: pointer;
 }
 .rslider-vertical .rslider-native {
-  writing-mode: bt-lr;
-  -webkit-appearance: slider-vertical;
-  appearance: slider-vertical;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   height: 100%;
 }
@@ -261,9 +268,10 @@ function onInput(e: Event) {
   white-space: nowrap;
 }
 .rslider-vertical .rslider-bubble {
-  left: 50%;
-  transform: translate(-50%, 50%);
+  left: calc(100% + 8px);
   top: auto;
+  bottom: 0;
+  transform: translateY(50%);
 }
 .rslider-bubble::after {
   content: '';
@@ -279,8 +287,8 @@ function onInput(e: Event) {
   border-top: 0;
 }
 .rslider-vertical .rslider-bubble::after {
-  top: auto;
-  bottom: 100%;
-  transform: translate(-50%, 40%) rotate(225deg);
+  left: 0;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(135deg);
 }
 </style>

@@ -256,7 +256,6 @@ onBeforeUnmount(() => {
   height: var(--dualr-track-thickness);
   background: color-mix(in srgb, var(--border-color) 55%, transparent);
   border-radius: var(--radius-sm);
-  overflow: hidden;
 }
 .dualr-range {
   position: absolute;
