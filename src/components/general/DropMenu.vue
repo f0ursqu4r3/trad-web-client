@@ -17,11 +17,15 @@ const props = withDefaults(
     items?: Array<DropMenuItem>
     multiple?: boolean
     modelValue?: Array<string | number>
+    triggerText?: string
+    triggerClass?: string
   }>(),
   {
     items: () => [],
     multiple: false,
     modelValue: () => [],
+    triggerText: '',
+    triggerClass: '',
   },
 )
 
@@ -353,6 +357,7 @@ onBeforeUnmount(() => {
     <slot name="trigger">
       <button
         class="btn btn-sm icon-btn"
+        :class="props.triggerClass"
         title="Menu"
         aria-haspopup="menu"
         :aria-expanded="showMenu ? 'true' : 'false'"
@@ -360,7 +365,8 @@ onBeforeUnmount(() => {
         @keydown.enter.prevent="toggleMenu"
         @keydown.space.prevent="toggleMenu"
       >
-        <MenuDotsIcon class="icon" size="10" />
+        <span v-if="props.triggerText">{{ props.triggerText }}</span>
+        <MenuDotsIcon v-else class="icon" size="10" />
       </button>
     </slot>
 
@@ -368,7 +374,7 @@ onBeforeUnmount(() => {
       <div
         v-if="props.items && showMenu"
         ref="menuRef"
-        class="fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10 py-1"
+        class="fixed dropmenu-panel z-10"
         :style="menuInlineStyle"
         role="menu"
       >
@@ -376,10 +382,7 @@ onBeforeUnmount(() => {
           <button
             v-for="(item, index) in props.items"
             :key="index"
-            :class="[
-              'w-full flex items-center justify-between text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed gap-2',
-              props.multiple && isItemSelected(item, index) ? 'bg-gray-100 dark:bg-gray-700' : '',
-            ]"
+            class="dropmenu-item"
             :disabled="item.disabled"
             @click="performAction(item, index)"
             :role="props.multiple ? 'menuitemcheckbox' : 'menuitem'"
@@ -393,3 +396,37 @@ onBeforeUnmount(() => {
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+.dropmenu-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--color-text);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  border-radius: 0;
+  padding: 0;
+}
+.dropmenu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--color-text);
+  background: transparent;
+  border-top: 1px solid var(--color-text-dim);
+  cursor: pointer;
+}
+.dropmenu-item:first-of-type {
+  border-top: none;
+}
+.dropmenu-item:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--panel-bg) 70%, var(--color-text) 8%);
+}
+.dropmenu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+</style>

@@ -3,7 +3,7 @@ import { ref, computed, type Component } from 'vue'
 import StickyScroller from '@/components/general/StickyScroller.vue'
 import { useCommandStore } from '@/stores/command'
 import { useModalStore } from '@/stores/modals'
-import { ArrowTrendingDownIcon, BoltIcon, FolderIcon, FunnelIcon, StarIcon } from '@/components/icons'
+import { FunnelIcon } from '@/components/icons'
 
 import type { MarketOrderPrefill, TrailingEntryPrefill } from '../modals/commands/types'
 import type { UserCommandPayload } from '@/lib/ws/protocol'
@@ -43,20 +43,6 @@ function handleCheckboxChange(
   }
 }
 
-function getCommandIcon(kind: UserCommandPayload['kind']) {
-  switch (kind) {
-    case 'TrailingEntryOrder':
-      return BoltIcon
-    case 'MarketOrder':
-      return ArrowTrendingDownIcon
-    case 'SplitMarketOrder':
-      return FolderIcon
-    case 'LimitOrder':
-      return StarIcon
-    default:
-      return null
-  }
-}
 
 function getCommandComponent(command: UserCommandPayload): Component | string {
   switch (command.kind) {
@@ -194,7 +180,6 @@ function handleClosePosition(commandId: string): void {
               :commandStatus="cmd.status"
               :label="cmd.command.kind"
               :createdAt="cmd.created_at"
-              :icon="getCommandIcon(cmd.command.kind)"
               @duplicate="handleDuplicate(cmd.command)"
               @cancel="handleCancel"
               @inspect="handleInspect"

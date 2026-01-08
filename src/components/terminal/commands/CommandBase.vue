@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, ref, type Component } from 'vue'
+import { computed, ref } from 'vue'
 import DropMenu from '@/components/general/DropMenu.vue'
 import { type DropMenuItem } from '@/components/general/DropMenu.vue'
 import { DownIcon } from '@/components/icons'
@@ -11,12 +11,10 @@ const props = withDefaults(
     commandStatus: string
     label?: string
     createdAt?: string | null
-    icon?: Component | null
   }>(),
   {
     label: 'Trailing Entry',
     createdAt: null,
-    icon: null,
   },
 )
 
@@ -107,7 +105,6 @@ async function copyId() {
     <div class="command-status-bar" :class="statusClass"></div>
     <div class="flex items-start justify-between gap-3 px-3 py-2">
       <div class="flex items-center flex-wrap gap-2">
-        <component v-if="icon" :is="icon" size="14" class="text-[var(--color-text-dim)]" />
         <span class="uppercase font-bold text-[12px] tracking-[0.06em] cursor-pointer">
           {{ formatName(label) }}
         </span>
@@ -134,10 +131,10 @@ async function copyId() {
         </span>
 
         <div class="flex items-center gap-2">
-          <DropMenu :items="menuItems" />
+          <DropMenu :items="menuItems" trigger-class="command-action-btn" />
 
           <button
-            class="btn btn-sm icon-btn"
+            class="btn btn-sm icon-btn command-action-btn"
             :title="expanded ? 'Collapse' : 'Expand'"
             @click.stop="expanded = !expanded"
             aria-label="Toggle details"
@@ -180,5 +177,22 @@ async function copyId() {
 }
 .command-status-neutral {
   background-color: var(--color-text-dim);
+}
+:deep(.command-action-btn) {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  line-height: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  background: transparent;
+  box-shadow: none;
+}
+:deep(.command-action-btn .icon) {
+  display: block;
 }
 </style>
