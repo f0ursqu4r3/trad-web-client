@@ -105,7 +105,7 @@ async function copyId() {
     <div class="command-status-bar" :class="statusClass"></div>
     <div class="flex items-start justify-between gap-3 px-3 py-2">
       <div class="flex items-center flex-wrap gap-2">
-        <span class="uppercase font-bold text-[12px] tracking-[0.06em] cursor-pointer">
+        <span class="font-normal text-[13px] text-[var(--color-text-dim)] cursor-pointer">
           {{ formatName(label) }}
         </span>
         <span

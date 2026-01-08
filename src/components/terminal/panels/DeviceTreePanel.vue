@@ -10,12 +10,12 @@
       v-else
       v-model:collapsed-ids="collapsed"
       :items="treeData"
-      :indent="12"
+      :indent="24"
       inline-toggle
     >
       <template #default="{ item, isLeaf, toggle, expanded: isExpanded }">
         <div
-          class="flex items-center gap-2 px-2 border-slate-800/60 text-[13px] hover:bg-white/5 select-none cursor-default w-full device-row"
+          class="flex items-center gap-2 border-slate-800/60 text-[13px] hover:bg-white/5 select-none cursor-default w-full device-row"
           :class="[
             rowClass(item),
             item.id == selectedDeviceId ? 'ring-2 ring-[var(--color-text)]' : '',
@@ -188,6 +188,12 @@ const rowClass = (item: TreeItem): string => {
 </script>
 
 <style scoped>
+.device-row {
+  margin-left: var(--tree-indent, 0px);
+  width: calc(100% - var(--tree-indent, 0px));
+  padding: 0 0.5rem;
+}
+
 .device-row-failed {
   background-color: color-mix(in srgb, var(--color-error) 14%, transparent);
 }

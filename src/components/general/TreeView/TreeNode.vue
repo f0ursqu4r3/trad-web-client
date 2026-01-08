@@ -46,7 +46,7 @@ function onToggle() {
     class="leading-7"
     role="treeitem"
     :aria-expanded="hasChildren ? !!expanded : undefined"
-    :style="{ paddingLeft: `${level * indent}px` }"
+    :style="{ '--tree-indent': `${level * indent}px` }"
   >
     <div class="flex items-center gap-1.5">
       <slot

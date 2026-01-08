@@ -55,6 +55,11 @@ function getCommandComponent(command: UserCommandPayload): Component | string {
   }
 }
 
+function getCommandLabel(command: UserCommandPayload): string {
+  if (command.kind === 'TrailingEntryOrder') return 'Trailing Entry'
+  return command.kind
+}
+
 function handleDuplicate(command: UserCommandPayload): void {
   switch (command.kind) {
     case 'TrailingEntryOrder':
@@ -98,7 +103,8 @@ function handleClosePosition(commandId: string): void {
 <template>
   <div class="panel flex flex-col h-full min-h-0">
     <div class="panel-header flex flex-col">
-      <div class="flex justify-end items-center gap-2">
+      <div class="flex justify-between items-center gap-2">
+        <span class="panel-title">Commands</span>
         <span v-if="hiddenCommandCount" class="text-xs"> {{ hiddenCommandCount }} hidden </span>
         <button class="btn btn-sm btn-ghost" @click="showFilters = !showFilters">
           <FunnelIcon size="12" />
@@ -178,7 +184,7 @@ function handleClosePosition(commandId: string): void {
               v-if="Object.values(interestingCommandKinds).includes(cmd.command.kind)"
               :commandId="cmd.command_id"
               :commandStatus="cmd.status"
-              :label="cmd.command.kind"
+              :label="getCommandLabel(cmd.command)"
               :createdAt="cmd.created_at"
               @duplicate="handleDuplicate(cmd.command)"
               @cancel="handleCancel"

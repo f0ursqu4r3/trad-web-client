@@ -6,19 +6,19 @@
   >
     <template #inbound-debug>
       <div class="panel">
-        <div class="panel-header dim">messages</div>
+        <div class="panel-header"><span class="panel-title">Messages</span></div>
         <InboundDebugPanel />
       </div>
     </template>
     <template #command-history>
       <div class="panel">
-        <div class="panel-header dim">commands</div>
+        <div class="panel-header"><span class="panel-title">Commands</span></div>
         <CommandPanel />
       </div>
     </template>
     <template #device-tree>
       <div class="panel">
-        <div class="panel-header dim">devices</div>
+        <div class="panel-header"><span class="panel-title">Devices</span></div>
         <DeviceTreePanel />
       </div>
     </template>
