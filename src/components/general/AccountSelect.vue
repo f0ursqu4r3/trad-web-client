@@ -2,36 +2,48 @@
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { useAccountsStore } from '@/stores/accounts'
 import { useUiStore } from '@/stores/ui'
+import DropMenu, { type DropMenuItem } from '@/components/general/DropMenu.vue'
+import { DownIcon } from '@/components/icons'
+import { accountColorFromId } from '@/lib/accountColors'
 
 const accounts = useAccountsStore()
 const ui = useUiStore()
 
 const selectedAccount = computed(() => accounts.selectedAccount)
+
+const accountLabel = computed(() => {
+  if (!selectedAccount.value) return 'No account selected'
+  const { label, exchange, network } = selectedAccount.value
+  return `${label} • ${exchange} • ${network}`
+})
+
 const accountColor = computed(() => {
   if (!selectedAccount.value) return 'var(--color-text-dim)'
-  const palette = [
-    '#56cfe1',
-    '#5b8cff',
-    '#3fd28c',
-    '#f7a529',
-    '#e45757',
-    '#9d7bff',
-    '#21b8c5',
-    '#8bc34a',
-    '#ff9f1c',
-  ]
   const id = selectedAccount.value.id || selectedAccount.value.label
-  let hash = 0
-  for (let i = 0; i < id.length; i += 1) {
-    hash = (hash * 31 + id.charCodeAt(i)) % 2147483647
-  }
-  return palette[Math.abs(hash) % palette.length]
+  return accountColorFromId(id)
+})
+
+const accountMenuItems = computed<DropMenuItem[]>(() => {
+  return accounts.accounts.map((acc) => {
+    const color = accountColorFromId(acc.id || acc.label)
+    return {
+      label: `${acc.label} • ${acc.exchange} • ${acc.network}`,
+      value: acc.id,
+      className: 'account-menu-item',
+      style: {
+        background: color,
+        color: '#f5f7fa',
+      },
+      action: () => {
+        accounts.selectedAccountId = acc.id
+      },
+    }
+  })
 })
 
 function onKeyDown(event: KeyboardEvent) {
   if (event.ctrlKey || event.metaKey) {
     const key = event.key
-    // 1-0 keys
     if (/^[1-9]$/.test(key) || key === '0') {
       const index = key === '0' ? 9 : parseInt(key, 10) - 1
       const account = accounts.accounts[index]
@@ -55,30 +67,47 @@ onBeforeUnmount(() => {
 <template>
   <div class="flex items-center space-x-2">
     <span class="muted">Account:</span>
-    <select
-      v-if="accounts.accounts.length > 0"
-      class="input-sm account-select"
-      v-model="accounts.selectedAccountId"
-      :disabled="accounts.loading || accounts.accounts.length === 0"
-      :style="{ '--account-color': accountColor }"
-    >
-      <option v-if="accounts.loading" disabled>Loading...</option>
-      <option v-else-if="accounts.accounts.length === 0" disabled>No accounts</option>
-      <option v-for="acc in accounts.accounts" :key="acc.id" :value="acc.id">
-        {{ acc.label }} • {{ acc.exchange }} • {{ acc.network }}
-      </option>
-    </select>
+    <DropMenu v-if="accounts.accounts.length > 0" :items="accountMenuItems">
+      <template #trigger>
+        <button
+          class="btn btn-sm account-trigger"
+          type="button"
+          :style="{ '--account-color': accountColor }"
+        >
+          <span class="account-trigger-label">{{ accountLabel }}</span>
+          <DownIcon size="12" class="icon" />
+        </button>
+      </template>
+    </DropMenu>
     <button v-else class="link-term" @click="ui.openSettings()">No accounts — configure</button>
   </div>
 </template>
 
 <style scoped>
-.account-select {
-  min-width: 260px;
+.account-trigger {
+  min-width: 280px;
   border-radius: 0;
-  background: color-mix(in srgb, var(--account-color) 12%, transparent);
-  border-color: color-mix(in srgb, var(--account-color) 65%, var(--border-color));
-  border-left: 4px solid var(--account-color);
-  padding-left: 0.5rem;
+  background: var(--account-color);
+  border-color: var(--account-color);
+  color: #f5f7fa;
+  padding: 0.2rem 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: none;
+}
+
+.account-trigger-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #f5f7fa;
+}
+
+:deep(.account-menu-item) {
+  border-top: 1px solid color-mix(in srgb, var(--panel-bg) 50%, transparent);
+}
+
+:deep(.account-menu-item:hover:not(:disabled)) {
+  filter: brightness(1.05);
 }
 </style>

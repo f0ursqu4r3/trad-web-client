@@ -5,6 +5,8 @@ export interface DropMenuItem {
   disabled?: boolean
   value?: string | number
   selected?: boolean
+  className?: string
+  style?: string | Record<string, string>
 }
 </script>
 <script setup lang="ts">
@@ -383,6 +385,8 @@ onBeforeUnmount(() => {
             v-for="(item, index) in props.items"
             :key="index"
             class="dropmenu-item"
+            :class="item.className"
+            :style="item.style"
             :disabled="item.disabled"
             @click="performAction(item, index)"
             :role="props.multiple ? 'menuitemcheckbox' : 'menuitem'"

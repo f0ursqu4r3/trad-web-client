@@ -8,7 +8,7 @@
       <div class="toolbar-row">
         <div class="toolbar-section">
           <span class="muted">logged in as</span>
-          <span class="text-term-accent">{{ username }}</span>
+          <span class="text-[var(--color-text)]">{{ username }}</span>
           <span class="muted">|</span>
           <AccountSelect />
         </div>
@@ -40,6 +40,7 @@ import { CogIcon } from '@/components/icons'
 import { useUserStore } from '@/stores/user'
 import { useUiStore } from '@/stores/ui'
 import { useAccountsStore } from '@/stores/accounts'
+import { accountColorFromId } from '@/lib/accountColors'
 
 import WsIndicator from '@/components/general/WsIndicator.vue'
 import UserSettings from '@/components/terminal/modals/UserSettings.vue'
@@ -64,23 +65,8 @@ const railLabel = computed(() => {
 
 const railColor = computed(() => {
   if (!selectedAccount.value) return 'var(--color-text-dim)'
-  const palette = [
-    '#56cfe1',
-    '#5b8cff',
-    '#3fd28c',
-    '#f7a529',
-    '#e45757',
-    '#9d7bff',
-    '#21b8c5',
-    '#8bc34a',
-    '#ff9f1c',
-  ]
   const id = selectedAccount.value.id || selectedAccount.value.label
-  let hash = 0
-  for (let i = 0; i < id.length; i += 1) {
-    hash = (hash * 31 + id.charCodeAt(i)) % 2147483647
-  }
-  return palette[Math.abs(hash) % palette.length]
+  return accountColorFromId(id)
 })
 </script>
 
@@ -91,8 +77,8 @@ const railColor = computed(() => {
   border-right: 1px solid color-mix(in srgb, var(--account-rail-color) 35%, var(--border-color));
   display: flex;
   align-items: flex-start;
-  justify-content: center;
-  padding: 6px 0 6px 2px;
+  justify-content: flex-end;
+  padding: 6px 0 8px 4px;
   flex-shrink: 0;
 }
 
@@ -105,6 +91,8 @@ const railColor = computed(() => {
   text-transform: uppercase;
   opacity: 0.85;
   white-space: nowrap;
-  margin-left: 2px;
+  margin-left: 0;
+  align-self: flex-start;
+  text-align: left;
 }
 </style>
