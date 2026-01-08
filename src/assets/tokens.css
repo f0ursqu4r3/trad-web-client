@@ -20,13 +20,13 @@
   --radius-full: 9999px;
 
   /* Component-specific radius assignments */
-  --radius-btn: var(--radius-base);
-  --radius-input: var(--radius-base);
+  --radius-btn: var(--radius-none);
+  --radius-input: var(--radius-none);
   --radius-panel: var(--radius-none);
-  --radius-card: var(--radius-base);
-  --radius-menu: var(--radius-base);
+  --radius-card: var(--radius-none);
+  --radius-menu: var(--radius-none);
   --radius-badge: var(--radius-sm);
-  --radius-pill: var(--radius-full);
+  --radius-pill: var(--radius-none);
 
   /* Terminal palette */
   --color-term-bg: #0b0f14;
