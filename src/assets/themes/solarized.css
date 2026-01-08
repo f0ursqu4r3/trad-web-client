@@ -1,0 +1,100 @@
+/* Solarized Dark theme (scientifically designed palette) */
+/* Source: https://ethanschoonover.com/solarized/ */
+[data-theme='solarized'] {
+  /* Solarized Dark palette:
+     base03: #002b36  base02: #073642  base01: #586e75  base00: #657b83
+     base0: #839496  base1: #93a1a1  base2: #eee8d5  base3: #fdf6e3
+     Yellow: #b58900  Orange: #cb4b16  Red: #dc322f  Magenta: #d33682
+     Violet: #6c71c4  Blue: #268bd2  Cyan: #2aa198  Green: #859900 */
+
+  /* Surfaces */
+  --color-bg: #002b36;
+  --color-bg-alt: #073642;
+  --panel-bg: #002b36;
+  --panel-header-bg: #073642;
+  --panel-border-inner: #094252;
+  --border-color: #586e75;
+  --color-border-strong: #657b83;
+  --color-bg-secondary: #073642;
+  --color-bg-tertiary: #094252;
+
+  /* Typography */
+  --color-text: #93a1a1;
+  --color-text-dim: #657b83;
+  --accent-color: #268bd2; /* blue */
+
+  /* Semantic */
+  --color-success: #859900;
+  --color-error: #dc322f;
+  --color-warning: #b58900;
+  --color-info: #2aa198;
+
+  /* Terminal */
+  --color-term-bg: #002b36;
+  --color-term-fg: #93a1a1;
+  --color-term-dim: #657b83;
+  --color-term-accent: #268bd2;
+  --color-term-border: #073642;
+  --color-term-ok: #859900;
+  --color-term-err: #dc322f;
+  --color-term-warn: #b58900;
+  --color-term-info: #2aa198;
+
+  /* Buttons */
+  --btn-bg-start: #094252;
+  --btn-bg-end: #073642;
+  --btn-border: #586e75;
+  --btn-fg: #93a1a1;
+
+  /* Form controls */
+  --control-mark-color: #002b36;
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 18%;
+  --pill-ring-alpha: 45%;
+
+  /* Button variants */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #586e75;
+  --btn-color-neutral-fg: #93a1a1;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 48%;
+  --btn-alpha-surface: 20%;
+  --btn-alpha-surface-hover: 30%;
+  --btn-alpha-surface-active: 40%;
+  --btn-alpha-outline-border: 65%;
+  --btn-alpha-outline-surface-hover: 18%;
+  --btn-alpha-outline-surface-active: 26%;
+  --btn-alpha-ghost-hover: 20%;
+  --btn-alpha-ghost-active: 30%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #073642;
+  --scrollbar-thumb-hover: #094252;
+
+  /* Account rail palette */
+  --account-color-1: #2aa198; /* cyan */
+  --account-color-2: #268bd2; /* blue */
+  --account-color-3: #859900; /* green */
+  --account-color-4: #b58900; /* yellow */
+  --account-color-5: #dc322f; /* red */
+  --account-color-6: #6c71c4; /* violet */
+  --account-color-7: #d33682; /* magenta */
+  --account-color-8: #cb4b16; /* orange */
+  --account-color-9: #2aa198; /* cyan alt */
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 28%;
+  --account-rail-border-alpha: 48%;
+}

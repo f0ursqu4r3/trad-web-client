@@ -1,0 +1,87 @@
+/* Synthwave theme (retro neon) */
+[data-theme='synthwave'] {
+  /* Core surfaces */
+  --color-bg: #130b1a;
+  --color-bg-alt: #1b0f25;
+  --panel-bg: #1a0f23;
+  --panel-header-bg: #23112f;
+  --panel-border-inner: #372046;
+  --border-color: #3e2751;
+  --color-text: #f5e9ff;
+  --color-text-dim: #c9b2d9;
+  --accent-color: #ff6ec7;
+  --color-bg-secondary: #1a0f23;
+  --color-bg-tertiary: #271534;
+
+  /* Semantic */
+  --color-success: #47f4c2;
+  --color-error: #ff4d6d;
+  --color-warning: #ffc857;
+  --color-info: #7ad7ff;
+  --color-border-strong: #56306f;
+
+  /* Terminal */
+  --color-term-accent: var(--accent-color);
+  --color-term-bg: #140a1e;
+  --color-term-fg: #f5e9ff;
+  --color-term-dim: #b899cc;
+  --color-term-border: #2d1840;
+
+  /* Buttons */
+  --btn-bg-start: #291538;
+  --btn-bg-end: #1d0d28;
+  --btn-border: #513066;
+  --btn-fg: #f5e9ff;
+
+  /* Form controls */
+  --control-mark-color: var(--color-text);
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 14%;
+  --pill-ring-alpha: 40%;
+
+  /* Button variants */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #b26dff;
+  --btn-color-neutral-fg: #f5e9ff;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 50%;
+  --btn-alpha-surface: 24%;
+  --btn-alpha-surface-hover: 34%;
+  --btn-alpha-surface-active: 45%;
+  --btn-alpha-outline-border: 65%;
+  --btn-alpha-outline-surface-hover: 14%;
+  --btn-alpha-outline-surface-active: 20%;
+  --btn-alpha-ghost-hover: 16%;
+  --btn-alpha-ghost-active: 26%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #3b224d;
+  --scrollbar-thumb-hover: #4a2b61;
+
+  /* Account rail palette */
+  --account-color-1: #7ad7ff;
+  --account-color-2: #ff6ec7;
+  --account-color-3: #47f4c2;
+  --account-color-4: #ffc857;
+  --account-color-5: #ff4d6d;
+  --account-color-6: #b26dff;
+  --account-color-7: #00e5ff;
+  --account-color-8: #76ff7a;
+  --account-color-9: #ffab40;
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 30%;
+  --account-rail-border-alpha: 50%;
+}

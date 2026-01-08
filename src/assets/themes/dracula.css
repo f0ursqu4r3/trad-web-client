@@ -1,0 +1,100 @@
+/* Dracula theme (popular dark theme with purple/pink accents) */
+/* Source: https://draculatheme.com */
+[data-theme='dracula'] {
+  /* Canonical Dracula palette:
+     Background: #282a36    Current Line: #44475a    Selection: #44475a
+     Foreground: #f8f8f2    Comment: #6272a4
+     Cyan: #8be9fd    Green: #50fa7b    Orange: #ffb86c    Pink: #ff79c6
+     Purple: #bd93f9    Red: #ff5555    Yellow: #f1fa8c */
+
+  /* Surfaces */
+  --color-bg: #282a36;
+  --color-bg-alt: #343746;
+  --panel-bg: #282a36;
+  --panel-header-bg: #343746;
+  --panel-border-inner: #44475a;
+  --border-color: #44475a;
+  --color-border-strong: #6272a4;
+  --color-bg-secondary: #343746;
+  --color-bg-tertiary: #44475a;
+
+  /* Typography */
+  --color-text: #f8f8f2;
+  --color-text-dim: #6272a4;
+  --accent-color: #bd93f9; /* purple as primary accent */
+
+  /* Semantic */
+  --color-success: #50fa7b;
+  --color-error: #ff5555;
+  --color-warning: #f1fa8c;
+  --color-info: #8be9fd;
+
+  /* Terminal */
+  --color-term-bg: #282a36;
+  --color-term-fg: #f8f8f2;
+  --color-term-dim: #6272a4;
+  --color-term-accent: #bd93f9;
+  --color-term-border: #44475a;
+  --color-term-ok: #50fa7b;
+  --color-term-err: #ff5555;
+  --color-term-warn: #f1fa8c;
+  --color-term-info: #8be9fd;
+
+  /* Buttons */
+  --btn-bg-start: #44475a;
+  --btn-bg-end: #343746;
+  --btn-border: #6272a4;
+  --btn-fg: #f8f8f2;
+
+  /* Form controls */
+  --control-mark-color: #282a36;
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 16%;
+  --pill-ring-alpha: 44%;
+
+  /* Button variants */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #6272a4;
+  --btn-color-neutral-fg: #f8f8f2;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 45%;
+  --btn-alpha-surface: 18%;
+  --btn-alpha-surface-hover: 28%;
+  --btn-alpha-surface-active: 38%;
+  --btn-alpha-outline-border: 65%;
+  --btn-alpha-outline-surface-hover: 16%;
+  --btn-alpha-outline-surface-active: 24%;
+  --btn-alpha-ghost-hover: 18%;
+  --btn-alpha-ghost-active: 28%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #44475a;
+  --scrollbar-thumb-hover: #6272a4;
+
+  /* Account rail palette */
+  --account-color-1: #8be9fd; /* cyan */
+  --account-color-2: #bd93f9; /* purple */
+  --account-color-3: #50fa7b; /* green */
+  --account-color-4: #f1fa8c; /* yellow */
+  --account-color-5: #ff5555; /* red */
+  --account-color-6: #ff79c6; /* pink */
+  --account-color-7: #ffb86c; /* orange */
+  --account-color-8: #69c3ff; /* light blue */
+  --account-color-9: #a4ffaf; /* light green */
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 26%;
+  --account-rail-border-alpha: 46%;
+}

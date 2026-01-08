@@ -1,0 +1,98 @@
+/* Cyberpunk theme (neon yellow on dark) */
+[data-theme='cyberpunk'] {
+  /* Cyberpunk 2077 inspired palette:
+     Background: #0a0a0f  Surface: #12121a
+     Primary: #fcee0a (neon yellow)  Cyan: #00f0ff  Magenta: #ff00a0
+     Red: #ff003c  Blue: #0080ff */
+
+  /* Surfaces */
+  --color-bg: #0a0a0f;
+  --color-bg-alt: #12121a;
+  --panel-bg: #0a0a0f;
+  --panel-header-bg: #16161f;
+  --panel-border-inner: #1e1e2a;
+  --border-color: #2a2a3a;
+  --color-border-strong: #fcee0a;
+  --color-bg-secondary: #12121a;
+  --color-bg-tertiary: #16161f;
+
+  /* Typography */
+  --color-text: #f0f0f0;
+  --color-text-dim: #808090;
+  --accent-color: #fcee0a; /* neon yellow */
+
+  /* Semantic */
+  --color-success: #00ff9f;
+  --color-error: #ff003c;
+  --color-warning: #fcee0a;
+  --color-info: #00f0ff;
+
+  /* Terminal */
+  --color-term-bg: #0a0a0f;
+  --color-term-fg: #f0f0f0;
+  --color-term-dim: #808090;
+  --color-term-accent: #fcee0a;
+  --color-term-border: #1e1e2a;
+  --color-term-ok: #00ff9f;
+  --color-term-err: #ff003c;
+  --color-term-warn: #fcee0a;
+  --color-term-info: #00f0ff;
+
+  /* Buttons */
+  --btn-bg-start: #1e1e2a;
+  --btn-bg-end: #16161f;
+  --btn-border: #3a3a4a;
+  --btn-fg: #f0f0f0;
+
+  /* Form controls */
+  --control-mark-color: #0a0a0f;
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 18%;
+  --pill-ring-alpha: 50%;
+
+  /* Button variants */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #3a3a4a;
+  --btn-color-neutral-fg: #f0f0f0;
+
+  /* Alpha tuning (higher for neon glow effect) */
+  --btn-alpha-border: 55%;
+  --btn-alpha-surface: 24%;
+  --btn-alpha-surface-hover: 36%;
+  --btn-alpha-surface-active: 48%;
+  --btn-alpha-outline-border: 70%;
+  --btn-alpha-outline-surface-hover: 18%;
+  --btn-alpha-outline-surface-active: 28%;
+  --btn-alpha-ghost-hover: 20%;
+  --btn-alpha-ghost-active: 32%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #1e1e2a;
+  --scrollbar-thumb-hover: #2a2a3a;
+
+  /* Account rail palette */
+  --account-color-1: #00f0ff; /* cyan */
+  --account-color-2: #fcee0a; /* yellow */
+  --account-color-3: #00ff9f; /* green */
+  --account-color-4: #ff00a0; /* magenta */
+  --account-color-5: #ff003c; /* red */
+  --account-color-6: #0080ff; /* blue */
+  --account-color-7: #ff6b00; /* orange */
+  --account-color-8: #a855f7; /* purple */
+  --account-color-9: #00ffff; /* bright cyan */
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 32%;
+  --account-rail-border-alpha: 55%;
+}

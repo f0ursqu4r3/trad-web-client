@@ -35,6 +35,16 @@ const themeOptions: ThemeOption[] = [
   { label: 'Fantasy24', value: 'fantasy24', icon: Moon },
   { label: 'Tomorrow Night 80s', value: 'tomorrowNight80s', icon: Moon },
   { label: 'Monokai', value: 'monokai', icon: Moon },
+  { label: 'Dracula', value: 'dracula', icon: Moon },
+  { label: 'Nord', value: 'nord', icon: Moon },
+  { label: 'Gruvbox', value: 'gruvbox', icon: Moon },
+  { label: 'Solarized Dark', value: 'solarized', icon: Moon },
+  { label: 'One Dark', value: 'oneDark', icon: Moon },
+  { label: 'Catppuccin', value: 'catppuccin', icon: Moon },
+  { label: 'Tokyo Night', value: 'tokyoNight', icon: Moon },
+  { label: 'Bloomberg', value: 'bloomberg', icon: Moon },
+  { label: 'Cyberpunk', value: 'cyberpunk', icon: Moon },
+  { label: 'Rosé Pine', value: 'rosePine', icon: Moon },
 ]
 
 function toggleMenu() {

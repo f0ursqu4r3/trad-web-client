@@ -1,0 +1,100 @@
+/* Gruvbox Dark theme (retro warm palette) */
+/* Source: https://github.com/morhetz/gruvbox */
+[data-theme='gruvbox'] {
+  /* Gruvbox Dark palette:
+     bg: #282828  bg1: #3c3836  bg2: #504945  bg3: #665c54  bg4: #7c6f64
+     fg: #ebdbb2  fg1: #ebdbb2  fg2: #d5c4a1  fg3: #bdae93  fg4: #a89984
+     Red: #fb4934  Green: #b8bb26  Yellow: #fabd2f  Blue: #83a598
+     Purple: #d3869b  Aqua: #8ec07c  Orange: #fe8019 */
+
+  /* Surfaces */
+  --color-bg: #282828;
+  --color-bg-alt: #3c3836;
+  --panel-bg: #282828;
+  --panel-header-bg: #3c3836;
+  --panel-border-inner: #504945;
+  --border-color: #504945;
+  --color-border-strong: #665c54;
+  --color-bg-secondary: #3c3836;
+  --color-bg-tertiary: #504945;
+
+  /* Typography */
+  --color-text: #ebdbb2;
+  --color-text-dim: #a89984;
+  --accent-color: #fe8019; /* orange as accent */
+
+  /* Semantic */
+  --color-success: #b8bb26;
+  --color-error: #fb4934;
+  --color-warning: #fabd2f;
+  --color-info: #83a598;
+
+  /* Terminal */
+  --color-term-bg: #282828;
+  --color-term-fg: #ebdbb2;
+  --color-term-dim: #a89984;
+  --color-term-accent: #fe8019;
+  --color-term-border: #3c3836;
+  --color-term-ok: #b8bb26;
+  --color-term-err: #fb4934;
+  --color-term-warn: #fabd2f;
+  --color-term-info: #83a598;
+
+  /* Buttons */
+  --btn-bg-start: #504945;
+  --btn-bg-end: #3c3836;
+  --btn-border: #665c54;
+  --btn-fg: #ebdbb2;
+
+  /* Form controls */
+  --control-mark-color: #282828;
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 16%;
+  --pill-ring-alpha: 42%;
+
+  /* Button variants */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #665c54;
+  --btn-color-neutral-fg: #ebdbb2;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 45%;
+  --btn-alpha-surface: 18%;
+  --btn-alpha-surface-hover: 28%;
+  --btn-alpha-surface-active: 38%;
+  --btn-alpha-outline-border: 62%;
+  --btn-alpha-outline-surface-hover: 16%;
+  --btn-alpha-outline-surface-active: 24%;
+  --btn-alpha-ghost-hover: 18%;
+  --btn-alpha-ghost-active: 28%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #3c3836;
+  --scrollbar-thumb-hover: #504945;
+
+  /* Account rail palette */
+  --account-color-1: #8ec07c; /* aqua */
+  --account-color-2: #83a598; /* blue */
+  --account-color-3: #b8bb26; /* green */
+  --account-color-4: #fabd2f; /* yellow */
+  --account-color-5: #fb4934; /* red */
+  --account-color-6: #d3869b; /* purple */
+  --account-color-7: #fe8019; /* orange */
+  --account-color-8: #98971a; /* dark green */
+  --account-color-9: #d65d0e; /* dark orange */
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 26%;
+  --account-rail-border-alpha: 44%;
+}

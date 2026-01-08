@@ -11,6 +11,16 @@ export type ThemeMode =
   | 'fantasy24'
   | 'tomorrowNight80s'
   | 'monokai'
+  | 'dracula'
+  | 'nord'
+  | 'gruvbox'
+  | 'solarized'
+  | 'oneDark'
+  | 'catppuccin'
+  | 'tokyoNight'
+  | 'bloomberg'
+  | 'cyberpunk'
+  | 'rosePine'
 
 export const useUiStore = defineStore(
   'ui',

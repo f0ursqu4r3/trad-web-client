@@ -1,0 +1,94 @@
+/* Fantasy24 theme (earthy arcane palette) */
+/* Source: https://lospec.com/palette-list/fantasy-24 by Gabriel C */
+[data-theme='fantasy24'] {
+  /* Core surfaces */
+  --color-bg: #2a1d0d;
+  --color-bg-alt: #392a1c;
+  --panel-bg: #2a1d0d;
+  --panel-header-bg: #392a1c;
+  --panel-border-inner: #45230d;
+  --border-color: #684c3c;
+  --color-border-strong: #efb775;
+  --color-bg-secondary: #392a1c;
+  --color-bg-tertiary: #45230d;
+
+  /* Typography */
+  --color-text: #efd8a1;
+  --color-text-dim: #927e6a;
+  --accent-color: #3c9f9c;
+
+  /* Semantic */
+  --color-success: #39571c;
+  --color-error: #ef3a0c;
+  --color-warning: #efac28;
+  --color-info: #3c9f9c;
+
+  /* Terminal */
+  --color-term-bg: #2a1d0d;
+  --color-term-fg: #efd8a1;
+  --color-term-dim: #927e6a;
+  --color-term-accent: #3c9f9c;
+  --color-term-border: #392a1c;
+  --color-term-ok: #39571c;
+  --color-term-err: #ef3a0c;
+  --color-term-warn: #efac28;
+  --color-term-info: #3c9f9c;
+
+  /* Buttons */
+  --btn-bg-start: #684c3c;
+  --btn-bg-end: #45230d;
+  --btn-border: #724113;
+  --btn-fg: #efd8a1;
+
+  /* Form controls */
+  --control-mark-color: var(--color-text);
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 18%;
+  --pill-ring-alpha: 45%;
+
+  /* Button variants */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: #9b1a0a;
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #684c3c;
+  --btn-color-neutral-fg: #efd8a1;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 50%;
+  --btn-alpha-surface: 20%;
+  --btn-alpha-surface-hover: 30%;
+  --btn-alpha-surface-active: 40%;
+  --btn-alpha-outline-border: 70%;
+  --btn-alpha-outline-surface-hover: 18%;
+  --btn-alpha-outline-surface-active: 26%;
+  --btn-alpha-ghost-hover: 20%;
+  --btn-alpha-ghost-active: 32%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #45230d;
+  --scrollbar-thumb-hover: #684c3c;
+
+  /* Account rail palette */
+  --account-color-1: #3c9f9c;
+  --account-color-2: #276468;
+  --account-color-3: #39571c;
+  --account-color-4: #efac28;
+  --account-color-5: #ef3a0c;
+  --account-color-6: #a58c27;
+  --account-color-7: #ef692f;
+  --account-color-8: #ab5c1c;
+  --account-color-9: #9b1a0a;
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 28%;
+  --account-rail-border-alpha: 48%;
+}

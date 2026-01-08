@@ -1,0 +1,101 @@
+/* Tokyo Night theme (soft blues and purples) */
+/* Source: https://github.com/enkia/tokyo-night-vscode-theme */
+[data-theme='tokyoNight'] {
+  /* Tokyo Night palette:
+     bg: #1a1b26  bg_dark: #16161e  bg_highlight: #292e42
+     fg: #c0caf5  fg_dark: #a9b1d6  comment: #565f89
+     Blue: #7aa2f7  Cyan: #7dcfff  Purple: #bb9af7  Magenta: #ff007c
+     Orange: #ff9e64  Yellow: #e0af68  Green: #9ece6a  Red: #f7768e
+     Teal: #73daca */
+
+  /* Surfaces */
+  --color-bg: #1a1b26;
+  --color-bg-alt: #16161e;
+  --panel-bg: #1a1b26;
+  --panel-header-bg: #24283b;
+  --panel-border-inner: #292e42;
+  --border-color: #292e42;
+  --color-border-strong: #3b4261;
+  --color-bg-secondary: #16161e;
+  --color-bg-tertiary: #24283b;
+
+  /* Typography */
+  --color-text: #c0caf5;
+  --color-text-dim: #565f89;
+  --accent-color: #7aa2f7; /* blue */
+
+  /* Semantic */
+  --color-success: #9ece6a;
+  --color-error: #f7768e;
+  --color-warning: #e0af68;
+  --color-info: #7dcfff;
+
+  /* Terminal */
+  --color-term-bg: #1a1b26;
+  --color-term-fg: #c0caf5;
+  --color-term-dim: #565f89;
+  --color-term-accent: #7aa2f7;
+  --color-term-border: #24283b;
+  --color-term-ok: #9ece6a;
+  --color-term-err: #f7768e;
+  --color-term-warn: #e0af68;
+  --color-term-info: #7dcfff;
+
+  /* Buttons */
+  --btn-bg-start: #292e42;
+  --btn-bg-end: #24283b;
+  --btn-border: #3b4261;
+  --btn-fg: #c0caf5;
+
+  /* Form controls */
+  --control-mark-color: #1a1b26;
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 16%;
+  --pill-ring-alpha: 44%;
+
+  /* Button variants */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #3b4261;
+  --btn-color-neutral-fg: #c0caf5;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 46%;
+  --btn-alpha-surface: 18%;
+  --btn-alpha-surface-hover: 28%;
+  --btn-alpha-surface-active: 38%;
+  --btn-alpha-outline-border: 64%;
+  --btn-alpha-outline-surface-hover: 16%;
+  --btn-alpha-outline-surface-active: 24%;
+  --btn-alpha-ghost-hover: 18%;
+  --btn-alpha-ghost-active: 28%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #292e42;
+  --scrollbar-thumb-hover: #3b4261;
+
+  /* Account rail palette */
+  --account-color-1: #7dcfff; /* cyan */
+  --account-color-2: #7aa2f7; /* blue */
+  --account-color-3: #9ece6a; /* green */
+  --account-color-4: #e0af68; /* yellow */
+  --account-color-5: #f7768e; /* red */
+  --account-color-6: #bb9af7; /* purple */
+  --account-color-7: #ff9e64; /* orange */
+  --account-color-8: #73daca; /* teal */
+  --account-color-9: #ff007c; /* magenta */
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 26%;
+  --account-rail-border-alpha: 46%;
+}

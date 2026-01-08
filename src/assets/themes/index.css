@@ -1,0 +1,19 @@
+/* Theme Index - All application themes */
+/* Each theme is loaded separately for better maintainability */
+
+@import './dark.css';
+@import './synthwave.css';
+@import './legacy.css';
+@import './fantasy24.css';
+@import './tomorrow-night-80s.css';
+@import './monokai.css';
+@import './dracula.css';
+@import './nord.css';
+@import './gruvbox.css';
+@import './solarized.css';
+@import './one-dark.css';
+@import './catppuccin.css';
+@import './tokyo-night.css';
+@import './bloomberg.css';
+@import './cyberpunk.css';
+@import './rose-pine.css';

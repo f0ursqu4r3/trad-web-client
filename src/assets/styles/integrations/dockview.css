@@ -127,6 +127,97 @@
     0 1px 3px color-mix(in srgb, #000000 55%, transparent) !important;
 }
 
+/* Dracula theme overrides */
+[data-theme='dracula'] .trad-dockview,
+[data-theme='dracula'] .trad-dockview .dv-dockview,
+[data-theme='dracula'] .trad-dockview .dv-groupview {
+  --dv-floating-box-shadow:
+    0 4px 14px color-mix(in srgb, #000000 45%, transparent),
+    0 1px 4px color-mix(in srgb, var(--accent-color) 15%, transparent) !important;
+}
+
+/* Nord theme overrides */
+[data-theme='nord'] .trad-dockview,
+[data-theme='nord'] .trad-dockview .dv-dockview,
+[data-theme='nord'] .trad-dockview .dv-groupview {
+  --dv-floating-box-shadow:
+    0 4px 12px color-mix(in srgb, #000000 38%, transparent),
+    0 1px 3px color-mix(in srgb, #000000 50%, transparent) !important;
+}
+
+/* Gruvbox theme overrides */
+[data-theme='gruvbox'] .trad-dockview,
+[data-theme='gruvbox'] .trad-dockview .dv-dockview,
+[data-theme='gruvbox'] .trad-dockview .dv-groupview {
+  --dv-floating-box-shadow:
+    0 4px 12px color-mix(in srgb, #000000 42%, transparent),
+    0 1px 3px color-mix(in srgb, #000000 55%, transparent) !important;
+}
+
+/* Solarized theme overrides */
+[data-theme='solarized'] .trad-dockview,
+[data-theme='solarized'] .trad-dockview .dv-dockview,
+[data-theme='solarized'] .trad-dockview .dv-groupview {
+  --dv-floating-box-shadow:
+    0 4px 12px color-mix(in srgb, #000000 40%, transparent),
+    0 1px 3px color-mix(in srgb, #000000 52%, transparent) !important;
+}
+
+/* One Dark theme overrides */
+[data-theme='oneDark'] .trad-dockview,
+[data-theme='oneDark'] .trad-dockview .dv-dockview,
+[data-theme='oneDark'] .trad-dockview .dv-groupview {
+  --dv-floating-box-shadow:
+    0 4px 12px color-mix(in srgb, #000000 40%, transparent),
+    0 1px 3px color-mix(in srgb, #000000 52%, transparent) !important;
+}
+
+/* Catppuccin theme overrides */
+[data-theme='catppuccin'] .trad-dockview,
+[data-theme='catppuccin'] .trad-dockview .dv-dockview,
+[data-theme='catppuccin'] .trad-dockview .dv-groupview {
+  --dv-floating-box-shadow:
+    0 4px 14px color-mix(in srgb, #000000 45%, transparent),
+    0 1px 4px color-mix(in srgb, var(--accent-color) 12%, transparent) !important;
+}
+
+/* Tokyo Night theme overrides */
+[data-theme='tokyoNight'] .trad-dockview,
+[data-theme='tokyoNight'] .trad-dockview .dv-dockview,
+[data-theme='tokyoNight'] .trad-dockview .dv-groupview {
+  --dv-floating-box-shadow:
+    0 4px 14px color-mix(in srgb, #000000 48%, transparent),
+    0 1px 4px color-mix(in srgb, var(--accent-color) 10%, transparent) !important;
+}
+
+/* Bloomberg theme overrides */
+[data-theme='bloomberg'] .trad-dockview,
+[data-theme='bloomberg'] .trad-dockview .dv-dockview,
+[data-theme='bloomberg'] .trad-dockview .dv-groupview {
+  --dv-floating-box-shadow:
+    0 4px 16px color-mix(in srgb, #000000 60%, transparent),
+    0 1px 4px color-mix(in srgb, var(--accent-color) 20%, transparent) !important;
+}
+
+/* Cyberpunk theme overrides */
+[data-theme='cyberpunk'] .trad-dockview,
+[data-theme='cyberpunk'] .trad-dockview .dv-dockview,
+[data-theme='cyberpunk'] .trad-dockview .dv-groupview {
+  --dv-floating-box-shadow:
+    0 4px 16px color-mix(in srgb, #000000 55%, transparent),
+    0 1px 4px color-mix(in srgb, var(--accent-color) 25%, transparent),
+    0 0 8px color-mix(in srgb, var(--accent-color) 15%, transparent) !important;
+}
+
+/* Rosé Pine theme overrides */
+[data-theme='rosePine'] .trad-dockview,
+[data-theme='rosePine'] .trad-dockview .dv-dockview,
+[data-theme='rosePine'] .trad-dockview .dv-groupview {
+  --dv-floating-box-shadow:
+    0 4px 14px color-mix(in srgb, #000000 48%, transparent),
+    0 1px 4px color-mix(in srgb, var(--accent-color) 12%, transparent) !important;
+}
+
 /* Dockview header alignment + disable close actions */
 .trad-dockview .dv-tabs-and-actions-container {
   padding: 0 0.5rem;

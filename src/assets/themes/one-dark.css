@@ -1,0 +1,99 @@
+/* One Dark theme (Atom editor's signature theme) */
+/* Source: https://github.com/atom/atom/tree/master/packages/one-dark-syntax */
+[data-theme='oneDark'] {
+  /* One Dark palette:
+     bg: #282c34  gutter: #4b5263  fg: #abb2bf  comment: #5c6370
+     Cyan: #56b6c2  Blue: #61afef  Purple: #c678dd  Green: #98c379
+     Red: #e06c75  Orange: #d19a66  Yellow: #e5c07b */
+
+  /* Surfaces */
+  --color-bg: #282c34;
+  --color-bg-alt: #2c313c;
+  --panel-bg: #282c34;
+  --panel-header-bg: #2c313c;
+  --panel-border-inner: #3e4451;
+  --border-color: #3e4451;
+  --color-border-strong: #4b5263;
+  --color-bg-secondary: #2c313c;
+  --color-bg-tertiary: #3e4451;
+
+  /* Typography */
+  --color-text: #abb2bf;
+  --color-text-dim: #5c6370;
+  --accent-color: #61afef; /* blue */
+
+  /* Semantic */
+  --color-success: #98c379;
+  --color-error: #e06c75;
+  --color-warning: #e5c07b;
+  --color-info: #56b6c2;
+
+  /* Terminal */
+  --color-term-bg: #282c34;
+  --color-term-fg: #abb2bf;
+  --color-term-dim: #5c6370;
+  --color-term-accent: #61afef;
+  --color-term-border: #2c313c;
+  --color-term-ok: #98c379;
+  --color-term-err: #e06c75;
+  --color-term-warn: #e5c07b;
+  --color-term-info: #56b6c2;
+
+  /* Buttons */
+  --btn-bg-start: #3e4451;
+  --btn-bg-end: #2c313c;
+  --btn-border: #4b5263;
+  --btn-fg: #abb2bf;
+
+  /* Form controls */
+  --control-mark-color: #282c34;
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 15%;
+  --pill-ring-alpha: 42%;
+
+  /* Button variants */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #4b5263;
+  --btn-color-neutral-fg: #abb2bf;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 44%;
+  --btn-alpha-surface: 17%;
+  --btn-alpha-surface-hover: 26%;
+  --btn-alpha-surface-active: 35%;
+  --btn-alpha-outline-border: 60%;
+  --btn-alpha-outline-surface-hover: 15%;
+  --btn-alpha-outline-surface-active: 22%;
+  --btn-alpha-ghost-hover: 17%;
+  --btn-alpha-ghost-active: 26%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #3e4451;
+  --scrollbar-thumb-hover: #4b5263;
+
+  /* Account rail palette */
+  --account-color-1: #56b6c2; /* cyan */
+  --account-color-2: #61afef; /* blue */
+  --account-color-3: #98c379; /* green */
+  --account-color-4: #e5c07b; /* yellow */
+  --account-color-5: #e06c75; /* red */
+  --account-color-6: #c678dd; /* purple */
+  --account-color-7: #d19a66; /* orange */
+  --account-color-8: #7ec699; /* light green */
+  --account-color-9: #e06c9f; /* pink */
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 24%;
+  --account-rail-border-alpha: 42%;
+}

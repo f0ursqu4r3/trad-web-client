@@ -1,0 +1,98 @@
+/* Bloomberg Terminal theme (authentic trading terminal aesthetic) */
+[data-theme='bloomberg'] {
+  /* Bloomberg Terminal palette:
+     Background: #000000  Surface: #1a1a1a  Border: #333333
+     Primary text: #ff9500 (amber)  Secondary: #666666
+     Green (bid): #00c805  Red (ask): #ff3b30  Blue: #0096ff */
+
+  /* Surfaces */
+  --color-bg: #000000;
+  --color-bg-alt: #0a0a0a;
+  --panel-bg: #000000;
+  --panel-header-bg: #141414;
+  --panel-border-inner: #1f1f1f;
+  --border-color: #2a2a2a;
+  --color-border-strong: #404040;
+  --color-bg-secondary: #0a0a0a;
+  --color-bg-tertiary: #141414;
+
+  /* Typography */
+  --color-text: #ff9500; /* signature amber */
+  --color-text-dim: #666666;
+  --accent-color: #ff9500; /* amber primary */
+
+  /* Semantic */
+  --color-success: #00c805;
+  --color-error: #ff3b30;
+  --color-warning: #ffcc00;
+  --color-info: #0096ff;
+
+  /* Terminal */
+  --color-term-bg: #000000;
+  --color-term-fg: #ff9500;
+  --color-term-dim: #666666;
+  --color-term-accent: #ff9500;
+  --color-term-border: #1f1f1f;
+  --color-term-ok: #00c805;
+  --color-term-err: #ff3b30;
+  --color-term-warn: #ffcc00;
+  --color-term-info: #0096ff;
+
+  /* Buttons */
+  --btn-bg-start: #1f1f1f;
+  --btn-bg-end: #141414;
+  --btn-border: #404040;
+  --btn-fg: #ff9500;
+
+  /* Form controls */
+  --control-mark-color: #000000;
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 18%;
+  --pill-ring-alpha: 50%;
+
+  /* Button variants */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #404040;
+  --btn-color-neutral-fg: #ff9500;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 55%;
+  --btn-alpha-surface: 22%;
+  --btn-alpha-surface-hover: 34%;
+  --btn-alpha-surface-active: 46%;
+  --btn-alpha-outline-border: 70%;
+  --btn-alpha-outline-surface-hover: 20%;
+  --btn-alpha-outline-surface-active: 30%;
+  --btn-alpha-ghost-hover: 22%;
+  --btn-alpha-ghost-active: 34%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #1f1f1f;
+  --scrollbar-thumb-hover: #2a2a2a;
+
+  /* Account rail palette */
+  --account-color-1: #0096ff; /* blue */
+  --account-color-2: #00c805; /* green */
+  --account-color-3: #ff9500; /* amber */
+  --account-color-4: #ffcc00; /* yellow */
+  --account-color-5: #ff3b30; /* red */
+  --account-color-6: #af52de; /* purple */
+  --account-color-7: #ff6b00; /* orange */
+  --account-color-8: #00d4aa; /* teal */
+  --account-color-9: #ff2d55; /* pink */
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 32%;
+  --account-rail-border-alpha: 55%;
+}

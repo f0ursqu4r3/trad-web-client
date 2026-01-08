@@ -1,4 +1,5 @@
-@import './tokens.css'; /* design tokens */
+@import './tokens.css'; /* design tokens (base/light theme) */
+@import './themes/index.css'; /* all theme variants */
 @import 'tailwindcss';
 
 /* Entry point only: delegate real style definitions to modular partials */

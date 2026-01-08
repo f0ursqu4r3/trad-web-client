@@ -1,0 +1,75 @@
+/* Dark mode theme */
+[data-theme='dark'] {
+  --color-bg: #121417;
+  --color-bg-alt: #1a1d21;
+  --panel-bg: #16191d;
+  --panel-header-bg: #20252b;
+  --panel-border-inner: #232a31;
+  --border-color: #2a3139;
+  --color-text: #d0d7de;
+  --color-text-dim: #8b949e;
+  --accent-color: #2f81f7;
+  --btn-bg-start: #3e3e3e;
+  --btn-bg-end: #2a2a2a;
+  --btn-border: #555;
+  --btn-fg: #e8e8e8;
+  --color-bg-secondary: #1a1d21;
+  --color-bg-tertiary: #20252b;
+  --color-success: #4ade80;
+  --color-error: #f87171;
+  --color-warning: #ffb86c;
+  --color-info: #2f81f7;
+  --color-border-strong: #343c45;
+
+  /* Form controls */
+  --control-mark-color: var(--color-text);
+
+  /* Pill tokens */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 12%;
+  --pill-ring-alpha: 35%;
+
+  /* Button variants */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #64748b;
+  --btn-color-neutral-fg: #e2e8f0;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 40%;
+  --btn-alpha-surface: 12%;
+  --btn-alpha-surface-hover: 20%;
+  --btn-alpha-surface-active: 30%;
+  --btn-alpha-outline-border: 60%;
+  --btn-alpha-outline-surface-hover: 12%;
+  --btn-alpha-outline-surface-active: 18%;
+  --btn-alpha-ghost-hover: 12%;
+  --btn-alpha-ghost-active: 20%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #2a3037;
+  --scrollbar-thumb-hover: #343c45;
+
+  /* Account rail palette */
+  --account-color-1: #4db8c7;
+  --account-color-2: #5b8cff;
+  --account-color-3: #3fd28c;
+  --account-color-4: #e69a24;
+  --account-color-5: #e45757;
+  --account-color-6: #9d7bff;
+  --account-color-7: #21b8c5;
+  --account-color-8: #7cb342;
+  --account-color-9: #f09000;
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 25%;
+  --account-rail-border-alpha: 45%;
+}

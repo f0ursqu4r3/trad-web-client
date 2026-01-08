@@ -1,0 +1,99 @@
+/* Monokai theme (classic syntax highlighting palette) */
+/* Source: https://monokai.pro - Original by Wimer Hazenberg */
+[data-theme='monokai'] {
+  /* Canonical Monokai palette:
+     Background: #272822    Foreground: #F8F8F2    Comment: #75715E
+     Red/Pink: #F92672      Orange: #FD971F       Yellow: #E6DB74
+     Green: #A6E22E         Cyan: #66D9EF         Purple: #AE81FF */
+
+  /* Surfaces (warm dark with subtle green undertone) */
+  --color-bg: #272822; /* classic monokai background */
+  --color-bg-alt: #3e3d32; /* elevated surface */
+  --panel-bg: #272822; /* panels flush with bg */
+  --panel-header-bg: #3e3d32; /* lifted header */
+  --panel-border-inner: #49483e; /* subtle divider */
+  --border-color: #49483e; /* normal border */
+  --color-border-strong: #75715e; /* comment gray as strong */
+  --color-bg-secondary: #3e3d32;
+  --color-bg-tertiary: #49483e;
+
+  /* Typography */
+  --color-text: #f8f8f2; /* bright foreground */
+  --color-text-dim: #75715e; /* comment gray */
+  --accent-color: #66d9ef; /* cyan as primary accent */
+
+  /* Semantic (map to canonical syntax colors) */
+  --color-success: #a6e22e; /* green */
+  --color-error: #f92672; /* pink/red */
+  --color-warning: #e6db74; /* yellow */
+  --color-info: #66d9ef; /* cyan */
+
+  /* Terminal */
+  --color-term-bg: #272822;
+  --color-term-fg: #f8f8f2;
+  --color-term-dim: #75715e;
+  --color-term-accent: #66d9ef;
+  --color-term-border: #3e3d32;
+  --color-term-ok: #a6e22e;
+  --color-term-err: #f92672;
+  --color-term-warn: #e6db74;
+  --color-term-info: #66d9ef;
+
+  /* Buttons (warm gray gradient) */
+  --btn-bg-start: #49483e; /* lighter */
+  --btn-bg-end: #3e3d32; /* darker */
+  --btn-border: #75715e; /* comment gray border */
+  --btn-fg: #f8f8f2; /* bright text */
+
+  /* Form controls */
+  --control-mark-color: #272822; /* dark mark on cyan accent */
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 15%;
+  --pill-ring-alpha: 42%;
+
+  /* Button semantic variants */
+  --btn-color-primary: var(--accent-color); /* cyan */
+  --btn-color-danger: var(--color-error); /* pink */
+  --btn-color-success: var(--color-success); /* green */
+  --btn-color-warn: var(--color-warning); /* yellow */
+  --btn-color-info: var(--color-info); /* cyan */
+  --btn-color-neutral: #75715e; /* comment gray */
+  --btn-color-neutral-fg: #f8f8f2;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 45%;
+  --btn-alpha-surface: 18%;
+  --btn-alpha-surface-hover: 28%;
+  --btn-alpha-surface-active: 38%;
+  --btn-alpha-outline-border: 65%;
+  --btn-alpha-outline-surface-hover: 15%;
+  --btn-alpha-outline-surface-active: 22%;
+  --btn-alpha-ghost-hover: 18%;
+  --btn-alpha-ghost-active: 28%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #3e3d32;
+  --scrollbar-thumb-hover: #49483e;
+
+  /* Account rail palette (monokai syntax spectrum) */
+  --account-color-1: #66d9ef; /* cyan */
+  --account-color-2: #a6e22e; /* green */
+  --account-color-3: #f92672; /* pink */
+  --account-color-4: #e6db74; /* yellow */
+  --account-color-5: #fd971f; /* orange */
+  --account-color-6: #ae81ff; /* purple */
+  --account-color-7: #56c2d6; /* muted cyan */
+  --account-color-8: #8fc029; /* muted green */
+  --account-color-9: #e91e63; /* hot pink */
+
+  /* Account rail styling (monokai) */
+  --account-rail-bg-alpha: 26%;
+  --account-rail-border-alpha: 45%;
+}

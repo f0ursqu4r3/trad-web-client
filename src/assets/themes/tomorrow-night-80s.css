@@ -1,0 +1,93 @@
+/* Tomorrow Night Eighties theme */
+[data-theme='tomorrowNight80s'] {
+  /* Surfaces */
+  --color-bg: #2d2d2d;
+  --color-bg-alt: #393939;
+  --panel-bg: #2d2d2d;
+  --panel-header-bg: #393939;
+  --panel-border-inner: #515151;
+  --border-color: #515151;
+  --color-border-strong: #666666;
+  --color-bg-secondary: #393939;
+  --color-bg-tertiary: #515151;
+
+  /* Typography */
+  --color-text: #cccccc;
+  --color-text-dim: #999999;
+  --accent-color: #6699cc;
+
+  /* Semantic */
+  --color-success: #99cc99;
+  --color-error: #f2777a;
+  --color-warning: #ffcc66;
+  --color-info: #66cccc;
+
+  /* Terminal */
+  --color-term-bg: #2d2d2d;
+  --color-term-fg: #cccccc;
+  --color-term-dim: #999999;
+  --color-term-accent: #6699cc;
+  --color-term-border: #393939;
+  --color-term-ok: #99cc99;
+  --color-term-err: #f2777a;
+  --color-term-warn: #ffcc66;
+  --color-term-info: #66cccc;
+
+  /* Buttons */
+  --btn-bg-start: #515151;
+  --btn-bg-end: #393939;
+  --btn-border: #666666;
+  --btn-fg: #cccccc;
+
+  /* Form controls */
+  --control-mark-color: var(--color-text);
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 14%;
+  --pill-ring-alpha: 40%;
+
+  /* Button variants */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #515151;
+  --btn-color-neutral-fg: #e0e0e0;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 42%;
+  --btn-alpha-surface: 18%;
+  --btn-alpha-surface-hover: 26%;
+  --btn-alpha-surface-active: 34%;
+  --btn-alpha-outline-border: 60%;
+  --btn-alpha-outline-surface-hover: 14%;
+  --btn-alpha-outline-surface-active: 20%;
+  --btn-alpha-ghost-hover: 16%;
+  --btn-alpha-ghost-active: 24%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #393939;
+  --scrollbar-thumb-hover: #515151;
+
+  /* Account rail palette */
+  --account-color-1: #66cccc;
+  --account-color-2: #6699cc;
+  --account-color-3: #99cc99;
+  --account-color-4: #ffcc66;
+  --account-color-5: #f2777a;
+  --account-color-6: #cc99cc;
+  --account-color-7: #5fbfbf;
+  --account-color-8: #8fbf8f;
+  --account-color-9: #f99157;
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 24%;
+  --account-rail-border-alpha: 42%;
+}

@@ -1,0 +1,100 @@
+/* Nord theme (arctic, bluish palette) */
+/* Source: https://www.nordtheme.com */
+[data-theme='nord'] {
+  /* Nord palette:
+     Polar Night: #2e3440 #3b4252 #434c5e #4c566a
+     Snow Storm: #d8dee9 #e5e9f0 #eceff4
+     Frost: #8fbcbb #88c0d0 #81a1c1 #5e81ac
+     Aurora: #bf616a #d08770 #ebcb8b #a3be8c #b48ead */
+
+  /* Surfaces */
+  --color-bg: #2e3440;
+  --color-bg-alt: #3b4252;
+  --panel-bg: #2e3440;
+  --panel-header-bg: #3b4252;
+  --panel-border-inner: #434c5e;
+  --border-color: #434c5e;
+  --color-border-strong: #4c566a;
+  --color-bg-secondary: #3b4252;
+  --color-bg-tertiary: #434c5e;
+
+  /* Typography */
+  --color-text: #eceff4;
+  --color-text-dim: #d8dee9;
+  --accent-color: #88c0d0; /* frost cyan */
+
+  /* Semantic */
+  --color-success: #a3be8c;
+  --color-error: #bf616a;
+  --color-warning: #ebcb8b;
+  --color-info: #81a1c1;
+
+  /* Terminal */
+  --color-term-bg: #2e3440;
+  --color-term-fg: #eceff4;
+  --color-term-dim: #d8dee9;
+  --color-term-accent: #88c0d0;
+  --color-term-border: #3b4252;
+  --color-term-ok: #a3be8c;
+  --color-term-err: #bf616a;
+  --color-term-warn: #ebcb8b;
+  --color-term-info: #81a1c1;
+
+  /* Buttons */
+  --btn-bg-start: #434c5e;
+  --btn-bg-end: #3b4252;
+  --btn-border: #4c566a;
+  --btn-fg: #eceff4;
+
+  /* Form controls */
+  --control-mark-color: #2e3440;
+
+  /* Pills */
+  --pill-color-neutral: var(--color-text-dim);
+  --pill-color-ok: var(--color-success);
+  --pill-color-err: var(--color-error);
+  --pill-color-warn: var(--color-warning);
+  --pill-color-info: var(--color-info);
+  --pill-bg-alpha: 14%;
+  --pill-ring-alpha: 40%;
+
+  /* Button variants */
+  --btn-color-primary: var(--accent-color);
+  --btn-color-danger: var(--color-error);
+  --btn-color-success: var(--color-success);
+  --btn-color-warn: var(--color-warning);
+  --btn-color-info: var(--color-info);
+  --btn-color-neutral: #4c566a;
+  --btn-color-neutral-fg: #eceff4;
+
+  /* Alpha tuning */
+  --btn-alpha-border: 42%;
+  --btn-alpha-surface: 16%;
+  --btn-alpha-surface-hover: 24%;
+  --btn-alpha-surface-active: 32%;
+  --btn-alpha-outline-border: 58%;
+  --btn-alpha-outline-surface-hover: 14%;
+  --btn-alpha-outline-surface-active: 20%;
+  --btn-alpha-ghost-hover: 16%;
+  --btn-alpha-ghost-active: 24%;
+
+  /* Scrollbar */
+  --scrollbar-track: inherit;
+  --scrollbar-thumb: #3b4252;
+  --scrollbar-thumb-hover: #434c5e;
+
+  /* Account rail palette */
+  --account-color-1: #88c0d0; /* frost cyan */
+  --account-color-2: #81a1c1; /* frost blue */
+  --account-color-3: #a3be8c; /* aurora green */
+  --account-color-4: #ebcb8b; /* aurora yellow */
+  --account-color-5: #bf616a; /* aurora red */
+  --account-color-6: #b48ead; /* aurora purple */
+  --account-color-7: #8fbcbb; /* frost teal */
+  --account-color-8: #d08770; /* aurora orange */
+  --account-color-9: #5e81ac; /* frost deep blue */
+
+  /* Account rail styling */
+  --account-rail-bg-alpha: 22%;
+  --account-rail-border-alpha: 40%;
+}
