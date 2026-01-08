@@ -1,60 +1,3 @@
-<template>
-  <div
-    class="dualr"
-    :class="[size !== 'default' ? 'dualr-' + size : '', disabled ? 'dualr-disabled' : '']"
-    :style="rootStyle"
-    ref="rootRef"
-    role="group"
-    aria-label="Dual range slider"
-  >
-    <div class="dualr-track" @pointerdown="onTrackPointerDown">
-      <div class="dualr-range" :style="activeStyle"></div>
-      <button
-        ref="thumbMinRef"
-        class="dualr-thumb"
-        type="button"
-        :style="minThumbStyle"
-        :aria-valuemin="min"
-        :aria-valuemax="max"
-        :aria-valuenow="localMin"
-        aria-label="Minimum value"
-        role="slider"
-        :tabindex="disabled ? -1 : 0"
-        @pointerdown.prevent="startDrag('min', $event)"
-        @keydown.prevent="onThumbKey('min', $event)"
-      ></button>
-      <button
-        ref="thumbMaxRef"
-        class="dualr-thumb"
-        type="button"
-        :style="maxThumbStyle"
-        :aria-valuemin="min"
-        :aria-valuemax="max"
-        :aria-valuenow="localMax"
-        aria-label="Maximum value"
-        role="slider"
-        :tabindex="disabled ? -1 : 0"
-        @pointerdown.prevent="startDrag('max', $event)"
-        @keydown.prevent="onThumbKey('max', $event)"
-      ></button>
-      <div
-        v-if="showBubbles"
-        class="dualr-bubble dualr-bubble-min font-mono"
-        :style="minBubbleStyle"
-      >
-        {{ Math.round(localMin) }}
-      </div>
-      <div
-        v-if="showBubbles"
-        class="dualr-bubble dualr-bubble-max font-mono"
-        :style="maxBubbleStyle"
-      >
-        {{ Math.round(localMax) }}
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
 
@@ -238,6 +181,63 @@ onBeforeUnmount(() => {
   window.removeEventListener('pointerup', onUp)
 })
 </script>
+
+<template>
+  <div
+    class="dualr"
+    :class="[size !== 'default' ? 'dualr-' + size : '', disabled ? 'dualr-disabled' : '']"
+    :style="rootStyle"
+    ref="rootRef"
+    role="group"
+    aria-label="Dual range slider"
+  >
+    <div class="dualr-track" @pointerdown="onTrackPointerDown">
+      <div class="dualr-range" :style="activeStyle"></div>
+      <button
+        ref="thumbMinRef"
+        class="dualr-thumb"
+        type="button"
+        :style="minThumbStyle"
+        :aria-valuemin="min"
+        :aria-valuemax="max"
+        :aria-valuenow="localMin"
+        aria-label="Minimum value"
+        role="slider"
+        :tabindex="disabled ? -1 : 0"
+        @pointerdown.prevent="startDrag('min', $event)"
+        @keydown.prevent="onThumbKey('min', $event)"
+      ></button>
+      <button
+        ref="thumbMaxRef"
+        class="dualr-thumb"
+        type="button"
+        :style="maxThumbStyle"
+        :aria-valuemin="min"
+        :aria-valuemax="max"
+        :aria-valuenow="localMax"
+        aria-label="Maximum value"
+        role="slider"
+        :tabindex="disabled ? -1 : 0"
+        @pointerdown.prevent="startDrag('max', $event)"
+        @keydown.prevent="onThumbKey('max', $event)"
+      ></button>
+      <div
+        v-if="showBubbles"
+        class="dualr-bubble dualr-bubble-min font-mono"
+        :style="minBubbleStyle"
+      >
+        {{ Math.round(localMin) }}
+      </div>
+      <div
+        v-if="showBubbles"
+        class="dualr-bubble dualr-bubble-max font-mono"
+        :style="maxBubbleStyle"
+      >
+        {{ Math.round(localMax) }}
+      </div>
+    </div>
+  </div>
+</template>
 
 <style scoped>
 .dualr {

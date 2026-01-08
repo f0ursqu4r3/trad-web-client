@@ -47,13 +47,18 @@ const fillStyle = computed(() => {
 })
 
 const bubbleStyle = computed(() => {
+  const thumbOffset = 7 - pct.value * 0.14
   if (props.vertical) {
+    const bubbleHalfHeight = 10
     return {
-      bottom: `calc(${pct.value}% - 7px)`,
-      transform: 'translateX(-50%)',
+      bottom: `calc(${pct.value}% + ${thumbOffset - bubbleHalfHeight}px)`,
+      transform: 'translateX(-90%)',
     }
   }
-  return { left: `${pct.value}%`, transform: 'translateX(-50%) translateY(-50%)' }
+  return {
+    left: `calc(${pct.value}% + ${thumbOffset}px)`,
+    transform: 'translateX(-50%) translateY(-50%)',
+  }
 })
 
 const rootStyle = computed(() => ({
@@ -271,7 +276,7 @@ function onInput(e: Event) {
   left: calc(100% + 8px);
   top: auto;
   bottom: 0;
-  transform: translateY(50%);
+  transform: none;
 }
 .rslider-bubble::after {
   content: '';
