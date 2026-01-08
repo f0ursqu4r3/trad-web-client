@@ -96,4 +96,16 @@
   /* Account rail styling (monokai) */
   --account-rail-bg-alpha: 26%;
   --account-rail-border-alpha: 45%;
+
+  /* Chart tokens */
+  --chart-bg: transparent;
+  --chart-text: #75715e;
+  --chart-grid: #3e3d32;
+  --chart-border: #49483e;
+  --chart-line: #f8f8f2;
+  --chart-area-top: rgba(248, 248, 242, 0);
+  --chart-area-bottom: rgba(248, 248, 242, 0);
+  --chart-crosshair: #75715e;
+  --chart-price-line-activation: #fd971f;
+  --chart-price-line-stop: #f92672;
 }

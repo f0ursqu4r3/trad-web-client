@@ -97,4 +97,16 @@
   /* Account rail styling */
   --account-rail-bg-alpha: 28%;
   --account-rail-border-alpha: 48%;
+
+  /* Chart tokens */
+  --chart-bg: transparent;
+  --chart-text: #657b83;
+  --chart-grid: #073642;
+  --chart-border: #094252;
+  --chart-line: #93a1a1;
+  --chart-area-top: rgba(147, 161, 161, 0);
+  --chart-area-bottom: rgba(147, 161, 161, 0);
+  --chart-crosshair: #657b83;
+  --chart-price-line-activation: #b58900;
+  --chart-price-line-stop: #dc322f;
 }

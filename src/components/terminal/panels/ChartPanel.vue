@@ -35,6 +35,56 @@ let chart: IChartApi | null = null
 let series: ISeriesApi<'Area'> | null = null
 let draggableLinesPlugin: DraggablePriceLinesPluginApi | null = null
 let resizeObserver: ResizeObserver | null = null
+let themeObserver: MutationObserver | null = null
+
+// Get CSS variable value from the document
+function getCssVar(name: string, fallback: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
+}
+
+// Get current chart theme from CSS variables
+function getChartTheme() {
+  return {
+    bg: getCssVar('--chart-bg', 'transparent'),
+    text: getCssVar('--chart-text', '#8b949e'),
+    grid: getCssVar('--chart-grid', '#1f2429'),
+    border: getCssVar('--chart-border', '#2a3139'),
+    line: getCssVar('--chart-line', '#d0d7de'),
+    areaTop: getCssVar('--chart-area-top', 'rgba(208, 215, 222, 0)'),
+    areaBottom: getCssVar('--chart-area-bottom', 'rgba(208, 215, 222, 0)'),
+    activationPrice: getCssVar('--chart-price-line-activation', '#f7a529'),
+    stopLoss: getCssVar('--chart-price-line-stop', '#f87171'),
+  }
+}
+
+// Apply theme to chart
+function applyChartTheme() {
+  if (!chart || !series) return
+  const theme = getChartTheme()
+
+  chart.applyOptions({
+    layout: {
+      background: { color: theme.bg },
+      textColor: theme.text,
+    },
+    grid: {
+      vertLines: { color: theme.grid },
+      horzLines: { color: theme.grid },
+    },
+    rightPriceScale: {
+      borderColor: theme.border,
+    },
+    timeScale: {
+      borderColor: theme.border,
+    },
+  })
+
+  series.applyOptions({
+    lineColor: theme.line,
+    topColor: theme.areaTop,
+    bottomColor: theme.areaBottom,
+  })
+}
 
 const devicePoints = computed(() => {
   if (!teDevice.value) return []
@@ -53,12 +103,13 @@ const teDeviceLifecycle = computed(() => {
 const draggableLines = computed<DraggablePriceLineDefinition[]>(() => {
   const te = teDevice.value
   if (!te) return []
+  const theme = getChartTheme()
   return [
     {
       id: 'activation_price',
       options: {
         price: te.activation_price,
-        color: '#f7a529',
+        color: theme.activationPrice,
         lineWidth: 1,
         lineStyle: 2, // Dashed
         axisLabelVisible: true,
@@ -70,7 +121,7 @@ const draggableLines = computed<DraggablePriceLineDefinition[]>(() => {
       id: 'stop_loss',
       options: {
         price: te.stop_loss,
-        color: '#f74e4e',
+        color: theme.stopLoss,
         lineWidth: 1,
         lineStyle: 2, // Dashed
         axisLabelVisible: true,
@@ -106,17 +157,19 @@ function syncChartSize() {
 
 onMounted(() => {
   if (!containerEl.value) return
+  const theme = getChartTheme()
+
   chart = createChart(containerEl.value, {
-    layout: { background: { color: 'transparent' }, textColor: '#b9c2cc', attributionLogo: false },
-    grid: { vertLines: { color: '#1f2429' }, horzLines: { color: '#1f2429' } },
+    layout: { background: { color: theme.bg }, textColor: theme.text, attributionLogo: false },
+    grid: { vertLines: { color: theme.grid }, horzLines: { color: theme.grid } },
     rightPriceScale: {
-      borderColor: '#2a3139',
+      borderColor: theme.border,
       scaleMargins: {
         top: 0.1,
         bottom: 0.2,
       },
     },
-    timeScale: { visible: false, borderColor: '#2a3139' },
+    timeScale: { visible: false, borderColor: theme.border },
   })
 
   const resizeObserver = new ResizeObserver(() => syncChartSize())
@@ -125,11 +178,51 @@ onMounted(() => {
 
   // Add area series
   series = chart.addSeries(AreaSeries, {
-    lineColor: '#f5f7fa',
-    topColor: 'rgba(245,247,250,0)',
-    bottomColor: 'rgba(245,247,250,0)',
+    lineColor: theme.line,
+    topColor: theme.areaTop,
+    bottomColor: theme.areaBottom,
     lineWidth: 2,
     pointMarkersVisible: false,
+  })
+
+  // Watch for theme changes (data-theme attribute on html element)
+  themeObserver = new MutationObserver(() => {
+    applyChartTheme()
+    // Update draggable lines with new theme colors
+    if (draggableLinesPlugin && teDevice.value) {
+      const theme = getChartTheme()
+      const te = teDevice.value
+      draggableLinesPlugin.setLines([
+        {
+          id: 'activation_price',
+          options: {
+            price: te.activation_price,
+            color: theme.activationPrice,
+            lineWidth: 1,
+            lineStyle: 2,
+            axisLabelVisible: true,
+            title: 'Activation Price',
+          },
+          draggable: teDeviceLifecycle.value === TrailingEntryLifecycle.Running,
+        },
+        {
+          id: 'stop_loss',
+          options: {
+            price: te.stop_loss,
+            color: theme.stopLoss,
+            lineWidth: 1,
+            lineStyle: 2,
+            axisLabelVisible: true,
+            title: 'Stop Loss',
+          },
+          draggable: teDeviceLifecycle.value === TrailingEntryLifecycle.Running,
+        },
+      ])
+    }
+  })
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme'],
   })
 
   if (series) {
@@ -222,6 +315,8 @@ onBeforeUnmount(() => {
 })
 
 onBeforeUnmount(() => {
+  themeObserver?.disconnect()
+  themeObserver = null
   draggableLinesPlugin?.destroy()
   draggableLinesPlugin = null
   chart?.remove()
