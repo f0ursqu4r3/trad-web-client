@@ -68,11 +68,12 @@ onBeforeUnmount(() => {
   <div class="flex items-center space-x-2">
     <span class="muted">Account:</span>
     <DropMenu v-if="accounts.accounts.length > 0" :items="accountMenuItems">
-      <template #trigger>
+      <template #trigger="{ toggle }">
         <button
           class="btn btn-sm account-trigger"
           type="button"
           :style="{ '--account-color': accountColor }"
+          @click.stop="toggle"
         >
           <span class="account-trigger-label">{{ accountLabel }}</span>
           <DownIcon size="12" class="icon" />
@@ -104,7 +105,7 @@ onBeforeUnmount(() => {
 }
 
 :deep(.account-menu-item) {
-  border-top: 1px solid color-mix(in srgb, var(--panel-bg) 50%, transparent);
+  border-top: 1px solid color-mix(in srgb, #ffffff 18%, transparent);
 }
 
 :deep(.account-menu-item:hover:not(:disabled)) {

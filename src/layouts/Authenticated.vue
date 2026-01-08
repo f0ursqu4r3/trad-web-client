@@ -94,5 +94,6 @@ const railColor = computed(() => {
   margin-left: 0;
   align-self: flex-start;
   text-align: left;
+  width: 100%;
 }
 </style>
