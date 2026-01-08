@@ -17,9 +17,17 @@
     border-color: var(--border-color);
   }
   .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     background: var(--panel-header-bg);
     border-bottom: 1px solid var(--panel-border-inner);
     padding: 0 0.5rem;
+  }
+  .panel-options {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
   .panel-title {
     font-size: 13px;

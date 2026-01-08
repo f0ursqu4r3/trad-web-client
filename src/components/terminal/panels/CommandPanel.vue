@@ -3,7 +3,6 @@ import { ref, computed, type Component } from 'vue'
 import StickyScroller from '@/components/general/StickyScroller.vue'
 import { useCommandStore } from '@/stores/command'
 import { useModalStore } from '@/stores/modals'
-import { Filter } from 'lucide-vue-next'
 
 import type { MarketOrderPrefill, TrailingEntryPrefill } from '../modals/commands/types'
 import type { UserCommandPayload } from '@/lib/ws/protocol'
@@ -14,10 +13,26 @@ import CommandBase from '../commands/CommandBase.vue'
 import TELongCommand from '@/components/terminal/commands/TELongCommand.vue'
 import MarketOrderCommand from '@/components/terminal/commands/MarketOrderCommand.vue'
 
+defineOptions({
+  inheritAttrs: false,
+})
+
 const commandStore = useCommandStore()
 const modalStore = useModalStore()
 
 const showFilters = ref(false)
+
+function toggleFilters() {
+  showFilters.value = !showFilters.value
+}
+
+defineExpose({
+  showFilters,
+  toggleFilters,
+  hiddenCommandCount: computed(
+    () => commandStore.commands.length - commandStore.filteredCommands.length,
+  ),
+})
 
 const hiddenCommandCount = computed(() => {
   return commandStore.commands.length - commandStore.filteredCommands.length
@@ -100,67 +115,59 @@ function handleClosePosition(commandId: string): void {
 </script>
 
 <template>
-  <div class="panel flex flex-col h-full min-h-0">
-    <div class="panel-header flex flex-col">
-      <div class="flex justify-end items-center gap-2">
-        <span v-if="hiddenCommandCount" class="text-xs"> {{ hiddenCommandCount }} hidden </span>
-        <button class="btn btn-sm btn-ghost" @click="showFilters = !showFilters">
-          <Filter :size="12" />
-        </button>
-      </div>
-      <Transition name="expand">
-        <div v-show="showFilters">
-          <div class="panel-content space-y-4 p-2">
-            <div>
-              <span>Kind</span>
-              <div class="flex items-center flex-wrap gap-4 px-2">
-                <ul class="flex flex-col flex-wrap p-0 m-0 space-y-2 list-none">
-                  <li
-                    v-for="option in commandStore.activeCommandKinds"
-                    :key="option"
-                    class="inline-flex items-center gap-1 mr-4"
-                  >
-                    <input
-                      type="checkbox"
-                      :id="`kind-${option}`"
-                      :value="option"
-                      :checked="!commandStore.commandFilters.kind.includes(option)"
-                      @change="handleCheckboxChange(option, $event, 'kind')"
-                    />
-                    <label :for="`kind-${option}`" class="text-sm cursor-pointer">
-                      {{ option }}
-                    </label>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            <div>
-              <span>Status</span>
-              <span class="flex items-center flex-wrap gap-4 px-2">
-                <ul class="flex flex-col flex-wrap p-0 m-0 space-y-2 list-none">
-                  <li
-                    v-for="option in commandStore.activeCommandStatuses"
-                    :key="option"
-                    class="inline-flex items-center gap-1 mr-4"
-                  >
-                    <input
-                      type="checkbox"
-                      :id="`status-${option}`"
-                      :value="option"
-                      :checked="!commandStore.commandFilters.status.includes(option)"
-                      @change="handleCheckboxChange(option, $event, 'status')"
-                    />
-                    <label :for="`status-${option}`" class="text-sm cursor-pointer">
-                      {{ option }}
-                    </label>
-                  </li>
-                </ul>
-              </span>
+  <div class="flex flex-col h-full min-h-0">
+    <Transition name="expand">
+      <div v-show="showFilters">
+        <div class="panel-content space-y-4 p-2">
+          <div>
+            <span>Kind</span>
+            <div class="flex items-center flex-wrap gap-4 px-2">
+              <ul class="flex flex-col flex-wrap p-0 m-0 space-y-2 list-none">
+                <li
+                  v-for="option in commandStore.activeCommandKinds"
+                  :key="option"
+                  class="inline-flex items-center gap-1 mr-4"
+                >
+                  <input
+                    type="checkbox"
+                    :id="`kind-${option}`"
+                    :value="option"
+                    :checked="!commandStore.commandFilters.kind.includes(option)"
+                    @change="handleCheckboxChange(option, $event, 'kind')"
+                  />
+                  <label :for="`kind-${option}`" class="text-sm cursor-pointer">
+                    {{ option }}
+                  </label>
+                </li>
+              </ul>
             </div>
           </div>
+          <div>
+            <span>Status</span>
+            <span class="flex items-center flex-wrap gap-4 px-2">
+              <ul class="flex flex-col flex-wrap p-0 m-0 space-y-2 list-none">
+                <li
+                  v-for="option in commandStore.activeCommandStatuses"
+                  :key="option"
+                  class="inline-flex items-center gap-1 mr-4"
+                >
+                  <input
+                    type="checkbox"
+                    :id="`status-${option}`"
+                    :value="option"
+                    :checked="!commandStore.commandFilters.status.includes(option)"
+                    @change="handleCheckboxChange(option, $event, 'status')"
+                  />
+                  <label :for="`status-${option}`" class="text-sm cursor-pointer">
+                    {{ option }}
+                  </label>
+                </li>
+              </ul>
+            </span>
+          </div>
         </div>
-      </Transition>
-    </div>
+      </div>
+    </Transition>
 
     <StickyScroller
       :trigger="commandStore.filteredCommands.length"
