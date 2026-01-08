@@ -6,6 +6,9 @@ import { X } from 'lucide-vue-next'
 import { commandRegistry, type CommandMeta } from '@/components/terminal/commands/commandRegistry'
 import { useWsStore } from '@/stores/ws'
 import { useModalStore } from '@/stores/modals'
+import { createLogger } from '@/lib/utils'
+
+const logger = createLogger('commands')
 
 const ws = useWsStore()
 const store = useModalStore()
@@ -54,7 +57,7 @@ function submitQuick(cmd: CommandMeta) {
     >
     ws.sendUserCommand(payload)
   } else {
-    console.warn('Unhandled quick command kind without modal', cmd.kind)
+    logger.warn('Unhandled quick command kind without modal', cmd.kind)
   }
   filter.value = ''
 }

@@ -13,35 +13,9 @@ import { useSplitPreviewStore } from '@/stores/splitPreview'
 import { useDeviceStore } from '@/stores/devices'
 import { getBearerToken } from '@/lib/auth0Helpers'
 import { useUserStore } from './user'
+import { createLogger } from '@/lib/utils'
 
-const LOG_LEVEL = 'info'
-
-// object to replace console.*
-const logger = {
-  log: (...args: unknown[]) => {
-    if (['debug', 'info'].includes(LOG_LEVEL)) {
-      console.info('[ws][info]', ...args)
-    }
-  },
-  debug: (...args: unknown[]) => {
-    if (['debug'].includes(LOG_LEVEL)) {
-      console.debug('[ws][debug]', ...args)
-    }
-  },
-  info: (...args: unknown[]) => {
-    if (['debug', 'info'].includes(LOG_LEVEL)) {
-      console.info('[ws][info]', ...args)
-    }
-  },
-  warn: (...args: unknown[]) => {
-    if (['debug', 'info', 'warn'].includes(LOG_LEVEL)) {
-      console.warn('[ws][warn]', ...args)
-    }
-  },
-  error: (...args: unknown[]) => {
-    console.error('[ws][error]', ...args)
-  },
-}
+const logger = createLogger('ws')
 
 // Connection phases
 // 'idle' -> not yet attempted
@@ -103,22 +77,22 @@ export const useWsStore = defineStore('ws', () => {
   function connect() {
     if (status.value === 'ready' || status.value === 'connecting') return
     lastError.value = null
-    logger.info('[ws] connect() invoked, status -> connecting, url=', url)
+    logger.info('connect() invoked, status -> connecting, url=', url)
     status.value = 'connecting'
     client.setServerMessageHandler(onServerMessage)
     client.setFatalErrorHandler((err) => {
       lastError.value = err
       status.value = 'error'
-      logger.error('[ws] fatal error', err)
+      logger.error('fatal error', err)
     })
     client.connect()
     // wait for the client to open the connection
     client.onOpen(() => {
-      logger.info('[ws] WebSocket connection opened')
+      logger.info('WebSocket connection opened')
     })
     // wait for the client to close the connection
     client.onClose((event) => {
-      logger.warn('[ws] WebSocket connection closed', event)
+      logger.warn('WebSocket connection closed', event)
       if (status.value !== 'error') {
         status.value = 'idle'
       }
@@ -131,7 +105,7 @@ export const useWsStore = defineStore('ws', () => {
 
   function disconnect() {
     client.disconnect()
-    logger.info('[ws] disconnect() invoked, status -> idle')
+    logger.info('disconnect() invoked, status -> idle')
     status.value = 'idle'
   }
 
@@ -243,7 +217,7 @@ export const useWsStore = defineStore('ws', () => {
 
   /* Handlers for inbound message kinds */
   function handleUnknowServerMessage(payload: ServerToClientMessage['payload']): void {
-    logger.warn('[ws] Unknown server message kind received:', payload.kind, payload.data)
+    logger.warn('Unknown server message kind received:', payload.kind, payload.data)
   }
 
   function handleClientIdAssignment(payload: ServerToClientMessage['payload']): void {
@@ -258,21 +232,21 @@ export const useWsStore = defineStore('ws', () => {
       .data
     protocolVersion.value = data.protocol_version
     status.value = 'ready'
-    logger.info('[ws] ServerHello received. status -> ready, protocol=', data.protocol_version)
+    logger.info('ServerHello received. status -> ready, protocol=', data.protocol_version)
     void (async () => {
       const freshToken = await getBearerToken()
       if (freshToken) {
         localStorage.setItem('auth_token', freshToken)
-        logger.info('[ws] sending TokenLogin with fresh token')
+        logger.info('sending TokenLogin with fresh token')
         sendTokenLogin(freshToken)
         return
       }
       const cachedToken = localStorage.getItem('auth_token')
       if (cachedToken) {
-        logger.info('[ws] sending TokenLogin with stored token')
+        logger.info('sending TokenLogin with stored token')
         sendTokenLogin(cachedToken)
       } else {
-        logger.info('[ws] no stored token found')
+        logger.info('no stored token found')
       }
     })()
     // reset reconnect count on successful connection
@@ -285,7 +259,7 @@ export const useWsStore = defineStore('ws', () => {
     username.value = (
       payload as Extract<ServerToClientMessage['payload'], { kind: 'SetUser' }>
     ).data.username
-    logger.info('[ws] SetUser received. authAccepted -> true, username=', username.value)
+    logger.info('SetUser received. authAccepted -> true, username=', username.value)
     // Update user store as well
     const userStore = useUserStore()
     userStore.isServerAuthenticated = true
@@ -294,7 +268,7 @@ export const useWsStore = defineStore('ws', () => {
   function handleUnsetUser(): void {
     authAccepted.value = false
     username.value = 'anonymous'
-    logger.info('[ws] UnsetUser received. authAccepted -> false, username -> anonymous')
+    logger.info('UnsetUser received. authAccepted -> false, username -> anonymous')
     // Keep existing authError if any; UnsetUser is not necessarily an error.
   }
 
@@ -322,7 +296,7 @@ export const useWsStore = defineStore('ws', () => {
     ).data
     lastError.value = data.error
     status.value = 'error'
-    logger.error('[ws] FatalServerError received. status -> error', data.error)
+    logger.error('FatalServerError received. status -> error', data.error)
   }
 
   function isAuthError(message: string | undefined | null): boolean {
@@ -343,7 +317,7 @@ export const useWsStore = defineStore('ws', () => {
     authError.value = data.error
     if (isAuthError(data.error)) {
       localStorage.removeItem('auth_token')
-      logger.warn('[ws] cleared cached auth token after auth error')
+      logger.warn('cleared cached auth token after auth error')
     }
   }
 

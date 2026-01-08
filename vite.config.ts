@@ -1,3 +1,4 @@
+import { createLogger } from './src/lib/utils'
 import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig, loadEnv, type Plugin, type ViteDevServer } from 'vite'
@@ -6,6 +7,8 @@ type NextFunction = (err?: unknown) => void
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import tailwindcss from '@tailwindcss/vite'
+
+const logger = createLogger('vite')
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -16,20 +19,18 @@ export default defineConfig(({ mode }) => {
   const loggerPlugin: Plugin = {
     name: 'vite:logger',
     configResolved(_resolvedConfig) {
-      console.log(
-        `[vite] mode=${mode} apiTarget=${apiTarget} preserveApiPrefix=${preserveApiPrefix}`,
-      )
+      logger.log(`mode=${mode} apiTarget=${apiTarget} preserveApiPrefix=${preserveApiPrefix}`)
     },
     configureServer(server: ViteDevServer) {
       const host =
         typeof server.config.server.host === 'string' ? server.config.server.host : 'localhost'
       const port = server.config.server.port ?? 'unknown'
-      console.log(`[vite] dev server starting on ${host}:${port}`)
+      logger.log(`dev server starting on ${host}:${port}`)
 
       // log every incoming HTTP request (before proxy)
       server.middlewares.use((req: IncomingMessage, _res: ServerResponse, next: NextFunction) => {
         try {
-          console.log(`[http] ${req.method} ${req.url}`)
+          logger.debug(`${req.method} ${req.url}`)
         } catch {
           /* ignore */
         }
@@ -98,7 +99,7 @@ export default defineConfig(({ mode }) => {
               // log proxied request
               try {
                 const destUrl = new URL(req.url || '/', apiTarget).toString()
-                console.log(`[proxyReq] ${req.method} ${req.url} -> ${destUrl}`)
+                logger.debug(`proxy: ${req.method} ${req.url} -> ${destUrl}`)
               } catch {
                 /* ignore */
               }
@@ -107,9 +108,7 @@ export default defineConfig(({ mode }) => {
             proxy.on('proxyRes', (proxyRes: IncomingMessage, req: IncomingMessage) => {
               try {
                 const destUrl = new URL(req.url || '/', apiTarget).toString()
-                console.log(
-                  `[proxyRes] ${req.method} ${req.url} <- ${destUrl} ${proxyRes.statusCode}`,
-                )
+                logger.debug(`proxy: ${req.method} ${req.url} <- ${destUrl} ${proxyRes.statusCode}`)
               } catch {
                 /* ignore */
               }
@@ -117,8 +116,8 @@ export default defineConfig(({ mode }) => {
 
             proxy.on('error', (err: Error, req: IncomingMessage) => {
               try {
-                console.error(
-                  `[proxyError] ${req?.method} ${req?.url}`,
+                logger.error(
+                  `proxy error: ${req?.method} ${req?.url}`,
                   err && err.message ? err.message : err,
                 )
               } catch {

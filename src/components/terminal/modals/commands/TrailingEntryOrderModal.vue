@@ -14,6 +14,9 @@ import { useSplitPreviewStore } from '@/stores/splitPreview'
 import { useWsStore } from '@/stores/ws'
 
 import type { TrailingEntryPrefill } from './types'
+import { createLogger } from '@/lib/utils'
+
+const logger = createLogger('commands')
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 
@@ -94,11 +97,11 @@ function validate(): boolean {
 function submit() {
   const marketContext = accounts.getMarketContextForAccount(selectedAccountId.value)
   if (!marketContext) {
-    console.error('No market context found for account', selectedAccountId.value)
+    logger.error('No market context found for account', selectedAccountId.value)
     return
   }
   if (!validate()) {
-    console.error('Validation failed')
+    logger.error('Validation failed')
     return
   }
   const data: TrailingEntryOrderCommand = {
@@ -274,10 +277,9 @@ function formatNumber(value: number, digits: number) {
           <div class="preview-row">
             <span>Per‑order notional</span>
             <span class="preview-value">
-              ${{ formatNumber(preview.child_notional_est, 2) }}
-              (range ${{ formatNumber(preview.child_notional_min, 2) }}–${{
-                formatNumber(preview.child_notional_max, 2)
-              }})
+              ${{ formatNumber(preview.child_notional_est, 2) }} (range ${{
+                formatNumber(preview.child_notional_min, 2)
+              }}–${{ formatNumber(preview.child_notional_max, 2) }})
             </span>
           </div>
           <div class="preview-row">
@@ -336,8 +338,8 @@ function formatNumber(value: number, digits: number) {
 }
 .preview-value {
   color: var(--color-text);
-  font-family: ui-monospace, SFMono-Regular, SFMono-Regular, Menlo, Consolas, 'Liberation Mono',
-    monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
 }
 .preview-warn {
   color: var(--color-danger);

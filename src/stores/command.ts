@@ -12,6 +12,10 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useWsStore } from '@/stores/ws'
 import { useDeviceStore } from '@/stores/devices'
+import { createLogger } from '@/lib/utils'
+
+const logger = createLogger('command')
+
 export interface PendingCommand {
   commandId: string
   sentAt: number
@@ -122,7 +126,7 @@ export const useCommandStore = defineStore(
       const now = performance.now()
       const pending = pendingCommands.value[commandId]
       const latency = now - pending.sentAt
-      console.debug(`[command] Command ${commandId} acknowledged, latency=${Math.round(latency)}ms`)
+      logger.debug(`Command ${commandId} acknowledged, latency=${Math.round(latency)}ms`)
       // Move to history
       history.value.push({
         command_id: commandId,

@@ -9,6 +9,9 @@ import {
 } from '@/lib/ws/protocol'
 import { useWsStore } from '@/stores/ws'
 import { useAccountsStore } from '@/stores/accounts'
+import { createLogger } from '@/lib/utils'
+
+const logger = createLogger('commands')
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -41,7 +44,7 @@ watch(
 function submit() {
   const marketContext = accounts.getMarketContextForAccount(selectedAccountId.value)
   if (!marketContext) {
-    console.error('No market context found for account', selectedAccountId.value)
+    logger.error('No market context found for account', selectedAccountId.value)
     return
   }
   const data: SplitMarketOrderCommand = {

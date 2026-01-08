@@ -15,6 +15,9 @@
 <script setup lang="ts">
 import { createApp, h, type Component, ref } from 'vue'
 import { DockviewVue, type DockviewReadyEvent } from 'dockview-vue'
+import { createLogger } from '@/lib/utils'
+
+const logger = createLogger('dockview')
 
 const LAYOUT_KEY = 'trailing-entry-view-layout'
 
@@ -35,7 +38,7 @@ function buildDefaultLayout(event: DockviewReadyEvent) {
       position: { referencePanel: 'chart', direction: 'below' },
     })
   } catch (e) {
-    console.error('[Dockview Layout Error]', e)
+    logger.error('layout error', e)
   }
 }
 
@@ -45,7 +48,7 @@ function saveLayout() {
     const layout = apiRef.value.toJSON()
     localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout))
   } catch (e) {
-    console.error('[Dockview Persist Error]', e)
+    logger.error('persist error', e)
   }
 }
 
@@ -57,7 +60,7 @@ function loadSavedLayout(event: DockviewReadyEvent) {
     event.api.fromJSON(json)
     return true
   } catch (e) {
-    console.warn('[Layout Restore Failed]', e)
+    logger.warn('layout restore failed', e)
     return false
   }
 }

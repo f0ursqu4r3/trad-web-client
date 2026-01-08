@@ -3,6 +3,9 @@ import { computed, onMounted, ref } from 'vue'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 import { X } from 'lucide-vue-next'
+import { createLogger } from '@/lib/utils'
+
+const logger = createLogger('accounts')
 
 const accounts = useAccountsStore()
 
@@ -21,7 +24,7 @@ async function deleteAccount(account: AccountRecord) {
   try {
     await accounts.removeAccount(account.label)
   } catch (err) {
-    console.error('[accounts] delete failed', err)
+    logger.error('delete failed', err)
   }
 }
 
@@ -36,7 +39,7 @@ async function refreshAccounts() {
 onMounted(() => {
   if (!accounts.lastFetchedAt) {
     accounts.fetchAccounts().catch((err) => {
-      console.error('[accounts] initial fetch failed', err)
+      logger.error('initial fetch failed', err)
     })
   }
 })

@@ -20,6 +20,9 @@ import {
   type DeviceTeDeltaEvent,
   type MarketContext,
 } from '@/lib/ws/protocol'
+import { createLogger } from '@/lib/utils'
+
+const logger = createLogger('devices')
 
 export const useDeviceStore = defineStore('device', () => {
   const deviceMap = ref<Record<string, Device>>({})
@@ -88,7 +91,7 @@ export const useDeviceStore = defineStore('device', () => {
   }
 
   function handleDeviceSnapshotLite(data: DeviceSnapshotLiteData) {
-    console.log('Handling device snapshot lite:', data)
+    logger.log('Handling device snapshot lite:', data)
     const deviceId = data.device_id
     const snapshot = data.snapshot
     if (!(deviceId in deviceMap.value)) {
@@ -208,7 +211,7 @@ export const useDeviceStore = defineStore('device', () => {
   }
 
   function handleDeviceUpdate(kind: string, event: DeviceDeltaEvent) {
-    console.log('Handling device update of kind:', kind, 'with event:', event)
+    logger.log('Handling device update of kind:', kind, 'with event:', event)
     let commandId = null
     if (event.delta.kind === 'Init') {
       commandId = event.delta.data.command_id || null

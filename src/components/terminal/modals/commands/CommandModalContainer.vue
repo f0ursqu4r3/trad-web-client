@@ -2,13 +2,15 @@
 import { useModalStore } from '@/stores/modals'
 import { useWsStore } from '@/stores/ws'
 import { storeToRefs } from 'pinia'
-
 import MarketOrderModal from '@/components/terminal/modals/commands/MarketOrderModal.vue'
 import LimitOrderModal from '@/components/terminal/modals/commands/LimitOrderModal.vue'
 import TrailingEntryOrderModal from '@/components/terminal/modals/commands/TrailingEntryOrderModal.vue'
 import SplitMarketOrderModal from '@/components/terminal/modals/commands/SplitMarketOrderModal.vue'
 import { watch, onBeforeUnmount } from 'vue'
 import type { UserCommandPayload } from '@/lib/ws/protocol'
+import { createLogger } from '@/lib/utils'
+
+const logger = createLogger('commands')
 
 const store = useModalStore()
 const ws = useWsStore()
@@ -28,7 +30,7 @@ const onKeyDown = (e: KeyboardEvent) => {
 }
 
 const submitOrder = (payload: UserCommandPayload) => {
-  console.log('Submitting order from CommandModalContainer', payload)
+  logger.log('Submitting order from CommandModalContainer', payload)
   ws.sendUserCommand(payload)
   closeTopModal()
 }

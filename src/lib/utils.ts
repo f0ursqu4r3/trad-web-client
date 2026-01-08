@@ -38,3 +38,27 @@ export function formatName(name: string): string {
     .trim()
     .replace(/\b\w/g, (c) => c.toUpperCase()) // capitalize first letter of each word
 }
+
+const LOG_LEVELS = ['debug', 'info', 'warn', 'error', 'silent'] as const
+type LogLevel = (typeof LOG_LEVELS)[number]
+
+const LOG_LEVEL: LogLevel = (import.meta.env.VITE_LOG_LEVEL as LogLevel) || 'info'
+
+function shouldLog(level: LogLevel): boolean {
+  return LOG_LEVELS.indexOf(level) >= LOG_LEVELS.indexOf(LOG_LEVEL)
+}
+
+export function createLogger(prefix: string) {
+  return {
+    debug: (...args: unknown[]) =>
+      shouldLog('debug') && console.debug(`[${prefix}][debug]`, ...args),
+    info: (...args: unknown[]) => shouldLog('info') && console.info(`[${prefix}][info]`, ...args),
+    log: (...args: unknown[]) => shouldLog('info') && console.info(`[${prefix}][info]`, ...args),
+    warn: (...args: unknown[]) => shouldLog('warn') && console.warn(`[${prefix}][warn]`, ...args),
+    error: (...args: unknown[]) =>
+      shouldLog('error') && console.error(`[${prefix}][error]`, ...args),
+  }
+}
+
+/** @deprecated Use createLogger('prefix') for domain-specific logging */
+export const logger = createLogger('app')

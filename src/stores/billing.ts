@@ -2,6 +2,9 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { apiGet, apiPost } from '@/lib/apiClient'
+import { createLogger } from '@/lib/utils'
+
+const logger = createLogger('billing')
 
 export interface PlanDetails {
   price_id: string
@@ -51,8 +54,8 @@ export const useBillingStore = defineStore('billing', () => {
       const data = await apiGet<BillingInfo>('/billing', { throwOnHTTPError: false })
       billingInfo.value = data ?? null
     } catch (err) {
-      // Non-fatal: leave as null and log to console
-      console.warn('Failed to fetch billing info', err)
+      // Non-fatal: leave as null and log to logger
+      logger.warn('Failed to fetch billing info', err)
       billingInfo.value = null
     }
   }
@@ -62,7 +65,7 @@ export const useBillingStore = defineStore('billing', () => {
       const data = await apiGet<PricingPlan[]>('/billing/plans', { throwOnHTTPError: false })
       plans.value = data ?? []
     } catch (err) {
-      console.warn('Failed to fetch plans', err)
+      logger.warn('Failed to fetch plans', err)
       // Fallback to hardcoded plans if API fails
       plans.value = getDefaultPlans()
     }
@@ -81,7 +84,7 @@ export const useBillingStore = defineStore('billing', () => {
       )
       if (url) window.location.assign(url)
     } catch (err) {
-      console.error('Failed to create checkout session', err)
+      logger.error('Failed to create checkout session', err)
     } finally {
       checkoutLoading.value = false
     }
@@ -96,7 +99,7 @@ export const useBillingStore = defineStore('billing', () => {
       })
       if (url) window.location.assign(url)
     } catch (err) {
-      console.error('Failed to open billing portal', err)
+      logger.error('Failed to open billing portal', err)
     }
   }
 

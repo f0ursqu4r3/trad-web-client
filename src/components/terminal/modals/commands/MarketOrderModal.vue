@@ -11,6 +11,9 @@ import { useAccountsStore } from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
 
 import type { MarketOrderPrefill } from './types'
+import { createLogger } from '@/lib/utils'
+
+const logger = createLogger('commands')
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{
@@ -66,12 +69,12 @@ function validate(): boolean {
 function submit() {
   const marketContext = accounts.getMarketContextForAccount(selectedAccountId.value)
   if (!marketContext) {
-    console.error('No market context found for account', selectedAccountId.value)
+    logger.error('No market context found for account', selectedAccountId.value)
     return
   }
 
   if (!validate()) {
-    console.error('Validation failed')
+    logger.error('Validation failed')
     return
   }
 

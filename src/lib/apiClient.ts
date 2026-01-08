@@ -1,5 +1,9 @@
 import { getAuth0Client } from '@/plugins/auth0'
 
+import { createLogger } from '@/lib/utils'
+
+const logger = createLogger('api')
+
 export interface RequestOptions extends RequestInit {
   // When true, throws on non-2xx; when false returns Response
   throwOnHTTPError?: boolean
@@ -46,7 +50,7 @@ async function authFetch(input: string, init: RequestOptions = {}) {
           },
         })
         .catch((error: unknown) => {
-          console.warn('Error getting access token', error)
+          logger.warn('Error getting access token', error)
           return null
         })
       if (typeof token === 'string' && token.length > 0) {
@@ -56,7 +60,7 @@ async function authFetch(input: string, init: RequestOptions = {}) {
       }
     }
   } catch (error) {
-    console.warn('Error getting access token', error)
+    logger.warn('Error getting access token', error)
   }
 
   const res = await fetch(input, { ...init, headers })
