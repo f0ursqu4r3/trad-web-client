@@ -22,7 +22,9 @@ function fmtPrice(n?: number) {
 
 function fmtPct(n?: number) {
   if (n == null || Number.isNaN(n)) return '—'
-  return new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 2 }).format(n)
+  return new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 2 }).format(
+    n / 100,
+  )
 }
 </script>
 

@@ -22,7 +22,7 @@ export function formatPercent(value: number): string {
     style: 'percent',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value)
+  }).format(value / 100)
 }
 
 export function getPositionSideClass(side: unknown): string {

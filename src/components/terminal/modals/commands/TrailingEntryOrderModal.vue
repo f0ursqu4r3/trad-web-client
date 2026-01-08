@@ -124,7 +124,7 @@ function submit() {
           <input type="number" v-model.number="activation_price" />
         </label>
         <label class="field">
-          <span>Jump Frac Threshold</span>
+          <span>Jump Threshold (%)</span>
           <input type="number" step="0.0001" v-model.number="jump_frac_threshold" />
         </label>
         <label class="field">

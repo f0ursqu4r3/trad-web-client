@@ -13,6 +13,8 @@ import {
 
 const props = defineProps<{
   device: TrailingEntryState
+  failureReason?: string | null
+  failed?: boolean
 }>()
 const accounts = useAccountsStore()
 
@@ -89,6 +91,17 @@ const networkLabel = computed(() => {
             ${{ formatPrice(device.risk_amount) }}
           </dd>
         </div>
+      </div>
+    </div>
+
+    <div v-if="props.failed && props.failureReason" class="space-y-2">
+      <h4
+        class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)] m-0 border-b border-[var(--border-color)] pb-1"
+      >
+        Failure Reason
+      </h4>
+      <div class="text-[12px] font-mono text-[var(--color-danger)]">
+        {{ props.failureReason }}
       </div>
     </div>
 
