@@ -332,7 +332,7 @@ function resetSizes() {
   width: 100%;
   height: 100%;
   display: grid;
-  border-radius: 4px;
+  border-radius: 0;
   overflow: hidden;
   min-height: 40px;
 }

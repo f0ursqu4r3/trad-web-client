@@ -1,5 +1,5 @@
 <template>
-  <div class="panel-card p-2">
+  <div class="panel-card command-history-card p-2">
     <div class="panel-header-row">
       <div class="inline-flex items-center gap-2">
         <span class="badge">{{ commandKind }}</span>
@@ -39,4 +39,9 @@ const createdAtLabel = computed(() => {
 })
 </script>
 
-<style scoped></style>
+<style scoped>
+.command-history-card {
+  border-radius: 0;
+  box-shadow: none;
+}
+</style>

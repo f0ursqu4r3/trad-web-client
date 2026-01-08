@@ -188,7 +188,7 @@ async function copyId() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 2px;
+  border-radius: 0;
   background: transparent;
   box-shadow: none;
 }

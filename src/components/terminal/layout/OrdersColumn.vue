@@ -38,5 +38,6 @@ import DeviceTreePanel from '../panels/DeviceTreePanel.vue'
   flex-direction: column;
   height: 100%;
   width: 100%;
+  border-radius: 0;
 }
 </style>
