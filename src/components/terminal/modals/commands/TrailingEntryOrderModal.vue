@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import {
+  type SplitMode,
   type TrailingEntryOrderCommand,
   type UserCommandPayload,
   PositionSide,
@@ -29,6 +30,10 @@ const jump_frac_threshold = ref<number | null>(null)
 const stop_loss = ref<number | null>(null)
 const risk_amount = ref<number | null>(null)
 const position_side = ref<PositionSide>(PositionSide.Long)
+const split_target_notional = ref<number | null>(null)
+const split_max_splits_cap = ref<number | null>(null)
+const split_mode = ref<SplitMode | ''>('')
+const split_slippage_margin = ref<number | null>(null)
 
 function applyInitialValues() {
   const preset = (modals.modalValues['TrailingEntryOrder'] as TrailingEntryPrefill) ?? {}
@@ -39,6 +44,10 @@ function applyInitialValues() {
   risk_amount.value = preset.risk_amount ?? null
   stop_loss.value = preset.stop_loss ?? null
   symbol.value = preset.symbol ?? accounts.getDefaultSymbolForAccount(selectedAccountId.value)
+  split_target_notional.value = null
+  split_max_splits_cap.value = null
+  split_mode.value = ''
+  split_slippage_margin.value = null
   lastAccountId.value = selectedAccountId.value
 }
 
@@ -89,6 +98,16 @@ function submit() {
     stop_loss: stop_loss.value as number,
     symbol: symbol.value,
   }
+  const split_settings = {
+    target_child_notional: split_target_notional.value ?? undefined,
+    max_splits_cap: split_max_splits_cap.value ?? undefined,
+    mode: split_mode.value || undefined,
+    slippage_margin:
+      split_slippage_margin.value !== null ? split_slippage_margin.value / 100 : undefined,
+  }
+  if (Object.values(split_settings).some((value) => value !== undefined)) {
+    data.split_settings = split_settings
+  }
   const payload: Extract<UserCommandPayload, { kind: 'TrailingEntryOrder' }> = {
     kind: 'TrailingEntryOrder',
     data,
@@ -134,6 +153,42 @@ function submit() {
           <span>Risk Amount</span><input type="number" v-model.number="risk_amount" />
         </label>
       </div>
+
+      <div class="space-y-2">
+        <div class="section-title">Splits</div>
+        <div class="grid gap-3 md:grid-cols-2">
+          <label class="field">
+            <span>Target Order Size (Notional)</span>
+            <input
+              type="number"
+              step="0.01"
+              v-model.number="split_target_notional"
+              placeholder="Server default"
+            />
+          </label>
+          <label class="field">
+            <span>Max Splits Cap</span>
+            <input type="number" step="1" v-model.number="split_max_splits_cap" />
+          </label>
+          <label class="field">
+            <span>Split Mode</span>
+            <select v-model="split_mode">
+              <option value="">Server default</option>
+              <option value="prefer_target">Prefer target size</option>
+              <option value="max_splits">Max splits</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Slippage Margin (%)</span>
+            <input
+              type="number"
+              step="0.01"
+              v-model.number="split_slippage_margin"
+              placeholder="0.5"
+            />
+          </label>
+        </div>
+      </div>
     </form>
     <template #footer>
       <div class="flex gap-2 justify-end pt-2">
@@ -156,5 +211,11 @@ function submit() {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+.section-title {
+  color: var(--color-text-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
 }
 </style>

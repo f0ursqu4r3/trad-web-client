@@ -70,6 +70,15 @@ export enum TrailingEntryLifecycle {
   ChildrenSpawned = 'Children Spawned',
   Completed = 'Completed',
 }
+
+export type SplitMode = 'prefer_target' | 'max_splits'
+
+export type SplitSettings = {
+  target_child_notional?: number | null
+  max_splits_cap?: number | null
+  mode?: SplitMode | null
+  slippage_margin?: number | null
+}
 export enum MarketOrderStatus {
   NotYetSent = 'Not Yet Sent',
   AlreadySentAndAwaitingFilling = 'Already Sent And Awaiting Filling',
@@ -237,6 +246,7 @@ export type TrailingEntryOrderCommand = {
   stop_loss: number
   risk_amount: number
   market_context: MarketContext
+  split_settings?: SplitSettings | null
 }
 export type CloseTrailingEntryPositionCommand = { command_id: Uuid }
 export type ListDevicesCommand = { filter: DeviceFilter }
@@ -488,6 +498,7 @@ export type TrailingEntrySnapshot = {
   jump_frac_threshold: number
   stop_loss: number
   risk_amount: number
+  split_settings?: SplitSettings | null
   // state
   phase: TrailingEntryPhase
   peak: number
@@ -583,6 +594,7 @@ export type DeviceTeDelta =
         jump_frac_threshold: number
         stop_loss: number
         risk_amount: number
+        split_settings?: SplitSettings | null
         phase: TrailingEntryPhase
         peak: number
         peak_index: number

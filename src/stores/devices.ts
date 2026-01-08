@@ -6,6 +6,7 @@ import {
   OrderSide,
   PositionSide,
   StopGuardStatus,
+  type SplitSettings,
   TrailingEntryLifecycle,
   TrailingEntryPhase,
   type DeviceMoDelta,
@@ -129,6 +130,7 @@ export const useDeviceStore = defineStore('device', () => {
         te.jump_frac_threshold = s.jump_frac_threshold
         te.stop_loss = s.stop_loss
         te.risk_amount = s.risk_amount
+        te.split_settings = s.split_settings ?? te.split_settings ?? null
         te.phase = s.phase
         te.peak = s.peak
         te.peak_index = s.peak_index
@@ -240,6 +242,7 @@ export const useDeviceStore = defineStore('device', () => {
             jump_frac_threshold,
             stop_loss,
             risk_amount,
+            split_settings,
             phase,
             peak,
             peak_index,
@@ -254,6 +257,7 @@ export const useDeviceStore = defineStore('device', () => {
           te.jump_frac_threshold = jump_frac_threshold
           te.stop_loss = stop_loss
           te.risk_amount = risk_amount
+          te.split_settings = split_settings ?? te.split_settings ?? null
           te.phase = phase
           te.peak = peak
           te.peak_index = peak_index
@@ -642,6 +646,7 @@ export interface TrailingEntryState {
   jump_frac_threshold: number
   stop_loss: number
   risk_amount: number
+  split_settings?: SplitSettings | null
 
   // state
   phase: TrailingEntryPhase
@@ -777,6 +782,7 @@ function newTrailingEntryState(): TrailingEntryState {
     jump_frac_threshold: 0,
     stop_loss: 0,
     risk_amount: 0,
+    split_settings: null,
     phase: TrailingEntryPhase.Initial,
     peak: 0,
     peak_index: 0,
