@@ -17,6 +17,27 @@ const props = defineProps<{
   failed?: boolean
 }>()
 const accounts = useAccountsStore()
+const splitSettings = computed(() => props.device.split_settings ?? null)
+
+function fmtSplitValue(value: number | null | undefined, digits = 2) {
+  if (value == null || Number.isNaN(value)) return 'Default'
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value)
+}
+
+function fmtSplitPercent(value: number | null | undefined) {
+  if (value == null || Number.isNaN(value)) return 'Default'
+  return new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 2 }).format(
+    value,
+  )
+}
+
+function fmtSplitMode(value: string | null | undefined) {
+  if (!value) return 'Default'
+  return value === 'max_splits' ? 'Max splits' : 'Prefer target'
+}
 
 const networkLabel = computed(() => {
   const ctx = props.device.market_context
@@ -136,6 +157,48 @@ const networkLabel = computed(() => {
             Total Points
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">{{ device.total_points }}</dd>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <h4
+        class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)] m-0 border-b border-[var(--border-color)] pb-1"
+      >
+        Split Settings
+      </h4>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Target Notional
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ fmtSplitValue(splitSettings?.target_child_notional, 2) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Max Splits Cap
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ splitSettings?.max_splits_cap ?? 'Default' }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Mode
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ fmtSplitMode(splitSettings?.mode ?? null) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Slippage Margin
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ fmtSplitPercent(splitSettings?.slippage_margin ?? null) }}
+          </dd>
         </div>
       </div>
     </div>

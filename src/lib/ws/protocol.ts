@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 6
+export const PROTOCOL_VERSION = 7
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -248,6 +248,15 @@ export type TrailingEntryOrderCommand = {
   market_context: MarketContext
   split_settings?: SplitSettings | null
 }
+export type SplitPreviewCommand = {
+  symbol: string
+  market_context: MarketContext
+  position_side: PositionSide
+  activation_price: number
+  stop_loss: number
+  risk_amount: number
+  split_settings?: SplitSettings | null
+}
 export type CloseTrailingEntryPositionCommand = { command_id: Uuid }
 export type ListDevicesCommand = { filter: DeviceFilter }
 export type GetDeviceTreeCommand = { device_id: Uuid }
@@ -309,6 +318,7 @@ export type UserCommandPayload =
   | { kind: 'Test'; data: TestCommand }
   | { kind: 'TokenLogin'; data: TokenLoginCommand }
   | { kind: 'TrailingEntryOrder'; data: TrailingEntryOrderCommand }
+  | { kind: 'SplitPreview'; data: SplitPreviewCommand }
 
 // ==============================================================================================
 // Server → Client
@@ -338,6 +348,7 @@ export type ServerToClientPayload =
   | { kind: 'DeviceSplitDelta'; data: DeviceSplitDeltaEvent }
   | { kind: 'DeviceTeDelta'; data: DeviceTeDeltaEvent }
   | { kind: 'DeviceTree'; data: DeviceTreeData }
+  | { kind: 'SplitPreview'; data: SplitPreviewData }
   | { kind: 'FatalServerError'; data: FatalServerErrorData }
   | { kind: 'InspectReady'; data: InspectReadyData }
   | { kind: 'Message'; data: MessageData }
@@ -466,6 +477,28 @@ export type CommandHistoryData = {
 export type SetCommandStatusData = {
   command_id: Uuid
   status: CommandStatus
+}
+
+export type SplitPreviewData = {
+  request_uuid: Uuid
+  symbol: string
+  market_context: MarketContext
+  position_side: PositionSide
+  price_est: number
+  price_source: string
+  total_qty_est: number
+  total_qty_adj: number
+  total_notional_est: number
+  split_count: number
+  split_min: number
+  split_max: number
+  child_qty_est: number
+  child_notional_est: number
+  child_notional_min: number
+  child_notional_max: number
+  target_child_notional: number
+  slippage_margin: number
+  warnings: string[]
 }
 
 // Lite device snapshot types

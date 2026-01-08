@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { MarketOrderState } from '@/stores/devices'
-import { MarketOrderStatus } from '@/lib/ws/protocol'
+import { MarketAction, MarketOrderStatus } from '@/lib/ws/protocol'
 import { useAccountsStore } from '@/stores/accounts'
 import { formatPrice, formatQty, getPositionSideClass, formatSide } from './utils'
 
@@ -18,6 +18,10 @@ const networkLabel = computed(() => {
     return account?.network ?? '-'
   }
   return '-'
+})
+
+const actionLabel = computed(() => {
+  return props.device.market_action === MarketAction.Close ? 'Close' : 'Open'
 })
 
 function getStatusClass(status: MarketOrderStatus): string {
@@ -57,9 +61,12 @@ function fmtDate(d?: Date | null): string {
     <div class="space-y-2">
       <div class="flex items-center justify-between">
         <h3 class="text-sm font-mono text-[var(--color-text)] m-0">Market Order Device</h3>
-        <span :class="getStatusClass(device.status)" class="text-[10px] px-2 py-1">
-          {{ device.status }}
-        </span>
+        <div class="flex items-center gap-2">
+          <span class="pill pill-xs">{{ actionLabel }}</span>
+          <span :class="getStatusClass(device.status)" class="text-[10px] px-2 py-1">
+            {{ device.status }}
+          </span>
+        </div>
       </div>
       <div class="text-[11px] text-[var(--color-text-dim)] font-mono">
         {{ device.symbol }} • <span class="uppercase">{{ device.order_side }}</span> •

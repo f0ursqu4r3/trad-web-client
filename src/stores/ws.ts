@@ -9,6 +9,7 @@ import { ref, computed, onUnmounted } from 'vue'
 import { defineStore } from 'pinia'
 import { TradWebClient } from '@/lib/ws/websocketClient'
 import { useCommandStore } from '@/stores/command'
+import { useSplitPreviewStore } from '@/stores/splitPreview'
 import { useDeviceStore } from '@/stores/devices'
 import { getBearerToken } from '@/lib/auth0Helpers'
 import { useUserStore } from './user'
@@ -150,6 +151,12 @@ export const useWsStore = defineStore('ws', () => {
     return commandId
   }
 
+  function sendUserCommandPreview(command: UserCommandPayload) {
+    const commandId = client.send({ kind: 'UserCommand', data: command })
+    outboundCount.value++
+    return commandId
+  }
+
   function sendTokenLogin(token: string) {
     sendUserCommand({
       kind: 'TokenLogin',
@@ -199,6 +206,7 @@ export const useWsStore = defineStore('ws', () => {
       DeviceSgDelta: handleDeviceSgDelta,
       DeviceSplitDelta: handleDeviceSplitDelta,
       DeviceMoDelta: handleDeviceMoDelta,
+      SplitPreview: handleSplitPreview,
     } as Record<string, (p: ServerToClientMessage['payload']) => void>
     const handler = handlers[payload.kind] || handleUnknowServerMessage
     handler(payload)
@@ -343,6 +351,13 @@ export const useWsStore = defineStore('ws', () => {
     })
   }
 
+  function handleSplitPreview(payload: ServerToClientMessage['payload']): void {
+    const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'SplitPreview' }>)
+      .data
+    const previewStore = useSplitPreviewStore()
+    previewStore.setPreview(data)
+  }
+
   function handleDeviceSnapshotLite(payload: ServerToClientMessage['payload']): void {
     const data = payload as Extract<
       ServerToClientMessage['payload'],
@@ -403,6 +418,7 @@ export const useWsStore = defineStore('ws', () => {
     sendTokenLogin,
     sendLogout,
     sendUserCommand,
+    sendUserCommandPreview,
     sendCancelCommand,
     sendCloseTrailingEntryPosition,
     sendRefreshAccountKeys,

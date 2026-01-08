@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import {
   type SplitMode,
   type TrailingEntryOrderCommand,
   type UserCommandPayload,
+  type SplitPreviewCommand,
   PositionSide,
 } from '@/lib/ws/protocol'
 import { useAccountsStore } from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
+import { useSplitPreviewStore } from '@/stores/splitPreview'
+import { useWsStore } from '@/stores/ws'
 
 import type { TrailingEntryPrefill } from './types'
 
@@ -21,6 +24,8 @@ const emit = defineEmits<{
 
 const accounts = useAccountsStore()
 const modals = useModalStore()
+const ws = useWsStore()
+const splitPreviewStore = useSplitPreviewStore()
 
 const selectedAccountId = ref<string>('')
 const symbol = ref<string>('BTCUSDT')
@@ -34,6 +39,13 @@ const split_target_notional = ref<number | null>(null)
 const split_max_splits_cap = ref<number | null>(null)
 const split_mode = ref<SplitMode | ''>('')
 const split_slippage_margin = ref<number | null>(null)
+const previewRequestId = ref<string | null>(null)
+let previewTimer: number | null = null
+
+const preview = computed(() => {
+  if (!previewRequestId.value) return null
+  return splitPreviewStore.getPreview(previewRequestId.value)
+})
 
 function applyInitialValues() {
   const preset = (modals.modalValues['TrailingEntryOrder'] as TrailingEntryPrefill) ?? {}
@@ -114,6 +126,70 @@ function submit() {
   }
   emit('submit', payload)
 }
+
+function canPreview(): boolean {
+  if (!selectedAccountId.value) return false
+  if (!symbol.value) return false
+  if (activation_price.value === null) return false
+  if (stop_loss.value === null) return false
+  if (risk_amount.value === null) return false
+  return true
+}
+
+function requestPreview() {
+  const marketContext = accounts.getMarketContextForAccount(selectedAccountId.value)
+  if (!marketContext) return
+  if (!canPreview()) return
+
+  const split_settings = {
+    target_child_notional: split_target_notional.value ?? undefined,
+    max_splits_cap: split_max_splits_cap.value ?? undefined,
+    mode: split_mode.value || undefined,
+    slippage_margin:
+      split_slippage_margin.value !== null ? split_slippage_margin.value / 100 : undefined,
+  }
+
+  const data: SplitPreviewCommand = {
+    symbol: symbol.value,
+    market_context: marketContext,
+    position_side: position_side.value,
+    activation_price: activation_price.value as number,
+    stop_loss: stop_loss.value as number,
+    risk_amount: risk_amount.value as number,
+    split_settings: Object.values(split_settings).some((v) => v !== undefined)
+      ? split_settings
+      : undefined,
+  }
+  const payload: UserCommandPayload = { kind: 'SplitPreview', data }
+  previewRequestId.value = ws.sendUserCommandPreview(payload)
+}
+
+watch(
+  [
+    selectedAccountId,
+    symbol,
+    activation_price,
+    stop_loss,
+    risk_amount,
+    position_side,
+    split_target_notional,
+    split_max_splits_cap,
+    split_mode,
+    split_slippage_margin,
+    () => props.open,
+  ],
+  () => {
+    if (!props.open) return
+    if (previewTimer) window.clearTimeout(previewTimer)
+    previewTimer = window.setTimeout(() => {
+      requestPreview()
+    }, 300)
+  },
+)
+
+function formatNumber(value: number, digits: number) {
+  return value.toFixed(digits)
+}
 </script>
 <template>
   <BaseCommandModal title="Trailing Entry" :open="open" @close="emit('close')">
@@ -188,6 +264,32 @@ function submit() {
             />
           </label>
         </div>
+        <div v-if="preview" class="preview">
+          <div class="preview-row">
+            <span>Estimated splits</span>
+            <span class="preview-value">
+              {{ preview.split_count }} (range {{ preview.split_min }}–{{ preview.split_max }})
+            </span>
+          </div>
+          <div class="preview-row">
+            <span>Per‑order notional</span>
+            <span class="preview-value">
+              ${{ formatNumber(preview.child_notional_est, 2) }}
+              (range ${{ formatNumber(preview.child_notional_min, 2) }}–${{
+                formatNumber(preview.child_notional_max, 2)
+              }})
+            </span>
+          </div>
+          <div class="preview-row">
+            <span>Price estimate</span>
+            <span class="preview-value">
+              ${{ formatNumber(preview.price_est, 2) }} ({{ preview.price_source }})
+            </span>
+          </div>
+          <div v-if="preview.warnings.length" class="preview-warn">
+            {{ preview.warnings.join(' ') }}
+          </div>
+        </div>
       </div>
     </form>
     <template #footer>
@@ -217,5 +319,28 @@ function submit() {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.6px;
+}
+.preview {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-size: 12px;
+  display: grid;
+  gap: 6px;
+}
+.preview-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--color-text-dim);
+}
+.preview-value {
+  color: var(--color-text);
+  font-family: ui-monospace, SFMono-Regular, SFMono-Regular, Menlo, Consolas, 'Liberation Mono',
+    monospace;
+}
+.preview-warn {
+  color: var(--color-danger);
+  font-size: 11px;
 }
 </style>

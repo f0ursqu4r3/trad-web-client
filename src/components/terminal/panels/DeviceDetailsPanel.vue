@@ -29,6 +29,18 @@ const deviceComp = computed(() => {
 <template>
   <section class="relative flex flex-col min-h-0 w-full h-full">
     <div v-if="selectedDevice" class="w-full h-full overflow-auto">
+      <div class="flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)]">
+        <div class="text-[11px] uppercase tracking-[0.04em] text-[var(--color-text-dim)]">
+          {{ selectedDevice.kind }} · Device ID
+        </div>
+        <button
+          class="font-mono text-[11px] text-[var(--color-text)] hover:text-white"
+          type="button"
+          @click="navigator.clipboard?.writeText(selectedDevice.id)"
+        >
+          {{ selectedDevice.id }}
+        </button>
+      </div>
       <component
         v-if="deviceComp"
         :is="deviceComp"
@@ -37,6 +49,7 @@ const deviceComp = computed(() => {
         :failed="selectedDevice.failed"
         :canceled="selectedDevice.canceled"
         :complete="selectedDevice.complete"
+        :device-id="selectedDevice.id"
         class="w-full h-full"
       />
     </div>

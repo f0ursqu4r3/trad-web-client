@@ -26,6 +26,28 @@ function fmtPct(n?: number) {
     n / 100,
   )
 }
+
+function fmtSplitSummary(split?: TrailingEntryOrderCommand['split_settings']) {
+  if (!split) return 'Default'
+  const parts = []
+  if (split.target_child_notional != null) {
+    parts.push(`target $${fmtPrice(split.target_child_notional)}`)
+  }
+  if (split.max_splits_cap != null) {
+    parts.push(`cap ${split.max_splits_cap}`)
+  }
+  if (split.mode) {
+    parts.push(split.mode === 'max_splits' ? 'max splits' : 'prefer target')
+  }
+  if (split.slippage_margin != null) {
+    parts.push(
+      new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 2 }).format(
+        split.slippage_margin,
+      ),
+    )
+  }
+  return parts.length ? parts.join(' · ') : 'Default'
+}
 </script>
 
 <template>
@@ -53,6 +75,13 @@ function fmtPct(n?: number) {
     <div>
       <dt class="text-[10px] uppercase tracking-[0.04em] text-gray-500 mb-1">Risk</dt>
       <dd class="m-0 text-[12px]">{{ fmtUsd(command.risk_amount) }}</dd>
+    </div>
+
+    <div class="sm:col-span-2">
+      <dt class="text-[10px] uppercase tracking-[0.04em] text-gray-500 mb-1">Splits</dt>
+      <dd class="m-0 text-[12px] font-mono text-gray-300">
+        {{ fmtSplitSummary(command.split_settings) }}
+      </dd>
     </div>
   </dl>
 </template>

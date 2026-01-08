@@ -33,6 +33,9 @@
           >
             <div class="flex flex-wrap gap-x-2 items-center">
               <span class="wrap-none">{{ item.label || item.id }}</span>
+              <span v-if="item.intent" class="pill pill-xs">
+                {{ item.intent }}
+              </span>
               <!-- <span v-if="item.symbol" class="pill pill-xs">
                 {{ item.symbol }}
               </span> -->
@@ -61,6 +64,7 @@ import { formatName } from '@/lib/utils'
 import { TreeView, type TreeItem } from '@/components/general/TreeView'
 import { FolderIcon, FolderOpenIcon, ArrowTrendingDownIcon } from '@/components/icons'
 import { useDeviceStore, type Device, type TrailingEntryState } from '@/stores/devices'
+import { MarketAction } from '@/lib/ws/protocol'
 
 const store = useDeviceStore()
 
@@ -74,6 +78,24 @@ const treeData = computed<TreeItem[]>(() => {
   const nodes = new Map<string, TreeItem>()
   const roots: TreeItem[] = []
 
+  const splitIntent = (device: Device): string | null => {
+    if (!device.children_devices?.length) return null
+    const actions = new Set<string>()
+    device.children_devices.forEach((childId) => {
+      const child = list.find((d) => d.id === childId)
+      if (child?.kind === 'MarketOrder') {
+        const action = (child.state as any).market_action
+        if (action) actions.add(action)
+      }
+    })
+    if (actions.size === 0) return null
+    if (actions.size === 1) {
+      const action = Array.from(actions)[0]
+      return action === MarketAction.Close ? 'Close' : 'Open'
+    }
+    return 'Mixed'
+  }
+
   const statusLabel = (device: Device): string => {
     if (device.failed) return 'Failed'
     if (device.canceled) return 'Canceled'
@@ -86,6 +108,12 @@ const treeData = computed<TreeItem[]>(() => {
   for (const device of list) {
     const teLifecycle =
       device.kind === 'TrailingEntry' ? (device.state as TrailingEntryState)?.lifecycle || '' : ''
+    const intent =
+      device.kind === 'MarketOrder'
+        ? ((device.state as any).market_action as string)
+        : device.kind === 'Split'
+          ? splitIntent(device)
+          : null
     nodes.set(device.id, {
       id: device.id,
       children: [],
@@ -93,6 +121,7 @@ const treeData = computed<TreeItem[]>(() => {
       symbol: device.state.symbol,
       lifecycle: device.complete || device.failed || device.canceled ? '' : teLifecycle,
       status: statusLabel(device),
+      intent,
     })
   }
 
@@ -107,6 +136,30 @@ const treeData = computed<TreeItem[]>(() => {
       roots.push(node)
     }
   }
+
+  const intentRank = (intent?: string | null): number => {
+    if (!intent) return 99
+    if (intent === 'Open') return 0
+    if (intent === 'Mixed') return 1
+    if (intent === 'Close') return 2
+    return 50
+  }
+
+  const sortNodes = (items: TreeItem[]) => {
+    items.sort((a, b) => {
+      const intentDelta = intentRank(a.intent as string) - intentRank(b.intent as string)
+      if (intentDelta !== 0) return intentDelta
+      const labelA = (a.label || '').toString()
+      const labelB = (b.label || '').toString()
+      if (labelA !== labelB) return labelA.localeCompare(labelB)
+      return a.id.toString().localeCompare(b.id.toString())
+    })
+    items.forEach((item) => {
+      if (item.children?.length) sortNodes(item.children)
+    })
+  }
+
+  sortNodes(roots)
 
   return roots
 })
