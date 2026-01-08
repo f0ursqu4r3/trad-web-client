@@ -90,9 +90,9 @@ const railColor = computed(() => {
   background: color-mix(in srgb, var(--account-rail-color) 55%, transparent);
   border-right: 1px solid color-mix(in srgb, var(--account-rail-color) 35%, var(--border-color));
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 6px 0;
+  padding: 6px 0 6px 2px;
   flex-shrink: 0;
 }
 
@@ -105,5 +105,6 @@ const railColor = computed(() => {
   text-transform: uppercase;
   opacity: 0.85;
   white-space: nowrap;
+  margin-left: 2px;
 }
 </style>
