@@ -105,7 +105,7 @@ export const useAccountsStore = defineStore('accounts', () => {
   async function addAccount(payload: AccountFormPayload): Promise<void> {
     const label = encodeURIComponent(payload.label.trim())
     const resp = await apiPut(`/accounts/${label}`, payload)
-    logger.log('Add account response:', resp)
+    logger.debug('Add account response:', resp)
     await fetchAccounts()
   }
 

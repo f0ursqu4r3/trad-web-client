@@ -93,7 +93,7 @@ function formatPayload(p: unknown): string {
       </div>
       <button
         type="button"
-        class="btn btn-ghost-neutral btn-xs text-[var(--color-text-dim)]"
+        class="btn btn-ghost-neutral btn-xs dim"
         :disabled="messages.length === 0"
         @click="clearMessages"
       >
@@ -113,11 +113,11 @@ function formatPayload(p: unknown): string {
         class="flex flex-col gap-0.5 p-2 border-b border-gray-600/30 odd:bg-gray-800/30"
       >
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <span class="text-[var(--color-text)] font-normal text-xs">{{ m.kind }}</span>
+          <span class="text-primary font-normal text-xs">{{ m.kind }}</span>
           <div class="flex items-center gap-2">
             <button
               type="button"
-              class="btn icon-btn btn-ghost-neutral btn-sm text-[var(--color-text-dim)]"
+              class="btn icon-btn btn-ghost-neutral btn-sm dim"
               :aria-expanded="isExpanded(messageKey(m))"
               @click="toggleExpanded(messageKey(m))"
             >

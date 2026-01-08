@@ -37,6 +37,33 @@
   .dim {
     color: var(--color-text-dim);
   }
+  /* Semantic text colors */
+  .text-primary {
+    color: var(--color-text);
+  }
+  .text-success {
+    color: var(--color-success);
+  }
+  .text-error {
+    color: var(--color-error);
+  }
+  .text-warning {
+    color: var(--color-warning);
+  }
+  .text-info {
+    color: var(--color-info);
+  }
+  /* Section title utility (common device/detail pattern) */
+  .section-title {
+    @apply text-[11px] uppercase tracking-wide m-0 border-b pb-1;
+    color: var(--color-text-dim);
+    border-color: var(--border-color);
+  }
+  /* Definition term/label utility */
+  .dt-label {
+    @apply text-[10px] uppercase tracking-[0.04em] mb-1;
+    color: var(--color-text-dim);
+  }
   .kbd {
     @apply inline-block rounded border px-1.5 py-0.5 text-[11px] font-mono text-term-dim tracking-widest;
   }

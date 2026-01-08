@@ -49,9 +49,7 @@ onMounted(() => {
   <section class="panel-card flex h-full flex-col">
     <div class="panel-header-row">
       <div class="inline-flex items-center gap-2">
-        <span class="font-semibold tracking-[0.04em] text-[var(--color-text)]"
-          >Trading Accounts</span
-        >
+        <span class="font-semibold tracking-[0.04em] text-primary">Trading Accounts</span>
         <span v-if="accounts.loading" class="pill pill-info">loading</span>
         <span v-else-if="accounts.error" class="pill pill-err">error</span>
       </div>
@@ -68,21 +66,18 @@ onMounted(() => {
     </div>
 
     <div class="flex flex-1 flex-col gap-3 overflow-auto p-3">
-      <p v-if="accounts.error" class="text-center text-xs text-[var(--color-error)]">
+      <p v-if="accounts.error" class="text-center text-xs text-error">
         {{ accounts.error }}
       </p>
 
       <p
         v-else-if="accounts.loading && accounts.accounts.length === 0"
-        class="text-center text-xs text-[var(--color-text-dim)]"
+        class="text-center text-xs dim"
       >
         Loading accounts...
       </p>
 
-      <p
-        v-else-if="accounts.accounts.length === 0"
-        class="text-center text-xs text-[var(--color-text-dim)]"
-      >
+      <p v-else-if="accounts.accounts.length === 0" class="text-center text-xs dim">
         No accounts configured yet.
       </p>
 
@@ -105,10 +100,10 @@ onMounted(() => {
               @click="selectAccount(account)"
               :aria-pressed="accounts.selectedAccountId === account.id"
             >
-              <span class="text-sm font-medium text-[var(--color-text)]">
+              <span class="text-sm font-medium text-primary">
                 {{ account.label }}
               </span>
-              <span class="flex items-center gap-2 text-[11px] text-[var(--color-text-dim)]">
+              <span class="flex items-center gap-2 text-[11px] dim">
                 <span class="chip">{{ account.network || 'Unknown' }}</span>
                 <span
                   v-if="accounts.selectedAccountId === account.id"

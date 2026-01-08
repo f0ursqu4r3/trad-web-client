@@ -134,31 +134,3 @@ function submit() {
     </template>
   </BaseCommandModal>
 </template>
-
-<style scoped>
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 12px;
-}
-.field > span {
-  color: var(--color-text-dim);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.input {
-  background: color-mix(in srgb, var(--panel-header-bg) 70%, transparent);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 0.35rem 0.5rem;
-  font: inherit;
-  font-size: 12px;
-  color: var(--color-text);
-}
-.input:focus {
-  outline: 1px solid var(--accent-color);
-  outline-offset: 1px;
-}
-</style>

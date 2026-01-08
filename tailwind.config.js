@@ -9,6 +9,7 @@ export default {
   safelist: [
     // Button variants / sizes when toggled via dynamic binding
     'btn',
+    'btn-xs',
     'btn-sm',
     'btn-lg',
     'btn-primary',
@@ -30,6 +31,10 @@ export default {
     'scroll-area',
     'list-row',
     'list-row-hover',
+    // Fields
+    'field',
+    'field-row',
+    'field-error',
     // Inputs (new generic) + legacy aliases (remove -term variants after migration)
     'input',
     'input-sm',

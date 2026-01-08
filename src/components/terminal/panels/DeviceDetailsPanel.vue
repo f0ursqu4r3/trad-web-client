@@ -52,20 +52,20 @@ const deviceStatusClass = computed(() => {
       class="w-full h-full overflow-auto device-details"
       :class="deviceStatusClass"
     >
-      <div class="flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)]">
+      <div
+        class="flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)]"
+      >
         <button
-          class="font-mono text-[11px] text-[var(--color-text-dim)] hover:text-white"
+          class="font-mono text-[11px] dim hover:text-white"
           type="button"
           @click="navigator.clipboard?.writeText(selectedDevice.id)"
         >
           Device ID:
-          <span class="text-[var(--color-text)]">{{ selectedDevice.id }}</span>
+          <span class="text-primary">{{ selectedDevice.id }}</span>
         </button>
-        <div class="text-[11px] text-[var(--color-text-dim)]">
+        <div class="text-[11px] dim">
           Created:
-          <span class="font-mono text-[var(--color-text)]">{{
-            fmtDate(selectedDevice.created_at)
-          }}</span>
+          <span class="font-mono text-primary">{{ fmtDate(selectedDevice.created_at) }}</span>
         </div>
       </div>
       <component

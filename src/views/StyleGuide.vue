@@ -443,151 +443,48 @@ for (let i = 0; i < 80; i++) {
       <section id="buttons" class="py-2">
         <header class="sg-section-header">
           <h2>Buttons</h2>
-          <p class="text-[var(--color-text-dim)]">Variants, outline/ghost, sizes, and states.</p>
+          <p class="dim">Variants, outline/ghost, sizes, and states.</p>
         </header>
         <div class="flex flex-wrap gap-3 items-center mb-3">
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium bg-sky-600 hover:bg-sky-500 text-white"
-          >
-            primary
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium bg-zinc-700 hover:bg-zinc-600 text-white"
-          >
-            secondary
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium bg-rose-600 hover:bg-rose-500 text-white"
-          >
-            danger
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white"
-          >
-            success
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium bg-slate-600 hover:bg-slate-500 text-white"
-          >
-            neutral
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium bg-amber-500 hover:bg-amber-400 text-slate-900"
-          >
-            warn
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium bg-cyan-600 hover:bg-cyan-500 text-white"
-          >
-            info
-          </button>
+          <button class="btn btn-primary">primary</button>
+          <button class="btn btn-secondary">secondary</button>
+          <button class="btn btn-danger">danger</button>
+          <button class="btn btn-success">success</button>
+          <button class="btn btn-neutral">neutral</button>
+          <button class="btn btn-warn">warn</button>
+          <button class="btn btn-info">info</button>
         </div>
         <div class="flex flex-wrap gap-3 items-center mb-3">
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium border border-slate-500 text-slate-300 hover:bg-slate-500/10"
-          >
-            outline
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium border border-rose-500 text-rose-300 hover:bg-rose-500/10"
-          >
-            outline danger
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium border border-emerald-500 text-emerald-300 hover:bg-emerald-500/10"
-          >
-            outline success
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium border border-slate-500 text-slate-300 hover:bg-slate-500/10"
-          >
-            outline neutral
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium border border-amber-500 text-amber-300 hover:bg-amber-500/10"
-          >
-            outline warn
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium border border-cyan-500 text-cyan-300 hover:bg-cyan-500/10"
-          >
-            outline info
-          </button>
+          <button class="btn btn-outline">outline</button>
+          <button class="btn btn-outline-danger">outline danger</button>
+          <button class="btn btn-outline-success">outline success</button>
+          <button class="btn btn-outline-neutral">outline neutral</button>
+          <button class="btn btn-outline-warn">outline warn</button>
+          <button class="btn btn-outline-info">outline info</button>
         </div>
         <div class="flex flex-wrap gap-3 items-center mb-3">
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium text-slate-300 hover:bg-slate-500/10"
-          >
-            ghost
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium text-rose-300 hover:bg-rose-500/10"
-          >
-            ghost danger
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium text-emerald-300 hover:bg-emerald-500/10"
-          >
-            ghost success
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium text-slate-300 hover:bg-slate-500/10"
-          >
-            ghost neutral
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium text-amber-300 hover:bg-amber-500/10"
-          >
-            ghost warn
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium text-cyan-300 hover:bg-cyan-500/10"
-          >
-            ghost info
-          </button>
+          <button class="btn btn-ghost">ghost</button>
+          <button class="btn btn-ghost-danger">ghost danger</button>
+          <button class="btn btn-ghost-success">ghost success</button>
+          <button class="btn btn-ghost-neutral">ghost neutral</button>
+          <button class="btn btn-ghost-warn">ghost warn</button>
+          <button class="btn btn-ghost-info">ghost info</button>
         </div>
         <div class="flex flex-wrap gap-3 items-center mb-4">
-          <button
-            class="inline-flex items-center justify-center rounded-md px-2 py-1 text-xs font-medium bg-sky-600 hover:bg-sky-500 text-white"
-          >
-            primary sm
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-4 py-2 text-base font-medium bg-sky-600 hover:bg-sky-500 text-white"
-          >
-            primary lg
-          </button>
-          <button
-            class="inline-flex items-center justify-center h-9 w-9 rounded-md text-slate-300 hover:bg-slate-600"
-            aria-label="settings"
-          >
-            ⚙
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium bg-sky-600 hover:bg-sky-500 text-white"
-            aria-pressed="true"
-          >
-            pressed
-          </button>
-          <button
-            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium bg-zinc-700 text-white opacity-50 cursor-not-allowed"
-            disabled
-          >
-            disabled
-          </button>
+          <button class="btn btn-primary btn-xs">primary xs</button>
+          <button class="btn btn-primary btn-sm">primary sm</button>
+          <button class="btn btn-primary btn-lg">primary lg</button>
+          <button class="btn icon-btn" aria-label="settings">⚙</button>
+          <button class="btn btn-primary" aria-pressed="true">pressed</button>
+          <button class="btn btn-secondary" disabled>disabled</button>
         </div>
 
-        <div
-          class="rounded-lg border border-[var(--border-color)] bg-[var(--panel-bg)] shadow p-3 flex flex-col gap-3 max-w-2xl"
-        >
+        <div class="panel-card shadow p-3 flex flex-col gap-3 max-w-2xl">
           <h3 class="m-0 text-sm font-mono">Playground</h3>
           <div class="grid sm:grid-cols-3 gap-3 text-[12px] items-start">
             <label class="flex items-center gap-2">
-              <span class="w-16 text-[var(--color-text-dim)] font-mono">Variant</span>
-              <select
-                v-model="playVariant as any"
-                class="w-full rounded-md border border-slate-600 bg-[var(--panel-bg)] text-[var(--color-text)] px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
-              >
+              <span class="w-16 dim font-mono">Variant</span>
+              <select v-model="playVariant as any" class="input">
                 <option value="primary">primary</option>
                 <option value="secondary">secondary</option>
                 <option value="danger">danger</option>
@@ -598,41 +495,32 @@ for (let i = 0; i < 80; i++) {
               </select>
             </label>
             <label class="flex items-center gap-2">
-              <span class="w-16 text-[var(--color-text-dim)] font-mono">Style</span>
-              <select
-                v-model="playStyle as any"
-                class="w-full rounded-md border border-slate-600 bg-[var(--panel-bg)] text-[var(--color-text)] px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
-              >
+              <span class="w-16 dim font-mono">Style</span>
+              <select v-model="playStyle as any" class="input">
                 <option value="solid">solid</option>
                 <option value="outline">outline</option>
                 <option value="ghost">ghost</option>
               </select>
             </label>
             <label class="flex items-center gap-2">
-              <span class="w-16 text-[var(--color-text-dim)] font-mono">Size</span>
-              <select
-                v-model="playSize as any"
-                class="w-full rounded-md border border-slate-600 bg-[var(--panel-bg)] text-[var(--color-text)] px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
-              >
+              <span class="w-16 dim font-mono">Size</span>
+              <select v-model="playSize as any" class="input">
                 <option value="default">default</option>
                 <option value="sm">sm</option>
                 <option value="lg">lg</option>
               </select>
             </label>
             <label class="flex items-center gap-2">
-              <span class="w-16 text-[var(--color-text-dim)] font-mono">Label</span>
-              <input
-                v-model="playLabel"
-                class="w-full rounded-md border border-slate-600 bg-[var(--panel-bg)] text-[var(--color-text)] placeholder:text-[var(--color-text-dim)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
-              />
+              <span class="w-16 dim font-mono">Label</span>
+              <input v-model="playLabel" class="input" />
             </label>
             <label class="flex items-center gap-2">
               <input type="checkbox" v-model="playPressed" />
-              <span class="text-[var(--color-text-dim)] font-mono">aria-pressed</span>
+              <span class="dim font-mono">aria-pressed</span>
             </label>
             <label class="flex items-center gap-2">
               <input type="checkbox" v-model="playDisabled" />
-              <span class="text-[var(--color-text-dim)] font-mono">disabled</span>
+              <span class="dim font-mono">disabled</span>
             </label>
           </div>
           <div class="flex items-center justify-center gap-4 my-6">
@@ -734,53 +622,35 @@ for (let i = 0; i < 80; i++) {
       <section id="ranges" class="py-2">
         <header class="sg-section-header">
           <h2>Ranges</h2>
-          <p class="text-[var(--color-text-dim)]">Native sliders styled with the theme.</p>
+          <p class="dim">Native sliders styled with the theme.</p>
         </header>
         <div class="grid gap-10 md:grid-cols-2 max-w-5xl">
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <span class="font-mono text-[11px] text-[var(--color-text-dim)]">Standard</span>
+              <span class="font-mono text-[11px] dim">Standard</span>
               <span class="font-mono">{{ rangeValue }}</span>
             </div>
-            <input
-              type="range"
-              v-model="rangeValue"
-              class="w-full h-1 rounded bg-slate-600 accent-[var(--accent-color)]"
-            />
+            <input type="range" v-model="rangeValue" class="range" />
           </div>
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <span class="font-mono text-[11px] text-[var(--color-text-dim)]">Small</span>
+              <span class="font-mono text-[11px] dim">Small</span>
               <span class="font-mono">{{ rangeValueSm }}</span>
             </div>
-            <input
-              type="range"
-              v-model="rangeValueSm"
-              class="w-full h-0.5 rounded bg-slate-600 accent-[var(--accent-color)]"
-            />
+            <input type="range" v-model="rangeValueSm" class="range range-sm" />
           </div>
           <div class="space-y-2 md:col-span-2">
             <div class="flex items-center justify-between">
-              <span class="font-mono text-[11px] text-[var(--color-text-dim)]"
-                >Dual (two inputs)</span
-              >
+              <span class="font-mono text-[11px] dim">Dual (two inputs)</span>
               <span class="font-mono">{{ rangeDualMin }} – {{ rangeDualMax }}</span>
             </div>
             <div class="flex items-center gap-3">
-              <input
-                type="range"
-                v-model="rangeDualMin"
-                class="flex-1 h-1 rounded bg-slate-600 accent-[var(--accent-color)]"
-              />
-              <input
-                type="range"
-                v-model="rangeDualMax"
-                class="flex-1 h-1 rounded bg-slate-600 accent-[var(--accent-color)]"
-              />
+              <input type="range" v-model="rangeDualMin" class="range flex-1" />
+              <input type="range" v-model="rangeDualMax" class="range flex-1" />
             </div>
           </div>
           <div class="space-y-2">
-            <span class="font-mono text-[11px] text-[var(--color-text-dim)]">Vertical</span>
+            <span class="font-mono text-[11px] dim">Vertical</span>
             <input type="range" v-model="vertValue" class="range vertical-range" />
           </div>
         </div>
@@ -790,39 +660,16 @@ for (let i = 0; i < 80; i++) {
       <section id="status" class="py-2">
         <header class="sg-section-header">
           <h2>Pills & Badges</h2>
-          <p class="text-[var(--color-text-dim)]">
-            Use pills for transient status, badges for metadata.
-          </p>
+          <p class="dim">Use pills for transient status, badges for metadata.</p>
         </header>
         <div class="flex flex-wrap gap-2 items-center">
-          <span
-            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-slate-700 text-slate-200"
-            >default</span
-          >
-          <span
-            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-emerald-600 text-white"
-            >ok</span
-          >
-          <span
-            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-rose-600 text-white"
-            >err</span
-          >
-          <span
-            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-amber-500 text-slate-900"
-            >warn</span
-          >
-          <span
-            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-cyan-600 text-white"
-            >info</span
-          >
-          <span
-            class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-mono bg-slate-700 text-slate-300"
-            >badge</span
-          >
-          <span
-            class="inline-flex items-center rounded-full border border-slate-600 px-2 py-0.5 text-xs text-slate-300"
-            >chip</span
-          >
+          <span class="pill">default</span>
+          <span class="pill pill-ok">ok</span>
+          <span class="pill pill-err">err</span>
+          <span class="pill pill-warn">warn</span>
+          <span class="pill pill-info">info</span>
+          <span class="badge">badge</span>
+          <span class="chip">chip</span>
         </div>
       </section>
 
@@ -830,18 +677,12 @@ for (let i = 0; i < 80; i++) {
       <section id="notices" class="py-2">
         <header class="sg-section-header">
           <h2>Notices</h2>
-          <p class="text-[var(--color-text-dim)]">Inline feedback blocks.</p>
+          <p class="dim">Inline feedback blocks.</p>
         </header>
         <div class="space-y-1 text-[13px]">
-          <p class="rounded-md border-l-4 border-slate-500 bg-slate-900/40 px-3 py-2">
-            Generic notice text
-          </p>
-          <p class="rounded-md border-l-4 border-emerald-500 bg-emerald-500/10 px-3 py-2">
-            Success notice text
-          </p>
-          <p class="rounded-md border-l-4 border-rose-500 bg-rose-500/10 px-3 py-2">
-            Error notice text
-          </p>
+          <p class="notice">Generic notice text</p>
+          <p class="notice-ok">Success notice text</p>
+          <p class="notice-err">Error notice text</p>
         </div>
       </section>
 
@@ -849,9 +690,7 @@ for (let i = 0; i < 80; i++) {
       <section id="table" class="py-2">
         <header class="sg-section-header">
           <h2>Table</h2>
-          <p class="text-[var(--color-text-dim)]">
-            Lightweight scrollable table with sticky header.
-          </p>
+          <p class="dim">Lightweight scrollable table with sticky header.</p>
         </header>
         <div class="max-w-2xl">
           <TinyTable
@@ -938,22 +777,16 @@ for (let i = 0; i < 80; i++) {
       <section id="scroller" class="py-2">
         <header class="sg-section-header">
           <h2>Sticky Scroller</h2>
-          <p class="text-[var(--color-text-dim)]">
-            Auto-scroll log list with optional pause button.
-          </p>
+          <p class="dim">Auto-scroll log list with optional pause button.</p>
         </header>
-        <div class="h-64 max-w-xl overflow-hidden rounded border border-[var(--border-color)]">
+        <div class="h-64 max-w-xl overflow-hidden panel-card">
           <StickyScroller :items="ssitems" itemHeight="24" :showButton="true">
             <template #default="slot">
               <div class="grid grid-cols-[100px_60px_1fr] gap-2 items-center px-2 py-1 text-sm">
-                <span class="font-mono text-[var(--color-text-dim)]">{{ any(slot).time }}</span>
+                <span class="font-mono dim">{{ any(slot).time }}</span>
                 <span
                   class="font-mono"
-                  :class="
-                    any(slot).level === 'WARN'
-                      ? 'text-[var(--color-warning)]'
-                      : 'text-[var(--color-info)]'
-                  "
+                  :class="any(slot).level === 'WARN' ? 'text-warning' : 'text-info'"
                 >
                   {{ any(slot).level }}
                 </span>
@@ -968,31 +801,31 @@ for (let i = 0; i < 80; i++) {
       <section id="shadows" class="py-2">
         <header class="sg-section-header">
           <h2>Shadows</h2>
-          <p class="text-[var(--color-text-dim)]">Elevation scale for panels and overlays.</p>
+          <p class="dim">Elevation scale for panels and overlays.</p>
         </header>
         <div class="flex flex-wrap gap-6 items-center">
           <div
-            class="w-28 h-16 bg-[var(--panel-bg)] rounded-lg shadow-sm flex items-center justify-center text-[11px] text-[var(--color-text-dim)]"
+            class="w-28 h-16 bg-[var(--panel-bg)] rounded-lg shadow-sm flex items-center justify-center text-[11px] dim"
           >
             sm
           </div>
           <div
-            class="w-28 h-16 bg-[var(--panel-bg)] rounded-lg shadow flex items-center justify-center text-[11px] text-[var(--color-text-dim)]"
+            class="w-28 h-16 bg-[var(--panel-bg)] rounded-lg shadow flex items-center justify-center text-[11px] dim"
           >
             base
           </div>
           <div
-            class="w-28 h-16 bg-[var(--panel-bg)] rounded-lg shadow-md flex items-center justify-center text-[11px] text-[var(--color-text-dim)]"
+            class="w-28 h-16 bg-[var(--panel-bg)] rounded-lg shadow-md flex items-center justify-center text-[11px] dim"
           >
             md
           </div>
           <div
-            class="w-28 h-16 bg-[var(--panel-bg)] rounded-lg shadow-lg flex items-center justify-center text-[11px] text-[var(--color-text-dim)]"
+            class="w-28 h-16 bg-[var(--panel-bg)] rounded-lg shadow-lg flex items-center justify-center text-[11px] dim"
           >
             lg
           </div>
           <div
-            class="w-28 h-16 bg-[var(--panel-bg)] rounded-lg shadow-xl flex items-center justify-center text-[11px] text-[var(--color-text-dim)]"
+            class="w-28 h-16 bg-[var(--panel-bg)] rounded-lg shadow-xl flex items-center justify-center text-[11px] dim"
           >
             xl
           </div>
@@ -1003,29 +836,14 @@ for (let i = 0; i < 80; i++) {
       <section id="utilities" class="py-2">
         <header class="sg-section-header">
           <h2>Utilities</h2>
-          <p class="text-[var(--color-text-dim)]">Helper classes shared across the app.</p>
+          <p class="dim">Helper classes shared across the app.</p>
         </header>
         <div class="flex flex-wrap gap-3 items-center text-[12px]">
-          <span
-            class="font-mono bg-[var(--panel-bg)] border border-[var(--border-color)] rounded px-1 py-0.5"
-            >.code-inline</span
-          >
-          <span
-            class="px-1.5 py-0.5 rounded border border-[var(--border-color)] bg-[var(--panel-bg)] font-mono text-[11px] shadow"
-            >⌘K</span
-          >
-          <span
-            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-cyan-600 text-white"
-            >.text-accent</span
-          >
-          <span
-            class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-mono bg-slate-700 text-slate-300"
-            >.mono</span
-          >
-          <span
-            class="inline-flex items-center rounded-full border border-slate-600 px-2 py-0.5 text-xs text-[var(--color-text-dim)]"
-            >.dim (muted)</span
-          >
+          <span class="code-inline">.code-inline</span>
+          <span class="kbd">⌘K</span>
+          <span class="pill pill-info">.text-accent</span>
+          <span class="badge">.mono</span>
+          <span class="chip">.dim (muted)</span>
         </div>
       </section>
     </main>

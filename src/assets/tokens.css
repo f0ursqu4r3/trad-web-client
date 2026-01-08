@@ -1,6 +1,15 @@
 /* Design Tokens (Light + Dark + Terminal) */
 /* Tailwind v4 @theme block for palette-driven utilities */
 @theme {
+  /* Type scale (consistent font sizes across the app) */
+  --text-2xs: 9px;
+  --text-xs: 10px;
+  --text-sm: 11px;
+  --text-base: 12px;
+  --text-md: 13px;
+  --text-lg: 14px;
+  --text-xl: 16px;
+
   /* Terminal palette */
   --color-term-bg: #0b0f14;
   --color-term-fg: #e6edf3;

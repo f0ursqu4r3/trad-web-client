@@ -31,6 +31,9 @@
       0 0 0 2px var(--accent-color),
       inset 0 0 0 1px var(--accent-color);
   }
+  .btn-xs {
+    @apply px-1 py-0.5 text-[10px];
+  }
   .btn-sm {
     @apply px-1.5 py-0.5 text-[11px];
   }
@@ -354,6 +357,10 @@
     box-shadow:
       0 0 0 2px var(--accent-color),
       inset 0 0 0 1px var(--accent-color);
+  }
+  .icon-btn.btn-xs,
+  .btn-xs.icon-btn {
+    @apply px-1 py-0.5 text-[10px];
   }
   .icon-btn.btn-sm,
   .btn-sm.icon-btn {

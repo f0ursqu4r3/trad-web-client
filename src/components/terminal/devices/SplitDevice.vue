@@ -42,7 +42,7 @@ const splitIntent = computed(() => {
     <!-- Header -->
     <div class="space-y-2">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-mono text-[var(--color-text)] m-0">Split Device</h3>
+        <h3 class="text-sm font-mono text-primary m-0">Split Device</h3>
         <div class="flex items-center gap-2">
           <span v-if="splitIntent" class="pill pill-sm text-[10px] px-2 py-1">
             {{ splitIntent }}
@@ -52,30 +52,22 @@ const splitIntent = computed(() => {
           <span v-else-if="complete" class="pill pill-ok text-[10px] px-2 py-1">Completed</span>
         </div>
       </div>
-      <div class="text-[11px] text-[var(--color-text-dim)] font-mono">
+      <div class="text-[11px] dim font-mono">
         {{ device.symbol }}
       </div>
     </div>
 
     <!-- Parameters -->
     <div class="space-y-3">
-      <h4
-        class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)] m-0 border-b border-[var(--border-color)] pb-1"
-      >
-        Parameters
-      </h4>
+      <h4 class="section-title">Parameters</h4>
       <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
         <div>
-          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Quantity
-          </dt>
-          <dd class="m-0 font-mono text-[var(--color-text)]">{{ formatQty(device.quantity) }}</dd>
+          <dt class="dt-label">Quantity</dt>
+          <dd class="m-0 font-mono text-primary">{{ formatQty(device.quantity) }}</dd>
         </div>
         <div>
-          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Price
-          </dt>
-          <dd class="m-0 font-mono text-[var(--color-text)]">${{ formatPrice(device.price) }}</dd>
+          <dt class="dt-label">Price</dt>
+          <dd class="m-0 font-mono text-primary">${{ formatPrice(device.price) }}</dd>
         </div>
       </div>
     </div>

@@ -88,6 +88,14 @@
   .form-hint {
     @apply mt-1 text-[11px] text-term-dim;
   }
+  .field {
+    @apply flex flex-col gap-1 text-[12px];
+  }
+  .field > span,
+  .field > label {
+    @apply text-[11px] uppercase tracking-[0.5px];
+    color: var(--color-text-dim);
+  }
   .field-row {
     @apply grid grid-cols-[10rem_1fr] items-start gap-3;
   }

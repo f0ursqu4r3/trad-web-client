@@ -91,7 +91,7 @@ export const useDeviceStore = defineStore('device', () => {
   }
 
   function handleDeviceSnapshotLite(data: DeviceSnapshotLiteData) {
-    logger.log('Handling device snapshot lite:', data)
+    logger.debug('Handling device snapshot lite:', data)
     const deviceId = data.device_id
     const snapshot = data.snapshot
     if (!(deviceId in deviceMap.value)) {
@@ -211,7 +211,7 @@ export const useDeviceStore = defineStore('device', () => {
   }
 
   function handleDeviceUpdate(kind: string, event: DeviceDeltaEvent) {
-    logger.log('Handling device update of kind:', kind, 'with event:', event)
+    logger.debug('Handling device update of kind:', kind, 'with event:', event)
     let commandId = null
     if (event.delta.kind === 'Init') {
       commandId = event.delta.data.command_id || null

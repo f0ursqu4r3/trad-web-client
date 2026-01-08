@@ -42,10 +42,12 @@ export function formatName(name: string): string {
 const LOG_LEVELS = ['debug', 'info', 'warn', 'error', 'silent'] as const
 type LogLevel = (typeof LOG_LEVELS)[number]
 
-const LOG_LEVEL: LogLevel = (import.meta.env.VITE_LOG_LEVEL as LogLevel) || 'info'
+function getLogLevel(): LogLevel {
+  return (import.meta.env?.VITE_LOG_LEVEL as LogLevel) || 'info'
+}
 
 function shouldLog(level: LogLevel): boolean {
-  return LOG_LEVELS.indexOf(level) >= LOG_LEVELS.indexOf(LOG_LEVEL)
+  return LOG_LEVELS.indexOf(level) >= LOG_LEVELS.indexOf(getLogLevel())
 }
 
 export function createLogger(prefix: string) {

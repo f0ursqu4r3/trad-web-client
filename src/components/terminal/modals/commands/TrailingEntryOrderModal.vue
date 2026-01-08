@@ -304,18 +304,6 @@ function formatNumber(value: number, digits: number) {
 </template>
 
 <style scoped>
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 12px;
-}
-.field > span {
-  color: var(--color-text-dim);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
 .section-title {
   color: var(--color-text-dim);
   font-size: 11px;

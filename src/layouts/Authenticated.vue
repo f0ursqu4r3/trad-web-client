@@ -50,7 +50,7 @@ const railColor = computed(() => {
       :style="{ '--account-rail-color': railColor }"
     >
       <div
-        class="writing-sideways-lr text-xs tracking-wide text-[var(--color-text)] uppercase opacity-85 whitespace-nowrap"
+        class="writing-sideways-lr text-xs tracking-wide text-primary uppercase opacity-85 whitespace-nowrap"
       >
         {{ railLabel }}
       </div>
@@ -60,7 +60,7 @@ const railColor = computed(() => {
         <div class="toolbar-section">
           <span class="muted">logged in as</span>
           <button
-            class="logout-btn text-[var(--color-text)] hover:text-[var(--accent-color)] cursor-pointer transition-colors"
+            class="logout-btn text-primary hover:text-accent cursor-pointer transition-colors"
             title="Click to log out"
             @click="confirmLogout"
           >
