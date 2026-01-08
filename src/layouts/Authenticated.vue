@@ -73,11 +73,11 @@ const railColor = computed(() => {
 <style scoped>
 .account-rail {
   width: 22px;
-  background: color-mix(in srgb, var(--account-rail-color) 55%, transparent);
-  border-right: 1px solid color-mix(in srgb, var(--account-rail-color) 35%, var(--border-color));
+  background: color-mix(in srgb, var(--account-rail-color) 70%, var(--panel-header-bg));
+  border-right: 1px solid color-mix(in srgb, var(--account-rail-color) 45%, var(--border-color));
   display: flex;
   align-items: flex-start;
-  justify-content: flex-end;
+  justify-content: flex-start;
   padding: 6px 0 8px 4px;
   flex-shrink: 0;
 }
@@ -92,7 +92,7 @@ const railColor = computed(() => {
   opacity: 0.85;
   white-space: nowrap;
   margin-left: 0;
-  align-self: flex-start;
+  margin-top: auto;
   text-align: left;
   width: 100%;
 }

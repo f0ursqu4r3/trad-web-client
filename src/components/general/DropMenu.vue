@@ -422,6 +422,8 @@ onBeforeUnmount(() => {
   background: transparent;
   border-top: 1px solid var(--color-text-dim);
   cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 .dropmenu-item:first-of-type {
   border-top: none;

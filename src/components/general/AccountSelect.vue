@@ -31,7 +31,7 @@ const accountMenuItems = computed<DropMenuItem[]>(() => {
       value: acc.id,
       className: 'account-menu-item',
       style: {
-        background: color,
+        background: `color-mix(in srgb, ${color} 70%, var(--panel-header-bg))`,
         color: '#f5f7fa',
       },
       action: () => {
@@ -88,13 +88,14 @@ onBeforeUnmount(() => {
 .account-trigger {
   min-width: 280px;
   border-radius: 0;
-  background: var(--account-color);
-  border-color: var(--account-color);
+  background: color-mix(in srgb, var(--account-color) 70%, var(--panel-header-bg));
+  border-color: color-mix(in srgb, var(--account-color) 45%, var(--border-color));
   color: #f5f7fa;
   padding: 0.2rem 0.6rem;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 0.75rem;
   box-shadow: none;
 }
 
@@ -102,10 +103,18 @@ onBeforeUnmount(() => {
   font-size: 12px;
   font-weight: 500;
   color: #f5f7fa;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.account-trigger .icon {
+  margin-left: auto;
 }
 
 :deep(.account-menu-item) {
   border-top: 1px solid color-mix(in srgb, #ffffff 18%, transparent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 :deep(.account-menu-item:hover:not(:disabled)) {
