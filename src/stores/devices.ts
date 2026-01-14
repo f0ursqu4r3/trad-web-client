@@ -91,6 +91,24 @@ export const useDeviceStore = defineStore('device', () => {
     }
   }
 
+  function bindParent(device: Device, parentId: string) {
+    device.parent_device = parentId
+    const parentDevice = deviceMap.value[parentId]
+    if (parentDevice && !parentDevice.children_devices.includes(device.id)) {
+      parentDevice.children_devices.push(device.id)
+    }
+  }
+
+  function attachKnownChildren(parentId: string) {
+    const parentDevice = deviceMap.value[parentId]
+    if (!parentDevice) return
+    Object.values(deviceMap.value).forEach((device) => {
+      if (device.parent_device === parentId && !parentDevice.children_devices.includes(device.id)) {
+        parentDevice.children_devices.push(device.id)
+      }
+    })
+  }
+
   function handleDeviceSnapshotLite(data: DeviceSnapshotLiteData) {
     logger.debug('Handling device snapshot lite:', data)
     const deviceId = data.device_id
@@ -238,6 +256,9 @@ export const useDeviceStore = defineStore('device', () => {
       case 'DeviceSgDelta':
         applyDeviceSgDeltaEvent(device, event as DeviceSgDeltaEvent)
         break
+    }
+    if (event.delta.kind === 'Init') {
+      attachKnownChildren(device.id)
     }
   }
 
@@ -401,7 +422,7 @@ export const useDeviceStore = defineStore('device', () => {
           mo.filled_qty = filled_qty ?? null
           mo.client_order_id = client_order_id || null
           if (parent_device) {
-            addDeviceChild(parent_device, device.id)
+            bindParent(device, parent_device)
           }
         }
         break
@@ -523,7 +544,7 @@ export const useDeviceStore = defineStore('device', () => {
           sg.last_topup_time = last_replacement_at ? new Date(last_replacement_at) : undefined
           sg.status = status
           if (parent_device) {
-            addDeviceChild(parent_device, device.id)
+            bindParent(device, parent_device)
           }
         }
         break
@@ -608,8 +629,30 @@ export const useDeviceStore = defineStore('device', () => {
     }
   }
 
-  function applyDeviceSplitDeltaEvent(_device: Device, _event: DeviceSplitDeltaEvent) {
-    // TODO: implement handling once split deltas are defined
+  function applyDeviceSplitDeltaEvent(device: Device, event: DeviceSplitDeltaEvent) {
+    const sp = device.state as SplitState
+    const delta = event.delta
+    switch (delta.kind) {
+      case 'Init':
+        {
+          const { parent_device, symbol, price, quantity } = delta.data
+          sp.symbol = symbol
+          sp.price = price
+          sp.quantity = quantity
+          if (parent_device) {
+            bindParent(device, parent_device)
+          }
+        }
+        break
+      case 'ChildAdded':
+        {
+          const { child_id } = delta.data
+          addDeviceChild(device.id, child_id)
+        }
+        break
+      case 'ChildState':
+        break
+    }
   }
 
   function setTePriceLine(line: 'activation_price' | 'stop_loss', price: number) {

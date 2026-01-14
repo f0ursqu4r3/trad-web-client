@@ -11,17 +11,23 @@ import {
   type MarketOrderState,
   type TrailingEntryState,
 } from '@/stores/devices'
+import { useCommandStore } from '@/stores/command'
 import { MarketAction } from '@/lib/ws/protocol'
 
 const store = useDeviceStore()
+const commandStore = useCommandStore()
 
 const { devices, selectedDeviceId } = storeToRefs(store)
+const { selectedCommandId } = storeToRefs(commandStore)
 
 // Start fully expanded by default: track only collapsed ids
 const collapsed = ref<(string | number)[]>([])
 
 const treeData = computed<TreeItem[]>(() => {
-  const list = devices.value as Device[]
+  const list = devices.value.filter((device) => {
+    if (!selectedCommandId.value) return true
+    return device.associated_command_id === selectedCommandId.value
+  }) as Device[]
   const nodes = new Map<string, TreeItem>()
   const roots: TreeItem[] = []
 
