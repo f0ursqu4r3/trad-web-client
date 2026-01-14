@@ -269,10 +269,14 @@ function formatNumber(value: number, digits: number) {
         </div>
         <div v-if="preview" class="preview">
           <div class="preview-row">
-            <span>Estimated splits</span>
+            <span>Estimated splits (current price)</span>
             <span class="preview-value">
               {{ preview.split_count }} (range {{ preview.split_min }}–{{ preview.split_max }})
             </span>
+          </div>
+          <div class="preview-row">
+            <span>Target child notional</span>
+            <span class="preview-value">${{ formatNumber(preview.target_child_notional, 2) }}</span>
           </div>
           <div class="preview-row">
             <span>Per‑order notional</span>
@@ -290,6 +294,9 @@ function formatNumber(value: number, digits: number) {
           </div>
           <div v-if="preview.warnings.length" class="preview-warn">
             {{ preview.warnings.join(' ') }}
+          </div>
+          <div class="preview-note">
+            Estimate uses current price; splits can change at trigger.
           </div>
         </div>
       </div>
@@ -331,6 +338,10 @@ function formatNumber(value: number, digits: number) {
 }
 .preview-warn {
   color: var(--color-danger);
+  font-size: 11px;
+}
+.preview-note {
+  color: var(--color-text-dim);
   font-size: 11px;
 }
 </style>

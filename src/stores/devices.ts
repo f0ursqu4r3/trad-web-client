@@ -9,6 +9,7 @@ import {
   type SplitSettings,
   TrailingEntryLifecycle,
   TrailingEntryPhase,
+  type TrailingEntryStats,
   type DeviceMoDelta,
   type DeviceMoDeltaEvent,
   type DeviceSgDelta,
@@ -152,6 +153,7 @@ export const useDeviceStore = defineStore('device', () => {
         te.start_trigger_index = s.start_trigger_index ?? te.start_trigger_index
         te.end_trigger_index = s.end_trigger_index ?? te.end_trigger_index
         if (s.lifecycle) te.lifecycle = s.lifecycle
+        if (s.stats) te.stats = s.stats
         break
       }
       case 'MarketOrder': {
@@ -164,6 +166,7 @@ export const useDeviceStore = defineStore('device', () => {
         mo.quantity = s.quantity
         mo.position_side = s.position_side
         mo.price = s.price
+        mo.throttle = s.throttle ?? false
         mo.status = s.status
         mo.filled_qty = s.filled_qty ?? null
         mo.remote_id = s.remote_id ?? null
@@ -260,6 +263,7 @@ export const useDeviceStore = defineStore('device', () => {
             base_index,
             total_points,
             lifecycle,
+            stats,
           } = delta.data
           te.symbol = symbol
           te.market_context = normalizeMarketContext(market_context as MarketContext)
@@ -275,6 +279,7 @@ export const useDeviceStore = defineStore('device', () => {
           te.base_index = base_index
           te.total_points = total_points
           te.lifecycle = lifecycle
+          if (stats) te.stats = stats
 
           selectedDeviceId.value = device.id
         }
@@ -354,6 +359,12 @@ export const useDeviceStore = defineStore('device', () => {
           te.end_trigger_index = end_trigger_index || te.end_trigger_index
         }
         break
+      case 'Stats':
+        {
+          const { stats } = delta.data
+          te.stats = stats
+        }
+        break
     }
   }
 
@@ -372,6 +383,7 @@ export const useDeviceStore = defineStore('device', () => {
             position_side,
             quantity,
             price,
+            throttle,
             status,
             filled_qty,
             client_order_id,
@@ -384,6 +396,7 @@ export const useDeviceStore = defineStore('device', () => {
           mo.position_side = position_side
           mo.quantity = quantity
           mo.price = price
+          mo.throttle = throttle ?? false
           mo.status = status
           mo.filled_qty = filled_qty ?? null
           mo.client_order_id = client_order_id || null
@@ -675,6 +688,7 @@ export interface TrailingEntryState {
   stop_loss_hit: boolean
 
   lifecycle: TrailingEntryLifecycle
+  stats: TrailingEntryStats
 
   // review
   points_snapshot: number[]
@@ -698,6 +712,7 @@ export interface MarketOrderState {
   quantity: number
   position_side: PositionSide
   price: number
+  throttle: boolean
 
   status: MarketOrderStatus
   filled_qty: number | null
@@ -812,6 +827,12 @@ function newTrailingEntryState(): TrailingEntryState {
     start_trigger_index: null,
     end_trigger_index: null,
     lifecycle: TrailingEntryLifecycle.Running,
+    stats: {
+      open_filled_qty: 0,
+      close_filled_qty: 0,
+      open_filled_notional: 0,
+      close_filled_notional: 0,
+    },
   }
 }
 
@@ -824,6 +845,7 @@ function newMarketOrderState(): MarketOrderState {
     quantity: 0,
     position_side: PositionSide.Long,
     price: 0,
+    throttle: false,
     status: MarketOrderStatus.NotYetSent,
     filled_qty: null,
     remote_id: null,

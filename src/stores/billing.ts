@@ -29,15 +29,16 @@ export interface BillingInfo {
 }
 
 export interface PricingPlan {
-  id: string
+  price_id: string
+  product_id?: string | null
   name: string
-  description: string
-  price: number
-  currency: string
-  interval: 'month' | 'year'
-  features: string[]
+  description?: string | null
+  currency?: string | null
+  unit_amount?: number | null
+  interval?: 'month' | 'year' | string | null
+  interval_count?: number | null
+  features?: string[]
   highlighted?: boolean
-  priceId: string
 }
 
 export const useBillingStore = defineStore('billing', () => {
@@ -63,7 +64,11 @@ export const useBillingStore = defineStore('billing', () => {
   async function fetchPlans() {
     try {
       const data = await apiGet<PricingPlan[]>('/billing/plans', { throwOnHTTPError: false })
-      plans.value = data ?? []
+      if (!data || data.length === 0) {
+        plans.value = getDefaultPlans()
+        return
+      }
+      plans.value = normalizePlans(data)
     } catch (err) {
       logger.warn('Failed to fetch plans', err)
       // Fallback to hardcoded plans if API fails
@@ -77,10 +82,8 @@ export const useBillingStore = defineStore('billing', () => {
     try {
       const { url } = await apiPost<{ url: string }>(
         '/billing/checkout-session',
-        { priceId },
-        {
-          throwOnHTTPError: true,
-        },
+        { price: priceId },
+        { throwOnHTTPError: true },
       )
       if (url) window.location.assign(url)
     } catch (err) {
@@ -129,27 +132,28 @@ export const useBillingStore = defineStore('billing', () => {
 function getDefaultPlans(): PricingPlan[] {
   return [
     {
-      id: 'starter',
+      price_id: import.meta.env.VITE_STRIPE_PRICE_STARTER || 'price_starter',
       name: 'Starter',
       description: 'Perfect for individual traders getting started',
-      price: 29,
       currency: 'USD',
+      unit_amount: 2900,
       interval: 'month',
+      interval_count: 1,
       features: [
         '1 trading account',
         'Basic order types',
         'Real-time market data',
         'Email support',
       ],
-      priceId: import.meta.env.VITE_STRIPE_PRICE_STARTER || 'price_starter',
     },
     {
-      id: 'pro',
+      price_id: import.meta.env.VITE_STRIPE_PRICE_PRO || 'price_pro',
       name: 'Pro',
       description: 'For serious traders who need more power',
-      price: 79,
       currency: 'USD',
+      unit_amount: 7900,
       interval: 'month',
+      interval_count: 1,
       features: [
         '5 trading accounts',
         'Advanced order types',
@@ -159,15 +163,15 @@ function getDefaultPlans(): PricingPlan[] {
         'API access',
       ],
       highlighted: true,
-      priceId: import.meta.env.VITE_STRIPE_PRICE_PRO || 'price_pro',
     },
     {
-      id: 'enterprise',
+      price_id: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE || 'price_enterprise',
       name: 'Enterprise',
       description: 'Full power for professional trading operations',
-      price: 199,
       currency: 'USD',
+      unit_amount: 19900,
       interval: 'month',
+      interval_count: 1,
       features: [
         'Unlimited trading accounts',
         'All order types',
@@ -177,7 +181,41 @@ function getDefaultPlans(): PricingPlan[] {
         'Full API access',
         'Custom integrations',
       ],
-      priceId: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE || 'price_enterprise',
     },
   ]
+}
+
+function normalizePlans(remotePlans: PricingPlan[]): PricingPlan[] {
+  const fallbackPlans = getDefaultPlans()
+  const fallbackById = new Map(fallbackPlans.map((plan) => [plan.price_id, plan]))
+  const fallbackByName = new Map(
+    fallbackPlans.map((plan) => [plan.name.toLowerCase(), plan]),
+  )
+
+  return remotePlans.map((plan) => {
+    const fallback =
+      fallbackById.get(plan.price_id) || fallbackByName.get(plan.name?.toLowerCase() || '')
+    const features = normalizeFeatures(plan.features, fallback?.features)
+    return {
+      price_id: plan.price_id,
+      product_id: plan.product_id ?? fallback?.product_id ?? null,
+      name: plan.name || fallback?.name || 'Plan',
+      description: plan.description ?? fallback?.description ?? null,
+      currency: plan.currency ?? fallback?.currency ?? 'USD',
+      unit_amount: plan.unit_amount ?? fallback?.unit_amount ?? null,
+      interval: plan.interval ?? fallback?.interval ?? 'month',
+      interval_count: plan.interval_count ?? fallback?.interval_count ?? 1,
+      features,
+      highlighted: plan.highlighted ?? fallback?.highlighted ?? false,
+    }
+  })
+}
+
+function normalizeFeatures(
+  raw: PricingPlan['features'],
+  fallback: PricingPlan['features'],
+): string[] | undefined {
+  if (Array.isArray(raw)) return raw.filter((item): item is string => typeof item === 'string')
+  if (Array.isArray(fallback)) return fallback
+  return undefined
 }

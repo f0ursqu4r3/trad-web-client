@@ -5,7 +5,12 @@ import { storeToRefs } from 'pinia'
 import { formatName } from '@/lib/utils'
 import { TreeView, type TreeItem } from '@/components/general/TreeView'
 import { Folder, FolderOpen, TrendingDown } from 'lucide-vue-next'
-import { useDeviceStore, type Device, type TrailingEntryState } from '@/stores/devices'
+import {
+  useDeviceStore,
+  type Device,
+  type MarketOrderState,
+  type TrailingEntryState,
+} from '@/stores/devices'
 import { MarketAction } from '@/lib/ws/protocol'
 
 const store = useDeviceStore()
@@ -50,6 +55,8 @@ const treeData = computed<TreeItem[]>(() => {
   for (const device of list) {
     const teLifecycle =
       device.kind === 'TrailingEntry' ? (device.state as TrailingEntryState)?.lifecycle || '' : ''
+    const throttled =
+      device.kind === 'MarketOrder' ? (device.state as MarketOrderState)?.throttle : false
     const intent =
       device.kind === 'MarketOrder'
         ? ((device.state as any).market_action as string)
@@ -64,6 +71,7 @@ const treeData = computed<TreeItem[]>(() => {
       lifecycle: device.complete || device.failed || device.canceled ? '' : teLifecycle,
       status: statusLabel(device),
       intent,
+      throttled,
       created_at: device.created_at,
     })
   }
@@ -167,6 +175,7 @@ const rowClass = (item: TreeItem): string => {
               <span v-if="item.intent" class="pill pill-xs">
                 {{ item.intent }}
               </span>
+              <span v-if="item.throttled" class="pill pill-xs pill-warn">Throttled</span>
               <!-- <span v-if="item.symbol" class="pill pill-xs">
                 {{ item.symbol }}
               </span> -->

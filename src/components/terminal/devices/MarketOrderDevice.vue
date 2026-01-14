@@ -8,6 +8,7 @@ import { formatPrice, formatQty, getPositionSideClass, formatSide } from './util
 const props = defineProps<{
   device: MarketOrderState
   failureReason?: string | null
+  createdAt?: Date | null
 }>()
 const accounts = useAccountsStore()
 
@@ -53,6 +54,28 @@ function fmtDate(d?: Date | null): string {
     return '-'
   }
 }
+
+function formatDuration(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return '-'
+  const totalSeconds = ms / 1000
+  if (totalSeconds < 60) {
+    const digits = totalSeconds < 10 ? 1 : 0
+    return `${totalSeconds.toFixed(digits)}s`
+  }
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = Math.round(totalSeconds % 60)
+  return `${minutes}m ${seconds}s`
+}
+
+const throttleDelayLabel = computed(() => {
+  if (!props.device.throttle) return null
+  const createdAt = props.createdAt
+  const sentAt = props.device.sent_at
+  if (!createdAt || !sentAt) return 'Queued'
+  const diffMs = sentAt.getTime() - createdAt.getTime()
+  if (diffMs < 0) return 'Queued'
+  return `Queued ${formatDuration(diffMs)}`
+})
 </script>
 
 <template>
@@ -63,6 +86,7 @@ function fmtDate(d?: Date | null): string {
         <h3 class="text-sm font-mono text-primary m-0">Market Order Device</h3>
         <div class="flex items-center gap-2">
           <span class="pill pill-xs">{{ actionLabel }}</span>
+          <span v-if="device.throttle" class="pill pill-xs pill-warn">Throttled</span>
           <span :class="getStatusClass(device.status)" class="text-[10px] px-2 py-1">
             {{ device.status }}
           </span>
@@ -108,6 +132,10 @@ function fmtDate(d?: Date | null): string {
         <div>
           <dt class="dt-label">Sent At</dt>
           <dd class="m-0 font-mono text-primary">{{ fmtDate(device.sent_at) }}</dd>
+        </div>
+        <div v-if="device.throttle">
+          <dt class="dt-label">Throttle Delay</dt>
+          <dd class="m-0 font-mono text-primary">{{ throttleDelayLabel }}</dd>
         </div>
         <div>
           <dt class="dt-label">Last Status Check</dt>

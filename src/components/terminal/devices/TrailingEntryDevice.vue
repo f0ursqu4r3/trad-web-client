@@ -18,6 +18,30 @@ const props = defineProps<{
 }>()
 const accounts = useAccountsStore()
 const splitSettings = computed(() => props.device.split_settings ?? null)
+const stats = computed(() => props.device.stats)
+const hasStats = computed(() => {
+  return (
+    stats.value.open_filled_qty > 0 ||
+    stats.value.close_filled_qty > 0 ||
+    stats.value.open_filled_notional > 0 ||
+    stats.value.close_filled_notional > 0
+  )
+})
+const netBase = computed(
+  () => stats.value.open_filled_qty - stats.value.close_filled_qty,
+)
+const dustPercent = computed(() => {
+  if (stats.value.open_filled_qty <= 0) return null
+  return (netBase.value / stats.value.open_filled_qty) * 100
+})
+const avgOpenPrice = computed(() => {
+  if (stats.value.open_filled_qty <= 0) return null
+  return stats.value.open_filled_notional / stats.value.open_filled_qty
+})
+const avgClosePrice = computed(() => {
+  if (stats.value.close_filled_qty <= 0) return null
+  return stats.value.close_filled_notional / stats.value.close_filled_qty
+})
 
 function fmtSplitValue(value: number | null | undefined, digits = 2) {
   if (value == null || Number.isNaN(value)) return 'Default'
@@ -198,6 +222,65 @@ const networkLabel = computed(() => {
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">
             {{ fmtSplitPercent(splitSettings?.slippage_margin ?? null) }}
+          </dd>
+        </div>
+      </div>
+    </div>
+
+    <!-- Execution Stats -->
+    <div v-if="hasStats" class="space-y-3">
+      <h4
+        class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)] m-0 border-b border-[var(--border-color)] pb-1"
+      >
+        Execution Stats
+      </h4>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Open Filled
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ stats.open_filled_qty.toFixed(6) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Close Filled
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ stats.close_filled_qty.toFixed(6) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Net Base (Dust)
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ netBase.toFixed(6) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Dust %
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ dustPercent === null ? '-' : formatPercent(dustPercent) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Avg Open
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ avgOpenPrice === null ? '-' : `$${formatPrice(avgOpenPrice)}` }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Avg Close
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ avgClosePrice === null ? '-' : `$${formatPrice(avgClosePrice)}` }}
           </dd>
         </div>
       </div>

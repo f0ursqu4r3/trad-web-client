@@ -552,6 +552,14 @@ export type TrailingEntrySnapshot = {
   start_trigger_index?: number | null
   end_trigger_index?: number | null
   lifecycle?: TrailingEntryLifecycle
+  stats?: TrailingEntryStats
+}
+
+export type TrailingEntryStats = {
+  open_filled_qty: number
+  close_filled_qty: number
+  open_filled_notional: number
+  close_filled_notional: number
 }
 
 export type MarketOrderSnapshot = {
@@ -562,6 +570,7 @@ export type MarketOrderSnapshot = {
   quantity: number
   position_side: PositionSide
   price: number
+  throttle?: boolean | null
   status: MarketOrderStatus
   filled_qty?: number | null
   remote_id?: number | null
@@ -637,6 +646,7 @@ export type DeviceTeDelta =
         total_points: number
         created_at: string
         lifecycle: TrailingEntryLifecycle
+        stats?: TrailingEntryStats
       }
     }
   | { kind: 'PointsInit'; data: { start_idx: number; points: number[]; total_len: number } }
@@ -653,6 +663,7 @@ export type DeviceTeDelta =
       kind: 'OrderUpdate'
       data: { order_id: number; status: string; cum_qty?: number | null; price?: number | null }
     }
+  | { kind: 'Stats'; data: { stats: TrailingEntryStats } }
 
 export type DeviceTeDeltaEvent = {
   device_id: Uuid
@@ -674,6 +685,7 @@ export type DeviceMoDelta =
         position_side: PositionSide
         quantity: number
         price: number
+        throttle?: boolean | null
         status: MarketOrderStatus
         filled_qty?: number | null
         client_order_id?: string | null

@@ -3,14 +3,14 @@ import { Check } from 'lucide-vue-next'
 
 export interface PricingPlan {
   price_id: string
-  product_id: string
+  product_id?: string | null
   name: string
-  description: string
-  currency: string
-  unit_amount: number // Price in cents
-  interval: 'month' | 'year'
-  interval_count: number
-  features?: string[]
+  description?: string | null
+  currency?: string | null
+  unit_amount?: number | null // Price in cents
+  interval?: 'month' | 'year' | string | null
+  interval_count?: number | null
+  features?: string[] | null
   highlighted?: boolean
 }
 
@@ -24,7 +24,10 @@ const emit = defineEmits<{
   subscribe: [priceId: string]
 }>()
 
-const formatPrice = (unitAmount: number, currency: string) => {
+const formatPrice = (unitAmount?: number | null, currency?: string | null) => {
+  if (unitAmount == null || !currency) {
+    return 'Contact us'
+  }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
@@ -33,8 +36,10 @@ const formatPrice = (unitAmount: number, currency: string) => {
   }).format(unitAmount / 100)
 }
 
-const intervalLabel = (interval: 'month' | 'year') => {
-  return interval === 'month' ? '/mo' : '/yr'
+const intervalLabel = (interval?: string | null) => {
+  if (interval === 'month') return '/mo'
+  if (interval === 'year') return '/yr'
+  return ''
 }
 
 const isCurrentPlan = (plan: PricingPlan) => {

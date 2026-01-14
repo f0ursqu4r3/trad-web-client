@@ -43,6 +43,12 @@ const deviceStatusClass = computed(() => {
   if (device.awaiting_children) return 'device-details-waiting'
   return 'device-details-active'
 })
+
+const marketOrderCreatedAt = computed(() => {
+  const device = selectedDevice.value
+  if (!device || device.kind !== 'MarketOrder') return null
+  return device.created_at
+})
 </script>
 
 <template>
@@ -77,6 +83,7 @@ const deviceStatusClass = computed(() => {
         :canceled="selectedDevice.canceled"
         :complete="selectedDevice.complete"
         :device-id="selectedDevice.id"
+        :created-at="marketOrderCreatedAt"
         class="w-full h-full"
       />
     </div>
