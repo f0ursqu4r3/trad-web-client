@@ -58,6 +58,7 @@ function toggleMultiFilter(
   const has = list.includes(option as never)
   if (event?.shiftKey) {
     commandStore.commandFilters[group] = [option as never]
+    commandStore.commandFilters.solo[group] = true
     return
   }
   if (has) {
@@ -65,10 +66,17 @@ function toggleMultiFilter(
   } else {
     commandStore.commandFilters[group] = [...list, option as never]
   }
+  if (commandStore.commandFilters[group].length !== 1) {
+    commandStore.commandFilters.solo[group] = false
+  }
 }
 
 function isFilterActive(group: 'kind' | 'status' | 'position', option: string) {
   return commandStore.commandFilters[group].includes(option as never)
+}
+
+function isSoloActive(group: 'kind' | 'status' | 'position', option: string) {
+  return commandStore.commandFilters.solo[group] && isFilterActive(group, option)
 }
 
 function setTimeRange(value: string) {
@@ -148,6 +156,7 @@ function handleClosePosition(commandId: string): void {
                 class="btn btn-sm btn-ghost"
                 :data-pressed="isFilterActive('status', option)"
                 :aria-pressed="isFilterActive('status', option)"
+                :class="isSoloActive('status', option) ? 'filter-solo' : ''"
                 @click="toggleMultiFilter('status', option, $event)"
               >
                 {{ option }}
@@ -164,6 +173,7 @@ function handleClosePosition(commandId: string): void {
                 class="btn btn-sm btn-ghost"
                 :data-pressed="isFilterActive('position', option)"
                 :aria-pressed="isFilterActive('position', option)"
+                :class="isSoloActive('position', option) ? 'filter-solo' : ''"
                 @click="toggleMultiFilter('position', option, $event)"
               >
                 {{ option }}
@@ -196,6 +206,7 @@ function handleClosePosition(commandId: string): void {
                 class="btn btn-sm btn-ghost"
                 :data-pressed="isFilterActive('kind', option)"
                 :aria-pressed="isFilterActive('kind', option)"
+                :class="isSoloActive('kind', option) ? 'filter-solo' : ''"
                 @click="toggleMultiFilter('kind', option, $event)"
               >
                 {{ option }}
@@ -259,5 +270,13 @@ function handleClosePosition(commandId: string): void {
 .expand-leave-from {
   max-height: 500px;
   opacity: 1;
+}
+
+.filter-solo {
+  border-color: var(--accent-color);
+  box-shadow:
+    inset 0 0 0 1px var(--accent-color),
+    0 0 0 1px color-mix(in srgb, var(--accent-color) 40%, transparent);
+  background: color-mix(in srgb, var(--accent-color) 18%, transparent);
 }
 </style>

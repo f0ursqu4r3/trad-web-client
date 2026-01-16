@@ -61,11 +61,21 @@ export const useCommandStore = defineStore(
       status: StatusFilter[]
       position: PositionFilter[]
       timeRange: TimeRangeFilter
+      solo: {
+        kind: boolean
+        status: boolean
+        position: boolean
+      }
     }>({
       kind: [],
       status: [],
       position: [],
       timeRange: 'Any',
+      solo: {
+        kind: false,
+        status: false,
+        position: false,
+      },
     })
 
     const canceledCommandIds = ref<Set<string>>(new Set())
