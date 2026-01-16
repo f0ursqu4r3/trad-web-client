@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, type Component, nextTick } from 'vue'
+import SplitView from '@/components/general/SplitView.vue'
 import StickyScroller from '@/components/general/StickyScroller.vue'
 import { useCommandStore } from '@/stores/command'
 import { useModalStore } from '@/stores/modals'
@@ -286,48 +287,111 @@ function saveRename() {
       </div>
     </Transition>
 
-    <div v-if="pinnedCommands.length" class="pinned-section">
-      <div class="pinned-header">Pinned</div>
-      <div class="pinned-body">
-        <StickyScroller :trigger="pinnedCommands.length" :smooth="true" :showButton="false">
-          <div class="flex flex-col p-2 gap-2">
-          <template v-for="cmd in pinnedCommands" :key="cmd.command_id">
-            <div
-              class="border border-[var(--border-color)]"
-              :class="
-                cmd.command_id == commandStore.selectedCommandId
-                  ? 'ring-2 ring-[var(--color-text)]'
-                  : ''
-              "
-            >
-              <CommandBase
-                v-if="Object.values(interestingCommandKinds).includes(cmd.command.kind)"
-                :commandId="cmd.command_id"
-                :commandStatus="cmd.status"
-                :commandKind="cmd.command.kind"
-                :label="getCommandLabel(cmd.command)"
-                :nickname="commandStore.commandMeta?.[cmd.command_id]?.nickname ?? null"
-                :nicknameColor="commandStore.commandMeta?.[cmd.command_id]?.nicknameColor ?? null"
-                :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
-                :createdAt="cmd.created_at"
-                @duplicate="handleDuplicate(cmd.command)"
-                @cancel="handleCancel"
-                @inspect="handleInspect"
-                @close-position="handleClosePosition"
-                @rename="handleRename"
-                @pin="handlePin"
-              >
-                <component :is="getCommandComponent(cmd.command)" :command="cmd.command.data" />
-              </CommandBase>
-              <CommandHistoryItem v-else :command="cmd" />
+    <div v-if="pinnedCommands.length" class="flex-1 min-h-0">
+      <SplitView
+        orientation="vertical"
+        storage-key="terminal-commands-pinned"
+        :initial-sizes="[35, 65]"
+        class="w-full h-full"
+      >
+      <template #pinned>
+        <div class="pane-fill">
+          <div class="pinned-section flex-1 min-h-0">
+            <div class="pinned-header">Pinned</div>
+            <div class="pinned-body">
+              <StickyScroller :trigger="pinnedCommands.length" :smooth="true" :showButton="false">
+                <div class="flex flex-col p-2 gap-2">
+                  <template v-for="cmd in pinnedCommands" :key="cmd.command_id">
+                    <div
+                      class="border border-[var(--border-color)]"
+                      :class="
+                        cmd.command_id == commandStore.selectedCommandId
+                          ? 'ring-2 ring-[var(--color-text)]'
+                          : ''
+                      "
+                    >
+                      <CommandBase
+                        v-if="Object.values(interestingCommandKinds).includes(cmd.command.kind)"
+                        :commandId="cmd.command_id"
+                        :commandStatus="cmd.status"
+                        :commandKind="cmd.command.kind"
+                        :label="getCommandLabel(cmd.command)"
+                        :nickname="commandStore.commandMeta?.[cmd.command_id]?.nickname ?? null"
+                        :nicknameColor="
+                          commandStore.commandMeta?.[cmd.command_id]?.nicknameColor ?? null
+                        "
+                        :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
+                        :createdAt="cmd.created_at"
+                        @duplicate="handleDuplicate(cmd.command)"
+                        @cancel="handleCancel"
+                        @inspect="handleInspect"
+                        @close-position="handleClosePosition"
+                        @rename="handleRename"
+                        @pin="handlePin"
+                      >
+                        <component
+                          :is="getCommandComponent(cmd.command)"
+                          :command="cmd.command.data"
+                        />
+                      </CommandBase>
+                      <CommandHistoryItem v-else :command="cmd" />
+                    </div>
+                  </template>
+                </div>
+              </StickyScroller>
             </div>
-          </template>
           </div>
-        </StickyScroller>
-      </div>
+        </div>
+      </template>
+      <template #all>
+        <div class="pane-fill">
+          <StickyScroller
+            :trigger="unpinnedCommands.length"
+            :smooth="true"
+            :showButton="true"
+            class="flex-1 min-h-0"
+          >
+            <div class="flex flex-col p-2 gap-2">
+              <template v-for="cmd in unpinnedCommands" :key="cmd.command_id">
+                <div
+                  class="border border-[var(--border-color)]"
+                  :class="
+                    cmd.command_id == commandStore.selectedCommandId
+                      ? 'ring-2 ring-[var(--color-text)]'
+                      : ''
+                  "
+                >
+                  <CommandBase
+                    v-if="Object.values(interestingCommandKinds).includes(cmd.command.kind)"
+                    :commandId="cmd.command_id"
+                    :commandStatus="cmd.status"
+                    :commandKind="cmd.command.kind"
+                    :label="getCommandLabel(cmd.command)"
+                    :nickname="commandStore.commandMeta?.[cmd.command_id]?.nickname ?? null"
+                    :nicknameColor="commandStore.commandMeta?.[cmd.command_id]?.nicknameColor ?? null"
+                    :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
+                    :createdAt="cmd.created_at"
+                    @duplicate="handleDuplicate(cmd.command)"
+                    @cancel="handleCancel"
+                    @inspect="handleInspect"
+                    @close-position="handleClosePosition"
+                    @rename="handleRename"
+                    @pin="handlePin"
+                  >
+                    <component :is="getCommandComponent(cmd.command)" :command="cmd.command.data" />
+                  </CommandBase>
+                  <CommandHistoryItem v-else :command="cmd" />
+                </div>
+              </template>
+            </div>
+          </StickyScroller>
+        </div>
+      </template>
+      </SplitView>
     </div>
 
     <StickyScroller
+      v-else
       :trigger="unpinnedCommands.length"
       :smooth="true"
       :showButton="true"
@@ -479,8 +543,6 @@ function saveRename() {
 .pinned-section {
   display: flex;
   flex-direction: column;
-  max-height: 35%;
-  overflow: hidden;
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -496,5 +558,13 @@ function saveRename() {
 .pinned-body {
   flex: 1;
   min-height: 0;
+}
+
+.pane-fill {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
 }
 </style>
