@@ -159,7 +159,7 @@ onUnmounted(() => {
       >
         <div
           class="absolute top-[10%] left-1/2 -translate-x-1/2 w-[min(640px,90%)] bg-[var(--panel-bg)] border border-[var(--border-color)] shadow-2xl text-[color:var(--color-text)] overflow-hidden"
-          :style="{ borderRadius: 'var(--radius-lg)' }"
+          :style="{ borderRadius: 'var(--radius-none)' }"
         >
           <div class="relative p-2 border-b border-[var(--border-color)] flex items-center gap-2">
             <input

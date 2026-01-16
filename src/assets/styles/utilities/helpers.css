@@ -66,7 +66,7 @@
   }
   .kbd {
     @apply inline-block border px-1.5 py-0.5 text-[11px] font-mono text-term-dim tracking-widest;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-none);
   }
   .text-accent {
     color: var(--accent-color);

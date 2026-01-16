@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, type Component } from 'vue'
+import { ref, computed, type Component, nextTick } from 'vue'
 import StickyScroller from '@/components/general/StickyScroller.vue'
 import { useCommandStore } from '@/stores/command'
 import { useModalStore } from '@/stores/modals'
+import { formatName } from '@/lib/utils'
 
 import type { MarketOrderPrefill, TrailingEntryPrefill } from '../modals/commands/types'
 import type { UserCommandPayload } from '@/lib/ws/protocol'
@@ -38,6 +39,16 @@ defineExpose({
 const hiddenCommandCount = computed(
   () => commandStore.commands.length - commandStore.filteredCommands.length,
 )
+
+const pinnedCommands = computed(() => {
+  return commandStore.commands.filter((cmd) => commandStore.commandMeta?.[cmd.command_id]?.pinned)
+})
+
+const unpinnedCommands = computed(() => {
+  return commandStore.filteredCommands.filter(
+    (cmd) => !commandStore.commandMeta?.[cmd.command_id]?.pinned,
+  )
+})
 
 const statusOptions = ['Running', 'Completed', 'Failed', 'Canceled'] as const
 const positionOptions = ['Open', 'Closed', 'Dusted'] as const
@@ -99,6 +110,11 @@ function getCommandLabel(command: UserCommandPayload): string {
   return command.kind
 }
 
+function getKindLabel(kind: string): string {
+  if (kind === 'TrailingEntryOrder') return 'Trailing Entry'
+  return formatName(kind)
+}
+
 function handleDuplicate(command: UserCommandPayload): void {
   switch (command.kind) {
     case 'TrailingEntryOrder':
@@ -137,6 +153,59 @@ function handleClosePosition(commandId: string): void {
   if (!cmd || cmd.command.kind !== 'TrailingEntryOrder') return
   commandStore.closePosition(commandId)
 }
+
+function handleRename(commandId: string): void {
+  const current = commandStore.commandMeta?.[commandId]?.nickname ?? ''
+  const currentColor = commandStore.commandMeta?.[commandId]?.nicknameColor ?? null
+  renameCommandId.value = commandId
+  renameValue.value = current
+  renameColor.value = currentColor
+  renameOpen.value = true
+  nextTick(() => {
+    const el = document.getElementById('command-nickname-input') as HTMLInputElement | null
+    el?.focus()
+    el?.select()
+  })
+}
+
+function handlePin(commandId: string): void {
+  commandStore.toggleCommandPin(commandId)
+}
+
+const renameOpen = ref(false)
+const renameCommandId = ref<string | null>(null)
+const renameValue = ref('')
+const renameColor = ref<string | null>(null)
+const nicknameColors = [
+  { label: 'Default', value: null },
+  { label: 'Blue', value: '#5cc8ff' },
+  { label: 'Green', value: '#6ee7b7' },
+  { label: 'Yellow', value: '#fbbf24' },
+  { label: 'Orange', value: '#f97316' },
+  { label: 'Red', value: '#f87171' },
+  { label: 'Purple', value: '#a78bfa' },
+  { label: 'Pink', value: '#f472b6' },
+]
+
+const renameCommandLabel = computed(() => {
+  if (!renameCommandId.value) return ''
+  const cmd = commandStore.commandMap[renameCommandId.value]
+  if (!cmd) return ''
+  return getCommandLabel(cmd.command)
+})
+
+function closeRename() {
+  renameOpen.value = false
+  renameCommandId.value = null
+  renameValue.value = ''
+  renameColor.value = null
+}
+
+function saveRename() {
+  if (!renameCommandId.value) return
+  commandStore.setCommandNickname(renameCommandId.value, renameValue.value, renameColor.value)
+  closeRename()
+}
 </script>
 
 <template>
@@ -153,7 +222,7 @@ function handleClosePosition(commandId: string): void {
               <button
                 v-for="option in statusOptions"
                 :key="option"
-                class="btn btn-sm btn-ghost"
+                class="btn btn-sm btn-ghost filter-btn"
                 :data-pressed="isFilterActive('status', option)"
                 :aria-pressed="isFilterActive('status', option)"
                 :class="isSoloActive('status', option) ? 'filter-solo' : ''"
@@ -170,7 +239,7 @@ function handleClosePosition(commandId: string): void {
               <button
                 v-for="option in positionOptions"
                 :key="option"
-                class="btn btn-sm btn-ghost"
+                class="btn btn-sm btn-ghost filter-btn"
                 :data-pressed="isFilterActive('position', option)"
                 :aria-pressed="isFilterActive('position', option)"
                 :class="isSoloActive('position', option) ? 'filter-solo' : ''"
@@ -187,7 +256,7 @@ function handleClosePosition(commandId: string): void {
               <button
                 v-for="option in timeOptions"
                 :key="option.value"
-                class="btn btn-sm btn-ghost"
+                class="btn btn-sm btn-ghost filter-btn"
                 :data-pressed="commandStore.commandFilters.timeRange === option.value"
                 :aria-pressed="commandStore.commandFilters.timeRange === option.value"
                 @click="setTimeRange(option.value)"
@@ -203,13 +272,13 @@ function handleClosePosition(commandId: string): void {
               <button
                 v-for="option in commandStore.activeCommandKinds"
                 :key="option"
-                class="btn btn-sm btn-ghost"
+                class="btn btn-sm btn-ghost filter-btn"
                 :data-pressed="isFilterActive('kind', option)"
                 :aria-pressed="isFilterActive('kind', option)"
                 :class="isSoloActive('kind', option) ? 'filter-solo' : ''"
                 @click="toggleMultiFilter('kind', option, $event)"
               >
-                {{ option }}
+                {{ getKindLabel(option) }}
               </button>
             </div>
           </div>
@@ -217,14 +286,55 @@ function handleClosePosition(commandId: string): void {
       </div>
     </Transition>
 
+    <div v-if="pinnedCommands.length" class="pinned-section">
+      <div class="pinned-header">Pinned</div>
+      <div class="pinned-body">
+        <StickyScroller :trigger="pinnedCommands.length" :smooth="true" :showButton="false">
+          <div class="flex flex-col p-2 gap-2">
+          <template v-for="cmd in pinnedCommands" :key="cmd.command_id">
+            <div
+              class="border border-[var(--border-color)]"
+              :class="
+                cmd.command_id == commandStore.selectedCommandId
+                  ? 'ring-2 ring-[var(--color-text)]'
+                  : ''
+              "
+            >
+              <CommandBase
+                v-if="Object.values(interestingCommandKinds).includes(cmd.command.kind)"
+                :commandId="cmd.command_id"
+                :commandStatus="cmd.status"
+                :commandKind="cmd.command.kind"
+                :label="getCommandLabel(cmd.command)"
+                :nickname="commandStore.commandMeta?.[cmd.command_id]?.nickname ?? null"
+                :nicknameColor="commandStore.commandMeta?.[cmd.command_id]?.nicknameColor ?? null"
+                :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
+                :createdAt="cmd.created_at"
+                @duplicate="handleDuplicate(cmd.command)"
+                @cancel="handleCancel"
+                @inspect="handleInspect"
+                @close-position="handleClosePosition"
+                @rename="handleRename"
+                @pin="handlePin"
+              >
+                <component :is="getCommandComponent(cmd.command)" :command="cmd.command.data" />
+              </CommandBase>
+              <CommandHistoryItem v-else :command="cmd" />
+            </div>
+          </template>
+          </div>
+        </StickyScroller>
+      </div>
+    </div>
+
     <StickyScroller
-      :trigger="commandStore.filteredCommands.length"
+      :trigger="unpinnedCommands.length"
       :smooth="true"
       :showButton="true"
       class="flex-1 min-h-0"
     >
       <div class="flex flex-col p-2 gap-2">
-        <template v-for="cmd in commandStore.filteredCommands" :key="cmd.command_id">
+        <template v-for="cmd in unpinnedCommands" :key="cmd.command_id">
           <div
             class="border border-[var(--border-color)]"
             :class="
@@ -239,11 +349,16 @@ function handleClosePosition(commandId: string): void {
               :commandStatus="cmd.status"
               :commandKind="cmd.command.kind"
               :label="getCommandLabel(cmd.command)"
+              :nickname="commandStore.commandMeta?.[cmd.command_id]?.nickname ?? null"
+              :nicknameColor="commandStore.commandMeta?.[cmd.command_id]?.nicknameColor ?? null"
+              :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
               :createdAt="cmd.created_at"
               @duplicate="handleDuplicate(cmd.command)"
               @cancel="handleCancel"
               @inspect="handleInspect"
               @close-position="handleClosePosition"
+              @rename="handleRename"
+              @pin="handlePin"
             >
               <component :is="getCommandComponent(cmd.command)" :command="cmd.command.data" />
             </CommandBase>
@@ -252,6 +367,74 @@ function handleClosePosition(commandId: string): void {
         </template>
       </div>
     </StickyScroller>
+
+    <Teleport to="body">
+      <div
+        v-if="renameOpen"
+        class="fixed inset-0 z-[400] bg-black/25 backdrop-blur-xs"
+        @click.self="closeRename"
+      >
+        <div
+          class="absolute top-[10%] left-1/2 -translate-x-1/2 w-[min(520px,90%)] bg-[var(--panel-bg)] border border-[var(--border-color)] shadow-2xl text-[color:var(--color-text)] overflow-hidden"
+          :style="{ borderRadius: 'var(--radius-none)' }"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div class="relative p-3 border-b border-[var(--border-color)]">
+            <div class="text-[11px] uppercase tracking-wide text-(--color-text-dim)">
+              Command Nickname
+            </div>
+            <div class="text-[13px] text-(--color-text) mt-1">{{ renameCommandLabel }}</div>
+            <button
+              v-if="renameValue.trim().length > 0"
+              class="btn btn-sm btn-ghost absolute right-3 top-3"
+              @click="renameValue = ''; renameColor = null; saveRename()"
+            >
+              Remove
+            </button>
+          </div>
+          <div class="p-3">
+            <input
+              id="command-nickname-input"
+              v-model="renameValue"
+              placeholder="Add a nickname..."
+              class="w-full bg-transparent border border-[var(--border-color)] px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] placeholder:opacity-60"
+              :style="{ borderRadius: 'var(--radius-none)' }"
+              autocomplete="off"
+              spellcheck="false"
+              @keydown.enter.prevent="saveRename"
+              @keydown.escape.prevent="closeRename"
+            />
+          </div>
+          <div class="px-3 pb-2">
+            <div class="text-[11px] uppercase tracking-wide text-(--color-text-dim) mb-2">
+              Nickname color
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="option in nicknameColors"
+                :key="option.label"
+                class="btn btn-sm btn-ghost"
+                :data-pressed="renameColor === option.value"
+                :aria-pressed="renameColor === option.value"
+                @click="renameColor = option.value"
+              >
+                <span
+                  v-if="option.value"
+                  class="inline-block w-3 h-3 border"
+                  :style="{ background: option.value, borderColor: 'var(--border-color)' }"
+                />
+                <span v-else class="text-xs text-(--color-text-dim)">Default</span>
+              </button>
+            </div>
+          </div>
+          <div class="flex items-center justify-end gap-2 p-3 border-t border-[var(--border-color)]">
+            <button class="btn btn-sm btn-ghost" @click="closeRename">Cancel</button>
+            <button class="btn btn-sm" @click="saveRename">Save</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -272,11 +455,46 @@ function handleClosePosition(commandId: string): void {
   opacity: 1;
 }
 
+.filter-btn {
+  color: var(--color-text-dim);
+  border-color: var(--border-color);
+  box-shadow: none;
+  background: transparent;
+}
+
+.filter-btn[data-pressed='true'],
+.filter-btn[aria-pressed='true'] {
+  color: var(--color-text);
+  border-color: var(--color-text);
+  box-shadow: inset 0 0 0 1px var(--color-text);
+}
+
 .filter-solo {
-  border-color: var(--accent-color);
+  border-color: var(--color-text);
   box-shadow:
-    inset 0 0 0 1px var(--accent-color),
-    0 0 0 1px color-mix(in srgb, var(--accent-color) 40%, transparent);
-  background: color-mix(in srgb, var(--accent-color) 18%, transparent);
+    inset 0 0 0 1px var(--color-text),
+    0 0 0 1px var(--color-text);
+}
+
+.pinned-section {
+  display: flex;
+  flex-direction: column;
+  max-height: 35%;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.pinned-header {
+  padding: 6px 10px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  background: color-mix(in srgb, var(--panel-header-bg) 70%, transparent);
+  border-bottom: 1px solid var(--border-color);
+}
+.pinned-body {
+  flex: 1;
+  min-height: 0;
 }
 </style>

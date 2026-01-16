@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import DropMenu from '@/components/general/DropMenu.vue'
 import { type DropMenuItem } from '@/components/general/DropMenu.vue'
-import { ChevronDown } from 'lucide-vue-next'
+import { ChevronDown, Pin } from 'lucide-vue-next'
 import { formatName } from '@/lib/utils'
 
 const props = withDefaults(
@@ -12,11 +12,17 @@ const props = withDefaults(
     commandKind?: string
     label?: string
     createdAt?: string | null
+    nickname?: string | null
+    nicknameColor?: string | null
+    pinned?: boolean
   }>(),
   {
     commandKind: '',
     label: 'Trailing Entry',
     createdAt: null,
+    nickname: null,
+    nicknameColor: null,
+    pinned: false,
   },
 )
 
@@ -26,6 +32,8 @@ const emit = defineEmits<{
   (e: 'cancel', commandId: string): void
   (e: 'inspect', commandId: string): void
   (e: 'close-position', commandId: string): void
+  (e: 'rename', commandId: string): void
+  (e: 'pin', commandId: string): void
 }>()
 
 const shortId = computed(() => props.commandId.slice(0, 8))
@@ -69,6 +77,10 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
       action: () => emit('inspect', props.commandId),
     },
     {
+      label: 'Nickname',
+      action: () => emit('rename', props.commandId),
+    },
+    {
       label: 'Duplicate',
       action: () => emit('duplicate', props.commandId),
     },
@@ -102,6 +114,7 @@ async function copyId() {
 <template>
   <div
     class="flex flex-col shadow-sm cursor-pointer command-row relative"
+    :class="props.pinned ? 'command-row-pinned' : ''"
     @click="emit('inspect', commandId)"
   >
     <div class="command-status-bar" :class="statusClass"></div>
@@ -122,6 +135,13 @@ async function copyId() {
         >
           #{{ shortId }}
         </span>
+        <span
+          v-if="props.nickname"
+          class="text-[12px] font-medium"
+          :style="{ color: props.nicknameColor ?? 'var(--color-text)' }"
+        >
+          {{ props.nickname }}
+        </span>
       </div>
 
       <div class="flex items-center justify-end flex-wrap gap-2">
@@ -133,6 +153,14 @@ async function copyId() {
         </span>
 
         <div class="flex items-center gap-2">
+          <button
+            class="btn btn-sm icon-btn command-action-btn"
+            :title="props.pinned ? 'Unpin' : 'Pin'"
+            :aria-pressed="props.pinned"
+            @click.stop="emit('pin', props.commandId)"
+          >
+            <Pin :size="10" :class="props.pinned ? 'pin-active' : ''" />
+          </button>
           <DropMenu :items="menuItems" trigger-class="command-action-btn" />
 
           <button
@@ -196,5 +224,12 @@ async function copyId() {
 }
 :deep(.command-action-btn .icon) {
   display: block;
+}
+.command-row-pinned {
+  background: color-mix(in srgb, var(--panel-bg) 70%, var(--accent-color) 6%);
+}
+.pin-active {
+  color: var(--accent-color);
+  transform: rotate(-90deg);
 }
 </style>

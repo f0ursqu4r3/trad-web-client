@@ -52,6 +52,24 @@ export const useCommandStore = defineStore(
     const pendingCommands = ref<Record<Uuid, PendingCommand>>({})
     const selectedCommandId = ref<string | null>(null)
 
+    const commandMeta = ref<
+      Record<
+        Uuid,
+        {
+          nickname?: string | null
+          nicknameColor?: string | null
+          pinned?: boolean
+        }
+      >
+    >({})
+
+    function ensureMeta(commandId: Uuid) {
+      if (!commandMeta.value[commandId]) {
+        commandMeta.value[commandId] = { nickname: null, nicknameColor: null, pinned: false }
+      }
+      return commandMeta.value[commandId]
+    }
+
     type StatusFilter = 'Running' | 'Completed' | 'Failed' | 'Canceled'
     type PositionFilter = 'Open' | 'Closed' | 'Dusted'
     type TimeRangeFilter = 'Any' | '12h' | 'Day' | 'Week' | 'Month'
@@ -112,7 +130,12 @@ export const useCommandStore = defineStore(
     })
 
     const commands = computed<OrderedCommandHistoryItem[]>(() => {
-      return Object.values(commandMap.value).sort((a, b) => a.orderIndex - b.orderIndex)
+      return Object.values(commandMap.value).sort((a, b) => {
+        const aPinned = commandMeta.value[a.command_id]?.pinned ? 1 : 0
+        const bPinned = commandMeta.value[b.command_id]?.pinned ? 1 : 0
+        if (aPinned !== bPinned) return bPinned - aPinned
+        return a.orderIndex - b.orderIndex
+      })
     })
 
     const activeCommandKinds = computed<string[]>(() => {
@@ -238,6 +261,27 @@ export const useCommandStore = defineStore(
       ws.inspectCommand(commandId)
     }
 
+    function setCommandNickname(commandId: string, nickname: string | null, color?: string | null) {
+      const meta = ensureMeta(commandId)
+      meta.nickname = nickname && nickname.trim().length ? nickname.trim() : null
+      if (color !== undefined) {
+        meta.nicknameColor = color || null
+      }
+      commandMeta.value = { ...commandMeta.value, [commandId]: meta }
+    }
+
+    function setCommandNicknameColor(commandId: string, color: string | null) {
+      const meta = ensureMeta(commandId)
+      meta.nicknameColor = color || null
+      commandMeta.value = { ...commandMeta.value, [commandId]: meta }
+    }
+
+    function toggleCommandPin(commandId: string) {
+      const meta = ensureMeta(commandId)
+      meta.pinned = !meta.pinned
+      commandMeta.value = { ...commandMeta.value, [commandId]: meta }
+    }
+
     function cancelCommand(commandId: string) {
       ws.sendCancelCommand(commandId)
       canceledCommandIds.value = new Set([...canceledCommandIds.value, commandId])
@@ -258,6 +302,7 @@ export const useCommandStore = defineStore(
       selectedCommand,
       pendingCommands,
       commandFilters,
+      commandMeta,
       activeCommandKinds,
       activeCommandStatuses,
       dustedCommandIds,
@@ -267,9 +312,12 @@ export const useCommandStore = defineStore(
       closePosition,
       addPendingCommand,
       verifyPendingCommand,
+      setCommandNickname,
+      setCommandNicknameColor,
+      toggleCommandPin,
     }
   },
   {
-    persist: { key: 'trad-command-store', pick: ['commandFilters'] },
+    persist: { key: 'trad-command-store', pick: ['commandFilters', 'commandMeta'] },
   },
 )
