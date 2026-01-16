@@ -1,6 +1,6 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { Settings, ArrowLeft } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useUiStore } from '@/stores/ui'
@@ -46,6 +46,31 @@ const railTextColor = computed(() => {
   // Match AccountSelect: light text on colored bg, dim text when no account
   return selectedAccount.value ? '#f5f7fa' : 'var(--color-text-dim)'
 })
+
+const isMac = computed(() => /Mac|iPhone|iPad|iPod/.test(navigator.platform))
+const msgsShortcut = computed(() => (isMac.value ? '⌘M' : 'Ctrl+M'))
+
+function toggleMessagesPanel() {
+  ui.toggleInboundPanel()
+}
+
+function handleGlobalKeys(event: KeyboardEvent) {
+  if (event.defaultPrevented) return
+  const target = event.target as HTMLElement | null
+  if (target) {
+    const tag = target.tagName?.toLowerCase()
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable) {
+      return
+    }
+  }
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'm') {
+    event.preventDefault()
+    toggleMessagesPanel()
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', handleGlobalKeys))
+onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeys))
 </script>
 
 <template>
@@ -78,6 +103,10 @@ const railTextColor = computed(() => {
         </div>
         <div class="toolbar-section">
           <CommandInputModal />
+          <button class="btn btn-sm btn-ghost" @click="toggleMessagesPanel" :title="msgsShortcut">
+            {{ ui.showInboundPanel ? 'Hide msgs' : 'Show msgs' }}
+            <span class="text-[10px] text-(--color-text-dim) ml-1">{{ msgsShortcut }}</span>
+          </button>
         </div>
         <div class="toolbar-section">
           <WsIndicator />

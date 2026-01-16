@@ -75,6 +75,14 @@ export const useUiStore = defineStore(
       settingsOpen.value = false
     }
 
+    const showInboundPanel = ref(true)
+    function toggleInboundPanel() {
+      showInboundPanel.value = !showInboundPanel.value
+    }
+    function setInboundPanelVisible(next: boolean) {
+      showInboundPanel.value = next
+    }
+
     return {
       theme,
       effectiveTheme,
@@ -85,9 +93,12 @@ export const useUiStore = defineStore(
       settingsOpen,
       openSettings,
       closeSettings,
+      showInboundPanel,
+      toggleInboundPanel,
+      setInboundPanelVisible,
     }
   },
   {
-    persist: { key: 'trad-ui-store', pick: ['theme'] },
+    persist: { key: 'trad-ui-store', pick: ['theme', 'showInboundPanel'] },
   },
 )

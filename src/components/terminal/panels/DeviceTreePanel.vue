@@ -13,6 +13,7 @@ import {
 } from '@/stores/devices'
 import { useCommandStore } from '@/stores/command'
 import { MarketAction } from '@/lib/ws/protocol'
+import { recordPerfDuration, getPerfThreshold } from '@/lib/perfLog'
 
 const store = useDeviceStore()
 const commandStore = useCommandStore()
@@ -24,6 +25,7 @@ const { selectedCommandId } = storeToRefs(commandStore)
 const collapsed = ref<(string | number)[]>([])
 
 const treeData = computed<TreeItem[]>(() => {
+  const start = performance.now()
   const list = devices.value.filter((device) => {
     if (!selectedCommandId.value) return true
     return device.associated_command_id === selectedCommandId.value
@@ -120,6 +122,11 @@ const treeData = computed<TreeItem[]>(() => {
   }
 
   sortNodes(roots)
+
+  const duration = performance.now() - start
+  if (duration >= getPerfThreshold()) {
+    recordPerfDuration('DeviceTree:build', duration, { devices: list.length, roots: roots.length })
+  }
 
   return roots
 })

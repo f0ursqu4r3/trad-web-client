@@ -17,6 +17,7 @@ import {
   type DraggablePriceLinesPluginApi,
 } from '@/lib/chart/draggablePriceLines'
 import { TrailingEntryLifecycle } from '@/lib/ws/protocol'
+import { recordPerfDuration, getPerfThreshold } from '@/lib/perfLog'
 
 const store = useDeviceStore()
 
@@ -155,6 +156,25 @@ function syncChartSize() {
   chart.resize(clientWidth, clientHeight)
 }
 
+function applySeriesData(data: AreaData[], reason: string) {
+  if (!series) return
+  if (!data.length) {
+    series.setData([])
+    return
+  }
+  const start = performance.now()
+  series.setData(data)
+  try {
+    chart?.timeScale().fitContent()
+  } catch {
+    /* noop */
+  }
+  const duration = performance.now() - start
+  if (duration >= getPerfThreshold()) {
+    recordPerfDuration('ChartPanel:setData', duration, { reason, points: data.length })
+  }
+}
+
 onMounted(() => {
   if (!containerEl.value) return
   const theme = getChartTheme()
@@ -249,30 +269,13 @@ onMounted(() => {
   }
 
   const initial = chartSeriesData.value
-  if (initial.length && series) {
-    series.setData(initial)
-    try {
-      chart.timeScale().fitContent()
-    } catch {
-      /* noop */
-    }
-  }
+  applySeriesData(initial, 'mount')
 })
 
 watch(
   chartSeriesData,
   (data) => {
-    if (!series) return
-    if (!data.length) {
-      series.setData([])
-      return
-    }
-    series.setData(data)
-    try {
-      chart?.timeScale().fitContent()
-    } catch {
-      /* noop */
-    }
+    applySeriesData(data, 'delta')
   },
   { immediate: true },
 )
@@ -287,29 +290,13 @@ watch(
 )
 
 watch(selectedDeviceId, () => {
-  if (!series) return
   const initial = chartSeriesData.value
-  if (initial.length && series) {
-    series.setData(initial)
-    try {
-      chart?.timeScale().fitContent()
-    } catch {
-      /* noop */
-    }
-  }
+  applySeriesData(initial, 'inspect')
 })
 
 onBeforeUnmount(() => {
-  if (!series) return
   const initial = chartSeriesData.value
-  if (initial.length && series) {
-    series.setData(initial)
-    try {
-      chart?.timeScale().fitContent()
-    } catch {
-      /* noop */
-    }
-  }
+  applySeriesData(initial, 'unmount')
   resizeObserver?.disconnect()
   resizeObserver = null
 })

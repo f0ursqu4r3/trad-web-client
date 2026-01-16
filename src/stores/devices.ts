@@ -19,6 +19,7 @@ import {
   type DeviceSplitDeltaEvent,
   type DeviceTeDelta,
   type DeviceTeDeltaEvent,
+  type DeviceLifecycleEvent,
   type MarketContext,
 } from '@/lib/ws/protocol'
 import { createLogger } from '@/lib/utils'
@@ -27,6 +28,12 @@ const logger = createLogger('devices')
 
 export const useDeviceStore = defineStore('device', () => {
   const deviceMap = ref<Record<string, Device>>({})
+  const pendingUpdates = new Map<
+    string,
+    Array<{ kind: string; event: DeviceDeltaEvent }>
+  >()
+  const warnedMissingCommand = new Set<string>()
+  const pendingLimitPerDevice = 200
 
   const devices = computed<Device[]>(() => Object.values(deviceMap.value))
   const selectedDeviceId = ref<string | null>(null)
@@ -72,12 +79,42 @@ export const useDeviceStore = defineStore('device', () => {
     selectedDeviceId.value = deviceId
   }
 
-  function ensureDeviceRecord(deviceId: string, kind: string, command_id: string | null): Device {
+  function ensureDeviceRecord(
+    deviceId: string,
+    kind: string,
+    command_id: string | null,
+  ): Device | null {
     if (!(deviceId in deviceMap.value)) {
+      if (!command_id) {
+        if (!warnedMissingCommand.has(deviceId)) {
+          warnedMissingCommand.add(deviceId)
+          logger.warn('Queueing device update without command_id', { deviceId, kind })
+        }
+        return null
+      }
       const new_device = newDevice(deviceId, kind, command_id)
       deviceMap.value[deviceId] = new_device
     }
-    return deviceMap.value[deviceId]
+    return deviceMap.value[deviceId] || null
+  }
+
+  function queuePendingUpdate(deviceId: string, kind: string, event: DeviceDeltaEvent) {
+    const list = pendingUpdates.get(deviceId) || []
+    list.push({ kind, event })
+    if (list.length > pendingLimitPerDevice) {
+      list.splice(0, list.length - pendingLimitPerDevice)
+      logger.warn('Pending device updates capped', { deviceId, kind })
+    }
+    pendingUpdates.set(deviceId, list)
+  }
+
+  function drainPendingUpdates(device: Device) {
+    const list = pendingUpdates.get(device.id)
+    if (!list || list.length === 0) return
+    pendingUpdates.delete(device.id)
+    list.forEach(({ kind, event }) => {
+      applyDeviceEvent(device, kind, event)
+    })
   }
 
   function addDeviceChild(parentId: string, childId: string) {
@@ -229,6 +266,29 @@ export const useDeviceStore = defineStore('device', () => {
         break
       }
     }
+    drainPendingUpdates(device)
+  }
+
+  function handleDeviceLifecycle(event: DeviceLifecycleEvent) {
+    const device = deviceMap.value[event.device_id]
+    if (!device) {
+      logger.warn('Skipping device lifecycle update for unknown device', event.device_id)
+      return
+    }
+    device.awaiting_children = event.event.kind === 'AwaitingFill'
+    switch (event.event.kind) {
+      case 'Completed':
+        device.complete = event.event.data.ok
+        device.canceled = event.event.data.canceled
+        device.failed = !event.event.data.ok && !event.event.data.canceled
+        break
+      case 'Error':
+        device.failed = true
+        device.failure_reason = event.event.data.msg
+        break
+      default:
+        break
+    }
   }
 
   function handleDeviceUpdate(kind: string, event: DeviceDeltaEvent) {
@@ -238,11 +298,23 @@ export const useDeviceStore = defineStore('device', () => {
       commandId = event.delta.data.command_id || null
     }
     const device = ensureDeviceRecord(event.device_id, kind, commandId)
+    if (!device) {
+      queuePendingUpdate(event.device_id, kind, event)
+      return
+    }
     if (event.delta.kind === 'Init' && event.delta.data.created_at) {
       device.created_at = new Date(event.delta.data.created_at)
     } else if (!device.created_at && event.ts) {
       device.created_at = new Date(event.ts)
     }
+    applyDeviceEvent(device, kind, event)
+    if (event.delta.kind === 'Init') {
+      attachKnownChildren(device.id)
+      drainPendingUpdates(device)
+    }
+  }
+
+  function applyDeviceEvent(device: Device, kind: string, event: DeviceDeltaEvent) {
     switch (kind) {
       case 'DeviceTeDelta':
         applyDeviceTeDeltaEvent(device, event as DeviceTeDeltaEvent)
@@ -256,9 +328,6 @@ export const useDeviceStore = defineStore('device', () => {
       case 'DeviceSgDelta':
         applyDeviceSgDeltaEvent(device, event as DeviceSgDeltaEvent)
         break
-    }
-    if (event.delta.kind === 'Init') {
-      attachKnownChildren(device.id)
     }
   }
 
@@ -671,6 +740,7 @@ export const useDeviceStore = defineStore('device', () => {
     // actions
     handleDeviceUpdate,
     handleDeviceSnapshotLite,
+    handleDeviceLifecycle,
     inspectDevice,
     clearDevices,
     setTePriceLine,

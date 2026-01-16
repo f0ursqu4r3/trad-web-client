@@ -14,6 +14,7 @@ import { useDeviceStore } from '@/stores/devices'
 import { getBearerToken } from '@/lib/auth0Helpers'
 import { useUserStore } from './user'
 import { createLogger } from '@/lib/utils'
+import { recordPerf, recordPerfDuration, flushPerfLog, isPerfLogEnabled } from '@/lib/perfLog'
 
 const logger = createLogger('ws')
 
@@ -42,11 +43,13 @@ export const useWsStore = defineStore('ws', () => {
   const username = ref<string>('anonymous')
   const protocolVersion = ref<number | null>(null)
   const inbound = ref<RawInboundRecord[]>([])
+  const inboundDebugEnabled = ref(localStorage.getItem('fe_inbound_debug') === '1')
   const outboundCount = ref(0)
   const reconnectCount = ref(0)
   const authAccepted = ref<boolean | null>(null)
   const authError = ref<string | null>(null)
   let lastPingSend: number | null = null
+  let perfLoopTimer: number | null = null
 
   // Build from env (fallback to same host /ws)
   const url = import.meta.env.VITE_WS_URL || location.origin.replace(/^http/, 'ws') + '/ws'
@@ -101,12 +104,46 @@ export const useWsStore = defineStore('ws', () => {
     client.onPing(() => {
       lastPingSend = performance.now()
     })
+    startPerfLoopLagMonitor()
   }
 
   function disconnect() {
+    stopPerfLoopLagMonitor()
     client.disconnect()
     logger.info('disconnect() invoked, status -> idle')
     status.value = 'idle'
+  }
+
+  function setInboundDebugEnabled(enabled: boolean) {
+    inboundDebugEnabled.value = enabled
+    try {
+      localStorage.setItem('fe_inbound_debug', enabled ? '1' : '0')
+    } catch {
+      // ignore
+    }
+    if (!enabled) {
+      inbound.value = []
+    }
+  }
+
+  function startPerfLoopLagMonitor() {
+    if (perfLoopTimer !== null) return
+    if (!isPerfLogEnabled()) return
+    let expected = performance.now() + 100
+    perfLoopTimer = window.setInterval(() => {
+      const now = performance.now()
+      const drift = now - expected
+      expected = now + 100
+      if (drift >= 100) {
+        recordPerfDuration('FE:EventLoopLag', drift, { interval_ms: 100 })
+      }
+    }, 100)
+  }
+
+  function stopPerfLoopLagMonitor() {
+    if (perfLoopTimer === null) return
+    window.clearInterval(perfLoopTimer)
+    perfLoopTimer = null
   }
 
   /* System Commands */
@@ -187,8 +224,10 @@ export const useWsStore = defineStore('ws', () => {
 
   function onServerMessage(msg: ServerToClientMessage) {
     const payload = msg.payload
-    inbound.value.push({ ts: Date.now(), kind: payload.kind, payload: payload.data })
-    if (inbound.value.length > 3000) inbound.value.shift()
+    if (inboundDebugEnabled.value) {
+      inbound.value.push({ ts: Date.now(), kind: payload.kind, payload: payload.data })
+      if (inbound.value.length > 3000) inbound.value.shift()
+    }
 
     // Handle different message kinds
     const handlers = {
@@ -204,6 +243,7 @@ export const useWsStore = defineStore('ws', () => {
       SetCommandStatus: handleSetCommandStatus,
       CommandDevicesList: handleCommandDevicesList,
       InspectReady: handleInspectReady,
+      DeviceLifecycle: handleDeviceLifecycle,
       DeviceSnapshotLite: handleDeviceSnapshotLite,
       DeviceTeDelta: handleDeviceTeDelta,
       DeviceSgDelta: handleDeviceSgDelta,
@@ -362,31 +402,49 @@ export const useWsStore = defineStore('ws', () => {
   }
 
   function handleDeviceSnapshotLite(payload: ServerToClientMessage['payload']): void {
+    const start = performance.now()
     const data = payload as Extract<
       ServerToClientMessage['payload'],
       { kind: 'DeviceSnapshotLite' }
     >
     deviceStore.handleDeviceSnapshotLite(data.data)
+    recordPerf('DeviceSnapshotLite', start, { device_id: data.data.device_id })
+  }
+
+  function handleDeviceLifecycle(payload: ServerToClientMessage['payload']): void {
+    const start = performance.now()
+    const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceLifecycle' }>)
+      .data
+    deviceStore.handleDeviceLifecycle(data)
+    recordPerf('DeviceLifecycle', start, { device_id: data.device_id })
   }
 
   function handleDeviceTeDelta(payload: ServerToClientMessage['payload']): void {
+    const start = performance.now()
     const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceTeDelta' }>
     deviceStore.handleDeviceUpdate(data.kind, data.data)
+    recordPerf('DeviceTeDelta', start, { device_id: data.data.device_id, delta: data.data.delta.kind })
   }
 
   function handleDeviceMoDelta(payload: ServerToClientMessage['payload']): void {
+    const start = performance.now()
     const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceMoDelta' }>
     deviceStore.handleDeviceUpdate(data.kind, data.data)
+    recordPerf('DeviceMoDelta', start, { device_id: data.data.device_id, delta: data.data.delta.kind })
   }
 
   function handleDeviceSgDelta(payload: ServerToClientMessage['payload']): void {
+    const start = performance.now()
     const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceSgDelta' }>
     deviceStore.handleDeviceUpdate(data.kind, data.data)
+    recordPerf('DeviceSgDelta', start, { device_id: data.data.device_id, delta: data.data.delta.kind })
   }
 
   function handleDeviceSplitDelta(payload: ServerToClientMessage['payload']): void {
+    const start = performance.now()
     const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceSplitDelta' }>
     deviceStore.handleDeviceUpdate(data.kind, data.data)
+    recordPerf('DeviceSplitDelta', start, { device_id: data.data.device_id, delta: data.data.delta.kind })
   }
 
   function getDeviceTree(deviceId: Uuid) {
@@ -394,6 +452,8 @@ export const useWsStore = defineStore('ws', () => {
   }
 
   onUnmounted(() => {
+    flushPerfLog()
+    stopPerfLoopLagMonitor()
     clearInterval(interval)
     disconnect()
   })
@@ -407,6 +467,7 @@ export const useWsStore = defineStore('ws', () => {
     username,
     protocolVersion,
     inbound,
+    inboundDebugEnabled,
     outboundCount,
     reconnectCount,
     authAccepted,
@@ -416,6 +477,7 @@ export const useWsStore = defineStore('ws', () => {
     // actions
     connect,
     disconnect,
+    setInboundDebugEnabled,
     inspectCommand,
     sendSystemPing,
     sendTokenLogin,
@@ -426,5 +488,6 @@ export const useWsStore = defineStore('ws', () => {
     sendCloseTrailingEntryPosition,
     sendRefreshAccountKeys,
     getDeviceTree,
+    flushPerfLog,
   }
 })

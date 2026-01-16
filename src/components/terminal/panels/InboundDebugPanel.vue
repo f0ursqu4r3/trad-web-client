@@ -1,20 +1,45 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useWsStore } from '@/stores/ws'
 import StickyScroller from '@/components/general/StickyScroller.vue'
 
 const ws = useWsStore()
+const { inboundDebugEnabled } = storeToRefs(ws)
+const debugEnabled = computed(() => inboundDebugEnabled.value)
+const snapshot = ref<InboundMessage[]>([])
 const lastClearedAt = ref<number | null>(null)
-const rawMessages = computed<InboundMessage[]>(
-  () => ws.inbound.filter((m) => m.kind !== 'Pong').slice(-10000) as InboundMessage[],
-)
+const maxRows = 500
+const refreshMs = 250
+let refreshTimer: number | null = null
+
+function refreshSnapshot() {
+  if (!debugEnabled.value) {
+    snapshot.value = []
+    return
+  }
+  const filtered = ws.inbound.filter((m) => m.kind !== 'Pong') as InboundMessage[]
+  snapshot.value = filtered.slice(-maxRows)
+}
+
+onMounted(() => {
+  refreshSnapshot()
+  refreshTimer = window.setInterval(refreshSnapshot, refreshMs)
+})
+
+onBeforeUnmount(() => {
+  if (refreshTimer !== null) {
+    window.clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+})
 const messages = computed<InboundMessage[]>(() => {
   const threshold = lastClearedAt.value
   if (threshold === null) {
-    return rawMessages.value
+    return snapshot.value
   }
 
-  return rawMessages.value.filter((message) => {
+  return snapshot.value.filter((message) => {
     const messageMs = timestampToMs(message.ts)
     if (messageMs === null) {
       return true
@@ -92,6 +117,12 @@ defineExpose({
 
 <template>
   <div class="font-mono flex flex-col h-full overflow-hidden">
+    <div
+      v-if="!debugEnabled"
+      class="p-2 text-xs text-(--color-text-dim) border-b border-gray-600/30"
+    >
+      Inbound debug disabled. Enable it from the Messages panel toggle.
+    </div>
     <StickyScroller
       class="overflow-y-auto flex-1"
       :trigger="messages.length"
