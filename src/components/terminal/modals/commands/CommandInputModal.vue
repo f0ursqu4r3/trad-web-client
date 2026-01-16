@@ -38,6 +38,9 @@ const filteredCommands = computed(() => {
   )
 })
 
+const isMac = computed(() => /Mac|iPhone|iPad|iPod/.test(navigator.platform))
+const shortcutLabel = computed(() => (isMac.value ? '⌘+K' : 'Ctrl+K'))
+
 // Quick submit for non-modal commands
 function submitQuick(cmd: CommandMeta) {
   if (cmd.modal) {
@@ -143,7 +146,7 @@ onUnmounted(() => {
   <div class="items-center gap-2">
     <slot name="trigger">
       <button class="btn btn-ghost" @click="showMenu = !showMenu">
-        Commands <span class="kbd">⌘+K</span>
+        Commands <span class="kbd">{{ shortcutLabel }}</span>
       </button>
     </slot>
 

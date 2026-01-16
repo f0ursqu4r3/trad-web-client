@@ -72,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { Filter } from 'lucide-vue-next'
 import SplitView from '@/components/general/SplitView.vue'
@@ -91,14 +91,19 @@ const { showInboundPanel: showInbound } = storeToRefs(uiStore)
 
 function toggleInboundPanel() {
   uiStore.toggleInboundPanel()
-  if (!uiStore.showInboundPanel) {
-    wsStore.setInboundDebugEnabled?.(false)
-  }
 }
 
 function toggleInboundDebug() {
   wsStore.setInboundDebugEnabled?.(!inboundDebugEnabled.value)
 }
+
+watch(
+  showInbound,
+  (visible) => {
+    wsStore.setInboundDebugEnabled?.(visible)
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped>

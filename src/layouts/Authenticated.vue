@@ -48,7 +48,7 @@ const railTextColor = computed(() => {
 })
 
 const isMac = computed(() => /Mac|iPhone|iPad|iPod/.test(navigator.platform))
-const msgsShortcut = computed(() => (isMac.value ? '⌘M' : 'Ctrl+M'))
+const msgsShortcut = computed(() => (isMac.value ? '⌘+M' : 'Ctrl+M'))
 
 function toggleMessagesPanel() {
   ui.toggleInboundPanel()
@@ -103,9 +103,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeys))
         </div>
         <div class="toolbar-section">
           <CommandInputModal />
-          <button class="btn btn-sm btn-ghost" @click="toggleMessagesPanel" :title="msgsShortcut">
+          <button class="btn btn-ghost" @click="toggleMessagesPanel" :title="msgsShortcut">
             {{ ui.showInboundPanel ? 'Hide msgs' : 'Show msgs' }}
-            <span class="text-[10px] text-(--color-text-dim) ml-1">{{ msgsShortcut }}</span>
+            <span class="kbd">{{ msgsShortcut }}</span>
           </button>
         </div>
         <div class="toolbar-section">

@@ -75,7 +75,7 @@ export const useUiStore = defineStore(
       settingsOpen.value = false
     }
 
-    const showInboundPanel = ref(true)
+    const showInboundPanel = ref(false)
     function toggleInboundPanel() {
       showInboundPanel.value = !showInboundPanel.value
     }
