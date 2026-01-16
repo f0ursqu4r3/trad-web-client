@@ -945,6 +945,7 @@ function newTrailingEntryState(): TrailingEntryState {
       close_filled_qty: 0,
       open_filled_notional: 0,
       close_filled_notional: 0,
+      dust_threshold: 0,
     },
   }
 }

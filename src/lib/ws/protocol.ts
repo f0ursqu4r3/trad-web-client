@@ -560,6 +560,7 @@ export type TrailingEntryStats = {
   close_filled_qty: number
   open_filled_notional: number
   close_filled_notional: number
+  dust_threshold: number
 }
 
 export type MarketOrderSnapshot = {

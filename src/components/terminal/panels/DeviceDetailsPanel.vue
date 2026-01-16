@@ -78,6 +78,7 @@ const marketOrderCreatedAt = computed(() => {
         v-if="deviceComp"
         :is="deviceComp"
         :device="selectedDevice.state as any"
+        :command-id="selectedDevice.associated_command_id"
         :failure-reason="selectedDevice.failure_reason"
         :failed="selectedDevice.failed"
         :canceled="selectedDevice.canceled"

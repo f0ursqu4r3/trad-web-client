@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { TrailingEntryState } from '@/stores/devices'
+import type { TrailingEntryState, MarketOrderState } from '@/stores/devices'
 import { useAccountsStore } from '@/stores/accounts'
+import { useDeviceStore } from '@/stores/devices'
+import { useCommandStore } from '@/stores/command'
+import { MarketAction, MarketOrderStatus } from '@/lib/ws/protocol'
 import {
   formatPrice,
   formatPercent,
@@ -13,6 +16,7 @@ import {
 
 const props = defineProps<{
   device: TrailingEntryState
+  commandId?: string | null
   failureReason?: string | null
   failed?: boolean
 }>()
@@ -30,6 +34,10 @@ const hasStats = computed(() => {
 const netBase = computed(
   () => stats.value.open_filled_qty - stats.value.close_filled_qty,
 )
+const dustThreshold = computed(() => stats.value.dust_threshold ?? 0)
+const aboveDustThreshold = computed(
+  () => dustThreshold.value > 0 && netBase.value > dustThreshold.value,
+)
 const dustPercent = computed(() => {
   if (stats.value.open_filled_qty <= 0) return null
   return (netBase.value / stats.value.open_filled_qty) * 100
@@ -42,6 +50,26 @@ const avgClosePrice = computed(() => {
   if (stats.value.close_filled_qty <= 0) return null
   return stats.value.close_filled_notional / stats.value.close_filled_qty
 })
+
+const deviceStore = useDeviceStore()
+const commandStore = useCommandStore()
+const closeInProgress = computed(() => {
+  if (!props.commandId) return false
+  return deviceStore.devices.some((device) => {
+    if (device.associated_command_id !== props.commandId) return false
+    if (device.kind !== 'MarketOrder') return false
+    const state = device.state as MarketOrderState
+    if (state.market_action !== MarketAction.Close) return false
+    return ![MarketOrderStatus.Filled, MarketOrderStatus.Canceled, MarketOrderStatus.Rejected].includes(
+      state.status,
+    )
+  })
+})
+
+function handleCloseAgain() {
+  if (!props.commandId) return
+  commandStore.closePosition(props.commandId)
+}
 
 function fmtSplitValue(value: number | null | undefined, digits = 2) {
   if (value == null || Number.isNaN(value)) return 'Default'
@@ -259,6 +287,14 @@ const networkLabel = computed(() => {
             {{ netBase.toFixed(6) }}
           </dd>
         </div>
+        <div v-if="dustThreshold > 0">
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Dust Threshold
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ dustThreshold.toFixed(6) }}
+          </dd>
+        </div>
         <div>
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
             Dust %
@@ -283,6 +319,22 @@ const networkLabel = computed(() => {
             {{ avgClosePrice === null ? '-' : `$${formatPrice(avgClosePrice)}` }}
           </dd>
         </div>
+      </div>
+      <div
+        v-if="aboveDustThreshold && props.commandId"
+        class="flex items-center justify-between border border-[var(--border-color)] px-2 py-1 text-[11px]"
+      >
+        <span class="text-[var(--color-text-dim)]">
+          Remainder above dust threshold: {{ netBase.toFixed(6) }}
+        </span>
+        <button
+          v-if="!closeInProgress"
+          class="btn btn-sm btn-ghost"
+          @click="handleCloseAgain"
+        >
+          Close again
+        </button>
+        <span v-else class="text-[var(--color-text-dim)]">Close in progress</span>
       </div>
     </div>
 
