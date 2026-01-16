@@ -27,6 +27,9 @@
         <div class="panel-header">
           <span class="panel-title">Commands</span>
           <span class="panel-options">
+            <span class="text-xs">
+              {{ commandPanelRef?.shownCommandCount ?? 0 }} shown
+            </span>
             <span v-if="commandPanelRef?.hiddenCommandCount" class="text-xs">
               {{ commandPanelRef.hiddenCommandCount }} hidden
             </span>
@@ -51,6 +54,9 @@
         <div class="panel-header">
           <span class="panel-title">Commands</span>
           <span class="panel-options">
+            <span class="text-xs">
+              {{ commandPanelRef?.shownCommandCount ?? 0 }} shown
+            </span>
             <span v-if="commandPanelRef?.hiddenCommandCount" class="text-xs">
               {{ commandPanelRef.hiddenCommandCount }} hidden
             </span>

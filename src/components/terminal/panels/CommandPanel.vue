@@ -32,30 +32,47 @@ defineExpose({
   hiddenCommandCount: computed(
     () => commandStore.commands.length - commandStore.filteredCommands.length,
   ),
+  shownCommandCount: computed(() => commandStore.filteredCommands.length),
 })
 
-const hiddenCommandCount = computed(() => {
-  return commandStore.commands.length - commandStore.filteredCommands.length
-})
+const hiddenCommandCount = computed(
+  () => commandStore.commands.length - commandStore.filteredCommands.length,
+)
 
-function handleCheckboxChange(
+const statusOptions = ['Running', 'Completed', 'Failed', 'Canceled'] as const
+const positionOptions = ['Open', 'Closed', 'Dusted'] as const
+const timeOptions = [
+  { label: 'Any', value: 'Any' },
+  { label: '12h', value: '12h' },
+  { label: 'Day', value: 'Day' },
+  { label: 'Week', value: 'Week' },
+  { label: 'Month', value: 'Month' },
+] as const
+
+function toggleMultiFilter(
+  group: 'kind' | 'status' | 'position',
   option: string,
-  checkedOrEvent: boolean | Event,
-  type: 'kind' | 'status',
-): void {
-  const checked =
-    typeof checkedOrEvent === 'boolean'
-      ? checkedOrEvent
-      : ((checkedOrEvent.target as HTMLInputElement | null)?.checked ?? false)
-
-  if (checked) {
-    const idx = commandStore.commandFilters[type].indexOf(option as never)
-    if (idx > -1) {
-      commandStore.commandFilters[type].splice(idx, 1)
-    }
-  } else {
-    commandStore.commandFilters[type].push(option as never)
+  event?: MouseEvent,
+) {
+  const list = commandStore.commandFilters[group]
+  const has = list.includes(option as never)
+  if (event?.shiftKey) {
+    commandStore.commandFilters[group] = [option as never]
+    return
   }
+  if (has) {
+    commandStore.commandFilters[group] = list.filter((item) => item !== option)
+  } else {
+    commandStore.commandFilters[group] = [...list, option as never]
+  }
+}
+
+function isFilterActive(group: 'kind' | 'status' | 'position', option: string) {
+  return commandStore.commandFilters[group].includes(option as never)
+}
+
+function setTimeRange(value: string) {
+  commandStore.commandFilters.timeRange = value as any
 }
 
 function getCommandComponent(command: UserCommandPayload): Component | string {
@@ -118,52 +135,72 @@ function handleClosePosition(commandId: string): void {
   <div class="flex flex-col h-full min-h-0">
     <Transition name="expand">
       <div v-show="showFilters">
-        <div class="panel-content space-y-4 p-2">
-          <div>
-            <span>Kind</span>
-            <div class="flex items-center flex-wrap gap-4 px-2">
-              <ul class="flex flex-col flex-wrap p-0 m-0 space-y-2 list-none">
-                <li
-                  v-for="option in commandStore.activeCommandKinds"
-                  :key="option"
-                  class="inline-flex items-center gap-1 mr-4"
-                >
-                  <input
-                    type="checkbox"
-                    :id="`kind-${option}`"
-                    :value="option"
-                    :checked="!commandStore.commandFilters.kind.includes(option)"
-                    @change="handleCheckboxChange(option, $event, 'kind')"
-                  />
-                  <label :for="`kind-${option}`" class="text-sm cursor-pointer">
-                    {{ option }}
-                  </label>
-                </li>
-              </ul>
+        <div class="panel-content space-y-3 p-2 text-xs">
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-[11px] uppercase tracking-wide text-(--color-text-dim)">
+              <span>Status</span>
+              <span class="text-[10px] normal-case">Shift+click to solo</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="option in statusOptions"
+                :key="option"
+                class="btn btn-sm btn-ghost"
+                :data-pressed="isFilterActive('status', option)"
+                :aria-pressed="isFilterActive('status', option)"
+                @click="toggleMultiFilter('status', option, $event)"
+              >
+                {{ option }}
+              </button>
             </div>
           </div>
-          <div>
-            <span>Status</span>
-            <span class="flex items-center flex-wrap gap-4 px-2">
-              <ul class="flex flex-col flex-wrap p-0 m-0 space-y-2 list-none">
-                <li
-                  v-for="option in commandStore.activeCommandStatuses"
-                  :key="option"
-                  class="inline-flex items-center gap-1 mr-4"
-                >
-                  <input
-                    type="checkbox"
-                    :id="`status-${option}`"
-                    :value="option"
-                    :checked="!commandStore.commandFilters.status.includes(option)"
-                    @change="handleCheckboxChange(option, $event, 'status')"
-                  />
-                  <label :for="`status-${option}`" class="text-sm cursor-pointer">
-                    {{ option }}
-                  </label>
-                </li>
-              </ul>
-            </span>
+
+          <div class="space-y-2">
+            <div class="text-[11px] uppercase tracking-wide text-(--color-text-dim)">Position</div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="option in positionOptions"
+                :key="option"
+                class="btn btn-sm btn-ghost"
+                :data-pressed="isFilterActive('position', option)"
+                :aria-pressed="isFilterActive('position', option)"
+                @click="toggleMultiFilter('position', option, $event)"
+              >
+                {{ option }}
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="text-[11px] uppercase tracking-wide text-(--color-text-dim)">Recent</div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="option in timeOptions"
+                :key="option.value"
+                class="btn btn-sm btn-ghost"
+                :data-pressed="commandStore.commandFilters.timeRange === option.value"
+                :aria-pressed="commandStore.commandFilters.timeRange === option.value"
+                @click="setTimeRange(option.value)"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="text-[11px] uppercase tracking-wide text-(--color-text-dim)">Kind</div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="option in commandStore.activeCommandKinds"
+                :key="option"
+                class="btn btn-sm btn-ghost"
+                :data-pressed="isFilterActive('kind', option)"
+                :aria-pressed="isFilterActive('kind', option)"
+                @click="toggleMultiFilter('kind', option, $event)"
+              >
+                {{ option }}
+              </button>
+            </div>
           </div>
         </div>
       </div>

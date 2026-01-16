@@ -52,9 +52,37 @@ export const useCommandStore = defineStore(
     const pendingCommands = ref<Record<Uuid, PendingCommand>>({})
     const selectedCommandId = ref<string | null>(null)
 
-    const commandFilters = ref<{ kind: string[]; status: CommandStatus[] }>({
+    type StatusFilter = 'Running' | 'Completed' | 'Failed' | 'Canceled'
+    type PositionFilter = 'Open' | 'Closed' | 'Dusted'
+    type TimeRangeFilter = 'Any' | '12h' | 'Day' | 'Week' | 'Month'
+
+    const commandFilters = ref<{
+      kind: string[]
+      status: StatusFilter[]
+      position: PositionFilter[]
+      timeRange: TimeRangeFilter
+    }>({
       kind: [],
       status: [],
+      position: [],
+      timeRange: 'Any',
+    })
+
+    const canceledCommandIds = ref<Set<string>>(new Set())
+
+    const dustedCommandIds = computed(() => {
+      const ids = new Set<string>()
+      deviceStore.devices.forEach((device) => {
+        if (device.kind !== 'TrailingEntry') return
+        const stats = (device.state as any)?.stats as { net_base?: number; close_filled_qty?: number }
+        if (!stats) return
+        const netBase = stats.net_base ?? 0
+        const closeFilled = stats.close_filled_qty ?? 0
+        if (closeFilled > 0 && netBase > 0) {
+          ids.add(device.associated_command_id)
+        }
+      })
+      return ids
     })
 
     const commandMap = computed<Record<string, OrderedCommandHistoryItem>>(() => {
@@ -98,13 +126,67 @@ export const useCommandStore = defineStore(
     })
 
     const filteredCommands = computed<OrderedCommandHistoryItem[]>(() => {
-      return commands.value.filter((cmd) => {
-        const kindFilter = commandFilters.value.kind
-        const statusFilter = commandFilters.value.status
-        if (!kindFilter.includes(cmd.command.kind) && !statusFilter.includes(cmd.status)) {
-          return true
+      const kindFilter = commandFilters.value.kind
+      const statusFilter = commandFilters.value.status
+      const positionFilter = commandFilters.value.position
+      const timeRange = commandFilters.value.timeRange
+      const now = Date.now()
+
+      const minTimestamp = (() => {
+        switch (timeRange) {
+          case '12h':
+            return now - 12 * 60 * 60 * 1000
+          case 'Day':
+            return now - 24 * 60 * 60 * 1000
+          case 'Week':
+            return now - 7 * 24 * 60 * 60 * 1000
+          case 'Month':
+            return now - 30 * 24 * 60 * 60 * 1000
+          default:
+            return null
         }
-        return false
+      })()
+
+      return commands.value.filter((cmd) => {
+        if (minTimestamp !== null) {
+          const created = new Date(cmd.created_at).getTime()
+          if (!Number.isFinite(created) || created < minTimestamp) return false
+        }
+
+        if (kindFilter.length > 0 && !kindFilter.includes(cmd.command.kind)) {
+          return false
+        }
+
+        const statusBucket: StatusFilter = (() => {
+          if (canceledCommandIds.value.has(cmd.command_id)) return 'Canceled'
+          switch (cmd.status) {
+            case CommandStatus.Succeeded:
+              return 'Completed'
+            case CommandStatus.Failed:
+            case CommandStatus.Malformed:
+              return 'Failed'
+            default:
+              return 'Running'
+          }
+        })()
+
+        if (statusFilter.length > 0 && !statusFilter.includes(statusBucket)) {
+          return false
+        }
+
+        const positionBucket: PositionFilter = (() => {
+          if (statusBucket === 'Completed' && dustedCommandIds.value.has(cmd.command_id)) {
+            return 'Dusted'
+          }
+          if (statusBucket === 'Completed') return 'Closed'
+          return 'Open'
+        })()
+
+        if (positionFilter.length > 0 && !positionFilter.includes(positionBucket)) {
+          return false
+        }
+
+        return true
       })
     })
 
@@ -148,6 +230,7 @@ export const useCommandStore = defineStore(
 
     function cancelCommand(commandId: string) {
       ws.sendCancelCommand(commandId)
+      canceledCommandIds.value = new Set([...canceledCommandIds.value, commandId])
     }
 
     function closePosition(commandId: string) {
@@ -167,6 +250,7 @@ export const useCommandStore = defineStore(
       commandFilters,
       activeCommandKinds,
       activeCommandStatuses,
+      dustedCommandIds,
       /* actions */
       inspectCommand,
       cancelCommand,
