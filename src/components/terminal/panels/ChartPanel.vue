@@ -3,10 +3,15 @@ import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import {
   createChart,
   AreaSeries,
+  LineSeries,
   type IChartApi,
   type ISeriesApi,
   type AreaData,
   type UTCTimestamp,
+  type SeriesMarker,
+  type LineData,
+  createSeriesMarkers,
+  type ISeriesMarkersPluginApi,
 } from 'lightweight-charts'
 import { storeToRefs } from 'pinia'
 import { useDeviceStore } from '@/stores/devices'
@@ -16,7 +21,7 @@ import {
   type DraggablePriceLineDragEvent,
   type DraggablePriceLinesPluginApi,
 } from '@/lib/chart/draggablePriceLines'
-import { TrailingEntryLifecycle } from '@/lib/ws/protocol'
+import { TrailingEntryLifecycle, TrailingEntryPhase, PositionSide } from '@/lib/ws/protocol'
 import { recordPerfDuration, getPerfThreshold } from '@/lib/perfLog'
 
 const store = useDeviceStore()
@@ -35,8 +40,13 @@ const containerEl = ref<HTMLDivElement | null>(null)
 let chart: IChartApi | null = null
 let series: ISeriesApi<'Area'> | null = null
 let draggableLinesPlugin: DraggablePriceLinesPluginApi | null = null
+let activationMarkerSeries: ISeriesApi<'Line'> | null = null
+let statusMarkerSeries: ISeriesApi<'Line'> | null = null
+let activationMarkersPlugin: ISeriesMarkersPluginApi<UTCTimestamp> | null = null
+let statusMarkersPlugin: ISeriesMarkersPluginApi<UTCTimestamp> | null = null
 let resizeObserver: ResizeObserver | null = null
 let themeObserver: MutationObserver | null = null
+const themeVersion = ref(0)
 
 // Get CSS variable value from the document
 function getCssVar(name: string, fallback: string): string {
@@ -55,6 +65,8 @@ function getChartTheme() {
     areaBottom: getCssVar('--chart-area-bottom', 'rgba(208, 215, 222, 0)'),
     activationPrice: getCssVar('--chart-price-line-activation', '#f7a529'),
     stopLoss: getCssVar('--chart-price-line-stop', '#f87171'),
+    peak: getCssVar('--chart-price-line-peak', '#f59e0b'),
+    jump: getCssVar('--chart-price-line-jump', '#22c55e'),
   }
 }
 
@@ -101,11 +113,47 @@ const teDeviceLifecycle = computed(() => {
   return teDevice.value?.lifecycle || {}
 })
 
+const chartTitle = computed(() => {
+  const te = teDevice.value
+  if (!te || !selectedDeviceId.value) return ''
+  const side = te.position_side === PositionSide.Long ? 'Long' : 'Short'
+  return `Graph of TE: ${side} ${te.symbol} - ${selectedDeviceId.value}`
+})
+
+function getJumpTriggerPrice() {
+  const te = teDevice.value
+  if (!te || te.peak <= 0) return null
+  const jumpFraction = te.jump_frac_threshold / 100
+  if (te.position_side === PositionSide.Long) {
+    return te.peak * (1 + jumpFraction)
+  }
+  return te.peak * (1 - jumpFraction)
+}
+
+function getJumpLabel(jumpPrice: number) {
+  const te = teDevice.value
+  if (!te) return null
+  const prefix = te.position_side === PositionSide.Long ? '+' : '-'
+  const percent = te.jump_frac_threshold.toFixed(2)
+  let label = `Jump ${prefix}${percent}%`
+  const denom =
+    te.position_side === PositionSide.Long
+      ? jumpPrice - te.stop_loss
+      : te.stop_loss - jumpPrice
+  if (denom > 0) {
+    const size = te.risk_amount / denom
+    const notional = size * jumpPrice
+    label = `${label} • Est $${notional.toFixed(2)}`
+  }
+  return label
+}
+
 const draggableLines = computed<DraggablePriceLineDefinition[]>(() => {
+  themeVersion.value
   const te = teDevice.value
   if (!te) return []
   const theme = getChartTheme()
-  return [
+  const lines: DraggablePriceLineDefinition[] = [
     {
       id: 'activation_price',
       options: {
@@ -114,7 +162,7 @@ const draggableLines = computed<DraggablePriceLineDefinition[]>(() => {
         lineWidth: 1,
         lineStyle: 2, // Dashed
         axisLabelVisible: true,
-        title: 'Activation Price',
+        title: 'Act',
       },
       draggable: teDeviceLifecycle.value === TrailingEntryLifecycle.Running,
     },
@@ -126,11 +174,44 @@ const draggableLines = computed<DraggablePriceLineDefinition[]>(() => {
         lineWidth: 1,
         lineStyle: 2, // Dashed
         axisLabelVisible: true,
-        title: 'Stop Loss',
+        title: 'Stop',
       },
       draggable: teDeviceLifecycle.value === TrailingEntryLifecycle.Running,
     },
   ]
+
+  if (te.phase === TrailingEntryPhase.Triggered && te.peak > 0) {
+    lines.push({
+      id: 'peak_price',
+      options: {
+        price: te.peak,
+        color: theme.peak,
+        lineWidth: 1,
+        lineStyle: 1, // Dotted
+        axisLabelVisible: true,
+        title: 'Peak',
+      },
+      draggable: false,
+    })
+    const jumpPrice = getJumpTriggerPrice()
+    if (jumpPrice) {
+      const jumpLabel = getJumpLabel(jumpPrice)
+      lines.push({
+        id: 'jump_trigger',
+        options: {
+          price: jumpPrice,
+          color: theme.jump,
+          lineWidth: 1,
+          lineStyle: 2, // Dashed
+          axisLabelVisible: true,
+          title: jumpLabel ?? 'Jump',
+        },
+        draggable: false,
+      })
+    }
+  }
+
+  return lines
 })
 
 const chartSeriesData = computed<AreaData[]>(() => {
@@ -147,6 +228,52 @@ const chartSeriesData = computed<AreaData[]>(() => {
       value: point.price,
     }
   })
+})
+
+const activationMarker = computed(() => {
+  themeVersion.value
+  const te = teDevice.value
+  const data = chartSeriesData.value
+  if (!te || data.length === 0) return null
+  const baseIndex = te.base_index ?? 0
+  const startIndex = te.start_trigger_index
+  if (startIndex === null || startIndex < baseIndex) return null
+  const local = startIndex - baseIndex
+  const point = data[local]
+  if (!point) return null
+  return {
+    time: point.time,
+    value: point.value,
+  }
+})
+
+const statusMarker = computed(() => {
+  themeVersion.value
+  const te = teDevice.value
+  const data = chartSeriesData.value
+  if (!te || data.length === 0) return null
+  const baseIndex = te.base_index ?? 0
+  if (te.completed && te.succeeded && te.end_trigger_index !== null && te.end_trigger_index >= baseIndex) {
+    const local = te.end_trigger_index - baseIndex
+    const point = data[local]
+    if (!point) return null
+    return {
+      time: point.time,
+      value: point.value,
+      label: te.position_side === PositionSide.Long ? 'Bought' : 'Sold',
+      color: getChartTheme().jump,
+    }
+  }
+  if (te.completed && te.cancelled) {
+    const lastPoint = data[data.length - 1]
+    return {
+      time: lastPoint.time,
+      value: lastPoint.value,
+      label: 'Cancelled',
+      color: getChartTheme().stopLoss,
+    }
+  }
+  return null
 })
 
 function syncChartSize() {
@@ -175,6 +302,51 @@ function applySeriesData(data: AreaData[], reason: string) {
   }
 }
 
+function syncMarkerSeries() {
+  const theme = getChartTheme()
+  const te = teDevice.value
+  const activation = activationMarker.value
+  const status = statusMarker.value
+
+  if (activationMarkerSeries) {
+    activationMarkerSeries.setData(activation ? ([activation] as LineData[]) : [])
+  }
+  if (activationMarkersPlugin) {
+    const activationShape =
+      te?.position_side === PositionSide.Short ? 'arrowDown' : 'arrowUp'
+    const markers: SeriesMarker<UTCTimestamp>[] = activation
+      ? [
+          {
+            time: activation.time,
+            position: 'inBar',
+            color: theme.activationPrice,
+            shape: activationShape,
+            text: 'Activation',
+          },
+        ]
+      : []
+    activationMarkersPlugin.setMarkers(markers)
+  }
+
+  if (statusMarkerSeries) {
+    statusMarkerSeries.setData(status ? ([{ time: status.time, value: status.value }] as LineData[]) : [])
+  }
+  if (statusMarkersPlugin) {
+    const markers: SeriesMarker<UTCTimestamp>[] = status
+      ? [
+          {
+            time: status.time,
+            position: 'inBar',
+            color: status.color,
+            shape: status.label === 'Cancelled' ? 'square' : status.label === 'Sold' ? 'arrowDown' : 'arrowUp',
+            text: status.label,
+          },
+        ]
+      : []
+    statusMarkersPlugin.setMarkers(markers)
+  }
+}
+
 onMounted(() => {
   if (!containerEl.value) return
   const theme = getChartTheme()
@@ -188,6 +360,10 @@ onMounted(() => {
         top: 0.1,
         bottom: 0.2,
       },
+    },
+    leftPriceScale: {
+      visible: true,
+      borderColor: theme.border,
     },
     timeScale: { visible: false, borderColor: theme.border },
   })
@@ -204,41 +380,34 @@ onMounted(() => {
     lineWidth: 2,
     pointMarkersVisible: false,
   })
+  activationMarkerSeries = chart.addSeries(LineSeries, {
+    lineVisible: false,
+    pointMarkersVisible: false,
+    priceLineVisible: false,
+    lastValueVisible: false,
+    crosshairMarkerVisible: false,
+    color: theme.activationPrice,
+  })
+  statusMarkerSeries = chart.addSeries(LineSeries, {
+    lineVisible: false,
+    pointMarkersVisible: false,
+    priceLineVisible: false,
+    lastValueVisible: false,
+    crosshairMarkerVisible: false,
+    color: theme.jump,
+  })
+  activationMarkersPlugin = createSeriesMarkers(activationMarkerSeries, [])
+  statusMarkersPlugin = createSeriesMarkers(statusMarkerSeries, [])
 
   // Watch for theme changes (data-theme attribute on html element)
   themeObserver = new MutationObserver(() => {
+    themeVersion.value += 1
     applyChartTheme()
     // Update draggable lines with new theme colors
     if (draggableLinesPlugin && teDevice.value) {
-      const theme = getChartTheme()
-      const te = teDevice.value
-      draggableLinesPlugin.setLines([
-        {
-          id: 'activation_price',
-          options: {
-            price: te.activation_price,
-            color: theme.activationPrice,
-            lineWidth: 1,
-            lineStyle: 2,
-            axisLabelVisible: true,
-            title: 'Activation Price',
-          },
-          draggable: teDeviceLifecycle.value === TrailingEntryLifecycle.Running,
-        },
-        {
-          id: 'stop_loss',
-          options: {
-            price: te.stop_loss,
-            color: theme.stopLoss,
-            lineWidth: 1,
-            lineStyle: 2,
-            axisLabelVisible: true,
-            title: 'Stop Loss',
-          },
-          draggable: teDeviceLifecycle.value === TrailingEntryLifecycle.Running,
-        },
-      ])
+      draggableLinesPlugin.setLines(draggableLines.value)
     }
+    syncMarkerSeries()
   })
   themeObserver.observe(document.documentElement, {
     attributes: true,
@@ -270,6 +439,7 @@ onMounted(() => {
 
   const initial = chartSeriesData.value
   applySeriesData(initial, 'mount')
+  syncMarkerSeries()
 })
 
 watch(
@@ -285,6 +455,22 @@ watch(
   (lines) => {
     if (!draggableLinesPlugin) return
     draggableLinesPlugin.setLines(lines)
+  },
+  { deep: true },
+)
+
+watch(
+  activationMarker,
+  () => {
+    syncMarkerSeries()
+  },
+  { deep: true },
+)
+
+watch(
+  statusMarker,
+  () => {
+    syncMarkerSeries()
   },
   { deep: true },
 )
@@ -306,9 +492,15 @@ onBeforeUnmount(() => {
   themeObserver = null
   draggableLinesPlugin?.destroy()
   draggableLinesPlugin = null
+  activationMarkersPlugin?.detach()
+  activationMarkersPlugin = null
+  statusMarkersPlugin?.detach()
+  statusMarkersPlugin = null
   chart?.remove()
   chart = null
   series = null
+  activationMarkerSeries = null
+  statusMarkerSeries = null
 })
 
 type PriceLineEventName =
@@ -350,6 +542,12 @@ function isTrackedLine(id: string): id is 'activation_price' | 'stop_loss' {
 
 <template>
   <section class="relative flex flex-col min-h-0 w-full h-full">
+    <div
+      v-if="chartTitle"
+      class="absolute left-3 top-2 z-10 text-[10px] font-mono text-[var(--color-text-dim)]"
+    >
+      {{ chartTitle }}
+    </div>
     <div ref="containerEl" class="w-full h-full" />
   </section>
 </template>
