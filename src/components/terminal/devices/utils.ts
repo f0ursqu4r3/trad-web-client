@@ -1,19 +1,12 @@
 import { TrailingEntryLifecycle, TrailingEntryPhase } from '@/lib/ws/protocol'
+import { formatNumberShort } from '@/lib/numberFormat'
 
 export function formatPrice(price: number): string {
-  if (!Number.isFinite(price)) return '-'
-  return new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(price)
+  return formatNumberShort(price, { minDecimals: 2, maxDecimals: 6 })
 }
 
 export function formatQty(qty: number): string {
-  if (!Number.isFinite(qty)) return '-'
-  return new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 6,
-  }).format(qty)
+  return formatNumberShort(qty, { minDecimals: 0, maxDecimals: 6 })
 }
 
 export function formatPercent(value: number): string {

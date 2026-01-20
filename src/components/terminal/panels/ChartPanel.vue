@@ -23,6 +23,7 @@ import {
 } from '@/lib/chart/draggablePriceLines'
 import { TrailingEntryLifecycle, TrailingEntryPhase, PositionSide } from '@/lib/ws/protocol'
 import { recordPerfDuration, getPerfThreshold } from '@/lib/perfLog'
+import { formatNumberShort, formatUsdShort } from '@/lib/numberFormat'
 
 const store = useDeviceStore()
 
@@ -143,7 +144,7 @@ function getJumpLabel(jumpPrice: number) {
   if (denom > 0) {
     const size = te.risk_amount / denom
     const notional = size * jumpPrice
-    label = `${label} • Est $${notional.toFixed(2)}`
+    label = `${label} • Est ${formatUsdShort(notional)}`
   }
   return label
 }
@@ -354,6 +355,9 @@ onMounted(() => {
   chart = createChart(containerEl.value, {
     layout: { background: { color: theme.bg }, textColor: theme.text, attributionLogo: false },
     grid: { vertLines: { color: theme.grid }, horzLines: { color: theme.grid } },
+    localization: {
+      priceFormatter: (price: number) => formatNumberShort(price, { minDecimals: 2, maxDecimals: 6 }),
+    },
     rightPriceScale: {
       borderColor: theme.border,
       scaleMargins: {

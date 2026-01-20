@@ -13,6 +13,7 @@ import {
   getPositionSideClass,
   formatSide,
 } from './utils'
+import { formatNumberShort } from '@/lib/numberFormat'
 
 const props = defineProps<{
   device: TrailingEntryState
@@ -73,10 +74,7 @@ function handleCloseAgain() {
 
 function fmtSplitValue(value: number | null | undefined, digits = 2) {
   if (value == null || Number.isNaN(value)) return 'Default'
-  return new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  }).format(value)
+  return formatNumberShort(value, { minDecimals: digits, maxDecimals: 6 })
 }
 
 function fmtSplitPercent(value: number | null | undefined) {

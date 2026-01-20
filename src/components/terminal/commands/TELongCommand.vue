@@ -1,23 +1,17 @@
 <script lang="ts" setup>
 import type { TrailingEntryOrderCommand } from '@/lib/ws/protocol'
+import { formatNumberShort, formatUsdShort } from '@/lib/numberFormat'
 
 defineProps<{ command: TrailingEntryOrderCommand }>()
 
 function fmtUsd(n?: number) {
   if (n == null || Number.isNaN(n)) return '—'
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(n)
+  return formatUsdShort(n)
 }
 
 function fmtPrice(n?: number) {
   if (n == null || Number.isNaN(n)) return '—'
-  return new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 6,
-  }).format(n)
+  return formatNumberShort(n, { minDecimals: 2, maxDecimals: 6 })
 }
 
 function fmtPct(n?: number) {

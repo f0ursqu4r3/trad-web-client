@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { MarketOrderCommand, MarketContext } from '@/lib/ws/protocol'
+import { formatUsdShort } from '@/lib/numberFormat'
 
 defineProps<{
   command: MarketOrderCommand
@@ -7,11 +8,7 @@ defineProps<{
 
 function fmtUsd(n?: number) {
   if (n == null || Number.isNaN(n)) return '—'
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(n)
+  return formatUsdShort(n)
 }
 
 function titleCase(s?: string) {

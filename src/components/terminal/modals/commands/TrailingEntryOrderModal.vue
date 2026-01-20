@@ -15,6 +15,7 @@ import { useWsStore } from '@/stores/ws'
 
 import type { TrailingEntryPrefill } from './types'
 import { createLogger } from '@/lib/utils'
+import { formatNumberShort } from '@/lib/numberFormat'
 
 const logger = createLogger('commands')
 
@@ -191,7 +192,7 @@ watch(
 )
 
 function formatNumber(value: number, digits: number) {
-  return value.toFixed(digits)
+  return formatNumberShort(value, { minDecimals: digits, maxDecimals: 6 })
 }
 </script>
 <template>
