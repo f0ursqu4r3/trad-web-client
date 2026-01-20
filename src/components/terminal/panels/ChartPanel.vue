@@ -312,15 +312,14 @@ function syncMarkerSeries() {
     activationMarkerSeries.setData(activation ? ([activation] as LineData[]) : [])
   }
   if (activationMarkersPlugin) {
-    const activationShape =
-      te?.position_side === PositionSide.Short ? 'arrowDown' : 'arrowUp'
     const markers: SeriesMarker<UTCTimestamp>[] = activation
       ? [
           {
             time: activation.time,
             position: 'inBar',
             color: theme.activationPrice,
-            shape: activationShape,
+            shape: 'square',
+            size: 0.7,
             text: 'Activation',
           },
         ]
@@ -338,7 +337,8 @@ function syncMarkerSeries() {
             time: status.time,
             position: 'inBar',
             color: status.color,
-            shape: status.label === 'Cancelled' ? 'square' : status.label === 'Sold' ? 'arrowDown' : 'arrowUp',
+            shape: 'square',
+            size: 0.7,
             text: status.label,
           },
         ]
