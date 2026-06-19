@@ -14,4 +14,6 @@ export type MarketOrderPrefill = {
   quantity_usd: number
   position_side: PositionSide
   action: MarketAction
+  take_profit?: number | null
+  stop_loss?: number | null
 }

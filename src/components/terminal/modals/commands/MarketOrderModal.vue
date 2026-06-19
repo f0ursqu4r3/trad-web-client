@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import {
+  ExchangeType,
   MarketAction,
   PositionSide,
   type MarketOrderCommand,
@@ -30,6 +31,16 @@ const lastAccountId = ref<string>('')
 const quantity_usd = ref<number | null>(null)
 const position_side = ref<PositionSide>(PositionSide.Long)
 const action = ref<MarketAction>(MarketAction.Open)
+const take_profit = ref<number | null | ''>(null)
+const stop_loss = ref<number | null | ''>(null)
+
+const selectedAccount = computed(
+  () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
+)
+const supportsAttachedExit = computed(
+  () =>
+    selectedAccount.value?.exchange === ExchangeType.Bybit && action.value === MarketAction.Open,
+)
 
 function applyInitialValues() {
   const preset = (modals.modalValues['MarketOrder'] as MarketOrderPrefill) ?? {}
@@ -39,6 +50,8 @@ function applyInitialValues() {
   quantity_usd.value = preset.quantity_usd ?? 50
   position_side.value = preset.position_side ?? PositionSide.Long
   action.value = preset.action ?? MarketAction.Open
+  take_profit.value = preset.take_profit ?? null
+  stop_loss.value = preset.stop_loss ?? null
 }
 
 watch(
@@ -59,11 +72,28 @@ watch(selectedAccountId, (next, prev) => {
   lastAccountId.value = next
 })
 
+watch(supportsAttachedExit, (supported) => {
+  if (!supported) {
+    take_profit.value = null
+    stop_loss.value = null
+  }
+})
+
 function validate(): boolean {
   if (!selectedAccountId.value) return false
   if (!symbol.value) return false
   if (quantity_usd.value === null || quantity_usd.value <= 0) return false
+  const tp = optionalPositivePrice(take_profit.value)
+  const sl = optionalPositivePrice(stop_loss.value)
+  if (take_profit.value !== null && take_profit.value !== '' && tp === null) return false
+  if (stop_loss.value !== null && stop_loss.value !== '' && sl === null) return false
   return true
+}
+
+function optionalPositivePrice(value: number | null | ''): number | null {
+  if (value === null || value === '') return null
+  if (!Number.isFinite(value) || value <= 0) return null
+  return value
 }
 
 function submit() {
@@ -78,12 +108,23 @@ function submit() {
     return
   }
 
+  const normalizedTakeProfit = optionalPositivePrice(take_profit.value)
+  const normalizedStopLoss = optionalPositivePrice(stop_loss.value)
+  const attachedExitPlan =
+    supportsAttachedExit.value && (normalizedTakeProfit !== null || normalizedStopLoss !== null)
+      ? {
+          take_profit: normalizedTakeProfit,
+          stop_loss: normalizedStopLoss,
+        }
+      : null
+
   const data: MarketOrderCommand = {
     market_context: marketContext,
     symbol: symbol.value,
     quantity_usd: quantity_usd.value!,
     position_side: position_side.value,
     action: action.value,
+    attached_exit_plan: attachedExitPlan,
   }
   const payload: Extract<UserCommandPayload, { kind: 'MarketOrder' }> = {
     kind: 'MarketOrder',
@@ -124,6 +165,16 @@ function submit() {
             <option :value="PositionSide.Short">Short</option>
           </select>
         </label>
+        <template v-if="supportsAttachedExit">
+          <label class="field">
+            <span>Take Profit</span>
+            <input type="number" v-model.number="take_profit" class="input" />
+          </label>
+          <label class="field">
+            <span>Stop Loss</span>
+            <input type="number" v-model.number="stop_loss" class="input" />
+          </label>
+        </template>
       </div>
     </form>
     <template #footer>

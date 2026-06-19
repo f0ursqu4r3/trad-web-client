@@ -181,6 +181,8 @@ function handleDuplicate(command: UserCommandPayload): void {
         quantity_usd: command.data.quantity_usd,
         position_side: command.data.position_side,
         action: command.data.action,
+        take_profit: command.data.attached_exit_plan?.take_profit ?? null,
+        stop_loss: command.data.attached_exit_plan?.stop_loss ?? null,
       } as MarketOrderPrefill)
       break
     default:

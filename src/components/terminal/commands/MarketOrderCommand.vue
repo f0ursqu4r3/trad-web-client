@@ -11,6 +11,11 @@ function fmtUsd(n?: number) {
   return formatUsdShort(n)
 }
 
+function fmtPrice(n?: number | null) {
+  if (n == null || Number.isNaN(n)) return '—'
+  return `$${n.toLocaleString(undefined, { maximumFractionDigits: 8 })}`
+}
+
 function titleCase(s?: string) {
   if (!s) return '—'
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
@@ -70,5 +75,21 @@ function fmtMarketContext(mc: MarketContext) {
       </dt>
       <dd class="m-0 text-[12px]">{{ fmtMarketContext(command.market_context) }}</dd>
     </div>
+
+    <template v-if="command.attached_exit_plan">
+      <div>
+        <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+          Take Profit
+        </dt>
+        <dd class="m-0 text-[12px]">{{ fmtPrice(command.attached_exit_plan.take_profit) }}</dd>
+      </div>
+
+      <div>
+        <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+          Stop Loss
+        </dt>
+        <dd class="m-0 text-[12px]">{{ fmtPrice(command.attached_exit_plan.stop_loss) }}</dd>
+      </div>
+    </template>
   </dl>
 </template>

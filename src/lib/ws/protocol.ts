@@ -226,12 +226,17 @@ export type SetLeverageCommand = {
   leverage: number
   market_context: MarketContext
 }
+export type AttachedExitPlan = {
+  take_profit?: number | null
+  stop_loss?: number | null
+}
 export type MarketOrderCommand = {
   action: MarketAction
   symbol: string
   quantity_usd: number
   position_side: PositionSide
   market_context: MarketContext
+  attached_exit_plan?: AttachedExitPlan | null
 }
 export type SplitMarketOrderCommand = {
   num_splits: number
