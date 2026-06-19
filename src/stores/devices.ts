@@ -739,6 +739,8 @@ export const useDeviceStore = defineStore('device', () => {
           expected_entries,
           observed_entries,
           observed_protection_orders,
+          observed_entry_order_ids,
+          observed_protection_order_ids,
           tracked_parent_client_order_ids,
           tracked_parent_remote_order_ids,
           entry_filled_qty,
@@ -760,6 +762,8 @@ export const useDeviceStore = defineStore('device', () => {
         np.expected_entries = expected_entries
         np.observed_entries = observed_entries
         np.observed_protection_orders = observed_protection_orders
+        np.observed_entry_order_ids = observed_entry_order_ids ?? []
+        np.observed_protection_order_ids = observed_protection_order_ids ?? []
         np.tracked_parent_client_order_ids = tracked_parent_client_order_ids ?? []
         np.tracked_parent_remote_order_ids = tracked_parent_remote_order_ids ?? []
         np.entry_filled_qty = entry_filled_qty
@@ -820,12 +824,16 @@ export const useDeviceStore = defineStore('device', () => {
         const {
           observed_entries,
           observed_protection_orders,
+          observed_entry_order_ids,
+          observed_protection_order_ids,
           entry_filled_qty,
           protection_filled_qty,
           status,
         } = delta.data
         np.observed_entries = observed_entries
         np.observed_protection_orders = observed_protection_orders
+        np.observed_entry_order_ids = observed_entry_order_ids ?? []
+        np.observed_protection_order_ids = observed_protection_order_ids ?? []
         np.entry_filled_qty = entry_filled_qty
         np.protection_filled_qty = protection_filled_qty
         np.status = status
@@ -1034,6 +1042,8 @@ export interface NativeProtectionState {
   expected_entries: number
   observed_entries: number
   observed_protection_orders: number
+  observed_entry_order_ids: string[]
+  observed_protection_order_ids: string[]
   tracked_parent_client_order_ids: string[]
   tracked_parent_remote_order_ids: string[]
   entry_filled_qty: number
@@ -1198,6 +1208,8 @@ function newNativeProtectionState(): NativeProtectionState {
     expected_entries: 0,
     observed_entries: 0,
     observed_protection_orders: 0,
+    observed_entry_order_ids: [],
+    observed_protection_order_ids: [],
     tracked_parent_client_order_ids: [],
     tracked_parent_remote_order_ids: [],
     entry_filled_qty: 0,

@@ -31,6 +31,10 @@ function fmtOptionalQty(value?: number | null): string {
   return value == null ? '-' : formatQty(value)
 }
 
+function fmtIds(values: string[]): string {
+  return values.length ? values.join(', ') : '-'
+}
+
 function getStatusClass(status: NativeProtectionStatus): string {
   switch (status) {
     case NativeProtectionStatus.Flat:
@@ -128,6 +132,35 @@ function fmtDate(d?: Date | null): string {
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">
             {{ formatQty(device.protection_filled_qty) }}
+          </dd>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="device.observed_entry_order_ids.length || device.observed_protection_order_ids.length"
+      class="space-y-3"
+    >
+      <h4
+        class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)] m-0 border-b border-[var(--border-color)] pb-1"
+      >
+        Observed Order IDs
+      </h4>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Entries
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)] text-[10px] break-all">
+            {{ fmtIds(device.observed_entry_order_ids) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Protection
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)] text-[10px] break-all">
+            {{ fmtIds(device.observed_protection_order_ids) }}
           </dd>
         </div>
       </div>
