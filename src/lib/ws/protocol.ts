@@ -565,6 +565,7 @@ export type DeviceSnapshotLiteData = {
   device_id: Uuid
   owner_user_id: Uuid
   associated_command_id: Uuid
+  market_ref?: MarketRef | null
   parent_device?: Uuid | null
   children_devices?: Uuid[] | null
   created_at: string

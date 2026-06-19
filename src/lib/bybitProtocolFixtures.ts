@@ -6,6 +6,7 @@ import {
   ExchangeType,
   NetworkType,
   type CommandHistoryItem,
+  type DeviceSnapshotLiteData,
   type MarketCapabilitiesData,
   type MarketContext,
   type MarketRef,
@@ -117,6 +118,25 @@ const bybitNativeProtectionSnapshot = {
   created_at: '2026-06-19T00:00:00.000Z',
 } satisfies NativeProtectionSnapshot
 
+const bybitDeviceSnapshotLite = {
+  device_id: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+  owner_user_id: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+  associated_command_id: bybitCommandHistoryItem.command_id,
+  market_ref: bybitMarketRef,
+  parent_device: null,
+  children_devices: null,
+  created_at: '2026-06-19T00:00:00.000Z',
+  complete: false,
+  failed: false,
+  canceled: false,
+  awaiting_children: false,
+  failure_reason: null,
+  snapshot: {
+    kind: 'NativeProtection',
+    data: bybitNativeProtectionSnapshot,
+  },
+} satisfies DeviceSnapshotLiteData
+
 export const bybitProtocolFixtures = {
   bybitContext,
   bybitMarketRef,
@@ -125,4 +145,5 @@ export const bybitProtocolFixtures = {
   bybitCommandHistoryItem,
   bybitCapabilities,
   bybitNativeProtectionSnapshot,
+  bybitDeviceSnapshotLite,
 }

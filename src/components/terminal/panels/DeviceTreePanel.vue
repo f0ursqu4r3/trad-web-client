@@ -21,11 +21,13 @@ import {
   marketContextAccountId,
   marketContextExchangeLabel,
   marketContextProductKey,
+  marketRefExchangeLabel,
   marketProductLabel,
+  networkLabel,
   normalizeMarketContext,
   networkLabelForContext,
 } from '@/lib/marketContext'
-import type { MarketContext } from '@/lib/ws/protocol'
+import type { MarketContext, MarketRef } from '@/lib/ws/protocol'
 
 const store = useDeviceStore()
 const commandStore = useCommandStore()
@@ -214,6 +216,18 @@ const treeData = computed<TreeItem[]>(() => {
     }
   }
 
+  const marketRefLabels = (ref: MarketRef | null | undefined) => {
+    if (!ref) return null
+    return {
+      exchange: marketRefExchangeLabel(ref.exchange),
+      product: ref.product ? marketProductLabel(ref.product) : null,
+      account:
+        ref.trading_account_label ??
+        (ref.trading_account_id ? `${ref.trading_account_id.slice(0, 8)}...` : null),
+      network: ref.network ? networkLabel(ref.network) : null,
+    }
+  }
+
   // First pass: create all nodes
   for (const device of list) {
     const teLifecycle =
@@ -231,7 +245,8 @@ const treeData = computed<TreeItem[]>(() => {
       children: [],
       label: formatName(device.kind),
       symbol: device.state.symbol,
-      market: marketLabels(deviceContextMap.value.get(device.id)),
+      market:
+        marketRefLabels(device.market_ref) ?? marketLabels(deviceContextMap.value.get(device.id)),
       lifecycle: device.complete || device.failed || device.canceled ? '' : teLifecycle,
       status: statusLabel(device),
       intent,
