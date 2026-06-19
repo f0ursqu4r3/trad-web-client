@@ -45,7 +45,9 @@ const hiddenCommandCount = computed(
 )
 
 const pinnedCommands = computed(() => {
-  return commandStore.commands.filter((cmd) => commandStore.commandMeta?.[cmd.command_id]?.pinned)
+  return commandStore.filteredCommands.filter(
+    (cmd) => commandStore.commandMeta?.[cmd.command_id]?.pinned,
+  )
 })
 
 const unpinnedCommands = computed(() => {
