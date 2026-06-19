@@ -30,6 +30,8 @@ import {
   uniqueFacetValues,
 } from '@/lib/marketFilterFacets'
 import { bybitTrailingEntryExitLevelError } from '@/lib/bybitOrderValidation'
+import { commandWithMarketAvailability } from '@/lib/commandAvailability'
+import { commandRegistry } from '@/components/terminal/commands/commandRegistry'
 import {
   accountMetadataChips,
   accountMetadataStatus,
@@ -270,6 +272,22 @@ export function runBybitFilterSmoke(): void {
       'below activation',
     ),
     'Bybit short TE should reject TP above activation',
+  )
+  const bybitLauncherCommands = commandRegistry.map((command) =>
+    commandWithMarketAvailability(command, bybitProtocolFixtures.bybitCapabilities),
+  )
+  assertSmoke(
+    bybitLauncherCommands.find((command) => command.kind === 'MarketOrder')?.disabled !== true,
+    'Bybit launcher should keep market orders available',
+  )
+  assertSmoke(
+    bybitLauncherCommands.find((command) => command.kind === 'TrailingEntryOrder')?.disabled !==
+      true,
+    'Bybit launcher should keep trailing entry available',
+  )
+  assertSmoke(
+    bybitLauncherCommands.find((command) => command.kind === 'LimitOrder')?.disabled === true,
+    'Bybit launcher should disable unsupported limit orders',
   )
 
   const commands = [binanceCommand, bybitProtocolFixtures.bybitCommandHistoryItem]

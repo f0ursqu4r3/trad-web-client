@@ -5,12 +5,15 @@ import type { UserCommandPayload } from '@/lib/ws/protocol'
 import { X } from 'lucide-vue-next'
 import { commandRegistry, type CommandMeta } from '@/components/terminal/commands/commandRegistry'
 import { useWsStore } from '@/stores/ws'
+import { useAccountsStore } from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
+import { commandWithMarketAvailability } from '@/lib/commandAvailability'
 import { createLogger } from '@/lib/utils'
 
 const logger = createLogger('commands')
 
 const ws = useWsStore()
+const accounts = useAccountsStore()
 const store = useModalStore()
 const { modalStack } = storeToRefs(store)
 
@@ -30,10 +33,25 @@ onBeforeUpdate(() => {
   itemRefs.value = []
 })
 
+const selectedMarketContext = computed(() => {
+  const accountId = accounts.selectedAccountId
+  return accountId ? accounts.getMarketContextForAccount(accountId) : null
+})
+
+const selectedCapabilities = computed(() =>
+  ws.capabilitiesForMarketContext(selectedMarketContext.value),
+)
+
+const availableCommands = computed(() =>
+  allCommands.value.map((command) =>
+    commandWithMarketAvailability(command, selectedCapabilities.value),
+  ),
+)
+
 const filteredCommands = computed(() => {
   const f = filter.value.trim().toLowerCase()
-  if (!f) return allCommands.value
-  return allCommands.value.filter(
+  if (!f) return availableCommands.value
+  return availableCommands.value.filter(
     (c) => c.label.toLowerCase().includes(f) || c.kind.toLowerCase().includes(f),
   )
 })
@@ -70,6 +88,9 @@ function openPalette() {
   showMenu.value = true
   activeIndex.value = 0
   hoverEnabled.value = true
+  if (selectedMarketContext.value) {
+    ws.requestMarketCapabilities(selectedMarketContext.value)
+  }
   nextTick(() => (document.getElementById('cmd-filter') as HTMLInputElement | null)?.focus())
 }
 
@@ -135,6 +156,12 @@ window.addEventListener('mousemove', onMouseMove)
 watch(modalStack, (stack) => {
   if (stack.length && showMenu.value) {
     closePalette()
+  }
+})
+
+watch(selectedMarketContext, (marketContext) => {
+  if (showMenu.value && marketContext) {
+    ws.requestMarketCapabilities(marketContext)
   }
 })
 onUnmounted(() => {
