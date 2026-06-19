@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import {
   MarketAction,
   MarketOrderStatus,
+  NativeProtectionStatus,
   OrderSide,
   PositionSide,
   StopGuardStatus,
@@ -12,6 +13,8 @@ import {
   type TrailingEntryStats,
   type DeviceMoDelta,
   type DeviceMoDeltaEvent,
+  type DeviceNpDelta,
+  type DeviceNpDeltaEvent,
   type DeviceSgDelta,
   type DeviceSgDeltaEvent,
   type DeviceSnapshotLiteData,
@@ -28,10 +31,7 @@ const logger = createLogger('devices')
 
 export const useDeviceStore = defineStore('device', () => {
   const deviceMap = ref<Record<string, Device>>({})
-  const pendingUpdates = new Map<
-    string,
-    Array<{ kind: string; event: DeviceDeltaEvent }>
-  >()
+  const pendingUpdates = new Map<string, Array<{ kind: string; event: DeviceDeltaEvent }>>()
   const warnedMissingCommand = new Set<string>()
   const pendingLimitPerDevice = 200
 
@@ -269,6 +269,28 @@ export const useDeviceStore = defineStore('device', () => {
         sg.last_reconcile_time = s.last_status_check_at ? new Date(s.last_status_check_at) : null
         break
       }
+      case 'NativeProtection': {
+        const np = device.state as NativeProtectionState
+        const s = snapshot.data
+        np.symbol = s.symbol
+        np.market_context = normalizeMarketContext(s.market_context as MarketContext)
+        np.position_side = s.position_side
+        np.take_profit = s.take_profit ?? null
+        np.stop_loss = s.stop_loss ?? null
+        np.expected_entries = s.expected_entries
+        np.observed_entries = s.observed_entries
+        np.observed_protection_orders = s.observed_protection_orders
+        np.entry_filled_qty = s.entry_filled_qty
+        np.protection_filled_qty = s.protection_filled_qty
+        np.status = s.status
+        np.last_client_order_id = s.last_client_order_id ?? null
+        np.last_parent_client_order_id = s.last_parent_client_order_id ?? null
+        np.last_remote_order_id = s.last_remote_order_id ?? null
+        np.last_order_status = s.last_order_status ?? null
+        np.last_update_seen_at = s.last_update_seen_at ? new Date(s.last_update_seen_at) : null
+        np.created_at = new Date(s.created_at)
+        break
+      }
     }
     drainPendingUpdates(device)
   }
@@ -331,6 +353,9 @@ export const useDeviceStore = defineStore('device', () => {
         break
       case 'DeviceSgDelta':
         applyDeviceSgDeltaEvent(device, event as DeviceSgDeltaEvent)
+        break
+      case 'DeviceNpDelta':
+        applyDeviceNpDeltaEvent(device, event as DeviceNpDeltaEvent)
         break
     }
   }
@@ -702,6 +727,96 @@ export const useDeviceStore = defineStore('device', () => {
     }
   }
 
+  function applyDeviceNpDeltaEvent(device: Device, event: DeviceNpDeltaEvent) {
+    const np = device.state as NativeProtectionState
+    const delta: DeviceNpDelta = event.delta
+    const eventTime = event.ts ? new Date(event.ts) : null
+    switch (delta.kind) {
+      case 'Init': {
+        const {
+          parent_device,
+          symbol,
+          market_context,
+          position_side,
+          take_profit,
+          stop_loss,
+          expected_entries,
+          observed_entries,
+          observed_protection_orders,
+          entry_filled_qty,
+          protection_filled_qty,
+          status,
+          last_client_order_id,
+          last_parent_client_order_id,
+          last_remote_order_id,
+          last_order_status,
+          last_update_seen_at,
+          created_at,
+        } = delta.data
+        np.symbol = symbol
+        np.market_context = normalizeMarketContext(market_context as MarketContext)
+        np.position_side = position_side
+        np.take_profit = take_profit ?? null
+        np.stop_loss = stop_loss ?? null
+        np.expected_entries = expected_entries
+        np.observed_entries = observed_entries
+        np.observed_protection_orders = observed_protection_orders
+        np.entry_filled_qty = entry_filled_qty
+        np.protection_filled_qty = protection_filled_qty
+        np.status = status
+        np.last_client_order_id = last_client_order_id ?? null
+        np.last_parent_client_order_id = last_parent_client_order_id ?? null
+        np.last_remote_order_id = last_remote_order_id ?? null
+        np.last_order_status = last_order_status ?? null
+        np.last_update_seen_at = last_update_seen_at ? new Date(last_update_seen_at) : null
+        np.created_at = new Date(created_at)
+        if (parent_device) {
+          bindParent(device, parent_device)
+        }
+        break
+      }
+      case 'OrderObserved': {
+        const {
+          client_order_id,
+          parent_client_order_id,
+          remote_order_id,
+          status,
+          cum_qty,
+          is_protection_order,
+        } = delta.data
+        np.last_client_order_id = client_order_id ?? null
+        np.last_parent_client_order_id = parent_client_order_id ?? null
+        np.last_remote_order_id = remote_order_id ?? null
+        np.last_order_status = status
+        np.last_update_seen_at = eventTime
+        if (typeof cum_qty === 'number') {
+          if (is_protection_order) {
+            np.protection_filled_qty = cum_qty
+          } else {
+            np.entry_filled_qty = cum_qty
+          }
+        }
+        break
+      }
+      case 'Coverage': {
+        const {
+          observed_entries,
+          observed_protection_orders,
+          entry_filled_qty,
+          protection_filled_qty,
+          status,
+        } = delta.data
+        np.observed_entries = observed_entries
+        np.observed_protection_orders = observed_protection_orders
+        np.entry_filled_qty = entry_filled_qty
+        np.protection_filled_qty = protection_filled_qty
+        np.status = status
+        np.last_update_seen_at = eventTime
+        break
+      }
+    }
+  }
+
   function applyDeviceSplitDeltaEvent(device: Device, event: DeviceSplitDeltaEvent) {
     const sp = device.state as SplitState
     const delta = event.delta
@@ -768,15 +883,26 @@ export interface Device {
   state: DeviceState
 }
 
-export type DeviceState = TrailingEntryState | SplitState | MarketOrderState | StopGuardState
+export type DeviceState =
+  | TrailingEntryState
+  | SplitState
+  | MarketOrderState
+  | StopGuardState
+  | NativeProtectionState
 
 export type DeviceDeltaEvent =
   | DeviceTeDeltaEvent
   | DeviceMoDeltaEvent
+  | DeviceNpDeltaEvent
   | DeviceSgDeltaEvent
   | DeviceSplitDeltaEvent
 
-export type DeviceDelta = DeviceTeDelta | DeviceSplitDelta | DeviceMoDelta | DeviceSgDelta
+export type DeviceDelta =
+  | DeviceTeDelta
+  | DeviceSplitDelta
+  | DeviceMoDelta
+  | DeviceSgDelta
+  | DeviceNpDelta
 
 export interface TrailingEntryState {
   // parameters
@@ -877,6 +1003,26 @@ export interface StopGuardState {
   last_reconcile_time?: Date | null | undefined // Deprecated, use last_status_check_at
 }
 
+export interface NativeProtectionState {
+  symbol: string
+  market_context: MarketContext
+  position_side: PositionSide
+  take_profit: number | null
+  stop_loss: number | null
+  expected_entries: number
+  observed_entries: number
+  observed_protection_orders: number
+  entry_filled_qty: number
+  protection_filled_qty: number
+  status: NativeProtectionStatus
+  last_client_order_id: string | null
+  last_parent_client_order_id: string | null
+  last_remote_order_id: string | null
+  last_order_status: string | null
+  last_update_seen_at: Date | null
+  created_at: Date
+}
+
 function newDevice(deviceId: string, kind: string, command_id: string | null): Device {
   if (command_id === null) {
     throw new Error(`Cannot create device without associated command_id`)
@@ -886,6 +1032,7 @@ function newDevice(deviceId: string, kind: string, command_id: string | null): D
       DeviceTeDelta: 'TrailingEntry',
       DeviceMoDelta: 'MarketOrder',
       DeviceSgDelta: 'StopGuard',
+      DeviceNpDelta: 'NativeProtection',
       DeviceSplitDelta: 'Split',
     }[kind] || kind
   const state = (() => {
@@ -898,6 +1045,8 @@ function newDevice(deviceId: string, kind: string, command_id: string | null): D
         return newMarketOrderState()
       case 'StopGuard':
         return newStopGuardState()
+      case 'NativeProtection':
+        return newNativeProtectionState()
       default:
         throw new Error(`Unknown device kind: ${kind}`)
     }
@@ -1007,5 +1156,27 @@ function newStopGuardState(): StopGuardState {
     current_stop_client_id: null,
     last_topup_time: null,
     last_reconcile_time: null,
+  }
+}
+
+function newNativeProtectionState(): NativeProtectionState {
+  return {
+    symbol: '',
+    market_context: { type: 'none' } as MarketContext,
+    position_side: PositionSide.Long,
+    take_profit: null,
+    stop_loss: null,
+    expected_entries: 0,
+    observed_entries: 0,
+    observed_protection_orders: 0,
+    entry_filled_qty: 0,
+    protection_filled_qty: 0,
+    status: NativeProtectionStatus.Pending,
+    last_client_order_id: null,
+    last_parent_client_order_id: null,
+    last_remote_order_id: null,
+    last_order_status: null,
+    last_update_seen_at: null,
+    created_at: new Date(),
   }
 }

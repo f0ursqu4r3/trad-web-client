@@ -5,6 +5,7 @@ import { useDeviceStore } from '@/stores/devices'
 import TrailingEntryDevice from '@/components/terminal/devices/TrailingEntryDevice.vue'
 import MarketOrderDevice from '@/components/terminal/devices/MarketOrderDevice.vue'
 import StopGuardDevice from '@/components/terminal/devices/StopGuardDevice.vue'
+import NativeProtectionDevice from '@/components/terminal/devices/NativeProtectionDevice.vue'
 import SplitDevice from '@/components/terminal/devices/SplitDevice.vue'
 
 const { selectedDevice } = storeToRefs(useDeviceStore())
@@ -27,6 +28,8 @@ const deviceComp = computed(() => {
       return MarketOrderDevice
     case 'StopGuard':
       return StopGuardDevice
+    case 'NativeProtection':
+      return NativeProtectionDevice
     case 'Split':
       return SplitDevice
     default:

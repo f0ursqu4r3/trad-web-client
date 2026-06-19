@@ -247,6 +247,7 @@ export const useWsStore = defineStore('ws', () => {
       DeviceSnapshotLite: handleDeviceSnapshotLite,
       DeviceTeDelta: handleDeviceTeDelta,
       DeviceSgDelta: handleDeviceSgDelta,
+      DeviceNpDelta: handleDeviceNpDelta,
       DeviceSplitDelta: handleDeviceSplitDelta,
       DeviceMoDelta: handleDeviceMoDelta,
       SplitPreview: handleSplitPreview,
@@ -423,28 +424,50 @@ export const useWsStore = defineStore('ws', () => {
     const start = performance.now()
     const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceTeDelta' }>
     deviceStore.handleDeviceUpdate(data.kind, data.data)
-    recordPerf('DeviceTeDelta', start, { device_id: data.data.device_id, delta: data.data.delta.kind })
+    recordPerf('DeviceTeDelta', start, {
+      device_id: data.data.device_id,
+      delta: data.data.delta.kind,
+    })
   }
 
   function handleDeviceMoDelta(payload: ServerToClientMessage['payload']): void {
     const start = performance.now()
     const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceMoDelta' }>
     deviceStore.handleDeviceUpdate(data.kind, data.data)
-    recordPerf('DeviceMoDelta', start, { device_id: data.data.device_id, delta: data.data.delta.kind })
+    recordPerf('DeviceMoDelta', start, {
+      device_id: data.data.device_id,
+      delta: data.data.delta.kind,
+    })
   }
 
   function handleDeviceSgDelta(payload: ServerToClientMessage['payload']): void {
     const start = performance.now()
     const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceSgDelta' }>
     deviceStore.handleDeviceUpdate(data.kind, data.data)
-    recordPerf('DeviceSgDelta', start, { device_id: data.data.device_id, delta: data.data.delta.kind })
+    recordPerf('DeviceSgDelta', start, {
+      device_id: data.data.device_id,
+      delta: data.data.delta.kind,
+    })
+  }
+
+  function handleDeviceNpDelta(payload: ServerToClientMessage['payload']): void {
+    const start = performance.now()
+    const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceNpDelta' }>
+    deviceStore.handleDeviceUpdate(data.kind, data.data)
+    recordPerf('DeviceNpDelta', start, {
+      device_id: data.data.device_id,
+      delta: data.data.delta.kind,
+    })
   }
 
   function handleDeviceSplitDelta(payload: ServerToClientMessage['payload']): void {
     const start = performance.now()
     const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceSplitDelta' }>
     deviceStore.handleDeviceUpdate(data.kind, data.data)
-    recordPerf('DeviceSplitDelta', start, { device_id: data.data.device_id, delta: data.data.delta.kind })
+    recordPerf('DeviceSplitDelta', start, {
+      device_id: data.data.device_id,
+      delta: data.data.delta.kind,
+    })
   }
 
   function getDeviceTree(deviceId: Uuid) {

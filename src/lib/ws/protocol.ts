@@ -100,6 +100,15 @@ export enum StopGuardStatus {
   Expired = 'Expired',
 }
 
+export enum NativeProtectionStatus {
+  Pending = 'Pending',
+  Tracking = 'Tracking',
+  Triggered = 'Triggered',
+  Flat = 'Flat',
+  Canceled = 'Canceled',
+  Rejected = 'Rejected',
+}
+
 // ==============================================================================================
 // Protocol-specific enums (match Rust variant names)
 // ==============================================================================================
@@ -344,6 +353,7 @@ export type ServerToClientPayload =
   | { kind: 'DeviceLifecycle'; data: DeviceLifecycleEvent }
   | { kind: 'DeviceMarketInfoResponse'; data: DeviceMarketInfoResponseData }
   | { kind: 'DeviceMoDelta'; data: DeviceMoDeltaEvent }
+  | { kind: 'DeviceNpDelta'; data: DeviceNpDeltaEvent }
   | { kind: 'DeviceSgDelta'; data: DeviceSgDeltaEvent }
   | { kind: 'DevicesList'; data: DevicesListData }
   | { kind: 'DeviceSnapshotLite'; data: DeviceSnapshotLiteData }
@@ -525,6 +535,7 @@ export type DeviceSnapshotLite =
   | { kind: 'MarketOrder'; data: MarketOrderSnapshot }
   | { kind: 'Split'; data: SplitSnapshot }
   | { kind: 'StopGuard'; data: StopGuardSnapshot }
+  | { kind: 'NativeProtection'; data: NativeProtectionSnapshot }
 
 export type TrailingEntrySnapshot = {
   // parameters
@@ -605,6 +616,26 @@ export type StopGuardSnapshot = {
   last_replacement_at?: string | null
   status: StopGuardStatus
   pending_replacement_from?: string | null
+}
+
+export type NativeProtectionSnapshot = {
+  symbol: string
+  market_context: MarketContext
+  position_side: PositionSide
+  take_profit?: number | null
+  stop_loss?: number | null
+  expected_entries: number
+  observed_entries: number
+  observed_protection_orders: number
+  entry_filled_qty: number
+  protection_filled_qty: number
+  status: NativeProtectionStatus
+  last_client_order_id?: string | null
+  last_parent_client_order_id?: string | null
+  last_remote_order_id?: string | null
+  last_order_status?: string | null
+  last_update_seen_at?: string | null
+  created_at: string
 }
 
 // ==============================================================================================
@@ -773,6 +804,62 @@ export type DeviceSgDeltaEvent = {
   ts: string // ISO timestamp
   seq: number
   delta: DeviceSgDelta
+}
+
+export type DeviceNpDelta =
+  | {
+      kind: 'Init'
+      data: {
+        parent_device?: Uuid | null
+        command_id: Uuid
+        symbol: string
+        market_context: MarketContext
+        position_side: PositionSide
+        take_profit?: number | null
+        stop_loss?: number | null
+        expected_entries: number
+        observed_entries: number
+        observed_protection_orders: number
+        entry_filled_qty: number
+        protection_filled_qty: number
+        status: NativeProtectionStatus
+        last_client_order_id?: string | null
+        last_parent_client_order_id?: string | null
+        last_remote_order_id?: string | null
+        last_order_status?: string | null
+        last_update_seen_at?: string | null
+        created_at: string
+      }
+    }
+  | {
+      kind: 'OrderObserved'
+      data: {
+        client_order_id?: string | null
+        parent_client_order_id?: string | null
+        remote_order_id?: string | null
+        status: string
+        is_protection_order: boolean
+        cum_qty?: number | null
+        last_qty?: number | null
+        stop_price?: number | null
+      }
+    }
+  | {
+      kind: 'Coverage'
+      data: {
+        observed_entries: number
+        observed_protection_orders: number
+        entry_filled_qty: number
+        protection_filled_qty: number
+        status: NativeProtectionStatus
+      }
+    }
+
+export type DeviceNpDeltaEvent = {
+  device_id: Uuid
+  ts: string
+  seq: number
+  delta: DeviceNpDelta
 }
 
 export type DeviceSplitDelta =
