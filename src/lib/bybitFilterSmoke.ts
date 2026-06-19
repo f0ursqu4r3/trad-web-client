@@ -7,10 +7,16 @@ import {
   NetworkType,
   OrderSide,
   PositionSide,
+  ProtectionLifecycle,
+  ProtectionStrategy,
   type CommandHistoryItem,
   type MarketContext,
+  type ProtectionState,
   type UserCommandPayload,
 } from '@/lib/ws/protocol'
+import { createSSRApp, h } from 'vue'
+import { createPinia } from 'pinia'
+import { renderToString } from '@vue/server-renderer'
 import { bybitProtocolFixtures } from '@/lib/bybitProtocolFixtures'
 import type { AccountDisplayRecord } from '@/lib/marketContext'
 import {
@@ -233,4 +239,64 @@ export function runBybitFilterSmoke(): void {
     binanceDevices.length === 1 && binanceDevices[0].id === 'device-binance-mo',
     'Binance device filter should not include Bybit native-protection devices',
   )
+}
+
+export async function runBybitNativeProtectionRenderSmoke(): Promise<void> {
+  Object.assign(globalThis, {
+    window: globalThis.window ?? { location: { origin: 'http://localhost:5173' } },
+  })
+  const { default: NativeProtectionDevice } = await import(
+    '@/components/terminal/devices/NativeProtectionDevice.vue'
+  )
+  const bybitProtection = bybitNativeProtectionDevice()
+  const nativeProtectionState = bybitProtection.state as NativeProtectionState
+  const protectionState = {
+    strategy: ProtectionStrategy.NativeAttachedTpsl,
+    lifecycle: ProtectionLifecycle.Active,
+    parent_client_order_id: 'bybit-entry-1',
+    take_profit_trigger_price: 68_000,
+    stop_loss_trigger_price: 62_000,
+    protected_qty: 0.001,
+    filled_qty: 0,
+    last_reconciled_at: '2026-06-19T00:00:00.000Z',
+  } satisfies ProtectionState
+
+  const app = createSSRApp({
+    render: () =>
+      h(NativeProtectionDevice, {
+        device: nativeProtectionState,
+        marketRef: bybitProtection.market_ref,
+        protectionState,
+      }),
+  })
+  app.use(createPinia())
+
+  const html = await renderToString(app)
+  const expectedNativeLabels = [
+    'Native Protection',
+    'Attached TP/SL',
+    'Protection Summary',
+    'Native TP/SL',
+    'Take Profit',
+    'Stop Loss',
+    'Entry Updates',
+    'Protection Updates',
+    'Bybit Testnet',
+  ]
+  for (const label of expectedNativeLabels) {
+    assertSmoke(html.includes(label), `NativeProtection render should include "${label}"`)
+  }
+
+  const managedGuardLabels = [
+    'Stop Guard Device',
+    'Target Coverage',
+    'Topup Seq',
+    'Last Replacement',
+  ]
+  for (const label of managedGuardLabels) {
+    assertSmoke(
+      !html.includes(label),
+      `NativeProtection render should not include managed StopGuard field "${label}"`,
+    )
+  }
 }

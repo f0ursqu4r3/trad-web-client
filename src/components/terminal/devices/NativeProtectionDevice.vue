@@ -13,11 +13,11 @@ const props = defineProps<{
   protectionState?: ProtectionState | null
   failureReason?: string | null
 }>()
-const accounts = useAccountsStore()
 
 const marketContextLabel = computed(() => {
   const refLabel = formatMarketRef(props.marketRef)
   if (refLabel) return refLabel
+  const accounts = useAccountsStore()
   return formatMarketContext(props.device.market_context, accounts.accounts)
 })
 
