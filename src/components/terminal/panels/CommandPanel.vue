@@ -3,6 +3,7 @@ import { ref, computed, type Component, nextTick } from 'vue'
 import SplitView from '@/components/general/SplitView.vue'
 import StickyScroller from '@/components/general/StickyScroller.vue'
 import { useCommandStore } from '@/stores/command'
+import { useAccountsStore } from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
 import { formatName } from '@/lib/utils'
 
@@ -20,6 +21,7 @@ defineOptions({
 })
 
 const commandStore = useCommandStore()
+const accountsStore = useAccountsStore()
 const modalStore = useModalStore()
 
 const showFilters = ref(false)
@@ -61,33 +63,69 @@ const timeOptions = [
   { label: 'Month', value: 'Month' },
 ] as const
 
-function toggleMultiFilter(
-  group: 'kind' | 'status' | 'position',
-  option: string,
-  event?: MouseEvent,
-) {
-  const list = commandStore.commandFilters[group]
+type MultiFilterGroup = 'kind' | 'status' | 'position' | 'exchange' | 'account'
+
+function getMultiFilter(group: MultiFilterGroup): readonly string[] {
+  switch (group) {
+    case 'kind':
+      return commandStore.commandFilters.kind
+    case 'status':
+      return commandStore.commandFilters.status
+    case 'position':
+      return commandStore.commandFilters.position
+    case 'exchange':
+      return commandStore.commandFilters.exchange
+    case 'account':
+      return commandStore.commandFilters.account
+  }
+}
+
+function setMultiFilter(group: MultiFilterGroup, values: string[]) {
+  switch (group) {
+    case 'kind':
+      commandStore.commandFilters.kind = values
+      return
+    case 'status':
+      commandStore.commandFilters.status = values as typeof commandStore.commandFilters.status
+      return
+    case 'position':
+      commandStore.commandFilters.position = values as typeof commandStore.commandFilters.position
+      return
+    case 'exchange':
+      commandStore.commandFilters.exchange = values
+      return
+    case 'account':
+      commandStore.commandFilters.account = values
+      return
+  }
+}
+
+function toggleMultiFilter(group: MultiFilterGroup, option: string, event?: MouseEvent) {
+  const list = getMultiFilter(group)
   const has = list.includes(option as never)
   if (event?.shiftKey) {
-    commandStore.commandFilters[group] = [option as never]
+    setMultiFilter(group, [option])
     commandStore.commandFilters.solo[group] = true
     return
   }
   if (has) {
-    commandStore.commandFilters[group] = list.filter((item) => item !== option)
+    setMultiFilter(
+      group,
+      list.filter((item) => item !== option),
+    )
   } else {
-    commandStore.commandFilters[group] = [...list, option as never]
+    setMultiFilter(group, [...list, option])
   }
-  if (commandStore.commandFilters[group].length !== 1) {
+  if (getMultiFilter(group).length !== 1) {
     commandStore.commandFilters.solo[group] = false
   }
 }
 
-function isFilterActive(group: 'kind' | 'status' | 'position', option: string) {
-  return commandStore.commandFilters[group].includes(option as never)
+function isFilterActive(group: MultiFilterGroup, option: string) {
+  return getMultiFilter(group).includes(option)
 }
 
-function isSoloActive(group: 'kind' | 'status' | 'position', option: string) {
+function isSoloActive(group: MultiFilterGroup, option: string) {
   return commandStore.commandFilters.solo[group] && isFilterActive(group, option)
 }
 
@@ -114,6 +152,15 @@ function getCommandLabel(command: UserCommandPayload): string {
 function getKindLabel(kind: string): string {
   if (kind === 'TrailingEntryOrder') return 'Trailing Entry'
   return formatName(kind)
+}
+
+function getExchangeLabel(exchange: string): string {
+  return formatName(exchange)
+}
+
+function getAccountLabel(accountId: string): string {
+  const account = accountsStore.accounts.find((item) => item.id === accountId)
+  return account ? `${account.label} (${account.exchange})` : `${accountId.slice(0, 8)}...`
 }
 
 function handleDuplicate(command: UserCommandPayload): void {
@@ -202,6 +249,12 @@ function closeRename() {
   renameColor.value = null
 }
 
+function removeRename() {
+  renameValue.value = ''
+  renameColor.value = null
+  saveRename()
+}
+
 function saveRename() {
   if (!renameCommandId.value) return
   commandStore.setCommandNickname(renameCommandId.value, renameValue.value, renameColor.value)
@@ -215,7 +268,9 @@ function saveRename() {
       <div v-show="showFilters">
         <div class="panel-content space-y-3 p-2 text-xs">
           <div class="space-y-2">
-            <div class="flex items-center justify-between text-[11px] uppercase tracking-wide text-(--color-text-dim)">
+            <div
+              class="flex items-center justify-between text-[11px] uppercase tracking-wide text-(--color-text-dim)"
+            >
               <span>Status</span>
               <span class="text-[10px] normal-case">Shift+click to solo</span>
             </div>
@@ -267,6 +322,40 @@ function saveRename() {
             </div>
           </div>
 
+          <div v-if="commandStore.activeCommandExchanges.length" class="space-y-2">
+            <div class="text-[11px] uppercase tracking-wide text-(--color-text-dim)">Exchange</div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="option in commandStore.activeCommandExchanges"
+                :key="option"
+                class="btn btn-sm btn-ghost filter-btn"
+                :data-pressed="isFilterActive('exchange', option)"
+                :aria-pressed="isFilterActive('exchange', option)"
+                :class="isSoloActive('exchange', option) ? 'filter-solo' : ''"
+                @click="toggleMultiFilter('exchange', option, $event)"
+              >
+                {{ getExchangeLabel(option) }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="commandStore.activeCommandAccounts.length" class="space-y-2">
+            <div class="text-[11px] uppercase tracking-wide text-(--color-text-dim)">Account</div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="option in commandStore.activeCommandAccounts"
+                :key="option"
+                class="btn btn-sm btn-ghost filter-btn"
+                :data-pressed="isFilterActive('account', option)"
+                :aria-pressed="isFilterActive('account', option)"
+                :class="isSoloActive('account', option) ? 'filter-solo' : ''"
+                @click="toggleMultiFilter('account', option, $event)"
+              >
+                {{ getAccountLabel(option) }}
+              </button>
+            </div>
+          </div>
+
           <div class="space-y-2">
             <div class="text-[11px] uppercase tracking-wide text-(--color-text-dim)">Kind</div>
             <div class="flex flex-wrap gap-2">
@@ -294,99 +383,104 @@ function saveRename() {
         :initial-sizes="[35, 65]"
         class="w-full h-full"
       >
-      <template #pinned>
-        <div class="pane-fill">
-          <div class="pinned-section flex-1 min-h-0">
-            <div class="pinned-header">Pinned</div>
-            <div class="pinned-body">
-              <StickyScroller :trigger="pinnedCommands.length" :smooth="true" :showButton="false">
-                <div class="flex flex-col p-2 gap-2">
-                  <template v-for="cmd in pinnedCommands" :key="cmd.command_id">
-                    <div
-                      class="border border-[var(--border-color)]"
-                      :class="
-                        cmd.command_id == commandStore.selectedCommandId
-                          ? 'ring-2 ring-[var(--color-text)]'
-                          : ''
-                      "
-                    >
-                      <CommandBase
-                        v-if="Object.values(interestingCommandKinds).includes(cmd.command.kind)"
-                        :commandId="cmd.command_id"
-                        :commandStatus="cmd.status"
-                        :commandKind="cmd.command.kind"
-                        :label="getCommandLabel(cmd.command)"
-                        :nickname="commandStore.commandMeta?.[cmd.command_id]?.nickname ?? null"
-                        :nicknameColor="
-                          commandStore.commandMeta?.[cmd.command_id]?.nicknameColor ?? null
+        <template #pinned>
+          <div class="pane-fill">
+            <div class="pinned-section flex-1 min-h-0">
+              <div class="pinned-header">Pinned</div>
+              <div class="pinned-body">
+                <StickyScroller :trigger="pinnedCommands.length" :smooth="true" :showButton="false">
+                  <div class="flex flex-col p-2 gap-2">
+                    <template v-for="cmd in pinnedCommands" :key="cmd.command_id">
+                      <div
+                        class="border border-[var(--border-color)]"
+                        :class="
+                          cmd.command_id == commandStore.selectedCommandId
+                            ? 'ring-2 ring-[var(--color-text)]'
+                            : ''
                         "
-                        :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
-                        :createdAt="cmd.created_at"
-                        @duplicate="handleDuplicate(cmd.command)"
-                        @cancel="handleCancel"
-                        @inspect="handleInspect"
-                        @close-position="handleClosePosition"
-                        @rename="handleRename"
-                        @pin="handlePin"
                       >
-                        <component
-                          :is="getCommandComponent(cmd.command)"
-                          :command="cmd.command.data"
-                        />
-                      </CommandBase>
-                      <CommandHistoryItem v-else :command="cmd" />
-                    </div>
-                  </template>
-                </div>
-              </StickyScroller>
+                        <CommandBase
+                          v-if="Object.values(interestingCommandKinds).includes(cmd.command.kind)"
+                          :commandId="cmd.command_id"
+                          :commandStatus="cmd.status"
+                          :commandKind="cmd.command.kind"
+                          :label="getCommandLabel(cmd.command)"
+                          :nickname="commandStore.commandMeta?.[cmd.command_id]?.nickname ?? null"
+                          :nicknameColor="
+                            commandStore.commandMeta?.[cmd.command_id]?.nicknameColor ?? null
+                          "
+                          :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
+                          :createdAt="cmd.created_at"
+                          @duplicate="handleDuplicate(cmd.command)"
+                          @cancel="handleCancel"
+                          @inspect="handleInspect"
+                          @close-position="handleClosePosition"
+                          @rename="handleRename"
+                          @pin="handlePin"
+                        >
+                          <component
+                            :is="getCommandComponent(cmd.command)"
+                            :command="cmd.command.data"
+                          />
+                        </CommandBase>
+                        <CommandHistoryItem v-else :command="cmd" />
+                      </div>
+                    </template>
+                  </div>
+                </StickyScroller>
+              </div>
             </div>
           </div>
-        </div>
-      </template>
-      <template #all>
-        <div class="pane-fill">
-          <StickyScroller
-            :trigger="unpinnedCommands.length"
-            :smooth="true"
-            :showButton="true"
-            class="flex-1 min-h-0"
-          >
-            <div class="flex flex-col p-2 gap-2">
-              <template v-for="cmd in unpinnedCommands" :key="cmd.command_id">
-                <div
-                  class="border border-[var(--border-color)]"
-                  :class="
-                    cmd.command_id == commandStore.selectedCommandId
-                      ? 'ring-2 ring-[var(--color-text)]'
-                      : ''
-                  "
-                >
-                  <CommandBase
-                    v-if="Object.values(interestingCommandKinds).includes(cmd.command.kind)"
-                    :commandId="cmd.command_id"
-                    :commandStatus="cmd.status"
-                    :commandKind="cmd.command.kind"
-                    :label="getCommandLabel(cmd.command)"
-                    :nickname="commandStore.commandMeta?.[cmd.command_id]?.nickname ?? null"
-                    :nicknameColor="commandStore.commandMeta?.[cmd.command_id]?.nicknameColor ?? null"
-                    :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
-                    :createdAt="cmd.created_at"
-                    @duplicate="handleDuplicate(cmd.command)"
-                    @cancel="handleCancel"
-                    @inspect="handleInspect"
-                    @close-position="handleClosePosition"
-                    @rename="handleRename"
-                    @pin="handlePin"
+        </template>
+        <template #all>
+          <div class="pane-fill">
+            <StickyScroller
+              :trigger="unpinnedCommands.length"
+              :smooth="true"
+              :showButton="true"
+              class="flex-1 min-h-0"
+            >
+              <div class="flex flex-col p-2 gap-2">
+                <template v-for="cmd in unpinnedCommands" :key="cmd.command_id">
+                  <div
+                    class="border border-[var(--border-color)]"
+                    :class="
+                      cmd.command_id == commandStore.selectedCommandId
+                        ? 'ring-2 ring-[var(--color-text)]'
+                        : ''
+                    "
                   >
-                    <component :is="getCommandComponent(cmd.command)" :command="cmd.command.data" />
-                  </CommandBase>
-                  <CommandHistoryItem v-else :command="cmd" />
-                </div>
-              </template>
-            </div>
-          </StickyScroller>
-        </div>
-      </template>
+                    <CommandBase
+                      v-if="Object.values(interestingCommandKinds).includes(cmd.command.kind)"
+                      :commandId="cmd.command_id"
+                      :commandStatus="cmd.status"
+                      :commandKind="cmd.command.kind"
+                      :label="getCommandLabel(cmd.command)"
+                      :nickname="commandStore.commandMeta?.[cmd.command_id]?.nickname ?? null"
+                      :nicknameColor="
+                        commandStore.commandMeta?.[cmd.command_id]?.nicknameColor ?? null
+                      "
+                      :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
+                      :createdAt="cmd.created_at"
+                      @duplicate="handleDuplicate(cmd.command)"
+                      @cancel="handleCancel"
+                      @inspect="handleInspect"
+                      @close-position="handleClosePosition"
+                      @rename="handleRename"
+                      @pin="handlePin"
+                    >
+                      <component
+                        :is="getCommandComponent(cmd.command)"
+                        :command="cmd.command.data"
+                      />
+                    </CommandBase>
+                    <CommandHistoryItem v-else :command="cmd" />
+                  </div>
+                </template>
+              </div>
+            </StickyScroller>
+          </div>
+        </template>
       </SplitView>
     </div>
 
@@ -452,7 +546,7 @@ function saveRename() {
             <button
               v-if="renameValue.trim().length > 0"
               class="btn btn-sm btn-ghost absolute right-3 top-3"
-              @click="renameValue = ''; renameColor = null; saveRename()"
+              @click="removeRename"
             >
               Remove
             </button>
@@ -492,7 +586,9 @@ function saveRename() {
               </button>
             </div>
           </div>
-          <div class="flex items-center justify-end gap-2 p-3 border-t border-[var(--border-color)]">
+          <div
+            class="flex items-center justify-end gap-2 p-3 border-t border-[var(--border-color)]"
+          >
             <button class="btn btn-sm btn-ghost" @click="closeRename">Cancel</button>
             <button class="btn btn-sm" @click="saveRename">Save</button>
           </div>
