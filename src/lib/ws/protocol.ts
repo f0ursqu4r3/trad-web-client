@@ -623,6 +623,7 @@ export type MarketOrderSnapshot = {
   status: MarketOrderStatus
   filled_qty?: number | null
   remote_id?: number | null
+  remote_order_id?: string | null
   client_order_id?: string | null
   sent_at?: string | null
   last_update_seen_at?: string | null
@@ -759,6 +760,7 @@ export type DeviceMoDelta =
         status: MarketOrderStatus
         filled_qty?: number | null
         client_order_id?: string | null
+        remote_order_id?: string | null
         created_at: string
       }
     }
@@ -768,6 +770,7 @@ export type DeviceMoDelta =
         qty?: number | null
         price?: number | null
         remote_id?: number | null
+        remote_order_id?: string | null
         sent_at?: string | null
       }
     }

@@ -126,8 +126,10 @@ const throttleDelayLabel = computed(() => {
           </dd>
         </div>
         <div>
-          <dt class="dt-label">Remote ID</dt>
-          <dd class="m-0 font-mono text-primary">{{ device.remote_id ?? '-' }}</dd>
+          <dt class="dt-label">Remote Order ID</dt>
+          <dd class="m-0 font-mono text-primary text-[10px]">
+            {{ device.remote_order_id || device.remote_id || '-' }}
+          </dd>
         </div>
         <div>
           <dt class="dt-label">Sent At</dt>

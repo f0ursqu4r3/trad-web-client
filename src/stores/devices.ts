@@ -206,6 +206,7 @@ export const useDeviceStore = defineStore('device', () => {
         mo.status = s.status
         mo.filled_qty = s.filled_qty ?? null
         mo.remote_id = s.remote_id ?? null
+        mo.remote_order_id = s.remote_order_id ?? null
         mo.client_order_id = s.client_order_id ?? null
         mo.sent_at = s.sent_at ? new Date(s.sent_at) : null
         mo.last_update_seen_at = s.last_update_seen_at ? new Date(s.last_update_seen_at) : null
@@ -485,6 +486,7 @@ export const useDeviceStore = defineStore('device', () => {
             status,
             filled_qty,
             client_order_id,
+            remote_order_id,
             parent_device,
           } = delta.data
           mo.market_context = normalizeMarketContext(market_context as MarketContext)
@@ -498,6 +500,7 @@ export const useDeviceStore = defineStore('device', () => {
           mo.status = status
           mo.filled_qty = filled_qty ?? null
           mo.client_order_id = client_order_id || null
+          mo.remote_order_id = remote_order_id || null
           if (parent_device) {
             bindParent(device, parent_device)
           }
@@ -508,6 +511,9 @@ export const useDeviceStore = defineStore('device', () => {
           mo.status = MarketOrderStatus.AlreadySentAndAwaitingFilling
           if (delta.data.remote_id !== undefined && delta.data.remote_id !== null) {
             mo.remote_id = delta.data.remote_id
+          }
+          if (delta.data.remote_order_id !== undefined && delta.data.remote_order_id !== null) {
+            mo.remote_order_id = delta.data.remote_order_id
           }
           if (delta.data.sent_at) {
             mo.sent_at = new Date(delta.data.sent_at)
@@ -940,6 +946,7 @@ export interface MarketOrderState {
   status: MarketOrderStatus
   filled_qty: number | null
   remote_id: number | null
+  remote_order_id: string | null
   client_order_id: string | null
   // Runtime-only fields for reconciliation and health (not persisted)
   sent_at: Date | null
@@ -1097,6 +1104,7 @@ function newMarketOrderState(): MarketOrderState {
     status: MarketOrderStatus.NotYetSent,
     filled_qty: null,
     remote_id: null,
+    remote_order_id: null,
     client_order_id: null,
     sent_at: null,
     last_status_check_at: null,
