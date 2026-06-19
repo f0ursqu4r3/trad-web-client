@@ -715,6 +715,8 @@ export type NativeProtectionSnapshot = {
   expected_entries: number
   observed_entries: number
   observed_protection_orders: number
+  observed_entry_order_ids?: string[]
+  observed_protection_order_ids?: string[]
   entry_filled_qty: number
   protection_filled_qty: number
   status: NativeProtectionStatus
@@ -912,6 +914,8 @@ export type DeviceNpDelta =
         expected_entries: number
         observed_entries: number
         observed_protection_orders: number
+        observed_entry_order_ids?: string[]
+        observed_protection_order_ids?: string[]
         entry_filled_qty: number
         protection_filled_qty: number
         status: NativeProtectionStatus
@@ -943,6 +947,8 @@ export type DeviceNpDelta =
       data: {
         observed_entries: number
         observed_protection_orders: number
+        observed_entry_order_ids?: string[]
+        observed_protection_order_ids?: string[]
         entry_filled_qty: number
         protection_filled_qty: number
         status: NativeProtectionStatus

@@ -109,6 +109,8 @@ const bybitNativeProtectionSnapshot = {
   expected_entries: 4,
   observed_entries: 2,
   observed_protection_orders: 2,
+  observed_entry_order_ids: ['mo-parent-1', 'mo-parent-2'],
+  observed_protection_order_ids: ['child-sl-1', 'child-tp-1'],
   entry_filled_qty: 0.002,
   protection_filled_qty: 0,
   status: NativeProtectionStatus.Tracking,
