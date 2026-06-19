@@ -522,6 +522,9 @@ export const useDeviceStore = defineStore('device', () => {
       case 'Submitted':
         {
           mo.status = MarketOrderStatus.AlreadySentAndAwaitingFilling
+          if (delta.data.client_order_id !== undefined && delta.data.client_order_id !== null) {
+            mo.client_order_id = delta.data.client_order_id
+          }
           if (delta.data.remote_id !== undefined && delta.data.remote_id !== null) {
             mo.remote_id = delta.data.remote_id
           }

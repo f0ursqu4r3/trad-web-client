@@ -828,6 +828,7 @@ export type DeviceMoDelta =
       data: {
         qty?: number | null
         price?: number | null
+        client_order_id?: string | null
         remote_id?: number | null
         remote_order_id?: string | null
         sent_at?: string | null

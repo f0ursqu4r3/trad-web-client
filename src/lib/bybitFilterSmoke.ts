@@ -10,6 +10,7 @@ import {
   ProtectionLifecycle,
   ProtectionStrategy,
   type CommandHistoryItem,
+  type DeviceMoDeltaEvent,
   type DeviceSnapshotLiteData,
   type ProtectionState,
   type UserCommandPayload,
@@ -410,6 +411,63 @@ export function runBybitFilterSmoke(): void {
   assertSmoke(
     hydratedState.observed_protection_order_ids.includes('child-sl-1'),
     'Bybit NativeProtection snapshot should preserve observed protection order ids',
+  )
+
+  const moSnapshot = {
+    device_id: 'device-bybit-mo',
+    owner_user_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    associated_command_id: bybitProtocolFixtures.bybitCommandHistoryItem.command_id,
+    created_at: '2026-06-19T00:00:00.000Z',
+    complete: false,
+    failed: false,
+    canceled: false,
+    awaiting_children: false,
+    snapshot: {
+      kind: 'MarketOrder',
+      data: {
+        market_context: bybitProtocolFixtures.bybitContext,
+        market_action: MarketAction.Open,
+        symbol: 'BTCUSDT',
+        order_side: OrderSide.Buy,
+        quantity: 0.001,
+        position_side: PositionSide.Long,
+        price: 65_000,
+        throttle: false,
+        status: MarketOrderStatus.NotYetSent,
+        filled_qty: null,
+        remote_id: null,
+        remote_order_id: null,
+        client_order_id: null,
+        sent_at: null,
+        last_status_check_at: null,
+        last_update_seen_at: null,
+      },
+    },
+  } satisfies DeviceSnapshotLiteData
+  store.handleDeviceSnapshotLite(moSnapshot)
+  const moDevice = store.devices.find((device) => device.id === moSnapshot.device_id)
+  assertSmoke(moDevice?.kind === 'MarketOrder', 'Bybit MarketOrder snapshot should hydrate')
+  store.handleDeviceUpdate('DeviceMoDelta', {
+    device_id: moDevice.id,
+    ts: '2026-06-19T00:00:01.000Z',
+    seq: 1,
+    delta: {
+      kind: 'Submitted',
+      data: {
+        client_order_id: 'bybit-entry-live-1',
+        remote_order_id: 'remote-bybit-entry-live-1',
+        sent_at: '2026-06-19T00:00:01.000Z',
+      },
+    },
+  } satisfies DeviceMoDeltaEvent)
+  const moState = moDevice.state as MarketOrderState
+  assertSmoke(
+    moState.client_order_id === 'bybit-entry-live-1',
+    'Bybit MarketOrder Submitted delta should preserve client order id',
+  )
+  assertSmoke(
+    moState.remote_order_id === 'remote-bybit-entry-live-1',
+    'Bybit MarketOrder Submitted delta should preserve remote order id',
   )
 }
 
