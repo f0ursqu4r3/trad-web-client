@@ -8,7 +8,7 @@ import {
   MarketAction,
 } from '@/lib/ws/protocol'
 import { useWsStore } from '@/stores/ws'
-import { useAccountsStore } from '@/stores/accounts'
+import { accountMetadataChips, useAccountsStore } from '@/stores/accounts'
 import { createLogger } from '@/lib/utils'
 
 const logger = createLogger('commands')
@@ -19,6 +19,7 @@ const ws = useWsStore()
 const accounts = useAccountsStore()
 
 const selectedAccountId = ref<string>(accounts.selectedAccount?.id || '')
+const lastAccountId = ref<string>('')
 
 const symbol = ref(accounts.getDefaultSymbolForAccount(selectedAccountId.value))
 const action = ref<MarketAction>(MarketAction.Open)
@@ -29,6 +30,7 @@ const num_splits = ref(4)
 function reset() {
   selectedAccountId.value = accounts.selectedAccount?.id || ''
   symbol.value = accounts.getDefaultSymbolForAccount(selectedAccountId.value)
+  lastAccountId.value = selectedAccountId.value
   action.value = MarketAction.Open
   quantity_usd.value = 100
   position_side.value = PositionSide.Long
@@ -40,6 +42,15 @@ watch(
     if (o) reset()
   },
 )
+
+watch(selectedAccountId, (next, prev) => {
+  const prevDefault = accounts.getDefaultSymbolForAccount(prev || lastAccountId.value)
+  const nextDefault = accounts.getDefaultSymbolForAccount(next)
+  if (!symbol.value || symbol.value === prevDefault) {
+    symbol.value = nextDefault
+  }
+  lastAccountId.value = next
+})
 
 function submit() {
   const marketContext = accounts.getMarketContextForAccount(selectedAccountId.value)
@@ -67,6 +78,14 @@ function submit() {
   <BaseCommandModal title="Split Market Order" :open="open" @close="emit('close')">
     <form id="split-market-order" class="space-y-4" @submit.prevent="submit">
       <div class="grid gap-3 md:grid-cols-2">
+        <label class="field">
+          <span>Account</span>
+          <select v-model="selectedAccountId" class="input">
+            <option v-for="account in accounts.accounts" :key="account.id" :value="account.id">
+              {{ account.label }} ({{ accountMetadataChips(account).join(' / ') }})
+            </option>
+          </select>
+        </label>
         <label class="field"><span>Symbol</span><input v-model="symbol" class="input" /></label>
         <label class="field">
           <span>Action</span>
