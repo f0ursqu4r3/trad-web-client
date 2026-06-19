@@ -13,20 +13,24 @@ export function normalizeMarketContext(raw: MarketContext | Record<string, unkno
   if ('type' in maybe) {
     return raw as MarketContext
   }
-  if ('binance' in maybe) {
-    const ctx = maybe.binance as { account_id?: string } | undefined
+  const binance = maybe.binance ?? maybe.Binance
+  if (binance) {
+    const ctx = binance as { account_id?: string } | undefined
     return { type: 'binance', account_id: ctx?.account_id || '' }
   }
-  if ('bifake' in maybe) {
-    const ctx = maybe.bifake as { account_id?: string } | undefined
+  const bifake = maybe.bifake ?? maybe.Bifake
+  if (bifake) {
+    const ctx = bifake as { account_id?: string } | undefined
     return { type: 'bifake', account_id: ctx?.account_id || '' }
   }
-  if ('bybit' in maybe) {
-    const ctx = maybe.bybit as { account_id?: string } | undefined
+  const bybit = maybe.bybit ?? maybe.Bybit
+  if (bybit) {
+    const ctx = bybit as { account_id?: string } | undefined
     return { type: 'bybit', account_id: ctx?.account_id || '' }
   }
-  if ('sim' in maybe) {
-    const ctx = maybe.sim as { sim_market_id?: string } | undefined
+  const sim = maybe.sim ?? maybe.Sim
+  if (sim) {
+    const ctx = sim as { sim_market_id?: string } | undefined
     return { type: 'sim', sim_market_id: ctx?.sim_market_id || '' }
   }
   return { type: 'none' }

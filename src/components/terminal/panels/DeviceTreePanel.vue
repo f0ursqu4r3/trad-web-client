@@ -202,11 +202,10 @@ const treeData = computed<TreeItem[]>(() => {
     return 'Running'
   }
 
-  const marketLabels = (state: DeviceState) => {
-    if (!hasMarketContext(state)) {
+  const marketLabels = (ctx: MarketContext | null | undefined) => {
+    if (!ctx) {
       return null
     }
-    const ctx = state.market_context
     return {
       exchange: marketContextExchangeLabel(ctx),
       product: marketProductLabel(marketContextProductKey(ctx)),
@@ -232,7 +231,7 @@ const treeData = computed<TreeItem[]>(() => {
       children: [],
       label: formatName(device.kind),
       symbol: device.state.symbol,
-      market: marketLabels(device.state),
+      market: marketLabels(deviceContextMap.value.get(device.id)),
       lifecycle: device.complete || device.failed || device.canceled ? '' : teLifecycle,
       status: statusLabel(device),
       intent,
