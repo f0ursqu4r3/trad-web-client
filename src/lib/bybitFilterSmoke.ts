@@ -10,11 +10,12 @@ import {
   ProtectionLifecycle,
   ProtectionStrategy,
   type CommandHistoryItem,
+  type DeviceSnapshotLiteData,
   type ProtectionState,
   type UserCommandPayload,
 } from '@/lib/ws/protocol'
 import { createSSRApp, h } from 'vue'
-import { createPinia } from 'pinia'
+import { createPinia, setActivePinia } from 'pinia'
 import { renderToString } from '@vue/server-renderer'
 import { bybitProtocolFixtures } from '@/lib/bybitProtocolFixtures'
 import {
@@ -38,7 +39,13 @@ import {
   isBybitMetadataVerified,
   type AccountMetadataLike,
 } from '@/lib/accountMetadata'
-import type { Device, MarketOrderState, NativeProtectionState, SplitState } from '@/stores/devices'
+import {
+  useDeviceStore,
+  type Device,
+  type MarketOrderState,
+  type NativeProtectionState,
+  type SplitState,
+} from '@/stores/devices'
 
 function assertSmoke(condition: unknown, message: string): asserts condition {
   if (!condition) {
@@ -370,6 +377,36 @@ export function runBybitFilterSmoke(): void {
   assertSmoke(
     binanceDevices.length === 1 && binanceDevices[0].id === 'device-binance-mo',
     'Binance device filter should not include Bybit native-protection devices',
+  )
+
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  const store = useDeviceStore()
+  const snapshotMessage = {
+    device_id: 'device-bybit-np-snapshot',
+    owner_user_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    associated_command_id: bybitProtocolFixtures.bybitCommandHistoryItem.command_id,
+    created_at: '2026-06-19T00:00:00.000Z',
+    complete: false,
+    failed: false,
+    canceled: false,
+    awaiting_children: false,
+    snapshot: {
+      kind: 'NativeProtection',
+      data: bybitProtocolFixtures.bybitNativeProtectionSnapshot,
+    },
+  } satisfies DeviceSnapshotLiteData
+  store.handleDeviceSnapshotLite(snapshotMessage)
+  const hydrated = store.devices.find((device) => device.id === snapshotMessage.device_id)
+  assertSmoke(hydrated?.kind === 'NativeProtection', 'Bybit NativeProtection snapshot should hydrate')
+  const hydratedState = hydrated.state as NativeProtectionState
+  assertSmoke(
+    hydratedState.observed_entry_order_ids.includes('mo-parent-1'),
+    'Bybit NativeProtection snapshot should preserve observed entry order ids',
+  )
+  assertSmoke(
+    hydratedState.observed_protection_order_ids.includes('child-sl-1'),
+    'Bybit NativeProtection snapshot should preserve observed protection order ids',
   )
 }
 

@@ -266,6 +266,8 @@ export const useDeviceStore = defineStore('device', () => {
         np.expected_entries = s.expected_entries
         np.observed_entries = s.observed_entries
         np.observed_protection_orders = s.observed_protection_orders
+        np.observed_entry_order_ids = s.observed_entry_order_ids ?? []
+        np.observed_protection_order_ids = s.observed_protection_order_ids ?? []
         np.tracked_parent_client_order_ids = s.tracked_parent_client_order_ids ?? []
         np.tracked_parent_remote_order_ids = s.tracked_parent_remote_order_ids ?? []
         np.entry_filled_qty = s.entry_filled_qty
