@@ -14,6 +14,7 @@ const ws = useWsStore()
 
 const isCreateModalOpen = ref(false)
 const refreshingAccountIds = ref<Set<string>>(new Set())
+const refreshError = ref<string | null>(null)
 
 const sortedAccounts = computed(() =>
   accounts.accounts.slice().sort((a, b) => a.label.localeCompare(b.label)),
@@ -41,9 +42,14 @@ async function refreshAccounts() {
 }
 
 async function refreshAccountKeys(account: AccountRecord) {
+  refreshError.value = null
+  if (ws.status !== 'ready') {
+    refreshError.value = 'Account refresh requires an active server connection.'
+    return
+  }
   const token = await getBearerToken()
   if (!token) {
-    logger.error('unable to refresh account keys: no auth token available')
+    refreshError.value = 'Unable to refresh account credentials: no auth token available.'
     return
   }
   refreshingAccountIds.value = new Set([...refreshingAccountIds.value, account.id])
@@ -90,6 +96,9 @@ onMounted(() => {
     <div class="flex flex-1 flex-col gap-3 overflow-auto p-3">
       <p v-if="accounts.error" class="text-center text-xs text-error">
         {{ accounts.error }}
+      </p>
+      <p v-if="refreshError" class="text-center text-xs text-error">
+        {{ refreshError }}
       </p>
 
       <p
@@ -143,7 +152,7 @@ onMounted(() => {
               class="btn btn-secondary btn-xs"
               type="button"
               title="Refresh credentials and exchange metadata"
-              :disabled="refreshingAccountIds.has(account.id)"
+              :disabled="ws.status !== 'ready' || refreshingAccountIds.has(account.id)"
               @click="refreshAccountKeys(account)"
             >
               Refresh

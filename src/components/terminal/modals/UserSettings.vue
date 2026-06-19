@@ -90,6 +90,11 @@ async function refreshAccount() {
 }
 
 async function refreshAccountKeys(account: AccountRecord) {
+  prefsError.value = null
+  if (wsStore.status !== 'ready') {
+    prefsError.value = 'Account refresh requires an active server connection.'
+    return
+  }
   const token = await getBearerToken()
   if (!token) {
     prefsError.value = 'Unable to refresh account credentials: no auth token available.'
@@ -327,7 +332,10 @@ const returnToOrigin = window.location.origin
                       <div class="flex items-center gap-2">
                         <button
                           class="btn btn-secondary btn-xs"
-                          :disabled="refreshingAccountIds.has((account as AccountRecord).id)"
+                          :disabled="
+                            wsStore.status !== 'ready' ||
+                            refreshingAccountIds.has((account as AccountRecord).id)
+                          "
                           @click="refreshAccountKeys(account as AccountRecord)"
                         >
                           Refresh
