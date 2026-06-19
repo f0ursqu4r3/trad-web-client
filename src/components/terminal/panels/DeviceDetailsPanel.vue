@@ -7,6 +7,8 @@ import MarketOrderDevice from '@/components/terminal/devices/MarketOrderDevice.v
 import StopGuardDevice from '@/components/terminal/devices/StopGuardDevice.vue'
 import NativeProtectionDevice from '@/components/terminal/devices/NativeProtectionDevice.vue'
 import SplitDevice from '@/components/terminal/devices/SplitDevice.vue'
+import { formatMarketRef } from '@/lib/marketContext'
+import { protectionDisplay } from '@/lib/protectionState'
 
 const { selectedDevice } = storeToRefs(useDeviceStore())
 
@@ -53,6 +55,14 @@ const marketOrderCreatedAt = computed(() => {
   return device.created_at
 })
 
+const marketRefLabel = computed(() => {
+  return formatMarketRef(selectedDevice.value?.market_ref)
+})
+
+const protectionSummary = computed(() => {
+  return protectionDisplay(selectedDevice.value?.protection_state)
+})
+
 function copyDeviceId(): void {
   const id = selectedDevice.value?.id
   if (!id) return
@@ -83,10 +93,21 @@ function copyDeviceId(): void {
           <span class="font-mono text-primary">{{ fmtDate(selectedDevice.created_at) }}</span>
         </div>
       </div>
+      <div
+        v-if="marketRefLabel || protectionSummary"
+        class="flex flex-wrap gap-2 px-3 py-2 border-b border-[var(--border-color)]"
+      >
+        <span v-if="marketRefLabel" class="pill pill-xs">{{ marketRefLabel }}</span>
+        <span v-if="protectionSummary" class="pill pill-xs" :class="protectionSummary.className">
+          {{ protectionSummary.text }}
+        </span>
+      </div>
       <component
         v-if="deviceComp"
         :is="deviceComp"
         :device="selectedDevice.state as any"
+        :market-ref="selectedDevice.market_ref"
+        :protection-state="selectedDevice.protection_state"
         :command-id="selectedDevice.associated_command_id"
         :failure-reason="selectedDevice.failure_reason"
         :failed="selectedDevice.failed"

@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { MarketOrderState } from '@/stores/devices'
-import { MarketAction, MarketOrderStatus } from '@/lib/ws/protocol'
+import {
+  MarketAction,
+  MarketOrderStatus,
+  type MarketRef,
+  type ProtectionState,
+} from '@/lib/ws/protocol'
 import { useAccountsStore } from '@/stores/accounts'
 import { formatPrice, formatQty, getPositionSideClass, formatSide } from './utils'
 
 const props = defineProps<{
   device: MarketOrderState
+  marketRef?: MarketRef | null
+  protectionState?: ProtectionState | null
   failureReason?: string | null
   createdAt?: Date | null
 }>()

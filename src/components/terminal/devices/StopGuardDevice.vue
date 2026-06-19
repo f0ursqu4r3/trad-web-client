@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { StopGuardState } from '@/stores/devices'
-import { StopGuardStatus } from '@/lib/ws/protocol'
+import { StopGuardStatus, type MarketRef, type ProtectionState } from '@/lib/ws/protocol'
 import { useAccountsStore } from '@/stores/accounts'
 import { formatPrice, formatQty, getPositionSideClass, formatSide } from './utils'
 
 const props = defineProps<{
   device: StopGuardState
+  marketRef?: MarketRef | null
+  protectionState?: ProtectionState | null
   failureReason?: string | null
 }>()
 const accounts = useAccountsStore()

@@ -1,20 +1,35 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { NativeProtectionState } from '@/stores/devices'
-import { NativeProtectionStatus } from '@/lib/ws/protocol'
+import { NativeProtectionStatus, type MarketRef, type ProtectionState } from '@/lib/ws/protocol'
 import { formatPrice, formatQty, getPositionSideClass, formatSide } from './utils'
 import { useAccountsStore } from '@/stores/accounts'
-import { formatMarketContext } from '@/lib/marketContext'
+import { formatMarketContext, formatMarketRef } from '@/lib/marketContext'
+import { protectionDisplay } from '@/lib/protectionState'
 
 const props = defineProps<{
   device: NativeProtectionState
+  marketRef?: MarketRef | null
+  protectionState?: ProtectionState | null
   failureReason?: string | null
 }>()
 const accounts = useAccountsStore()
 
 const marketContextLabel = computed(() => {
+  const refLabel = formatMarketRef(props.marketRef)
+  if (refLabel) return refLabel
   return formatMarketContext(props.device.market_context, accounts.accounts)
 })
+
+const protectionSummary = computed(() => protectionDisplay(props.protectionState))
+
+function fmtOptionalPrice(value?: number | null): string {
+  return value == null ? '-' : `$${formatPrice(value)}`
+}
+
+function fmtOptionalQty(value?: number | null): string {
+  return value == null ? '-' : formatQty(value)
+}
 
 function getStatusClass(status: NativeProtectionStatus): string {
   switch (status) {
@@ -113,6 +128,66 @@ function fmtDate(d?: Date | null): string {
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">
             {{ formatQty(device.protection_filled_qty) }}
+          </dd>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="protectionSummary" class="space-y-3">
+      <h4
+        class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)] m-0 border-b border-[var(--border-color)] pb-1"
+      >
+        Protection Summary
+      </h4>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Strategy
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ protectionSummary.label }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Lifecycle
+          </dt>
+          <dd class="m-0">
+            <span class="pill pill-xs" :class="protectionSummary.className">
+              {{ protectionSummary.status }}
+            </span>
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Protected Qty
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ fmtOptionalQty(protectionState?.protected_qty) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Filled Qty
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ fmtOptionalQty(protectionState?.filled_qty) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            TP Trigger
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ fmtOptionalPrice(protectionState?.take_profit_trigger_price) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            SL Trigger
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ fmtOptionalPrice(protectionState?.stop_loss_trigger_price) }}
           </dd>
         </div>
       </div>

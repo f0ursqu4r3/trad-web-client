@@ -4,7 +4,12 @@ import type { TrailingEntryState, MarketOrderState } from '@/stores/devices'
 import { useAccountsStore } from '@/stores/accounts'
 import { useDeviceStore } from '@/stores/devices'
 import { useCommandStore } from '@/stores/command'
-import { MarketAction, MarketOrderStatus } from '@/lib/ws/protocol'
+import {
+  MarketAction,
+  MarketOrderStatus,
+  type MarketRef,
+  type ProtectionState,
+} from '@/lib/ws/protocol'
 import {
   formatPrice,
   formatPercent,
@@ -17,6 +22,8 @@ import { formatNumberShort } from '@/lib/numberFormat'
 
 const props = defineProps<{
   device: TrailingEntryState
+  marketRef?: MarketRef | null
+  protectionState?: ProtectionState | null
   commandId?: string | null
   failureReason?: string | null
   failed?: boolean
@@ -32,9 +39,7 @@ const hasStats = computed(() => {
     stats.value.close_filled_notional > 0
   )
 })
-const netBase = computed(
-  () => stats.value.open_filled_qty - stats.value.close_filled_qty,
-)
+const netBase = computed(() => stats.value.open_filled_qty - stats.value.close_filled_qty)
 const dustThreshold = computed(() => stats.value.dust_threshold ?? 0)
 const aboveDustThreshold = computed(
   () => dustThreshold.value > 0 && netBase.value > dustThreshold.value,
@@ -61,9 +66,11 @@ const closeInProgress = computed(() => {
     if (device.kind !== 'MarketOrder') return false
     const state = device.state as MarketOrderState
     if (state.market_action !== MarketAction.Close) return false
-    return ![MarketOrderStatus.Filled, MarketOrderStatus.Canceled, MarketOrderStatus.Rejected].includes(
-      state.status,
-    )
+    return ![
+      MarketOrderStatus.Filled,
+      MarketOrderStatus.Canceled,
+      MarketOrderStatus.Rejected,
+    ].includes(state.status)
   })
 })
 
@@ -333,11 +340,7 @@ const networkLabel = computed(() => {
         <span class="text-[var(--color-text-dim)]">
           Remainder above dust threshold: {{ netBase.toFixed(6) }}
         </span>
-        <button
-          v-if="!closeInProgress"
-          class="btn btn-sm btn-ghost"
-          @click="handleCloseAgain"
-        >
+        <button v-if="!closeInProgress" class="btn btn-sm btn-ghost" @click="handleCloseAgain">
           Close again
         </button>
         <span v-else class="text-[var(--color-text-dim)]">Close in progress</span>

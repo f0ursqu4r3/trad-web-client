@@ -2,11 +2,13 @@
 import { computed } from 'vue'
 import { useDeviceStore } from '@/stores/devices'
 import type { SplitState } from '@/stores/devices'
-import { MarketAction } from '@/lib/ws/protocol'
+import { MarketAction, type MarketRef, type ProtectionState } from '@/lib/ws/protocol'
 import { formatPrice, formatQty } from './utils'
 
 const props = defineProps<{
   device: SplitState
+  marketRef?: MarketRef | null
+  protectionState?: ProtectionState | null
   failed?: boolean | null
   canceled?: boolean | null
   complete?: boolean | null

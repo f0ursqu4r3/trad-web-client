@@ -14,8 +14,9 @@ import {
 } from '@/stores/devices'
 import { useCommandStore } from '@/stores/command'
 import { useAccountsStore } from '@/stores/accounts'
-import { MarketAction, ProtectionLifecycle, ProtectionStrategy } from '@/lib/ws/protocol'
+import { MarketAction } from '@/lib/ws/protocol'
 import { recordPerfDuration, getPerfThreshold } from '@/lib/perfLog'
+import { protectionDisplay, type ProtectionDisplay } from '@/lib/protectionState'
 import {
   accountLabelForContext,
   marketContextAccountId,
@@ -27,7 +28,7 @@ import {
   normalizeMarketContext,
   networkLabelForContext,
 } from '@/lib/marketContext'
-import type { MarketContext, MarketRef, ProtectionState } from '@/lib/ws/protocol'
+import type { MarketContext, MarketRef } from '@/lib/ws/protocol'
 
 const store = useDeviceStore()
 const commandStore = useCommandStore()
@@ -60,12 +61,6 @@ type DeviceMarketFacet = {
     network: string | null
   }
 }
-type DeviceProtectionFacet = {
-  label: string
-  status: string
-  className: string
-}
-
 function hasMarketContext(
   state: DeviceState,
 ): state is DeviceState & { market_context: MarketContext } {
@@ -241,69 +236,6 @@ function getAccountLabel(accountId: string): string {
     : `${accountId.slice(0, 8)}...`
 }
 
-function protectionStrategyLabel(strategy: ProtectionStrategy): string {
-  switch (strategy) {
-    case ProtectionStrategy.ManagedGuard:
-      return 'Managed Guard'
-    case ProtectionStrategy.NativeAttachedTpsl:
-      return 'Native TP/SL'
-    case ProtectionStrategy.NativePositionTpsl:
-      return 'Position TP/SL'
-    default:
-      return formatName(strategy)
-  }
-}
-
-function protectionLifecycleLabel(lifecycle: ProtectionLifecycle): string {
-  switch (lifecycle) {
-    case ProtectionLifecycle.PendingParent:
-      return 'Pending'
-    case ProtectionLifecycle.ParentAccepted:
-      return 'Parent Accepted'
-    case ProtectionLifecycle.ParentPartiallyFilled:
-      return 'Parent Partial'
-    case ProtectionLifecycle.Active:
-      return 'Active'
-    case ProtectionLifecycle.Triggered:
-      return 'Triggered'
-    case ProtectionLifecycle.Canceled:
-      return 'Canceled'
-    case ProtectionLifecycle.Rejected:
-      return 'Rejected'
-    case ProtectionLifecycle.Complete:
-      return 'Complete'
-    default:
-      return 'Unknown'
-  }
-}
-
-function protectionLifecycleClass(lifecycle: ProtectionLifecycle): string {
-  switch (lifecycle) {
-    case ProtectionLifecycle.Active:
-    case ProtectionLifecycle.Complete:
-      return 'pill-info'
-    case ProtectionLifecycle.Triggered:
-    case ProtectionLifecycle.PendingParent:
-    case ProtectionLifecycle.ParentAccepted:
-    case ProtectionLifecycle.ParentPartiallyFilled:
-      return 'pill-warn'
-    case ProtectionLifecycle.Canceled:
-    case ProtectionLifecycle.Rejected:
-      return 'pill-err'
-    default:
-      return ''
-  }
-}
-
-function protectionFacet(state: ProtectionState | null | undefined): DeviceProtectionFacet | null {
-  if (!state) return null
-  return {
-    label: protectionStrategyLabel(state.strategy),
-    status: protectionLifecycleLabel(state.lifecycle),
-    className: protectionLifecycleClass(state.lifecycle),
-  }
-}
-
 const treeData = computed<TreeItem[]>(() => {
   const start = performance.now()
   const list = filteredDevices.value
@@ -354,7 +286,7 @@ const treeData = computed<TreeItem[]>(() => {
       label: formatName(device.kind),
       symbol: device.state.symbol,
       market: deviceMarketFacetMap.value.get(device.id)?.labels ?? null,
-      protection: protectionFacet(device.protection_state),
+      protection: protectionDisplay(device.protection_state) as ProtectionDisplay | null,
       lifecycle: device.complete || device.failed || device.canceled ? '' : teLifecycle,
       status: statusLabel(device),
       intent,
@@ -526,7 +458,7 @@ const rowClass = (item: TreeItem): string => {
               </span>
               <span v-if="item.throttled" class="pill pill-xs pill-warn">Throttled</span>
               <span v-if="item.protection" class="pill pill-xs" :class="item.protection.className">
-                {{ item.protection.label }}: {{ item.protection.status }}
+                {{ item.protection.text }}
               </span>
               <span v-if="item.symbol" class="pill pill-xs">
                 {{ item.symbol }}
