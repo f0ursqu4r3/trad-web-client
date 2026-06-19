@@ -73,7 +73,7 @@ function directMarketContext(device: Device): MarketContext | null {
 }
 
 function marketContextFacet(ctx: MarketContext | null | undefined): DeviceMarketFacet | null {
-  if (!ctx || ctx.type === 'none') return null
+  if (!ctx?.type || ctx.type === 'none') return null
   const accountId = marketContextAccountId(ctx)
   const product = marketContextProductKey(ctx)
   return {

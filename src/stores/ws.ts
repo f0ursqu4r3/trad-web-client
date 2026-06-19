@@ -17,6 +17,7 @@ import { getBearerToken } from '@/lib/auth0Helpers'
 import { useUserStore } from './user'
 import { createLogger } from '@/lib/utils'
 import { recordPerf, recordPerfDuration, flushPerfLog, isPerfLogEnabled } from '@/lib/perfLog'
+import { normalizeMarketContext } from '@/lib/marketContext'
 
 const logger = createLogger('ws')
 
@@ -231,13 +232,14 @@ export const useWsStore = defineStore('ws', () => {
   }
 
   function marketContextKey(marketContext: MarketContext): string {
-    switch (marketContext.type) {
+    const normalized = normalizeMarketContext(marketContext)
+    switch (normalized.type) {
       case 'binance':
       case 'bifake':
       case 'bybit':
-        return `${marketContext.type}:${marketContext.account_id}`
+        return `${normalized.type}:${normalized.account_id}`
       case 'sim':
-        return `${marketContext.type}:${marketContext.sim_market_id}`
+        return `${normalized.type}:${normalized.sim_market_id}`
       case 'none':
       default:
         return 'none'

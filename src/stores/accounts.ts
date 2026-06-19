@@ -185,12 +185,16 @@ export const useAccountsStore = defineStore('accounts', () => {
   function getMarketContextForAccount(accountId: string): MarketContext | null {
     const account = accounts.value.find((a) => a.id === accountId)
     if (!account) return null
-    const ctx = {
-      [account.exchange]: {
-        account_id: account.id,
-      },
-    } as unknown as MarketContext
-    return ctx
+    switch (account.exchange) {
+      case ExchangeType.Binance:
+        return { binance: { account_id: account.id } }
+      case ExchangeType.Bifake:
+        return { bifake: { account_id: account.id } }
+      case ExchangeType.Bybit:
+        return { bybit: { account_id: account.id } }
+      default:
+        return null
+    }
   }
 
   function getDefaultSymbolForAccount(accountId: string): string {
