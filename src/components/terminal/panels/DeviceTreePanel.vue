@@ -18,11 +18,14 @@ import { MarketAction } from '@/lib/ws/protocol'
 import { recordPerfDuration, getPerfThreshold } from '@/lib/perfLog'
 import {
   accountLabelForContext,
+  marketContextAccountId,
   marketContextExchangeLabel,
   marketContextProductKey,
   marketProductLabel,
+  normalizeMarketContext,
   networkLabelForContext,
 } from '@/lib/marketContext'
+import type { MarketContext } from '@/lib/ws/protocol'
 
 const store = useDeviceStore()
 const commandStore = useCommandStore()
@@ -33,13 +36,143 @@ const { selectedCommandId } = storeToRefs(commandStore)
 
 // Start fully expanded by default: track only collapsed ids
 const collapsed = ref<(string | number)[]>([])
+const deviceFilters = ref<{
+  exchange: string[]
+  product: string[]
+  account: string[]
+}>({
+  exchange: [],
+  product: [],
+  account: [],
+})
 
-const treeData = computed<TreeItem[]>(() => {
-  const start = performance.now()
-  const list = devices.value.filter((device) => {
+type DeviceFilterGroup = keyof typeof deviceFilters.value
+
+function hasMarketContext(
+  state: DeviceState,
+): state is DeviceState & { market_context: MarketContext } {
+  return 'market_context' in state
+}
+
+function directMarketContext(device: Device): MarketContext | null {
+  if (!hasMarketContext(device.state)) return null
+  return normalizeMarketContext(device.state.market_context)
+}
+
+function inheritedMarketContext(device: Device, byId: Map<string, Device>): MarketContext | null {
+  const direct = directMarketContext(device)
+  if (direct) return direct
+  if (device.parent_device) {
+    const parent = byId.get(device.parent_device)
+    if (parent) {
+      const parentContext = inheritedMarketContext(parent, byId)
+      if (parentContext) return parentContext
+    }
+  }
+  for (const childId of device.children_devices ?? []) {
+    const child = byId.get(childId)
+    if (!child) continue
+    const childContext = inheritedMarketContext(child, byId)
+    if (childContext) return childContext
+  }
+  return null
+}
+
+const commandScopedDevices = computed<Device[]>(() => {
+  return devices.value.filter((device) => {
     if (!selectedCommandId.value) return true
     return device.associated_command_id === selectedCommandId.value
   }) as Device[]
+})
+
+const deviceContextMap = computed<Map<string, MarketContext>>(() => {
+  const byId = new Map(commandScopedDevices.value.map((device) => [device.id, device]))
+  const contexts = new Map<string, MarketContext>()
+  commandScopedDevices.value.forEach((device) => {
+    const context = inheritedMarketContext(device, byId)
+    if (context && context.type !== 'none') {
+      contexts.set(device.id, context)
+    }
+  })
+  return contexts
+})
+
+const activeDeviceExchanges = computed<string[]>(() => {
+  return Array.from(new Set([...deviceContextMap.value.values()].map((ctx) => ctx.type))).sort()
+})
+
+const activeDeviceProducts = computed<string[]>(() => {
+  return Array.from(
+    new Set([...deviceContextMap.value.values()].map((ctx) => marketContextProductKey(ctx))),
+  ).sort()
+})
+
+const activeDeviceAccounts = computed<string[]>(() => {
+  const ids = new Set<string>()
+  deviceContextMap.value.forEach((ctx) => {
+    const accountId = marketContextAccountId(ctx)
+    if (accountId) ids.add(accountId)
+  })
+  return Array.from(ids).sort()
+})
+
+const hiddenDeviceCount = computed(
+  () => commandScopedDevices.value.length - filteredDevices.value.length,
+)
+
+const filteredDevices = computed<Device[]>(() => {
+  const exchangeFilter = deviceFilters.value.exchange
+  const productFilter = deviceFilters.value.product
+  const accountFilter = deviceFilters.value.account
+  return commandScopedDevices.value.filter((device) => {
+    const context = deviceContextMap.value.get(device.id)
+    const exchange = context?.type ?? 'none'
+    if (exchangeFilter.length > 0 && !exchangeFilter.includes(exchange)) return false
+    const product = context ? marketContextProductKey(context) : 'none'
+    if (productFilter.length > 0 && !productFilter.includes(product)) return false
+    const accountId = context ? (marketContextAccountId(context) ?? '') : ''
+    if (accountFilter.length > 0 && !accountFilter.includes(accountId)) return false
+    return true
+  })
+})
+
+function getDeviceFilter(group: DeviceFilterGroup): readonly string[] {
+  return deviceFilters.value[group]
+}
+
+function toggleDeviceFilter(group: DeviceFilterGroup, option: string, event?: MouseEvent) {
+  if (event?.shiftKey) {
+    deviceFilters.value[group] = [option]
+    return
+  }
+  const list = getDeviceFilter(group)
+  if (list.includes(option)) {
+    deviceFilters.value[group] = list.filter((item) => item !== option)
+  } else {
+    deviceFilters.value[group] = [...list, option]
+  }
+}
+
+function isDeviceFilterActive(group: DeviceFilterGroup, option: string) {
+  return getDeviceFilter(group).includes(option)
+}
+
+function clearDeviceFilters() {
+  deviceFilters.value.exchange = []
+  deviceFilters.value.product = []
+  deviceFilters.value.account = []
+}
+
+function getAccountLabel(accountId: string): string {
+  const account = accountsStore.accounts.find((item) => item.id === accountId)
+  return account
+    ? `${account.label} (${formatName(account.exchange)})`
+    : `${accountId.slice(0, 8)}...`
+}
+
+const treeData = computed<TreeItem[]>(() => {
+  const start = performance.now()
+  const list = filteredDevices.value
   const nodes = new Map<string, TreeItem>()
   const roots: TreeItem[] = []
 
@@ -70,7 +203,7 @@ const treeData = computed<TreeItem[]>(() => {
   }
 
   const marketLabels = (state: DeviceState) => {
-    if (!('market_context' in state)) {
+    if (!hasMarketContext(state)) {
       return null
     }
     const ctx = state.market_context
@@ -172,12 +305,69 @@ const rowClass = (item: TreeItem): string => {
 </script>
 
 <template>
-  <div class="w-full h-full scroll-area p-2">
+  <div class="w-full h-full scroll-area p-2 space-y-2">
+    <div
+      v-if="
+        activeDeviceExchanges.length || activeDeviceProducts.length || activeDeviceAccounts.length
+      "
+      class="device-filters"
+    >
+      <div v-if="activeDeviceExchanges.length" class="filter-group">
+        <span class="filter-label">Exchange</span>
+        <button
+          v-for="option in activeDeviceExchanges"
+          :key="option"
+          class="btn btn-sm btn-ghost filter-btn"
+          :data-pressed="isDeviceFilterActive('exchange', option)"
+          :aria-pressed="isDeviceFilterActive('exchange', option)"
+          @click="toggleDeviceFilter('exchange', option, $event)"
+        >
+          {{ formatName(option) }}
+        </button>
+      </div>
+      <div v-if="activeDeviceProducts.length" class="filter-group">
+        <span class="filter-label">Product</span>
+        <button
+          v-for="option in activeDeviceProducts"
+          :key="option"
+          class="btn btn-sm btn-ghost filter-btn"
+          :data-pressed="isDeviceFilterActive('product', option)"
+          :aria-pressed="isDeviceFilterActive('product', option)"
+          @click="toggleDeviceFilter('product', option, $event)"
+        >
+          {{ marketProductLabel(option) }}
+        </button>
+      </div>
+      <div v-if="activeDeviceAccounts.length" class="filter-group">
+        <span class="filter-label">Account</span>
+        <button
+          v-for="option in activeDeviceAccounts"
+          :key="option"
+          class="btn btn-sm btn-ghost filter-btn"
+          :data-pressed="isDeviceFilterActive('account', option)"
+          :aria-pressed="isDeviceFilterActive('account', option)"
+          @click="toggleDeviceFilter('account', option, $event)"
+        >
+          {{ getAccountLabel(option) }}
+        </button>
+      </div>
+      <button
+        v-if="hiddenDeviceCount > 0"
+        class="btn btn-sm btn-ghost ml-auto"
+        @click="clearDeviceFilters"
+      >
+        Hidden {{ hiddenDeviceCount }}
+      </button>
+    </div>
     <div
       v-if="!treeData.length"
       class="h-full flex items-center justify-center text-(--color-text-dim) text-center text-xs"
     >
-      Select a command to view its device tree.
+      {{
+        hiddenDeviceCount > 0
+          ? 'No devices match the active filters.'
+          : 'Select a command to view its device tree.'
+      }}
     </div>
     <tree-view
       v-else
@@ -243,6 +433,29 @@ const rowClass = (item: TreeItem): string => {
 </template>
 
 <style scoped>
+.device-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.25rem;
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--color-panel) 92%, transparent);
+}
+
+.filter-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.filter-label {
+  color: var(--color-text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
 .device-row {
   width: 100%;
   padding: 0 0.5rem 0 calc(var(--tree-indent, 0px) + 0.5rem);
