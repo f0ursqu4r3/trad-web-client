@@ -54,6 +54,17 @@ export type MarketContext =
   | { type: 'bybit'; account_id: string } // UUID as string
   | { type: 'sim'; sim_market_id: string } // UUID as string
 
+export type MarketRef = {
+  exchange: ExchangeType
+  network?: NetworkType | null
+  product?: MarketProduct | null
+  trading_account_id?: string | null
+  trading_account_label?: string | null
+  exchange_account_uid?: string | null
+  exchange_subaccount_uid?: string | null
+  symbol?: string | null
+}
+
 export interface Market {
   symbol?: string
   [k: string]: unknown
@@ -513,6 +524,7 @@ export type CommandDevicesListData = {
 export type CommandHistoryItem = {
   command_id: Uuid
   command: UserCommandPayload
+  market_ref?: MarketRef | null
   status: CommandStatus
   created_at: string
 }

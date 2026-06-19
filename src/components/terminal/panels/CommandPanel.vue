@@ -453,6 +453,7 @@ function saveRename() {
                           <component
                             :is="getCommandComponent(cmd.command)"
                             :command="cmd.command.data"
+                            :market-ref="cmd.market_ref"
                           />
                         </CommandBase>
                         <CommandHistoryItem v-else :command="cmd" />
@@ -504,6 +505,7 @@ function saveRename() {
                       <component
                         :is="getCommandComponent(cmd.command)"
                         :command="cmd.command.data"
+                        :market-ref="cmd.market_ref"
                       />
                     </CommandBase>
                     <CommandHistoryItem v-else :command="cmd" />
@@ -550,7 +552,11 @@ function saveRename() {
               @rename="handleRename"
               @pin="handlePin"
             >
-              <component :is="getCommandComponent(cmd.command)" :command="cmd.command.data" />
+              <component
+                :is="getCommandComponent(cmd.command)"
+                :command="cmd.command.data"
+                :market-ref="cmd.market_ref"
+              />
             </CommandBase>
             <CommandHistoryItem v-else :command="cmd" />
           </div>

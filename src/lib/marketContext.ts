@@ -1,4 +1,5 @@
 import { type MarketContext } from '@/lib/ws/protocol'
+import { ExchangeType, NetworkType, type MarketRef } from '@/lib/ws/protocol'
 
 export type AccountDisplayRecord = {
   id: string
@@ -87,6 +88,44 @@ export function marketProductLabel(product: string): string {
     default:
       return product === 'none' ? 'None' : product
   }
+}
+
+export function marketRefExchangeLabel(exchange: ExchangeType): string {
+  switch (exchange) {
+    case ExchangeType.Binance:
+      return 'Binance'
+    case ExchangeType.Bifake:
+      return 'Bifake'
+    case ExchangeType.Bybit:
+      return 'Bybit'
+    default:
+      return String(exchange)
+  }
+}
+
+export function networkLabel(network: NetworkType): string {
+  switch (network) {
+    case NetworkType.Testnet:
+      return 'testnet'
+    case NetworkType.Mainnet:
+      return 'mainnet'
+    default:
+      return String(network)
+  }
+}
+
+export function formatMarketRef(ref: MarketRef | null | undefined): string | null {
+  if (!ref) return null
+  const parts = [marketRefExchangeLabel(ref.exchange)]
+  if (ref.trading_account_label) {
+    parts.push(ref.trading_account_label)
+  } else if (ref.trading_account_id) {
+    parts.push(`${ref.trading_account_id.slice(0, 8)}...`)
+  }
+  if (ref.network) parts.push(networkLabel(ref.network))
+  if (ref.product) parts.push(marketProductLabel(ref.product))
+  if (ref.symbol) parts.push(ref.symbol)
+  return parts.join(' • ')
 }
 
 export function accountLabelForContext(

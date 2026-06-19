@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import type { TrailingEntryOrderCommand } from '@/lib/ws/protocol'
+import type { MarketRef, TrailingEntryOrderCommand } from '@/lib/ws/protocol'
 import { formatNumberShort, formatUsdShort } from '@/lib/numberFormat'
-import { formatMarketContext } from '@/lib/marketContext'
+import { formatMarketContext, formatMarketRef } from '@/lib/marketContext'
 import { useAccountsStore } from '@/stores/accounts'
 
-defineProps<{ command: TrailingEntryOrderCommand }>()
+const props = defineProps<{ command: TrailingEntryOrderCommand; marketRef?: MarketRef | null }>()
 
 const accountsStore = useAccountsStore()
 
@@ -48,6 +48,8 @@ function fmtSplitSummary(split?: TrailingEntryOrderCommand['split_settings']) {
 }
 
 function fmtMarketContext(command: TrailingEntryOrderCommand) {
+  const refLabel = formatMarketRef(props.marketRef)
+  if (refLabel) return refLabel
   return formatMarketContext(command.market_context, accountsStore.accounts)
 }
 </script>

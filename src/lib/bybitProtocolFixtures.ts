@@ -2,8 +2,13 @@ import {
   MarketAction,
   NativeProtectionStatus,
   PositionSide,
+  CommandStatus,
+  ExchangeType,
+  NetworkType,
+  type CommandHistoryItem,
   type MarketCapabilitiesData,
   type MarketContext,
+  type MarketRef,
   type MarketOrderCommand,
   type NativeProtectionSnapshot,
   type TrailingEntryOrderCommand,
@@ -14,6 +19,15 @@ const bybitContext = {
   type: 'bybit',
   account_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
 } satisfies MarketContext
+
+const bybitMarketRef = {
+  exchange: ExchangeType.Bybit,
+  network: NetworkType.Testnet,
+  product: 'usdt_perp',
+  trading_account_id: bybitContext.account_id,
+  trading_account_label: 'Bybit Testnet',
+  symbol: 'BTCUSDT',
+} satisfies MarketRef
 
 const bybitMarketOrderWithAttachedTpsl = {
   action: MarketAction.Open,
@@ -53,6 +67,14 @@ const bybitTrailingEntryCommandPayload = {
   kind: 'TrailingEntryOrder',
   data: bybitTrailingEntryWithTakeProfit,
 } satisfies UserCommandPayload
+
+const bybitCommandHistoryItem = {
+  command_id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+  command: bybitMarketOrderCommandPayload,
+  market_ref: bybitMarketRef,
+  status: CommandStatus.Running,
+  created_at: '2026-06-19T00:00:00.000Z',
+} satisfies CommandHistoryItem
 
 const bybitCapabilities = {
   request_uuid: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
@@ -97,8 +119,10 @@ const bybitNativeProtectionSnapshot = {
 
 export const bybitProtocolFixtures = {
   bybitContext,
+  bybitMarketRef,
   bybitMarketOrderCommandPayload,
   bybitTrailingEntryCommandPayload,
+  bybitCommandHistoryItem,
   bybitCapabilities,
   bybitNativeProtectionSnapshot,
 }

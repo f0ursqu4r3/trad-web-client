@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import type { MarketOrderCommand } from '@/lib/ws/protocol'
+import type { MarketOrderCommand, MarketRef } from '@/lib/ws/protocol'
 import { formatUsdShort } from '@/lib/numberFormat'
-import { formatMarketContext } from '@/lib/marketContext'
+import { formatMarketContext, formatMarketRef } from '@/lib/marketContext'
 import { useAccountsStore } from '@/stores/accounts'
 
-defineProps<{
+const props = defineProps<{
   command: MarketOrderCommand
+  marketRef?: MarketRef | null
 }>()
 
 const accountsStore = useAccountsStore()
@@ -26,6 +27,8 @@ function titleCase(s?: string) {
 }
 
 function fmtMarketContext(command: MarketOrderCommand) {
+  const refLabel = formatMarketRef(props.marketRef)
+  if (refLabel) return refLabel
   return formatMarketContext(command.market_context, accountsStore.accounts)
 }
 </script>
