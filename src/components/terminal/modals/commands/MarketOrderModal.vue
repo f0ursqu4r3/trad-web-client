@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import {
-  ExchangeType,
   MarketAction,
   PositionSide,
   type MarketContext,
@@ -37,19 +36,16 @@ const action = ref<MarketAction>(MarketAction.Open)
 const take_profit = ref<number | null | ''>(null)
 const stop_loss = ref<number | null | ''>(null)
 
-const selectedAccount = computed(
-  () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
-)
 const selectedMarketContext = computed<MarketContext | null>(() =>
   accounts.getMarketContextForAccount(selectedAccountId.value),
 )
+const selectedCapabilities = computed(() =>
+  ws.capabilitiesForMarketContext(selectedMarketContext.value),
+)
 const supportsAttachedExit = computed(
-  () => {
-    if (action.value !== MarketAction.Open) return false
-    const capabilities = ws.capabilitiesForMarketContext(selectedMarketContext.value)
-    if (capabilities) return capabilities.supports_attached_take_profit_stop_loss
-    return selectedAccount.value?.exchange === ExchangeType.Bybit
-  },
+  () =>
+    action.value === MarketAction.Open &&
+    selectedCapabilities.value?.supports_attached_take_profit_stop_loss === true,
 )
 
 function requestSelectedCapabilities() {
@@ -91,7 +87,7 @@ watch(selectedAccountId, (next, prev) => {
 })
 
 watch(supportsAttachedExit, (supported) => {
-  if (!supported) {
+  if (action.value !== MarketAction.Open || (selectedCapabilities.value && !supported)) {
     take_profit.value = null
     stop_loss.value = null
   }

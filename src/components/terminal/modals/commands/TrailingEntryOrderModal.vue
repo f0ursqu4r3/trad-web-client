@@ -66,14 +66,17 @@ const requiresSuccessfulPreview = computed(
 const selectedMarketContext = computed<MarketContext | null>(() =>
   accounts.getMarketContextForAccount(selectedAccountId.value),
 )
+const selectedCapabilities = computed(() =>
+  ws.capabilitiesForMarketContext(selectedMarketContext.value),
+)
 const supportsTeTakeProfit = computed(() => {
-  const capabilities = ws.capabilitiesForMarketContext(selectedMarketContext.value)
+  const capabilities = selectedCapabilities.value
   if (capabilities) {
     return (
       capabilities.supports_trailing_entry && capabilities.supports_attached_take_profit_stop_loss
     )
   }
-  return selectedAccount.value?.exchange === ExchangeType.Bybit
+  return false
 })
 
 function requestSelectedCapabilities() {
@@ -120,7 +123,7 @@ watch(selectedAccountId, (next, prev) => {
 })
 
 watch(supportsTeTakeProfit, (supported) => {
-  if (!supported) {
+  if (selectedCapabilities.value && !supported) {
     take_profit.value = null
   }
 })

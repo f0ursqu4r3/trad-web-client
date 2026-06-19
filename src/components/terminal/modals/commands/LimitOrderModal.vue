@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import {
-  ExchangeType,
   type MarketContext,
   PositionSide,
   type LimitOrderCommand,
@@ -29,16 +28,12 @@ const quantity = ref(0.001)
 const price = ref(58000)
 const posSide = ref<PositionSide>(PositionSide.Long)
 
-const selectedAccount = computed(
-  () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
-)
 const selectedMarketContext = computed<MarketContext | null>(() =>
   accounts.getMarketContextForAccount(selectedAccountId.value),
 )
 const supportsLimitOrders = computed(() => {
   const capabilities = ws.capabilitiesForMarketContext(selectedMarketContext.value)
-  if (capabilities) return capabilities.supports_limit_orders
-  return selectedAccount.value?.exchange !== ExchangeType.Bybit
+  return capabilities?.supports_limit_orders === true
 })
 
 function requestSelectedCapabilities() {
