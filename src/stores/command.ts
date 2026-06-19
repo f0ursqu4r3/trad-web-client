@@ -16,10 +16,10 @@ import { useWsStore } from '@/stores/ws'
 import { useDeviceStore } from '@/stores/devices'
 import { createLogger } from '@/lib/utils'
 import {
-  marketContextAccountId,
-  marketContextProductKey,
-  normalizeMarketContext,
-} from '@/lib/marketContext'
+  commandMarketFacets,
+  marketFacetMatchesFilters,
+  uniqueFacetValues,
+} from '@/lib/marketFilterFacets'
 
 const logger = createLogger('command')
 
@@ -188,64 +188,22 @@ export const useCommandStore = defineStore(
       return Array.from(statuses).sort()
     })
 
-    function commandMarketContext(cmd: OrderedCommandHistoryItem) {
-      const data = (cmd.command as { data?: { market_context?: unknown } } | undefined)?.data
-      const raw = data?.market_context
-      if (!raw || typeof raw !== 'object') return null
-      return normalizeMarketContext(raw as Record<string, unknown>)
-    }
-
-    function commandSymbol(cmd: OrderedCommandHistoryItem): string | null {
-      const refSymbol = cmd.market_ref?.symbol?.trim()
-      if (refSymbol) return refSymbol.toUpperCase()
-      const data = (cmd.command as { data?: { symbol?: unknown } } | undefined)?.data
-      const payloadSymbol = typeof data?.symbol === 'string' ? data.symbol.trim() : ''
-      return payloadSymbol ? payloadSymbol.toUpperCase() : null
-    }
+    const commandMarketFacetMap = computed(() => commandMarketFacets(commands.value))
 
     const activeCommandExchanges = computed<string[]>(() => {
-      const exchanges = new Set<string>()
-      commands.value.forEach((cmd) => {
-        const context = commandMarketContext(cmd)
-        if (context?.type && context.type !== 'none') {
-          exchanges.add(context.type)
-        }
-      })
-      return Array.from(exchanges).sort()
+      return uniqueFacetValues(commandMarketFacetMap.value.values(), 'exchange')
     })
 
     const activeCommandAccounts = computed<string[]>(() => {
-      const accountIds = new Set<string>()
-      commands.value.forEach((cmd) => {
-        const context = commandMarketContext(cmd)
-        const accountId = context ? marketContextAccountId(context) : null
-        if (accountId) {
-          accountIds.add(accountId)
-        }
-      })
-      return Array.from(accountIds).sort()
+      return uniqueFacetValues(commandMarketFacetMap.value.values(), 'account')
     })
 
     const activeCommandProducts = computed<string[]>(() => {
-      const products = new Set<string>()
-      commands.value.forEach((cmd) => {
-        const context = commandMarketContext(cmd)
-        if (context) {
-          products.add(marketContextProductKey(context))
-        }
-      })
-      return Array.from(products).sort()
+      return uniqueFacetValues(commandMarketFacetMap.value.values(), 'product')
     })
 
     const activeCommandSymbols = computed<string[]>(() => {
-      const symbols = new Set<string>()
-      commands.value.forEach((cmd) => {
-        const symbol = commandSymbol(cmd)
-        if (symbol) {
-          symbols.add(symbol)
-        }
-      })
-      return Array.from(symbols).sort()
+      return uniqueFacetValues(commandMarketFacetMap.value.values(), 'symbol')
     })
 
     const filteredCommands = computed<OrderedCommandHistoryItem[]>(() => {
@@ -313,24 +271,15 @@ export const useCommandStore = defineStore(
           return false
         }
 
-        const marketContext = commandMarketContext(cmd)
-        const exchange = marketContext?.type ?? 'none'
-        if (exchangeFilter.length > 0 && !exchangeFilter.includes(exchange)) {
-          return false
-        }
-
-        const product = marketContext ? marketContextProductKey(marketContext) : 'none'
-        if (productFilter.length > 0 && !productFilter.includes(product)) {
-          return false
-        }
-
-        const accountId = marketContext ? (marketContextAccountId(marketContext) ?? '') : ''
-        if (accountFilter.length > 0 && !accountFilter.includes(accountId)) {
-          return false
-        }
-
-        const symbol = commandSymbol(cmd) ?? ''
-        if (symbolFilter.length > 0 && !symbolFilter.includes(symbol)) {
+        const facet = commandMarketFacetMap.value.get(cmd.command_id)
+        if (
+          !marketFacetMatchesFilters(facet, {
+            exchange: exchangeFilter,
+            product: productFilter,
+            account: accountFilter,
+            symbol: symbolFilter,
+          })
+        ) {
           return false
         }
 

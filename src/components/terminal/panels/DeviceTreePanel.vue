@@ -8,7 +8,6 @@ import { Folder, FolderOpen, TrendingDown } from 'lucide-vue-next'
 import {
   useDeviceStore,
   type Device,
-  type DeviceState,
   type MarketOrderState,
   type TrailingEntryState,
 } from '@/stores/devices'
@@ -17,18 +16,12 @@ import { useAccountsStore } from '@/stores/accounts'
 import { MarketAction } from '@/lib/ws/protocol'
 import { recordPerfDuration, getPerfThreshold } from '@/lib/perfLog'
 import { protectionDisplay, type ProtectionDisplay } from '@/lib/protectionState'
+import { marketProductLabel } from '@/lib/marketContext'
 import {
-  accountLabelForContext,
-  marketContextAccountId,
-  marketContextExchangeLabel,
-  marketContextProductKey,
-  marketRefExchangeLabel,
-  marketProductLabel,
-  networkLabel,
-  normalizeMarketContext,
-  networkLabelForContext,
-} from '@/lib/marketContext'
-import type { MarketContext, MarketRef } from '@/lib/ws/protocol'
+  deviceMarketFacets,
+  marketFacetMatchesFilters,
+  type DeviceMarketFacet,
+} from '@/lib/marketFilterFacets'
 
 const store = useDeviceStore()
 const commandStore = useCommandStore()
@@ -52,110 +45,6 @@ const deviceFilters = ref<{
 })
 
 type DeviceFilterGroup = keyof typeof deviceFilters.value
-type DeviceMarketFacet = {
-  exchange: string
-  product: string
-  account: string | null
-  symbol: string | null
-  labels: {
-    exchange: string | null
-    product: string | null
-    account: string | null
-    network: string | null
-  }
-}
-function hasMarketContext(
-  state: DeviceState,
-): state is DeviceState & { market_context: MarketContext } {
-  return 'market_context' in state
-}
-
-function directMarketContext(device: Device): MarketContext | null {
-  if (!hasMarketContext(device.state)) return null
-  return normalizeMarketContext(device.state.market_context)
-}
-
-function deviceSymbol(device: Device): string | null {
-  const symbol = typeof device.state.symbol === 'string' ? device.state.symbol.trim() : ''
-  return symbol ? symbol.toUpperCase() : null
-}
-
-function marketContextFacet(
-  ctx: MarketContext | null | undefined,
-  symbol: string | null,
-): DeviceMarketFacet | null {
-  if (!ctx?.type || ctx.type === 'none') return null
-  const accountId = marketContextAccountId(ctx)
-  const product = marketContextProductKey(ctx)
-  return {
-    exchange: ctx.type,
-    product,
-    account: accountId,
-    symbol,
-    labels: {
-      exchange: marketContextExchangeLabel(ctx),
-      product: marketProductLabel(product),
-      account: accountLabelForContext(ctx, accountsStore.accounts),
-      network: networkLabelForContext(ctx, accountsStore.accounts),
-    },
-  }
-}
-
-function marketRefFacet(
-  ref: MarketRef | null | undefined,
-  fallbackSymbol: string | null,
-): DeviceMarketFacet | null {
-  if (!ref) return null
-  const product = ref.product ?? 'none'
-  const refSymbol = ref.symbol?.trim()
-  return {
-    exchange: ref.exchange,
-    product,
-    account: ref.trading_account_id ?? null,
-    symbol: refSymbol ? refSymbol.toUpperCase() : fallbackSymbol,
-    labels: {
-      exchange: marketRefExchangeLabel(ref.exchange),
-      product: ref.product ? marketProductLabel(ref.product) : null,
-      account:
-        ref.trading_account_label ??
-        (ref.trading_account_id ? `${ref.trading_account_id.slice(0, 8)}...` : null),
-      network: ref.network ? networkLabel(ref.network) : null,
-    },
-  }
-}
-
-function directDeviceMarketFacet(device: Device): DeviceMarketFacet | null {
-  const symbol = deviceSymbol(device)
-  return marketRefFacet(device.market_ref, symbol) ?? marketContextFacet(directMarketContext(device), symbol)
-}
-
-function inheritedDeviceMarketFacet(
-  device: Device,
-  byId: Map<string, Device>,
-  seen = new Set<string>(),
-): DeviceMarketFacet | null {
-  if (seen.has(device.id)) return null
-  seen.add(device.id)
-
-  const direct = directDeviceMarketFacet(device)
-  if (direct) return direct
-
-  if (device.parent_device) {
-    const parent = byId.get(device.parent_device)
-    if (parent) {
-      const parentFacet = inheritedDeviceMarketFacet(parent, byId, seen)
-      if (parentFacet) return parentFacet
-    }
-  }
-
-  for (const childId of device.children_devices ?? []) {
-    const child = byId.get(childId)
-    if (!child) continue
-    const childFacet = inheritedDeviceMarketFacet(child, byId, seen)
-    if (childFacet) return childFacet
-  }
-  return null
-}
 
 const commandScopedDevices = computed<Device[]>(() => {
   return devices.value.filter((device) => {
@@ -165,15 +54,7 @@ const commandScopedDevices = computed<Device[]>(() => {
 })
 
 const deviceMarketFacetMap = computed<Map<string, DeviceMarketFacet>>(() => {
-  const byId = new Map(commandScopedDevices.value.map((device) => [device.id, device]))
-  const facets = new Map<string, DeviceMarketFacet>()
-  commandScopedDevices.value.forEach((device) => {
-    const facet = inheritedDeviceMarketFacet(device, byId)
-    if (facet) {
-      facets.set(device.id, facet)
-    }
-  })
-  return facets
+  return deviceMarketFacets(commandScopedDevices.value, accountsStore.accounts)
 })
 
 const activeDeviceExchanges = computed<string[]>(() => {
@@ -215,15 +96,12 @@ const filteredDevices = computed<Device[]>(() => {
   const symbolFilter = deviceFilters.value.symbol
   return commandScopedDevices.value.filter((device) => {
     const facet = deviceMarketFacetMap.value.get(device.id)
-    const exchange = facet?.exchange ?? 'none'
-    if (exchangeFilter.length > 0 && !exchangeFilter.includes(exchange)) return false
-    const product = facet?.product ?? 'none'
-    if (productFilter.length > 0 && !productFilter.includes(product)) return false
-    const accountId = facet?.account ?? ''
-    if (accountFilter.length > 0 && !accountFilter.includes(accountId)) return false
-    const symbol = facet?.symbol ?? ''
-    if (symbolFilter.length > 0 && !symbolFilter.includes(symbol)) return false
-    return true
+    return marketFacetMatchesFilters(facet, {
+      exchange: exchangeFilter,
+      product: productFilter,
+      account: accountFilter,
+      symbol: symbolFilter,
+    })
   })
 })
 
