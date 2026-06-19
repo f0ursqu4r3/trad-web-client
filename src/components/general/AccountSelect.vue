@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
-import { useAccountsStore } from '@/stores/accounts'
+import { accountMetadataChips, useAccountsStore } from '@/stores/accounts'
 import { useUiStore } from '@/stores/ui'
 import DropMenu, { type DropMenuItem } from '@/components/general/DropMenu.vue'
 import { accountColorFromId } from '@/lib/accountColors'
@@ -13,8 +13,7 @@ const selectedAccount = computed(() => accounts.selectedAccount)
 
 const accountLabel = computed(() => {
   if (!selectedAccount.value) return 'No account selected'
-  const { label, exchange, network } = selectedAccount.value
-  return `${label} • ${exchange} • ${network}`
+  return `${selectedAccount.value.label} • ${accountMetadataChips(selectedAccount.value).join(' • ')}`
 })
 
 const accountColor = computed(() => {
@@ -27,7 +26,7 @@ const accountMenuItems = computed<DropMenuItem[]>(() => {
   return accounts.accounts.map((acc) => {
     const color = accountColorFromId(acc.id || acc.label)
     return {
-      label: `${acc.label} • ${acc.exchange} • ${acc.network}`,
+      label: `${acc.label} • ${accountMetadataChips(acc).join(' • ')}`,
       value: acc.id,
       className: 'account-menu-item',
       style: {

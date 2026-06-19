@@ -10,7 +10,7 @@ import {
   type SplitPreviewCommand,
   PositionSide,
 } from '@/lib/ws/protocol'
-import { useAccountsStore } from '@/stores/accounts'
+import { accountMetadataChips, useAccountsStore } from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
 import { useSplitPreviewStore } from '@/stores/splitPreview'
 import { useWsStore } from '@/stores/ws'
@@ -256,7 +256,7 @@ function formatNumber(value: number, digits: number) {
           <span>Account</span>
           <select v-model="selectedAccountId" class="input">
             <option v-for="account in accounts.accounts" :key="account.id" :value="account.id">
-              {{ account.label }} ({{ account.exchange }} - {{ account.network }})
+              {{ account.label }} ({{ accountMetadataChips(account).join(' / ') }})
             </option>
           </select>
         </label>

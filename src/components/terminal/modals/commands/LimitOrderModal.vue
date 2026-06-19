@@ -8,7 +8,7 @@ import {
   OrderSide,
 } from '@/lib/ws/protocol'
 import { useWsStore } from '@/stores/ws'
-import { useAccountsStore } from '@/stores/accounts'
+import { accountMetadataChips, useAccountsStore } from '@/stores/accounts'
 import { createLogger } from '@/lib/utils'
 
 const logger = createLogger('commands')
@@ -80,7 +80,7 @@ function submit() {
           <span>Account</span>
           <select v-model="selectedAccountId" class="input">
             <option v-for="account in accounts.accounts" :key="account.id" :value="account.id">
-              {{ account.label }} ({{ account.exchange }} - {{ account.network }})
+              {{ account.label }} ({{ accountMetadataChips(account).join(' / ') }})
             </option>
           </select>
         </label>
