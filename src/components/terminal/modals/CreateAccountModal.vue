@@ -26,6 +26,7 @@ const apiKey = ref('')
 const secretKey = ref('')
 const formError = ref<string | null>(null)
 const isSubmitting = ref(false)
+const isBybit = computed(() => exchange.value === ExchangeType.Bybit)
 
 const isSubmitDisabled = computed(() => {
   return !network.value || !name.value.trim() || !apiKey.value.trim() || !secretKey.value.trim()
@@ -96,8 +97,16 @@ async function submit() {
         </label>
         <label class="field">
           <span>Name</span>
-          <input v-model.trim="name" class="input" placeholder="Account alias" />
+          <input
+            v-model.trim="name"
+            class="input"
+            :placeholder="isBybit ? 'Exchange key label' : 'Account alias'"
+          />
         </label>
+        <div v-if="isBybit" class="field">
+          <span>Product</span>
+          <div class="readonly-value">USDT Perpetuals</div>
+        </div>
         <label class="field">
           <span>API Key</span>
           <input v-model.trim="apiKey" class="input" placeholder="API key" />
@@ -110,6 +119,15 @@ async function submit() {
           Your keys are stored securely and are only accessible by the trading backend. Double-check
           the network matches the exchange the keys belong to.
         </p>
+        <div v-if="isBybit" class="col-span-2 permission-note">
+          <div class="permission-note-title">Bybit key scope</div>
+          <div class="permission-note-grid">
+            <span>Read account</span>
+            <span>Read positions/orders</span>
+            <span>Trade derivatives</span>
+            <span>No withdrawal permission</span>
+          </div>
+        </div>
       </div>
       <p v-if="formError" class="text-xs text-red-400">{{ formError }}</p>
     </form>
@@ -158,6 +176,46 @@ async function submit() {
 .input:focus {
   outline: 1px solid var(--accent-color);
   outline-offset: 1px;
+}
+
+.readonly-value {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  background: color-mix(in srgb, var(--panel-header-bg) 70%, transparent);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-input);
+  padding: 0.35rem 0.5rem;
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.permission-note {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-panel);
+  padding: 0.5rem;
+  background: color-mix(in srgb, var(--panel-header-bg) 60%, transparent);
+}
+
+.permission-note-title {
+  font-size: 11px;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.4rem;
+}
+
+.permission-note-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem 0.5rem;
+  font-size: 11px;
+  color: var(--color-text);
+}
+
+.permission-note-grid span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 button[disabled] {
