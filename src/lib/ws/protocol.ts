@@ -269,6 +269,7 @@ export type TrailingEntryOrderCommand = {
   activation_price: number
   jump_frac_threshold: number
   stop_loss: number
+  take_profit?: number | null
   risk_amount: number
   market_context: MarketContext
   split_settings?: SplitSettings | null
@@ -577,6 +578,7 @@ export type TrailingEntrySnapshot = {
   activation_price: number
   jump_frac_threshold: number
   stop_loss: number
+  take_profit?: number | null
   risk_amount: number
   split_settings?: SplitSettings | null
   // state
@@ -703,6 +705,7 @@ export type DeviceTeDelta =
         activation_price: number
         jump_frac_threshold: number
         stop_loss: number
+        take_profit?: number | null
         risk_amount: number
         split_settings?: SplitSettings | null
         phase: TrailingEntryPhase

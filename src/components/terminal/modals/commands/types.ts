@@ -6,6 +6,7 @@ export type TrailingEntryPrefill = {
   position_side?: PositionSide
   risk_amount?: number
   stop_loss?: number
+  take_profit?: number | null
   symbol?: string
 }
 

@@ -154,6 +154,14 @@ const networkLabel = computed(() => {
             ${{ formatPrice(device.stop_loss) }}
           </dd>
         </div>
+        <div v-if="device.take_profit != null">
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Take Profit
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            ${{ formatPrice(device.take_profit) }}
+          </dd>
+        </div>
         <div>
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
             Risk Amount

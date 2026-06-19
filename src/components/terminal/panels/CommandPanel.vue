@@ -182,6 +182,7 @@ function handleDuplicate(command: UserCommandPayload): void {
         position_side: command.data.position_side,
         risk_amount: command.data.risk_amount,
         stop_loss: command.data.stop_loss,
+        take_profit: command.data.take_profit ?? null,
         symbol: command.data.symbol,
       } as TrailingEntryPrefill)
       break

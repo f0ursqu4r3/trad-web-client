@@ -2,6 +2,8 @@
 import { computed, ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import {
+  ExchangeType,
+  type MarketContext,
   type SplitMode,
   type TrailingEntryOrderCommand,
   type UserCommandPayload,
@@ -37,6 +39,7 @@ const lastAccountId = ref<string>('')
 const activation_price = ref<number | null>(null)
 const jump_frac_threshold = ref<number | null>(null)
 const stop_loss = ref<number | null>(null)
+const take_profit = ref<number | null | ''>(null)
 const risk_amount = ref<number | null>(null)
 const position_side = ref<PositionSide>(PositionSide.Long)
 const split_target_notional = ref<number | null>(null)
@@ -50,6 +53,28 @@ const preview = computed(() => {
   if (!previewRequestId.value) return null
   return splitPreviewStore.getPreview(previewRequestId.value)
 })
+const selectedAccount = computed(
+  () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
+)
+const selectedMarketContext = computed<MarketContext | null>(() =>
+  accounts.getMarketContextForAccount(selectedAccountId.value),
+)
+const supportsTeTakeProfit = computed(() => {
+  const capabilities = ws.capabilitiesForMarketContext(selectedMarketContext.value)
+  if (capabilities) {
+    return (
+      capabilities.supports_trailing_entry &&
+      capabilities.supports_attached_take_profit_stop_loss
+    )
+  }
+  return selectedAccount.value?.exchange === ExchangeType.Bybit
+})
+
+function requestSelectedCapabilities() {
+  if (selectedMarketContext.value) {
+    ws.requestMarketCapabilities(selectedMarketContext.value)
+  }
+}
 
 function applyInitialValues() {
   const preset = (modals.modalValues['TrailingEntryOrder'] as TrailingEntryPrefill) ?? {}
@@ -59,6 +84,7 @@ function applyInitialValues() {
   position_side.value = preset.position_side ?? PositionSide.Long
   risk_amount.value = preset.risk_amount ?? null
   stop_loss.value = preset.stop_loss ?? null
+  take_profit.value = preset.take_profit ?? null
   symbol.value = preset.symbol ?? accounts.getDefaultSymbolForAccount(selectedAccountId.value)
   split_target_notional.value = null
   split_max_splits_cap.value = null
@@ -71,6 +97,7 @@ watch(
   () => props.open,
   (o) => {
     if (o) applyInitialValues()
+    if (o) requestSelectedCapabilities()
   },
 )
 
@@ -83,6 +110,13 @@ watch(selectedAccountId, (next, prev) => {
     symbol.value = nextDefault
   }
   lastAccountId.value = next
+  requestSelectedCapabilities()
+})
+
+watch(supportsTeTakeProfit, (supported) => {
+  if (!supported) {
+    take_profit.value = null
+  }
 })
 
 function validate(): boolean {
@@ -91,8 +125,21 @@ function validate(): boolean {
   if (activation_price.value === null) return false
   if (jump_frac_threshold.value === null) return false
   if (stop_loss.value === null) return false
+  if (
+    take_profit.value !== null &&
+    take_profit.value !== '' &&
+    optionalPositivePrice(take_profit.value) === null
+  ) {
+    return false
+  }
   if (risk_amount.value === null) return false
   return true
+}
+
+function optionalPositivePrice(value: number | null | ''): number | null {
+  if (value === null || value === '') return null
+  if (!Number.isFinite(value) || value <= 0) return null
+  return value
 }
 
 function submit() {
@@ -105,6 +152,9 @@ function submit() {
     logger.error('Validation failed')
     return
   }
+  const normalizedTakeProfit = supportsTeTakeProfit.value
+    ? optionalPositivePrice(take_profit.value)
+    : null
   const data: TrailingEntryOrderCommand = {
     activation_price: activation_price.value as number,
     jump_frac_threshold: jump_frac_threshold.value as number,
@@ -112,6 +162,7 @@ function submit() {
     position_side: position_side.value,
     risk_amount: risk_amount.value as number,
     stop_loss: stop_loss.value as number,
+    take_profit: normalizedTakeProfit,
     symbol: symbol.value,
   }
   const split_settings = {
@@ -174,6 +225,7 @@ watch(
     symbol,
     activation_price,
     stop_loss,
+    take_profit,
     risk_amount,
     position_side,
     split_target_notional,
@@ -228,6 +280,9 @@ function formatNumber(value: number, digits: number) {
         </label>
         <label class="field">
           <span>Stop Loss</span><input type="number" v-model.number="stop_loss" />
+        </label>
+        <label v-if="supportsTeTakeProfit" class="field">
+          <span>Take Profit</span><input type="number" v-model.number="take_profit" />
         </label>
         <label class="field">
           <span>Risk Amount</span><input type="number" v-model.number="risk_amount" />

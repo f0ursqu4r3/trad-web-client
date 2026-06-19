@@ -171,6 +171,7 @@ export const useDeviceStore = defineStore('device', () => {
         te.activation_price = s.activation_price
         te.jump_frac_threshold = s.jump_frac_threshold
         te.stop_loss = s.stop_loss
+        te.take_profit = s.take_profit ?? null
         te.risk_amount = s.risk_amount
         te.split_settings = s.split_settings ?? te.split_settings ?? null
         te.phase = s.phase
@@ -350,6 +351,7 @@ export const useDeviceStore = defineStore('device', () => {
             activation_price,
             jump_frac_threshold,
             stop_loss,
+            take_profit,
             risk_amount,
             split_settings,
             phase,
@@ -366,6 +368,7 @@ export const useDeviceStore = defineStore('device', () => {
           te.activation_price = activation_price
           te.jump_frac_threshold = jump_frac_threshold
           te.stop_loss = stop_loss
+          te.take_profit = take_profit ?? null
           te.risk_amount = risk_amount
           te.split_settings = split_settings ?? te.split_settings ?? null
           te.phase = phase
@@ -889,6 +892,7 @@ export interface TrailingEntryState {
   activation_price: number
   jump_frac_threshold: number
   stop_loss: number
+  take_profit: number | null
   risk_amount: number
   split_settings?: SplitSettings | null
 
@@ -1051,6 +1055,7 @@ function newTrailingEntryState(): TrailingEntryState {
     activation_price: 0,
     jump_frac_threshold: 0,
     stop_loss: 0,
+    take_profit: null,
     risk_amount: 0,
     split_settings: null,
     phase: TrailingEntryPhase.Initial,

@@ -82,6 +82,13 @@ function fmtMarketContext(command: TrailingEntryOrderCommand) {
       <dd class="m-0 text-[12px]">{{ fmtPrice(command.stop_loss) }}</dd>
     </div>
 
+    <div v-if="command.take_profit != null">
+      <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+        Take Profit
+      </dt>
+      <dd class="m-0 text-[12px]">{{ fmtPrice(command.take_profit) }}</dd>
+    </div>
+
     <div>
       <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
         Risk
