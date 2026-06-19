@@ -8,6 +8,22 @@ export type AccountDisplayRecord = {
   network?: string | null
 }
 
+export function binanceMarketContext(accountId: string): MarketContext {
+  return { binance: { account_id: accountId } }
+}
+
+export function bifakeMarketContext(accountId: string): MarketContext {
+  return { bifake: { account_id: accountId } }
+}
+
+export function bybitMarketContext(accountId: string): MarketContext {
+  return { bybit: { account_id: accountId } }
+}
+
+export function simMarketContext(simMarketId: string): MarketContext {
+  return { sim: { sim_market_id: simMarketId } }
+}
+
 export function normalizeMarketContext(raw: MarketContext | Record<string, unknown>): MarketContext {
   if (!raw || typeof raw !== 'object') return { type: 'none' }
   const maybe = raw as Record<string, unknown>
@@ -38,15 +54,21 @@ export function normalizeMarketContext(raw: MarketContext | Record<string, unkno
 }
 
 export function marketContextAccountId(ctx: MarketContext): string | null {
-  if (ctx.type === 'binance' || ctx.type === 'bifake' || ctx.type === 'bybit') {
-    return ctx.account_id || null
+  const normalized = normalizeMarketContext(ctx)
+  if (
+    normalized.type === 'binance' ||
+    normalized.type === 'bifake' ||
+    normalized.type === 'bybit'
+  ) {
+    return normalized.account_id || null
   }
-  if (ctx.type === 'sim') return ctx.sim_market_id || null
+  if (normalized.type === 'sim') return normalized.sim_market_id || null
   return null
 }
 
 export function marketContextExchangeLabel(ctx: MarketContext): string {
-  switch (ctx.type) {
+  const normalized = normalizeMarketContext(ctx)
+  switch (normalized.type) {
     case 'binance':
       return 'Binance'
     case 'bifake':
@@ -61,7 +83,8 @@ export function marketContextExchangeLabel(ctx: MarketContext): string {
 }
 
 export function marketContextProductKey(ctx: MarketContext): string {
-  switch (ctx.type) {
+  const normalized = normalizeMarketContext(ctx)
+  switch (normalized.type) {
     case 'binance':
       return 'usd_m_futures'
     case 'bybit':
@@ -132,8 +155,9 @@ export function accountLabelForContext(
   ctx: MarketContext,
   accounts: readonly AccountDisplayRecord[],
 ): string | null {
-  const accountId = marketContextAccountId(ctx)
-  if (!accountId || ctx.type === 'sim') return accountId
+  const normalized = normalizeMarketContext(ctx)
+  const accountId = marketContextAccountId(normalized)
+  if (!accountId || normalized.type === 'sim') return accountId
   const account = accounts.find((item) => item.id === accountId)
   return account?.label ?? `${accountId.slice(0, 8)}...`
 }
@@ -142,8 +166,9 @@ export function networkLabelForContext(
   ctx: MarketContext,
   accounts: readonly AccountDisplayRecord[],
 ): string | null {
-  const accountId = marketContextAccountId(ctx)
-  if (!accountId || ctx.type === 'sim') return null
+  const normalized = normalizeMarketContext(ctx)
+  const accountId = marketContextAccountId(normalized)
+  if (!accountId || normalized.type === 'sim') return null
   return accounts.find((item) => item.id === accountId)?.network ?? null
 }
 

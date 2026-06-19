@@ -48,6 +48,8 @@ export type DeviceKind =
   | string
 
 export type MarketContext =
+  // Rust wire shape is externally tagged, e.g. { bybit: { account_id } }.
+  // The `type` variants are the frontend-normalized display/cache shape.
   | { type: 'none' }
   | { type: 'binance'; account_id: string } // UUID as string
   | { type: 'bifake'; account_id: string } // UUID as string

@@ -10,7 +10,6 @@ import {
   ProtectionLifecycle,
   ProtectionStrategy,
   type CommandHistoryItem,
-  type MarketContext,
   type ProtectionState,
   type UserCommandPayload,
 } from '@/lib/ws/protocol'
@@ -18,7 +17,12 @@ import { createSSRApp, h } from 'vue'
 import { createPinia } from 'pinia'
 import { renderToString } from '@vue/server-renderer'
 import { bybitProtocolFixtures } from '@/lib/bybitProtocolFixtures'
-import type { AccountDisplayRecord } from '@/lib/marketContext'
+import {
+  binanceMarketContext,
+  formatMarketContext,
+  marketContextAccountId,
+  type AccountDisplayRecord,
+} from '@/lib/marketContext'
 import {
   commandMarketFacets,
   deviceMarketFacets,
@@ -38,10 +42,7 @@ function sorted(value: Iterable<string>): string[] {
 }
 
 const binanceAccountId = '11111111-1111-1111-1111-111111111111'
-const binanceContext = {
-  type: 'binance',
-  account_id: binanceAccountId,
-} satisfies MarketContext
+const binanceContext = binanceMarketContext(binanceAccountId)
 
 const binancePayload = {
   kind: 'MarketOrder',
@@ -76,7 +77,7 @@ const accounts = [
     network: NetworkType.Testnet,
   },
   {
-    id: bybitProtocolFixtures.bybitContext.account_id,
+    id: bybitProtocolFixtures.bybitAccountId,
     label: 'Bybit Testnet',
     exchange: ExchangeType.Bybit,
     network: NetworkType.Testnet,
@@ -178,6 +179,21 @@ function bybitSplitParent(childId: string): Device {
 }
 
 export function runBybitFilterSmoke(): void {
+  assertSmoke(
+    'bybit' in bybitProtocolFixtures.bybitContext &&
+      !('type' in bybitProtocolFixtures.bybitContext),
+    'Bybit market context fixture should use Rust externally tagged wire shape',
+  )
+  assertSmoke(
+    marketContextAccountId(bybitProtocolFixtures.bybitContext) ===
+      bybitProtocolFixtures.bybitAccountId,
+    'Bybit market context account id should normalize from wire shape',
+  )
+  assertSmoke(
+    formatMarketContext(bybitProtocolFixtures.bybitContext, accounts).includes('Bybit Testnet'),
+    'Bybit market context display should accept wire shape',
+  )
+
   const commands = [binanceCommand, bybitProtocolFixtures.bybitCommandHistoryItem]
   const commandFacets = commandMarketFacets(commands)
 
@@ -193,7 +209,7 @@ export function runBybitFilterSmoke(): void {
   const bybitCommands = commands.filter((cmd) =>
     marketFacetMatchesFilters(commandFacets.get(cmd.command_id), {
       exchange: [ExchangeType.Bybit],
-      account: [bybitProtocolFixtures.bybitContext.account_id],
+      account: [bybitProtocolFixtures.bybitAccountId],
       symbol: ['BTCUSDT'],
     }),
   )
@@ -214,7 +230,7 @@ export function runBybitFilterSmoke(): void {
     'parent split device should inherit Bybit market facet from child protection device',
   )
   assertSmoke(
-    deviceFacets.get(bybitParent.id)?.account === bybitProtocolFixtures.bybitContext.account_id,
+    deviceFacets.get(bybitParent.id)?.account === bybitProtocolFixtures.bybitAccountId,
     'parent split device should inherit Bybit account facet from child protection device',
   )
 
@@ -222,7 +238,7 @@ export function runBybitFilterSmoke(): void {
     marketFacetMatchesFilters(deviceFacets.get(device.id), {
       exchange: [ExchangeType.Bybit],
       product: ['usdt_perp'],
-      account: [bybitProtocolFixtures.bybitContext.account_id],
+      account: [bybitProtocolFixtures.bybitAccountId],
     }),
   )
   assertSmoke(

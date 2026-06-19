@@ -10,24 +10,22 @@ import {
   type CommandHistoryItem,
   type DeviceSnapshotLiteData,
   type MarketCapabilitiesData,
-  type MarketContext,
   type MarketRef,
   type MarketOrderCommand,
   type NativeProtectionSnapshot,
   type TrailingEntryOrderCommand,
   type UserCommandPayload,
 } from '@/lib/ws/protocol'
+import { bybitMarketContext, marketContextAccountId } from '@/lib/marketContext'
 
-const bybitContext = {
-  type: 'bybit',
-  account_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-} satisfies MarketContext
+const bybitAccountId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+const bybitContext = bybitMarketContext(bybitAccountId)
 
 const bybitMarketRef = {
   exchange: ExchangeType.Bybit,
   network: NetworkType.Testnet,
   product: 'usdt_perp',
-  trading_account_id: bybitContext.account_id,
+  trading_account_id: marketContextAccountId(bybitContext),
   trading_account_label: 'Bybit Testnet',
   symbol: 'BTCUSDT',
 } satisfies MarketRef
@@ -159,6 +157,7 @@ const bybitDeviceSnapshotLite = {
 } satisfies DeviceSnapshotLiteData
 
 export const bybitProtocolFixtures = {
+  bybitAccountId,
   bybitContext,
   bybitMarketRef,
   bybitMarketOrderCommandPayload,

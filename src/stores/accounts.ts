@@ -3,6 +3,11 @@ import { computed, ref, watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { apiPut, apiGet, apiDelete } from '@/lib/apiClient'
 import { ExchangeType, type MarketContext, type NetworkType } from '@/lib/ws/protocol'
+import {
+  bifakeMarketContext,
+  binanceMarketContext,
+  bybitMarketContext,
+} from '@/lib/marketContext'
 import { accountsStoreKey, getSessionUserId } from '@/lib/userSession'
 import { createLogger } from '@/lib/utils'
 
@@ -206,11 +211,11 @@ export const useAccountsStore = defineStore('accounts', () => {
     if (!account) return null
     switch (account.exchange) {
       case ExchangeType.Binance:
-        return { binance: { account_id: account.id } }
+        return binanceMarketContext(account.id)
       case ExchangeType.Bifake:
-        return { bifake: { account_id: account.id } }
+        return bifakeMarketContext(account.id)
       case ExchangeType.Bybit:
-        return { bybit: { account_id: account.id } }
+        return bybitMarketContext(account.id)
       default:
         return null
     }
