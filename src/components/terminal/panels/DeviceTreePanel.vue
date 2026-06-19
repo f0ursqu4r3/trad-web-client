@@ -49,6 +49,17 @@ const deviceFilters = ref<{
 })
 
 type DeviceFilterGroup = keyof typeof deviceFilters.value
+type DeviceMarketFacet = {
+  exchange: string
+  product: string
+  account: string | null
+  labels: {
+    exchange: string | null
+    product: string | null
+    account: string | null
+    network: string | null
+  }
+}
 
 function hasMarketContext(
   state: DeviceState,
@@ -61,21 +72,69 @@ function directMarketContext(device: Device): MarketContext | null {
   return normalizeMarketContext(device.state.market_context)
 }
 
-function inheritedMarketContext(device: Device, byId: Map<string, Device>): MarketContext | null {
-  const direct = directMarketContext(device)
+function marketContextFacet(ctx: MarketContext | null | undefined): DeviceMarketFacet | null {
+  if (!ctx || ctx.type === 'none') return null
+  const accountId = marketContextAccountId(ctx)
+  const product = marketContextProductKey(ctx)
+  return {
+    exchange: ctx.type,
+    product,
+    account: accountId,
+    labels: {
+      exchange: marketContextExchangeLabel(ctx),
+      product: marketProductLabel(product),
+      account: accountLabelForContext(ctx, accountsStore.accounts),
+      network: networkLabelForContext(ctx, accountsStore.accounts),
+    },
+  }
+}
+
+function marketRefFacet(ref: MarketRef | null | undefined): DeviceMarketFacet | null {
+  if (!ref) return null
+  const product = ref.product ?? 'none'
+  return {
+    exchange: ref.exchange,
+    product,
+    account: ref.trading_account_id ?? null,
+    labels: {
+      exchange: marketRefExchangeLabel(ref.exchange),
+      product: ref.product ? marketProductLabel(ref.product) : null,
+      account:
+        ref.trading_account_label ??
+        (ref.trading_account_id ? `${ref.trading_account_id.slice(0, 8)}...` : null),
+      network: ref.network ? networkLabel(ref.network) : null,
+    },
+  }
+}
+
+function directDeviceMarketFacet(device: Device): DeviceMarketFacet | null {
+  return marketRefFacet(device.market_ref) ?? marketContextFacet(directMarketContext(device))
+}
+
+function inheritedDeviceMarketFacet(
+  device: Device,
+  byId: Map<string, Device>,
+  seen = new Set<string>(),
+): DeviceMarketFacet | null {
+  if (seen.has(device.id)) return null
+  seen.add(device.id)
+
+  const direct = directDeviceMarketFacet(device)
   if (direct) return direct
+
   if (device.parent_device) {
     const parent = byId.get(device.parent_device)
     if (parent) {
-      const parentContext = inheritedMarketContext(parent, byId)
-      if (parentContext) return parentContext
+      const parentFacet = inheritedDeviceMarketFacet(parent, byId, seen)
+      if (parentFacet) return parentFacet
     }
   }
+
   for (const childId of device.children_devices ?? []) {
     const child = byId.get(childId)
     if (!child) continue
-    const childContext = inheritedMarketContext(child, byId)
-    if (childContext) return childContext
+    const childFacet = inheritedDeviceMarketFacet(child, byId, seen)
+    if (childFacet) return childFacet
   }
   return null
 }
@@ -87,33 +146,34 @@ const commandScopedDevices = computed<Device[]>(() => {
   }) as Device[]
 })
 
-const deviceContextMap = computed<Map<string, MarketContext>>(() => {
+const deviceMarketFacetMap = computed<Map<string, DeviceMarketFacet>>(() => {
   const byId = new Map(commandScopedDevices.value.map((device) => [device.id, device]))
-  const contexts = new Map<string, MarketContext>()
+  const facets = new Map<string, DeviceMarketFacet>()
   commandScopedDevices.value.forEach((device) => {
-    const context = inheritedMarketContext(device, byId)
-    if (context && context.type !== 'none') {
-      contexts.set(device.id, context)
+    const facet = inheritedDeviceMarketFacet(device, byId)
+    if (facet) {
+      facets.set(device.id, facet)
     }
   })
-  return contexts
+  return facets
 })
 
 const activeDeviceExchanges = computed<string[]>(() => {
-  return Array.from(new Set([...deviceContextMap.value.values()].map((ctx) => ctx.type))).sort()
+  return Array.from(
+    new Set([...deviceMarketFacetMap.value.values()].map((facet) => facet.exchange)),
+  ).sort()
 })
 
 const activeDeviceProducts = computed<string[]>(() => {
   return Array.from(
-    new Set([...deviceContextMap.value.values()].map((ctx) => marketContextProductKey(ctx))),
+    new Set([...deviceMarketFacetMap.value.values()].map((facet) => facet.product)),
   ).sort()
 })
 
 const activeDeviceAccounts = computed<string[]>(() => {
   const ids = new Set<string>()
-  deviceContextMap.value.forEach((ctx) => {
-    const accountId = marketContextAccountId(ctx)
-    if (accountId) ids.add(accountId)
+  deviceMarketFacetMap.value.forEach((facet) => {
+    if (facet.account) ids.add(facet.account)
   })
   return Array.from(ids).sort()
 })
@@ -127,12 +187,12 @@ const filteredDevices = computed<Device[]>(() => {
   const productFilter = deviceFilters.value.product
   const accountFilter = deviceFilters.value.account
   return commandScopedDevices.value.filter((device) => {
-    const context = deviceContextMap.value.get(device.id)
-    const exchange = context?.type ?? 'none'
+    const facet = deviceMarketFacetMap.value.get(device.id)
+    const exchange = facet?.exchange ?? 'none'
     if (exchangeFilter.length > 0 && !exchangeFilter.includes(exchange)) return false
-    const product = context ? marketContextProductKey(context) : 'none'
+    const product = facet?.product ?? 'none'
     if (productFilter.length > 0 && !productFilter.includes(product)) return false
-    const accountId = context ? (marketContextAccountId(context) ?? '') : ''
+    const accountId = facet?.account ?? ''
     if (accountFilter.length > 0 && !accountFilter.includes(accountId)) return false
     return true
   })
@@ -166,6 +226,10 @@ function clearDeviceFilters() {
 }
 
 function getAccountLabel(accountId: string): string {
+  const facetLabel = [...deviceMarketFacetMap.value.values()].find(
+    (facet) => facet.account === accountId && facet.labels.account,
+  )?.labels.account
+  if (facetLabel) return facetLabel
   const account = accountsStore.accounts.find((item) => item.id === accountId)
   return account
     ? `${account.label} (${formatName(account.exchange)})`
@@ -204,30 +268,6 @@ const treeData = computed<TreeItem[]>(() => {
     return 'Running'
   }
 
-  const marketLabels = (ctx: MarketContext | null | undefined) => {
-    if (!ctx) {
-      return null
-    }
-    return {
-      exchange: marketContextExchangeLabel(ctx),
-      product: marketProductLabel(marketContextProductKey(ctx)),
-      account: accountLabelForContext(ctx, accountsStore.accounts),
-      network: networkLabelForContext(ctx, accountsStore.accounts),
-    }
-  }
-
-  const marketRefLabels = (ref: MarketRef | null | undefined) => {
-    if (!ref) return null
-    return {
-      exchange: marketRefExchangeLabel(ref.exchange),
-      product: ref.product ? marketProductLabel(ref.product) : null,
-      account:
-        ref.trading_account_label ??
-        (ref.trading_account_id ? `${ref.trading_account_id.slice(0, 8)}...` : null),
-      network: ref.network ? networkLabel(ref.network) : null,
-    }
-  }
-
   // First pass: create all nodes
   for (const device of list) {
     const teLifecycle =
@@ -245,8 +285,7 @@ const treeData = computed<TreeItem[]>(() => {
       children: [],
       label: formatName(device.kind),
       symbol: device.state.symbol,
-      market:
-        marketRefLabels(device.market_ref) ?? marketLabels(deviceContextMap.value.get(device.id)),
+      market: deviceMarketFacetMap.value.get(device.id)?.labels ?? null,
       lifecycle: device.complete || device.failed || device.canceled ? '' : teLifecycle,
       status: statusLabel(device),
       intent,
