@@ -1,21 +1,11 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
-import {
-  PositionSide,
-  type SplitMarketOrderCommand,
-  type UserCommandPayload,
-  MarketAction,
-} from '@/lib/ws/protocol'
-import { useWsStore } from '@/stores/ws'
+import { PositionSide, MarketAction } from '@/lib/ws/protocol'
 import { accountMetadataChips, useAccountsStore } from '@/stores/accounts'
-import { createLogger } from '@/lib/utils'
-
-const logger = createLogger('commands')
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
-const ws = useWsStore()
 const accounts = useAccountsStore()
 
 const selectedAccountId = ref<string>(accounts.selectedAccount?.id || '')
@@ -26,6 +16,7 @@ const action = ref<MarketAction>(MarketAction.Open)
 const quantity_usd = ref(100)
 const position_side = ref<PositionSide>(PositionSide.Long)
 const num_splits = ref(4)
+const standaloneSplitAvailable = false
 
 function reset() {
   selectedAccountId.value = accounts.selectedAccount?.id || ''
@@ -53,31 +44,13 @@ watch(selectedAccountId, (next, prev) => {
 })
 
 function submit() {
-  const marketContext = accounts.getMarketContextForAccount(selectedAccountId.value)
-  if (!marketContext) {
-    logger.error('No market context found for account', selectedAccountId.value)
-    return
-  }
-  const data: SplitMarketOrderCommand = {
-    num_splits: num_splits.value,
-    action: action.value,
-    symbol: symbol.value,
-    quantity_usd: quantity_usd.value,
-    position_side: position_side.value,
-    market_context: marketContext,
-  }
-  const payload: Extract<UserCommandPayload, { kind: 'SplitMarketOrder' }> = {
-    kind: 'SplitMarketOrder',
-    data,
-  }
-  ws.sendUserCommand(payload)
-  emit('close')
+  if (!standaloneSplitAvailable) return
 }
 </script>
 <template>
   <BaseCommandModal title="Split Market Order" :open="open" @close="emit('close')">
     <form id="split-market-order" class="space-y-4" @submit.prevent="submit">
-      <div class="grid gap-3 md:grid-cols-2">
+      <fieldset class="grid gap-3 md:grid-cols-2" :disabled="!standaloneSplitAvailable">
         <label class="field">
           <span>Account</span>
           <select v-model="selectedAccountId" class="input">
@@ -111,12 +84,23 @@ function submit() {
             <option>Short</option>
           </select>
         </label>
-      </div>
+      </fieldset>
+      <p class="text-[11px] text-[var(--color-text-dim)] leading-relaxed">
+        Standalone split orders are not available yet. Use Trailing Entry split settings for
+        split market entry.
+      </p>
     </form>
     <template #footer>
       <div class="flex gap-2 justify-end pt-2">
         <button type="button" class="btn btn-secondary" @click="emit('close')">Cancel</button>
-        <button form="split-market-order" type="submit" class="btn btn-primary">Submit</button>
+        <button
+          form="split-market-order"
+          type="submit"
+          class="btn btn-primary"
+          :disabled="!standaloneSplitAvailable"
+        >
+          Submit
+        </button>
       </div>
     </template>
   </BaseCommandModal>
