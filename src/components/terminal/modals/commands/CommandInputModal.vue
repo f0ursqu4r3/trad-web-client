@@ -43,6 +43,7 @@ const shortcutLabel = computed(() => (isMac.value ? '⌘+K' : 'Ctrl+K'))
 
 // Quick submit for non-modal commands
 function submitQuick(cmd: CommandMeta) {
+  if (cmd.disabled) return
   if (cmd.modal) {
     closePalette()
     store.openModal(cmd.kind)
@@ -190,12 +191,15 @@ onUnmounted(() => {
                 :ref="(el) => (itemRefs[i] = el as HTMLElement)"
                 class="p-2 px-3 border-b border-[var(--border-color)] cursor-pointer transition-colors"
                 :class="[
-                  i === activeIndex
-                    ? 'bg-[color-mix(in_srgb,var(--panel-header-bg)_80%,transparent)]'
-                    : 'hover:bg-[color-mix(in_srgb,var(--panel-header-bg)_60%,transparent)]',
+                  c.disabled
+                    ? 'cursor-not-allowed opacity-50'
+                    : i === activeIndex
+                      ? 'bg-[color-mix(in_srgb,var(--panel-header-bg)_80%,transparent)]'
+                      : 'hover:bg-[color-mix(in_srgb,var(--panel-header-bg)_60%,transparent)]',
                 ]"
                 role="option"
                 :aria-selected="i === activeIndex"
+                :aria-disabled="c.disabled || undefined"
                 @click="submitQuick(c)"
                 @mouseenter="hoverEnabled && (activeIndex = i)"
               >

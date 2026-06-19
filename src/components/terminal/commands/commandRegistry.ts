@@ -5,6 +5,7 @@ export interface CommandMeta {
   label: string
   description?: string
   modal?: boolean
+  disabled?: boolean
 }
 
 // Central list of user commands; add remaining kinds iteratively.
@@ -14,8 +15,9 @@ export const commandRegistry: CommandMeta[] = [
   {
     kind: 'SplitMarketOrder',
     label: 'Split Market Order',
-    description: 'Split market order into parts',
+    description: 'Use Trailing Entry split settings',
     modal: true,
+    disabled: true,
   },
   {
     kind: 'TrailingEntryOrder',
