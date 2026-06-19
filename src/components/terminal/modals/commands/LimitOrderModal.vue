@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import {
+  ExchangeType,
+  type MarketContext,
   PositionSide,
   type LimitOrderCommand,
   type UserCommandPayload,
@@ -27,6 +29,24 @@ const quantity = ref(0.001)
 const price = ref(58000)
 const posSide = ref<PositionSide>(PositionSide.Long)
 
+const selectedAccount = computed(
+  () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
+)
+const selectedMarketContext = computed<MarketContext | null>(() =>
+  accounts.getMarketContextForAccount(selectedAccountId.value),
+)
+const supportsLimitOrders = computed(() => {
+  const capabilities = ws.capabilitiesForMarketContext(selectedMarketContext.value)
+  if (capabilities) return capabilities.supports_limit_orders
+  return selectedAccount.value?.exchange !== ExchangeType.Bybit
+})
+
+function requestSelectedCapabilities() {
+  if (selectedMarketContext.value) {
+    ws.requestMarketCapabilities(selectedMarketContext.value)
+  }
+}
+
 function reset() {
   selectedAccountId.value = accounts.selectedAccount?.id || ''
   symbol.value = accounts.getDefaultSymbolForAccount(selectedAccountId.value)
@@ -40,6 +60,7 @@ watch(
   () => props.open,
   (o) => {
     if (o) reset()
+    if (o) requestSelectedCapabilities()
   },
 )
 
@@ -50,12 +71,26 @@ watch(selectedAccountId, (next, prev) => {
     symbol.value = nextDefault
   }
   lastAccountId.value = next
+  requestSelectedCapabilities()
 })
+
+function validate(): boolean {
+  if (!supportsLimitOrders.value) return false
+  if (!selectedAccountId.value) return false
+  if (!symbol.value) return false
+  if (!Number.isFinite(quantity.value) || quantity.value <= 0) return false
+  if (!Number.isFinite(price.value) || price.value <= 0) return false
+  return true
+}
 
 function submit() {
   const marketContext = accounts.getMarketContextForAccount(selectedAccountId.value)
   if (!marketContext) {
     logger.error('No market context found for account', selectedAccountId.value)
+    return
+  }
+  if (!validate()) {
+    logger.error('Validation failed')
     return
   }
   const data: LimitOrderCommand = {
@@ -108,11 +143,16 @@ function submit() {
           </select>
         </label>
       </div>
+      <p v-if="!supportsLimitOrders" class="text-[11px] text-[var(--color-text-dim)]">
+        Limit orders are unavailable for this market.
+      </p>
     </form>
     <template #footer>
       <div class="flex gap-2 justify-end pt-2">
         <button type="button" class="btn btn-secondary" @click="emit('close')">Cancel</button>
-        <button form="limit-order" type="submit" class="btn btn-primary">Submit</button>
+        <button form="limit-order" type="submit" class="btn btn-primary" :disabled="!validate()">
+          Submit
+        </button>
       </div>
     </template>
   </BaseCommandModal>
