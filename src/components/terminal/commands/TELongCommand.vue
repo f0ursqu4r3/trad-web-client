@@ -1,8 +1,12 @@
 <script lang="ts" setup>
 import type { TrailingEntryOrderCommand } from '@/lib/ws/protocol'
 import { formatNumberShort, formatUsdShort } from '@/lib/numberFormat'
+import { formatMarketContext } from '@/lib/marketContext'
+import { useAccountsStore } from '@/stores/accounts'
 
 defineProps<{ command: TrailingEntryOrderCommand }>()
+
+const accountsStore = useAccountsStore()
 
 function fmtUsd(n?: number) {
   if (n == null || Number.isNaN(n)) return '—'
@@ -41,6 +45,10 @@ function fmtSplitSummary(split?: TrailingEntryOrderCommand['split_settings']) {
     )
   }
   return parts.length ? parts.join(' · ') : 'Default'
+}
+
+function fmtMarketContext(command: TrailingEntryOrderCommand) {
+  return formatMarketContext(command.market_context, accountsStore.accounts)
 }
 </script>
 
@@ -88,6 +96,13 @@ function fmtSplitSummary(split?: TrailingEntryOrderCommand['split_settings']) {
       <dd class="m-0 text-[12px] font-mono text-[var(--color-text-dim)]">
         {{ fmtSplitSummary(command.split_settings) }}
       </dd>
+    </div>
+
+    <div class="sm:col-span-2">
+      <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+        Context
+      </dt>
+      <dd class="m-0 text-[12px]">{{ fmtMarketContext(command) }}</dd>
     </div>
   </dl>
 </template>

@@ -6,6 +6,7 @@ import { useCommandStore } from '@/stores/command'
 import { useAccountsStore } from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
 import { formatName } from '@/lib/utils'
+import { marketProductLabel } from '@/lib/marketContext'
 
 import type { MarketOrderPrefill, TrailingEntryPrefill } from '../modals/commands/types'
 import type { UserCommandPayload } from '@/lib/ws/protocol'
@@ -63,7 +64,7 @@ const timeOptions = [
   { label: 'Month', value: 'Month' },
 ] as const
 
-type MultiFilterGroup = 'kind' | 'status' | 'position' | 'exchange' | 'account'
+type MultiFilterGroup = 'kind' | 'status' | 'position' | 'exchange' | 'product' | 'account'
 
 function getMultiFilter(group: MultiFilterGroup): readonly string[] {
   switch (group) {
@@ -75,6 +76,8 @@ function getMultiFilter(group: MultiFilterGroup): readonly string[] {
       return commandStore.commandFilters.position
     case 'exchange':
       return commandStore.commandFilters.exchange
+    case 'product':
+      return commandStore.commandFilters.product
     case 'account':
       return commandStore.commandFilters.account
   }
@@ -93,6 +96,9 @@ function setMultiFilter(group: MultiFilterGroup, values: string[]) {
       return
     case 'exchange':
       commandStore.commandFilters.exchange = values
+      return
+    case 'product':
+      commandStore.commandFilters.product = values
       return
     case 'account':
       commandStore.commandFilters.account = values
@@ -156,6 +162,10 @@ function getKindLabel(kind: string): string {
 
 function getExchangeLabel(exchange: string): string {
   return formatName(exchange)
+}
+
+function getProductLabel(product: string): string {
+  return marketProductLabel(product)
 }
 
 function getAccountLabel(accountId: string): string {
@@ -337,6 +347,23 @@ function saveRename() {
                 @click="toggleMultiFilter('exchange', option, $event)"
               >
                 {{ getExchangeLabel(option) }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="commandStore.activeCommandProducts.length" class="space-y-2">
+            <div class="text-[11px] uppercase tracking-wide text-(--color-text-dim)">Product</div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="option in commandStore.activeCommandProducts"
+                :key="option"
+                class="btn btn-sm btn-ghost filter-btn"
+                :data-pressed="isFilterActive('product', option)"
+                :aria-pressed="isFilterActive('product', option)"
+                :class="isSoloActive('product', option) ? 'filter-solo' : ''"
+                @click="toggleMultiFilter('product', option, $event)"
+              >
+                {{ getProductLabel(option) }}
               </button>
             </div>
           </div>

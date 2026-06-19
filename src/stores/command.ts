@@ -13,6 +13,11 @@ import { ref, computed } from 'vue'
 import { useWsStore } from '@/stores/ws'
 import { useDeviceStore } from '@/stores/devices'
 import { createLogger } from '@/lib/utils'
+import {
+  marketContextAccountId,
+  marketContextProductKey,
+  normalizeMarketContext,
+} from '@/lib/marketContext'
 
 const logger = createLogger('command')
 
@@ -79,6 +84,7 @@ export const useCommandStore = defineStore(
       status: StatusFilter[]
       position: PositionFilter[]
       exchange: string[]
+      product: string[]
       account: string[]
       timeRange: TimeRangeFilter
       solo: {
@@ -86,6 +92,7 @@ export const useCommandStore = defineStore(
         status: boolean
         position: boolean
         exchange: boolean
+        product: boolean
         account: boolean
       }
     }>({
@@ -93,6 +100,7 @@ export const useCommandStore = defineStore(
       status: [],
       position: [],
       exchange: [],
+      product: [],
       account: [],
       timeRange: 'Any',
       solo: {
@@ -100,6 +108,7 @@ export const useCommandStore = defineStore(
         status: false,
         position: false,
         exchange: false,
+        product: false,
         account: false,
       },
     })
@@ -173,21 +182,7 @@ export const useCommandStore = defineStore(
       const data = (cmd.command as { data?: { market_context?: unknown } } | undefined)?.data
       const raw = data?.market_context
       if (!raw || typeof raw !== 'object') return null
-      const context = raw as Record<string, unknown>
-      if ('type' in context) {
-        return context as { type?: string; account_id?: string }
-      }
-      for (const exchange of ['binance', 'bifake', 'bybit'] as const) {
-        if (exchange in context) {
-          const value = context[exchange] as { account_id?: string } | undefined
-          return { type: exchange, account_id: value?.account_id }
-        }
-      }
-      if ('sim' in context) {
-        const value = context.sim as { sim_market_id?: string } | undefined
-        return { type: 'sim', account_id: value?.sim_market_id }
-      }
-      return null
+      return normalizeMarketContext(raw as Record<string, unknown>)
     }
 
     const activeCommandExchanges = computed<string[]>(() => {
@@ -205,11 +200,23 @@ export const useCommandStore = defineStore(
       const accountIds = new Set<string>()
       commands.value.forEach((cmd) => {
         const context = commandMarketContext(cmd)
-        if (context?.account_id) {
-          accountIds.add(context.account_id)
+        const accountId = context ? marketContextAccountId(context) : null
+        if (accountId) {
+          accountIds.add(accountId)
         }
       })
       return Array.from(accountIds).sort()
+    })
+
+    const activeCommandProducts = computed<string[]>(() => {
+      const products = new Set<string>()
+      commands.value.forEach((cmd) => {
+        const context = commandMarketContext(cmd)
+        if (context) {
+          products.add(marketContextProductKey(context))
+        }
+      })
+      return Array.from(products).sort()
     })
 
     const filteredCommands = computed<OrderedCommandHistoryItem[]>(() => {
@@ -217,6 +224,7 @@ export const useCommandStore = defineStore(
       const statusFilter = commandFilters.value.status ?? []
       const positionFilter = commandFilters.value.position ?? []
       const exchangeFilter = commandFilters.value.exchange ?? []
+      const productFilter = commandFilters.value.product ?? []
       const accountFilter = commandFilters.value.account ?? []
       const timeRange = commandFilters.value.timeRange
       const now = Date.now()
@@ -281,7 +289,12 @@ export const useCommandStore = defineStore(
           return false
         }
 
-        const accountId = marketContext?.account_id ?? ''
+        const product = marketContext ? marketContextProductKey(marketContext) : 'none'
+        if (productFilter.length > 0 && !productFilter.includes(product)) {
+          return false
+        }
+
+        const accountId = marketContext ? (marketContextAccountId(marketContext) ?? '') : ''
         if (accountFilter.length > 0 && !accountFilter.includes(accountId)) {
           return false
         }
@@ -373,6 +386,7 @@ export const useCommandStore = defineStore(
       activeCommandKinds,
       activeCommandStatuses,
       activeCommandExchanges,
+      activeCommandProducts,
       activeCommandAccounts,
       dustedCommandIds,
       /* actions */

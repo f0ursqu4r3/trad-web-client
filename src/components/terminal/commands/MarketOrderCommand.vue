@@ -1,10 +1,14 @@
 <script lang="ts" setup>
-import type { MarketOrderCommand, MarketContext } from '@/lib/ws/protocol'
+import type { MarketOrderCommand } from '@/lib/ws/protocol'
 import { formatUsdShort } from '@/lib/numberFormat'
+import { formatMarketContext } from '@/lib/marketContext'
+import { useAccountsStore } from '@/stores/accounts'
 
 defineProps<{
   command: MarketOrderCommand
 }>()
+
+const accountsStore = useAccountsStore()
 
 function fmtUsd(n?: number) {
   if (n == null || Number.isNaN(n)) return '—'
@@ -21,21 +25,8 @@ function titleCase(s?: string) {
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
 }
 
-function fmtMarketContext(mc: MarketContext) {
-  switch (mc.type) {
-    case 'none':
-      return 'None'
-    case 'binance':
-      return `Binance • ${mc.account_id}`
-    case 'bifake':
-      return `Bifake • ${mc.account_id}`
-    case 'bybit':
-      return `Bybit • ${mc.account_id}`
-    case 'sim':
-      return `Sim • ${mc.sim_market_id}`
-    default:
-      return 'Unknown'
-  }
+function fmtMarketContext(command: MarketOrderCommand) {
+  return formatMarketContext(command.market_context, accountsStore.accounts)
 }
 </script>
 
@@ -73,7 +64,7 @@ function fmtMarketContext(mc: MarketContext) {
       <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
         Context
       </dt>
-      <dd class="m-0 text-[12px]">{{ fmtMarketContext(command.market_context) }}</dd>
+      <dd class="m-0 text-[12px]">{{ fmtMarketContext(command) }}</dd>
     </div>
 
     <template v-if="command.attached_exit_plan">

@@ -8,15 +8,25 @@ import { Folder, FolderOpen, TrendingDown } from 'lucide-vue-next'
 import {
   useDeviceStore,
   type Device,
+  type DeviceState,
   type MarketOrderState,
   type TrailingEntryState,
 } from '@/stores/devices'
 import { useCommandStore } from '@/stores/command'
+import { useAccountsStore } from '@/stores/accounts'
 import { MarketAction } from '@/lib/ws/protocol'
 import { recordPerfDuration, getPerfThreshold } from '@/lib/perfLog'
+import {
+  accountLabelForContext,
+  marketContextExchangeLabel,
+  marketContextProductKey,
+  marketProductLabel,
+  networkLabelForContext,
+} from '@/lib/marketContext'
 
 const store = useDeviceStore()
 const commandStore = useCommandStore()
+const accountsStore = useAccountsStore()
 
 const { devices, selectedDeviceId } = storeToRefs(store)
 const { selectedCommandId } = storeToRefs(commandStore)
@@ -59,6 +69,19 @@ const treeData = computed<TreeItem[]>(() => {
     return 'Running'
   }
 
+  const marketLabels = (state: DeviceState) => {
+    if (!('market_context' in state)) {
+      return null
+    }
+    const ctx = state.market_context
+    return {
+      exchange: marketContextExchangeLabel(ctx),
+      product: marketProductLabel(marketContextProductKey(ctx)),
+      account: accountLabelForContext(ctx, accountsStore.accounts),
+      network: networkLabelForContext(ctx, accountsStore.accounts),
+    }
+  }
+
   // First pass: create all nodes
   for (const device of list) {
     const teLifecycle =
@@ -76,6 +99,7 @@ const treeData = computed<TreeItem[]>(() => {
       children: [],
       label: formatName(device.kind),
       symbol: device.state.symbol,
+      market: marketLabels(device.state),
       lifecycle: device.complete || device.failed || device.canceled ? '' : teLifecycle,
       status: statusLabel(device),
       intent,
@@ -189,9 +213,21 @@ const rowClass = (item: TreeItem): string => {
                 {{ item.intent }}
               </span>
               <span v-if="item.throttled" class="pill pill-xs pill-warn">Throttled</span>
-              <!-- <span v-if="item.symbol" class="pill pill-xs">
+              <span v-if="item.symbol" class="pill pill-xs">
                 {{ item.symbol }}
-              </span> -->
+              </span>
+              <span v-if="item.market?.exchange" class="pill pill-xs">
+                {{ item.market.exchange }}
+              </span>
+              <span v-if="item.market?.product" class="pill pill-xs">
+                {{ item.market.product }}
+              </span>
+              <span v-if="item.market?.account" class="pill pill-xs">
+                {{ item.market.account }}
+              </span>
+              <span v-if="item.market?.network" class="pill pill-xs">
+                {{ item.market.network }}
+              </span>
             </div>
             <span v-if="item.lifecycle" class="text-(--color-text-dim) uppercase text-xs">
               {{ formatName(item.lifecycle) }}

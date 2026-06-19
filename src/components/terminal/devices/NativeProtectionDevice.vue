@@ -1,12 +1,20 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { NativeProtectionState } from '@/stores/devices'
 import { NativeProtectionStatus } from '@/lib/ws/protocol'
 import { formatPrice, formatQty, getPositionSideClass, formatSide } from './utils'
+import { useAccountsStore } from '@/stores/accounts'
+import { formatMarketContext } from '@/lib/marketContext'
 
 const props = defineProps<{
   device: NativeProtectionState
   failureReason?: string | null
 }>()
+const accounts = useAccountsStore()
+
+const marketContextLabel = computed(() => {
+  return formatMarketContext(props.device.market_context, accounts.accounts)
+})
 
 function getStatusClass(status: NativeProtectionStatus): string {
   switch (status) {
@@ -165,6 +173,17 @@ function fmtDate(d?: Date | null): string {
             {{ fmtDate(device.last_update_seen_at) }}
           </dd>
         </div>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <h4
+        class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)] m-0 border-b border-[var(--border-color)] pb-1"
+      >
+        Market Context
+      </h4>
+      <div class="text-[12px] font-mono text-[var(--color-text)]">
+        {{ marketContextLabel }}
       </div>
     </div>
 

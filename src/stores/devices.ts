@@ -26,6 +26,7 @@ import {
   type MarketContext,
 } from '@/lib/ws/protocol'
 import { createLogger } from '@/lib/utils'
+import { normalizeMarketContext } from '@/lib/marketContext'
 
 const logger = createLogger('devices')
 
@@ -48,31 +49,6 @@ export const useDeviceStore = defineStore('device', () => {
     if (!teDevice) return null
     return teDevice.state as TrailingEntryState
   })
-
-  function normalizeMarketContext(raw: MarketContext | Record<string, unknown>): MarketContext {
-    if (!raw || typeof raw !== 'object') return { type: 'none' }
-    const maybe = raw as Record<string, unknown>
-    if ('type' in maybe) {
-      return raw as MarketContext
-    }
-    if ('binance' in maybe) {
-      const ctx = maybe.binance as { account_id?: string } | undefined
-      return { type: 'binance', account_id: ctx?.account_id || '' }
-    }
-    if ('bifake' in maybe) {
-      const ctx = maybe.bifake as { account_id?: string } | undefined
-      return { type: 'bifake', account_id: ctx?.account_id || '' }
-    }
-    if ('bybit' in maybe) {
-      const ctx = maybe.bybit as { account_id?: string } | undefined
-      return { type: 'bybit', account_id: ctx?.account_id || '' }
-    }
-    if ('sim' in maybe) {
-      const ctx = maybe.sim as { sim_market_id?: string } | undefined
-      return { type: 'sim', sim_market_id: ctx?.sim_market_id || '' }
-    }
-    return { type: 'none' }
-  }
 
   function clearDevices() {
     deviceMap.value = {}
