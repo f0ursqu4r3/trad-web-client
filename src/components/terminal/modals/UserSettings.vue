@@ -8,6 +8,7 @@ import { useBillingStore } from '@/stores/billing'
 // import { apiPut } from '@/lib/apiClient'
 import { useAuth0 } from '@auth0/auth0-vue'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
+import { getBearerToken } from '@/lib/auth0Helpers'
 
 import ThemeSwitcher from '@/components/general/ThemeSwitcher.vue'
 import OrderedList from '@/components/general/OrderedList.vue'
@@ -31,6 +32,7 @@ const prefsError = ref<string | null>(null)
 // const prefsSavedAt = ref<number | null>(null)
 
 const isCreateAccountOpen = ref(false)
+const refreshingAccountIds = ref<Set<string>>(new Set())
 
 // Load editor content from store when (a) modal opens or (b) store.preferences changes
 watch(
@@ -85,6 +87,24 @@ watch(
 async function refreshAccount() {
   await userStore.fetchMe()
   await accountsStore.fetchAccounts()
+}
+
+async function refreshAccountKeys(account: AccountRecord) {
+  const token = await getBearerToken()
+  if (!token) {
+    prefsError.value = 'Unable to refresh account credentials: no auth token available.'
+    return
+  }
+  refreshingAccountIds.value = new Set([...refreshingAccountIds.value, account.id])
+  try {
+    wsStore.sendRefreshAccountKeys(account.id, account.label, token)
+  } finally {
+    window.setTimeout(() => {
+      const next = new Set(refreshingAccountIds.value)
+      next.delete(account.id)
+      refreshingAccountIds.value = next
+    }, 3000)
+  }
 }
 
 // WS helpers
@@ -305,6 +325,13 @@ const returnToOrigin = window.location.origin
                       </div>
 
                       <div class="flex items-center gap-2">
+                        <button
+                          class="btn btn-secondary btn-xs"
+                          :disabled="refreshingAccountIds.has((account as AccountRecord).id)"
+                          @click="refreshAccountKeys(account as AccountRecord)"
+                        >
+                          Refresh
+                        </button>
                         <button
                           class="btn btn-ghost btn-xs text-red-400"
                           @click="deleteAccount(account as AccountRecord)"

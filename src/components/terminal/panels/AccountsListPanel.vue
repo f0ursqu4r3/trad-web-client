@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { accountMetadataChips, useAccountsStore, type AccountRecord } from '@/stores/accounts'
+import { useWsStore } from '@/stores/ws'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 import { X } from 'lucide-vue-next'
+import { getBearerToken } from '@/lib/auth0Helpers'
 import { createLogger } from '@/lib/utils'
 
 const logger = createLogger('accounts')
 
 const accounts = useAccountsStore()
+const ws = useWsStore()
 
 const isCreateModalOpen = ref(false)
+const refreshingAccountIds = ref<Set<string>>(new Set())
 
 const sortedAccounts = computed(() =>
   accounts.accounts.slice().sort((a, b) => a.label.localeCompare(b.label)),
@@ -34,6 +38,24 @@ function selectAccount(account: AccountRecord) {
 
 async function refreshAccounts() {
   await accounts.fetchAccounts()
+}
+
+async function refreshAccountKeys(account: AccountRecord) {
+  const token = await getBearerToken()
+  if (!token) {
+    logger.error('unable to refresh account keys: no auth token available')
+    return
+  }
+  refreshingAccountIds.value = new Set([...refreshingAccountIds.value, account.id])
+  try {
+    ws.sendRefreshAccountKeys(account.id, account.label, token)
+  } finally {
+    window.setTimeout(() => {
+      const next = new Set(refreshingAccountIds.value)
+      next.delete(account.id)
+      refreshingAccountIds.value = next
+    }, 3000)
+  }
 }
 
 onMounted(() => {
@@ -117,6 +139,15 @@ onMounted(() => {
               </span>
             </button>
 
+            <button
+              class="btn btn-secondary btn-xs"
+              type="button"
+              title="Refresh credentials and exchange metadata"
+              :disabled="refreshingAccountIds.has(account.id)"
+              @click="refreshAccountKeys(account)"
+            >
+              Refresh
+            </button>
             <button
               class="btn icon-btn btn-sm"
               type="button"

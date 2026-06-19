@@ -12,6 +12,7 @@ import { TradWebClient } from '@/lib/ws/websocketClient'
 import { useCommandStore } from '@/stores/command'
 import { useSplitPreviewStore } from '@/stores/splitPreview'
 import { useDeviceStore } from '@/stores/devices'
+import { useAccountsStore } from '@/stores/accounts'
 import { getBearerToken } from '@/lib/auth0Helpers'
 import { useUserStore } from './user'
 import { createLogger } from '@/lib/utils'
@@ -36,6 +37,7 @@ interface RawInboundRecord {
 export const useWsStore = defineStore('ws', () => {
   const commandStore = useCommandStore()
   const deviceStore = useDeviceStore()
+  const accountsStore = useAccountsStore()
 
   const status = ref<WsStatus>('idle')
   const lastError = ref<string | null>(null)
@@ -52,6 +54,7 @@ export const useWsStore = defineStore('ws', () => {
   const marketCapabilities = ref<Record<string, MarketCapabilitiesData>>({})
   let lastPingSend: number | null = null
   let perfLoopTimer: number | null = null
+  const pendingAccountRefreshes = new Set<Uuid>()
 
   // Build from env (fallback to same host /ws)
   const url = import.meta.env.VITE_WS_URL || location.origin.replace(/^http/, 'ws') + '/ws'
@@ -149,8 +152,8 @@ export const useWsStore = defineStore('ws', () => {
   }
 
   /* System Commands */
-  function sendSystemCommand(command: SystemMessagePayload): void {
-    client.send({
+  function sendSystemCommand(command: SystemMessagePayload): Uuid {
+    return client.send({
       kind: 'System',
       data: command,
     })
@@ -214,14 +217,17 @@ export const useWsStore = defineStore('ws', () => {
   }
 
   function sendRefreshAccountKeys(accountId: Uuid, label: string, userToken: string) {
-    sendSystemCommand({
+    const command = {
       kind: 'RefreshAccountKeys',
       data: {
         account_id: accountId,
         label,
         user_token: userToken,
       },
-    })
+    } satisfies SystemMessagePayload
+    const commandId = sendSystemCommand(command)
+    pendingAccountRefreshes.add(commandId)
+    return commandId
   }
 
   function marketContextKey(marketContext: MarketContext): string {
@@ -347,10 +353,16 @@ export const useWsStore = defineStore('ws', () => {
   function handleCommandResponse(payload: ServerToClientMessage['payload']): void {
     const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandResponse' }>)
       .data
+    const wasAccountRefresh = pendingAccountRefreshes.delete(data.request_uuid)
     const pending = commandStore.pendingCommands[data.request_uuid]
     commandStore.verifyPendingCommand(data.request_uuid)
     if (pending && (pending.command as { kind?: string }).kind === 'TrailingEntryOrder') {
       commandStore.inspectCommand(data.request_uuid)
+    }
+    if (wasAccountRefresh) {
+      accountsStore.fetchAccounts().catch((err) => {
+        logger.error('failed to refresh accounts after account-key refresh', err)
+      })
     }
   }
 
