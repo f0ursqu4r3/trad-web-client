@@ -43,7 +43,8 @@ const LOG_LEVELS = ['debug', 'info', 'warn', 'error', 'silent'] as const
 type LogLevel = (typeof LOG_LEVELS)[number]
 
 function getLogLevel(): LogLevel {
-  return (import.meta.env?.VITE_LOG_LEVEL as LogLevel) || 'info'
+  const env = (import.meta as unknown as { env?: { VITE_LOG_LEVEL?: string } }).env
+  return (env?.VITE_LOG_LEVEL as LogLevel) || 'info'
 }
 
 function shouldLog(level: LogLevel): boolean {

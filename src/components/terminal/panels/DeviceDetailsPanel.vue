@@ -52,6 +52,12 @@ const marketOrderCreatedAt = computed(() => {
   if (!device || device.kind !== 'MarketOrder') return null
   return device.created_at
 })
+
+function copyDeviceId(): void {
+  const id = selectedDevice.value?.id
+  if (!id) return
+  void navigator.clipboard?.writeText(id)
+}
 </script>
 
 <template>
@@ -67,7 +73,7 @@ const marketOrderCreatedAt = computed(() => {
         <button
           class="font-mono text-[11px] dim hover:text-white"
           type="button"
-          @click="navigator.clipboard?.writeText(selectedDevice.id)"
+          @click="copyDeviceId"
         >
           Device ID:
           <span class="text-primary">{{ selectedDevice.id }}</span>

@@ -8,6 +8,7 @@ import {
   type ISeriesApi,
   type AreaData,
   type UTCTimestamp,
+  type Time,
   type SeriesMarker,
   type LineData,
   createSeriesMarkers,
@@ -43,8 +44,8 @@ let series: ISeriesApi<'Area'> | null = null
 let draggableLinesPlugin: DraggablePriceLinesPluginApi | null = null
 let activationMarkerSeries: ISeriesApi<'Line'> | null = null
 let statusMarkerSeries: ISeriesApi<'Line'> | null = null
-let activationMarkersPlugin: ISeriesMarkersPluginApi<UTCTimestamp> | null = null
-let statusMarkersPlugin: ISeriesMarkersPluginApi<UTCTimestamp> | null = null
+let activationMarkersPlugin: ISeriesMarkersPluginApi<Time> | null = null
+let statusMarkersPlugin: ISeriesMarkersPluginApi<Time> | null = null
 let resizeObserver: ResizeObserver | null = null
 let themeObserver: MutationObserver | null = null
 const themeVersion = ref(0)
@@ -313,7 +314,7 @@ function syncMarkerSeries() {
     activationMarkerSeries.setData(activation ? ([activation] as LineData[]) : [])
   }
   if (activationMarkersPlugin) {
-    const markers: SeriesMarker<UTCTimestamp>[] = activation
+    const markers: SeriesMarker<Time>[] = activation
       ? [
           {
             time: activation.time,
@@ -332,7 +333,7 @@ function syncMarkerSeries() {
     statusMarkerSeries.setData(status ? ([{ time: status.time, value: status.value }] as LineData[]) : [])
   }
   if (statusMarkersPlugin) {
-    const markers: SeriesMarker<UTCTimestamp>[] = status
+    const markers: SeriesMarker<Time>[] = status
       ? [
           {
             time: status.time,
