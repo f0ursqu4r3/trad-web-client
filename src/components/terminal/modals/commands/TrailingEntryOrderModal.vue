@@ -10,7 +10,7 @@ import {
   type SplitPreviewCommand,
   PositionSide,
 } from '@/lib/ws/protocol'
-import { accountMetadataChips, useAccountsStore } from '@/stores/accounts'
+import { accountMetadataChips, isBybitMetadataVerified, useAccountsStore } from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
 import { useSplitPreviewStore } from '@/stores/splitPreview'
 import { useWsStore } from '@/stores/ws'
@@ -60,6 +60,7 @@ const previewError = computed(() => {
 const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
 )
+const blocksOpeningOrder = computed(() => !isBybitMetadataVerified(selectedAccount.value))
 const requiresSuccessfulPreview = computed(
   () => selectedAccount.value?.exchange === ExchangeType.Bybit && canPreview(),
 )
@@ -130,6 +131,7 @@ watch(supportsTeTakeProfit, (supported) => {
 
 function validate(): boolean {
   if (!selectedAccountId.value) return false
+  if (blocksOpeningOrder.value) return false
   if (!symbol.value) return false
   if (previewError.value) return false
   if (requiresSuccessfulPreview.value && !preview.value) return false
@@ -353,6 +355,15 @@ function formatNumber(value: number, digits: number) {
           </div>
           <div class="preview-note">
             Bybit entries require a successful split preview before submission.
+          </div>
+        </div>
+        <div v-if="blocksOpeningOrder" class="preview preview-error">
+          <div class="preview-row">
+            <span>Bybit metadata</span>
+            <span class="preview-value">Unvalidated</span>
+          </div>
+          <div class="preview-warn">
+            Refresh credentials before opening live Bybit orders.
           </div>
         </div>
         <div v-else-if="preview" class="preview">

@@ -58,11 +58,21 @@ export function accountMetadataChips(account: AccountRecord): string[] {
   return chips
 }
 
+export function isBybitMetadataVerified(account: AccountRecord | null | undefined): boolean {
+  if (!account || account.exchange !== ExchangeType.Bybit) return true
+  const meta = account.exchange_metadata
+  return Boolean(
+    meta?.product === 'usdt_perp' &&
+      meta?.hedge_mode_only &&
+      meta?.account_mode &&
+      meta?.margin_mode,
+  )
+}
+
 export function accountMetadataStatus(account: AccountRecord): string | null {
   if (account.exchange !== ExchangeType.Bybit) return null
-  const meta = account.exchange_metadata
-  if (meta?.account_mode && meta?.margin_mode) {
-    return `Exchange metadata verified: ${meta.account_mode} / ${meta.margin_mode}`
+  if (isBybitMetadataVerified(account)) {
+    return `Exchange metadata verified: ${account.exchange_metadata?.account_mode} / ${account.exchange_metadata?.margin_mode}`
   }
   return 'Bybit exchange metadata unvalidated; refresh credentials before live trading.'
 }

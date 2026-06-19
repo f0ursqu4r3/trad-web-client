@@ -8,7 +8,7 @@ import {
   type MarketOrderCommand,
   type UserCommandPayload,
 } from '@/lib/ws/protocol'
-import { accountMetadataChips, useAccountsStore } from '@/stores/accounts'
+import { accountMetadataChips, isBybitMetadataVerified, useAccountsStore } from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
 import { useWsStore } from '@/stores/ws'
 
@@ -39,8 +39,14 @@ const stop_loss = ref<number | null | ''>(null)
 const selectedMarketContext = computed<MarketContext | null>(() =>
   accounts.getMarketContextForAccount(selectedAccountId.value),
 )
+const selectedAccount = computed(
+  () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
+)
 const selectedCapabilities = computed(() =>
   ws.capabilitiesForMarketContext(selectedMarketContext.value),
+)
+const blocksOpeningOrder = computed(
+  () => action.value === MarketAction.Open && !isBybitMetadataVerified(selectedAccount.value),
 )
 const supportsAttachedExit = computed(
   () =>
@@ -95,6 +101,7 @@ watch(supportsAttachedExit, (supported) => {
 
 function validate(): boolean {
   if (!selectedAccountId.value) return false
+  if (blocksOpeningOrder.value) return false
   if (!symbol.value) return false
   if (quantity_usd.value === null || quantity_usd.value <= 0) return false
   const tp = optionalPositivePrice(take_profit.value)
@@ -190,11 +197,16 @@ function submit() {
           </label>
         </template>
       </div>
+      <div v-if="blocksOpeningOrder" class="text-xs text-error">
+        Bybit metadata is unvalidated. Refresh credentials before opening live Bybit orders.
+      </div>
     </form>
     <template #footer>
       <div class="flex gap-2 justify-end pt-2">
         <button type="button" class="btn btn-secondary" @click="emit('close')">Cancel</button>
-        <button form="market-order" type="submit" class="btn btn-primary">Submit</button>
+        <button form="market-order" type="submit" class="btn btn-primary" :disabled="!validate()">
+          Submit
+        </button>
       </div>
     </template>
   </BaseCommandModal>
