@@ -29,6 +29,7 @@ import {
   marketFacetMatchesFilters,
   uniqueFacetValues,
 } from '@/lib/marketFilterFacets'
+import { bybitTrailingEntryExitLevelError } from '@/lib/bybitOrderValidation'
 import type { Device, MarketOrderState, NativeProtectionState, SplitState } from '@/stores/devices'
 
 function assertSmoke(condition: unknown, message: string): asserts condition {
@@ -192,6 +193,26 @@ export function runBybitFilterSmoke(): void {
   assertSmoke(
     formatMarketContext(bybitProtocolFixtures.bybitContext, accounts).includes('Bybit Testnet'),
     'Bybit market context display should accept wire shape',
+  )
+  assertSmoke(
+    bybitTrailingEntryExitLevelError(PositionSide.Long, 65_000, 62_000, 68_000) === null,
+    'Bybit long TE should allow TP above activation and SL below activation',
+  )
+  assertSmoke(
+    bybitTrailingEntryExitLevelError(PositionSide.Long, 65_000, 62_000, 64_000)?.includes(
+      'above activation',
+    ),
+    'Bybit long TE should reject TP below activation',
+  )
+  assertSmoke(
+    bybitTrailingEntryExitLevelError(PositionSide.Short, 65_000, 68_000, 62_000) === null,
+    'Bybit short TE should allow TP below activation and SL above activation',
+  )
+  assertSmoke(
+    bybitTrailingEntryExitLevelError(PositionSide.Short, 65_000, 68_000, 66_000)?.includes(
+      'below activation',
+    ),
+    'Bybit short TE should reject TP above activation',
   )
 
   const commands = [binanceCommand, bybitProtocolFixtures.bybitCommandHistoryItem]

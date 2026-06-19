@@ -18,6 +18,7 @@ import { useWsStore } from '@/stores/ws'
 import type { TrailingEntryPrefill } from './types'
 import { createLogger } from '@/lib/utils'
 import { formatNumberShort } from '@/lib/numberFormat'
+import { bybitTrailingEntryExitLevelError } from '@/lib/bybitOrderValidation'
 
 const logger = createLogger('commands')
 
@@ -60,9 +61,10 @@ const previewError = computed(() => {
 const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
 )
+const isBybitAccount = computed(() => selectedAccount.value?.exchange === ExchangeType.Bybit)
 const blocksOpeningOrder = computed(() => !isBybitMetadataVerified(selectedAccount.value))
 const requiresSuccessfulPreview = computed(
-  () => selectedAccount.value?.exchange === ExchangeType.Bybit && canPreview(),
+  () => isBybitAccount.value && canPreview(),
 )
 const selectedMarketContext = computed<MarketContext | null>(() =>
   accounts.getMarketContextForAccount(selectedAccountId.value),
@@ -78,6 +80,15 @@ const supportsTeTakeProfit = computed(() => {
     )
   }
   return false
+})
+const bybitExitLevelError = computed(() => {
+  if (!isBybitAccount.value) return null
+  return bybitTrailingEntryExitLevelError(
+    position_side.value,
+    activation_price.value,
+    stop_loss.value,
+    supportsTeTakeProfit.value ? take_profit.value : null,
+  )
 })
 
 function requestSelectedCapabilities() {
@@ -133,6 +144,7 @@ function validate(): boolean {
   if (!selectedAccountId.value) return false
   if (blocksOpeningOrder.value) return false
   if (!symbol.value) return false
+  if (bybitExitLevelError.value) return false
   if (previewError.value) return false
   if (requiresSuccessfulPreview.value && !preview.value) return false
   if (activation_price.value === null) return false
@@ -200,6 +212,7 @@ function canPreview(): boolean {
   if (!symbol.value) return false
   if (activation_price.value === null) return false
   if (stop_loss.value === null) return false
+  if (bybitExitLevelError.value) return false
   if (risk_amount.value === null) return false
   return true
 }
@@ -346,6 +359,15 @@ function formatNumber(value: number, digits: number) {
           </div>
           <div class="preview-warn">
             {{ previewError }}
+          </div>
+        </div>
+        <div v-else-if="bybitExitLevelError" class="preview preview-error">
+          <div class="preview-row">
+            <span>Bybit exit levels</span>
+            <span class="preview-value">Blocked</span>
+          </div>
+          <div class="preview-warn">
+            {{ bybitExitLevelError }}
           </div>
         </div>
         <div v-else-if="requiresSuccessfulPreview && !preview" class="preview">
