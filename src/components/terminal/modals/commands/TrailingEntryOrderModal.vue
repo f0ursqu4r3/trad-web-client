@@ -210,6 +210,7 @@ function requestPreview() {
     position_side: position_side.value,
     activation_price: activation_price.value as number,
     stop_loss: stop_loss.value as number,
+    take_profit: supportsTeTakeProfit.value ? optionalPositivePrice(take_profit.value) : null,
     risk_amount: risk_amount.value as number,
     split_settings: Object.values(split_settings).some((v) => v !== undefined)
       ? split_settings

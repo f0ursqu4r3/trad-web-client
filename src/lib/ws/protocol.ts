@@ -280,6 +280,7 @@ export type SplitPreviewCommand = {
   position_side: PositionSide
   activation_price: number
   stop_loss: number
+  take_profit?: number | null
   risk_amount: number
   split_settings?: SplitSettings | null
 }
