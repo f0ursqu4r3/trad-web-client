@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
+import { accountMetadataChips, useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 import { X } from 'lucide-vue-next'
 import { createLogger } from '@/lib/utils'
@@ -104,8 +104,10 @@ onMounted(() => {
               <span class="text-sm font-medium text-primary">
                 {{ account.label }}
               </span>
-              <span class="flex items-center gap-2 text-[11px] dim">
-                <span class="chip">{{ account.network || 'Unknown' }}</span>
+              <span class="flex flex-wrap items-center gap-2 text-[11px] dim">
+                <span v-for="chip in accountMetadataChips(account)" :key="chip" class="chip">
+                  {{ chip }}
+                </span>
                 <span
                   v-if="accounts.selectedAccountId === account.id"
                   class="pill pill-info text-[10px] uppercase tracking-[0.08em]"

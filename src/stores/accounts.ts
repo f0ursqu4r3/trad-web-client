@@ -16,12 +16,46 @@ export interface AccountFormPayload {
   exchange: ExchangeType
 }
 
+export interface ExchangeAccountMetadata {
+  product?: string | null
+  hedge_mode_only?: boolean | null
+  account_mode?: string | null
+  margin_mode?: string | null
+  unified_margin_status?: number | null
+  exchange_account_id?: string | null
+  key_permissions?: string[] | null
+}
+
 export interface AccountRecord {
   id: string
   label: string
   key: string
   network: NetworkType
   exchange: ExchangeType
+  exchange_metadata?: ExchangeAccountMetadata | null
+}
+
+export function formatAccountProduct(product?: string | null): string | null {
+  switch (product) {
+    case 'usdt_perp':
+      return 'USDT perp'
+    default:
+      return product || null
+  }
+}
+
+export function accountMetadataChips(account: AccountRecord): string[] {
+  const meta = account.exchange_metadata
+  const chips: string[] = [account.exchange, account.network || 'Unknown']
+  const product = formatAccountProduct(meta?.product)
+  if (product) chips.push(product)
+  if (meta?.hedge_mode_only) chips.push('Hedge only')
+  if (meta?.margin_mode) chips.push(meta.margin_mode)
+  if (meta?.account_mode) chips.push(meta.account_mode)
+  if (account.exchange === ExchangeType.Bybit && !meta?.margin_mode && !meta?.account_mode) {
+    chips.push('Mode unvalidated')
+  }
+  return chips
 }
 
 export const useAccountsStore = defineStore('accounts', () => {

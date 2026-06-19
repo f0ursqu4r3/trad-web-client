@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useWsStore } from '@/stores/ws'
-import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
+import { accountMetadataChips, useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import { useBillingStore } from '@/stores/billing'
 // import { apiPut } from '@/lib/apiClient'
 import { useAuth0 } from '@auth0/auth0-vue'
@@ -290,8 +290,16 @@ const returnToOrigin = window.location.origin
                           <div class="font-medium text-sm text-[var(--color-text)]">
                             {{ (account as AccountRecord).label }}
                           </div>
-                          <div class="text-[11px] text-[var(--color-text-dim)]">
-                            {{ (account as AccountRecord).network || 'Unknown network' }}
+                          <div
+                            class="flex flex-wrap gap-1 text-[11px] text-[var(--color-text-dim)]"
+                          >
+                            <span
+                              v-for="chip in accountMetadataChips(account as AccountRecord)"
+                              :key="chip"
+                              class="chip"
+                            >
+                              {{ chip }}
+                            </span>
                           </div>
                         </div>
                       </div>
