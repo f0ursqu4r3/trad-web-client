@@ -63,6 +63,10 @@ export const useDeviceStore = defineStore('device', () => {
       const ctx = maybe.bifake as { account_id?: string } | undefined
       return { type: 'bifake', account_id: ctx?.account_id || '' }
     }
+    if ('bybit' in maybe) {
+      const ctx = maybe.bybit as { account_id?: string } | undefined
+      return { type: 'bybit', account_id: ctx?.account_id || '' }
+    }
     if ('sim' in maybe) {
       const ctx = maybe.sim as { sim_market_id?: string } | undefined
       return { type: 'sim', sim_market_id: ctx?.sim_market_id || '' }

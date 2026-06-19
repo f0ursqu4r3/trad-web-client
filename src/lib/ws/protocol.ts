@@ -32,6 +32,7 @@ export enum NetworkType {
 export enum ExchangeType {
   Binance = 'binance',
   Bifake = 'bifake',
+  Bybit = 'bybit',
 }
 
 export type DeviceKind =
@@ -46,6 +47,7 @@ export type MarketContext =
   | { type: 'none' }
   | { type: 'binance'; account_id: string } // UUID as string
   | { type: 'bifake'; account_id: string } // UUID as string
+  | { type: 'bybit'; account_id: string } // UUID as string
   | { type: 'sim'; sim_market_id: string } // UUID as string
 
 export interface Market {

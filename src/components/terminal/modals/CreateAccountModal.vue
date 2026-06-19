@@ -13,7 +13,11 @@ const accounts = useAccountsStore()
 const DEFAULT_NETWORK: NetworkType = NetworkType.Mainnet
 const NETWORK_OPTIONS: NetworkType[] = [NetworkType.Mainnet, NetworkType.Testnet]
 const DEFAULT_EXCHANGE: ExchangeType = ExchangeType.Binance
-const EXCHANGE_OPTIONS: ExchangeType[] = [ExchangeType.Binance, ExchangeType.Bifake]
+const EXCHANGE_OPTIONS: ExchangeType[] = [
+  ExchangeType.Binance,
+  ExchangeType.Bifake,
+  ExchangeType.Bybit,
+]
 
 const network = ref<NetworkType>(DEFAULT_NETWORK)
 const exchange = ref<ExchangeType>(DEFAULT_EXCHANGE)

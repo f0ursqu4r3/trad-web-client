@@ -91,7 +91,7 @@ function fmtSplitMode(value: string | null | undefined) {
 
 const networkLabel = computed(() => {
   const ctx = props.device.market_context
-  if (ctx.type === 'binance' || ctx.type === 'bifake') {
+  if (ctx.type === 'binance' || ctx.type === 'bifake' || ctx.type === 'bybit') {
     const account = accounts.accounts.find((item) => item.id === ctx.account_id)
     return account?.network ?? '-'
   }
@@ -432,7 +432,8 @@ const networkLabel = computed(() => {
         <div
           v-if="
             (device.market_context.type === 'binance' ||
-              device.market_context.type === 'bifake') &&
+              device.market_context.type === 'bifake' ||
+              device.market_context.type === 'bybit') &&
             'account_id' in device.market_context
           "
         >

@@ -22,6 +22,10 @@ function fmtMarketContext(mc: MarketContext) {
       return 'None'
     case 'binance':
       return `Binance • ${mc.account_id}`
+    case 'bifake':
+      return `Bifake • ${mc.account_id}`
+    case 'bybit':
+      return `Bybit • ${mc.account_id}`
     case 'sim':
       return `Sim • ${mc.sim_market_id}`
     default:
