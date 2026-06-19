@@ -9,9 +9,12 @@ import {
   PositionSide,
   ProtectionLifecycle,
   ProtectionStrategy,
+  TrailingEntryLifecycle,
+  TrailingEntryPhase,
   type CommandHistoryItem,
   type DeviceMoDeltaEvent,
   type DeviceSnapshotLiteData,
+  type DeviceTeDeltaEvent,
   type ProtectionState,
   type UserCommandPayload,
 } from '@/lib/ws/protocol'
@@ -468,6 +471,67 @@ export function runBybitFilterSmoke(): void {
   assertSmoke(
     moState.remote_order_id === 'remote-bybit-entry-live-1',
     'Bybit MarketOrder Submitted delta should preserve remote order id',
+  )
+
+  const teSnapshot = {
+    device_id: 'device-bybit-te',
+    owner_user_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    associated_command_id: bybitProtocolFixtures.bybitCommandHistoryItem.command_id,
+    created_at: '2026-06-19T00:00:00.000Z',
+    complete: false,
+    failed: false,
+    canceled: false,
+    awaiting_children: false,
+    snapshot: {
+      kind: 'TrailingEntry',
+      data: {
+        symbol: 'BTCUSDT',
+        market_context: bybitProtocolFixtures.bybitContext,
+        position_side: PositionSide.Long,
+        activation_price: 65_000,
+        jump_frac_threshold: 0.001,
+        stop_loss: 62_000,
+        take_profit: 68_000,
+        risk_amount: 10,
+        split_settings: null,
+        phase: TrailingEntryPhase.Initial,
+        peak: 0,
+        peak_index: 0,
+        position_size: 0,
+        actual_activation_price: 0,
+        buy_or_sell_price: 0,
+        completed: false,
+        cancelled: false,
+        succeeded: false,
+        stop_loss_hit: false,
+        base_index: 0,
+        total_points: 0,
+        lifecycle: TrailingEntryLifecycle.Running,
+      },
+    },
+  } satisfies DeviceSnapshotLiteData
+  store.handleDeviceSnapshotLite(teSnapshot)
+  store.handleDeviceUpdate('DeviceTeDelta', {
+    device_id: teSnapshot.device_id,
+    ts: '2026-06-19T00:00:02.000Z',
+    seq: 2,
+    delta: {
+      kind: 'OrderUpdate',
+      data: {
+        order_id: 'remote-bybit-entry-live-1',
+        status: 'PARTIALLY_FILLED',
+        cum_qty: 0.0005,
+        price: 65_001.5,
+      },
+    },
+  } satisfies DeviceTeDeltaEvent)
+  assertSmoke(
+    moState.status === MarketOrderStatus.PartiallyFilled,
+    'Bybit TE OrderUpdate should apply matched MarketOrder status',
+  )
+  assertSmoke(
+    moState.filled_qty === 0.0005 && moState.price === 65_001.5,
+    'Bybit TE OrderUpdate should apply matched MarketOrder fill details',
   )
 }
 

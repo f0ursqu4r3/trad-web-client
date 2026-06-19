@@ -61,6 +61,75 @@ export const useDeviceStore = defineStore('device', () => {
     selectedDeviceId.value = deviceId
   }
 
+  function normalizeOrderIdentifier(value: string | number | null | undefined): string | null {
+    if (value === null || value === undefined) return null
+    const normalized = String(value).trim()
+    return normalized.length > 0 ? normalized : null
+  }
+
+  function findMarketOrderByExchangeOrderId(orderId: string | number | null | undefined): Device | null {
+    const normalizedOrderId = normalizeOrderIdentifier(orderId)
+    if (!normalizedOrderId) return null
+
+    return (
+      devices.value.find((candidate) => {
+        if (candidate.kind !== 'MarketOrder') return false
+        const mo = candidate.state as MarketOrderState
+        return [
+          mo.client_order_id,
+          mo.remote_order_id,
+          mo.remote_id === null ? null : String(mo.remote_id),
+        ].some((id) => normalizeOrderIdentifier(id) === normalizedOrderId)
+      }) ?? null
+    )
+  }
+
+  function marketOrderStatusFromExchangeStatus(status: string): MarketOrderStatus | null {
+    const normalized = status.trim().toUpperCase().replace(/[\s-]/g, '_')
+    switch (normalized) {
+      case 'NEW':
+      case 'CREATED':
+      case 'UNTRIGGERED':
+        return MarketOrderStatus.AlreadySentAndAwaitingFilling
+      case 'PARTIALLY_FILLED':
+      case 'PARTIALLYFILLED':
+        return MarketOrderStatus.PartiallyFilled
+      case 'FILLED':
+        return MarketOrderStatus.Filled
+      case 'CANCELED':
+      case 'CANCELLED':
+      case 'DEACTIVATED':
+      case 'EXPIRED':
+        return MarketOrderStatus.Canceled
+      case 'REJECTED':
+        return MarketOrderStatus.Rejected
+      default:
+        return null
+    }
+  }
+
+  function applyTrailingEntryOrderUpdate(delta: DeviceTeDelta, eventTime: Date | null) {
+    if (delta.kind !== 'OrderUpdate') return
+    const orderDevice = findMarketOrderByExchangeOrderId(delta.data.order_id)
+    if (!orderDevice) return
+
+    const mo = orderDevice.state as MarketOrderState
+    const status = marketOrderStatusFromExchangeStatus(delta.data.status)
+    if (status) {
+      mo.status = status
+    }
+    if (delta.data.cum_qty !== undefined && delta.data.cum_qty !== null) {
+      mo.filled_qty = delta.data.cum_qty
+    }
+    if (delta.data.price !== undefined && delta.data.price !== null) {
+      mo.price = delta.data.price
+    }
+    if (eventTime) {
+      mo.last_update_seen_at = eventTime
+      mo.last_status_check_at = eventTime
+    }
+  }
+
   function ensureDeviceRecord(
     deviceId: string,
     kind: string,
@@ -355,6 +424,7 @@ export const useDeviceStore = defineStore('device', () => {
     // Implementation goes here
     const te = device.state as TrailingEntryState
     const delta: DeviceTeDelta = event.delta
+    const eventTime = event.ts ? new Date(event.ts) : null
     switch (delta.kind) {
       case 'Init':
         {
@@ -460,9 +530,7 @@ export const useDeviceStore = defineStore('device', () => {
         // optional visual cue
         break
       case 'OrderUpdate':
-        // optional order notes
-        // { order_id: number; status: string; cum_qty?: number | null; price?: number | null }
-        // TODO: find MO device with matching client_order_id and update its data
+        applyTrailingEntryOrderUpdate(delta, eventTime)
         break
       case 'Review':
         {

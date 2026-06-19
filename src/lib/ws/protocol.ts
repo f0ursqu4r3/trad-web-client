@@ -791,7 +791,12 @@ export type DeviceTeDelta =
     }
   | {
       kind: 'OrderUpdate'
-      data: { order_id: number; status: string; cum_qty?: number | null; price?: number | null }
+      data: {
+        order_id?: string | number | null
+        status: string
+        cum_qty?: number | null
+        price?: number | null
+      }
     }
   | { kind: 'Stats'; data: { stats: TrailingEntryStats } }
 
