@@ -576,6 +576,7 @@ export async function runBybitNativeProtectionRenderSmoke(): Promise<void> {
     'Stop Loss',
     'Entry Updates',
     'Protection Updates',
+    'Protection Filled',
     'Observed Order IDs',
     'bybit-sl-1',
     'Exchange TP',
