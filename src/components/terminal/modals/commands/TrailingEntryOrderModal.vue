@@ -53,8 +53,15 @@ const preview = computed(() => {
   if (!previewRequestId.value) return null
   return splitPreviewStore.getPreview(previewRequestId.value)
 })
+const previewError = computed(() => {
+  if (!previewRequestId.value) return null
+  return splitPreviewStore.getError(previewRequestId.value)
+})
 const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
+)
+const requiresSuccessfulPreview = computed(
+  () => selectedAccount.value?.exchange === ExchangeType.Bybit && canPreview(),
 )
 const selectedMarketContext = computed<MarketContext | null>(() =>
   accounts.getMarketContextForAccount(selectedAccountId.value),
@@ -63,8 +70,7 @@ const supportsTeTakeProfit = computed(() => {
   const capabilities = ws.capabilitiesForMarketContext(selectedMarketContext.value)
   if (capabilities) {
     return (
-      capabilities.supports_trailing_entry &&
-      capabilities.supports_attached_take_profit_stop_loss
+      capabilities.supports_trailing_entry && capabilities.supports_attached_take_profit_stop_loss
     )
   }
   return selectedAccount.value?.exchange === ExchangeType.Bybit
@@ -122,6 +128,8 @@ watch(supportsTeTakeProfit, (supported) => {
 function validate(): boolean {
   if (!selectedAccountId.value) return false
   if (!symbol.value) return false
+  if (previewError.value) return false
+  if (requiresSuccessfulPreview.value && !preview.value) return false
   if (activation_price.value === null) return false
   if (jump_frac_threshold.value === null) return false
   if (stop_loss.value === null) return false
@@ -218,6 +226,7 @@ function requestPreview() {
   }
   const payload: UserCommandPayload = { kind: 'SplitPreview', data }
   previewRequestId.value = ws.sendUserCommandPreview(payload)
+  splitPreviewStore.clearPreview(previewRequestId.value)
 }
 
 watch(
@@ -238,6 +247,7 @@ watch(
   () => {
     if (!props.open) return
     if (previewTimer) window.clearTimeout(previewTimer)
+    previewRequestId.value = null
     previewTimer = window.setTimeout(() => {
       requestPreview()
     }, 300)
@@ -324,7 +334,25 @@ function formatNumber(value: number, digits: number) {
             />
           </label>
         </div>
-        <div v-if="preview" class="preview">
+        <div v-if="previewError" class="preview preview-error">
+          <div class="preview-row">
+            <span>Split preview rejected</span>
+            <span class="preview-value">Blocked</span>
+          </div>
+          <div class="preview-warn">
+            {{ previewError }}
+          </div>
+        </div>
+        <div v-else-if="requiresSuccessfulPreview && !preview" class="preview">
+          <div class="preview-row">
+            <span>Split preview</span>
+            <span class="preview-value">Pending</span>
+          </div>
+          <div class="preview-note">
+            Bybit entries require a successful split preview before submission.
+          </div>
+        </div>
+        <div v-else-if="preview" class="preview">
           <div class="preview-row">
             <span>Estimated splits (current price)</span>
             <span class="preview-value">
@@ -352,16 +380,16 @@ function formatNumber(value: number, digits: number) {
           <div v-if="preview.warnings.length" class="preview-warn">
             {{ preview.warnings.join(' ') }}
           </div>
-          <div class="preview-note">
-            Estimate uses current price; splits can change at trigger.
-          </div>
+          <div class="preview-note">Estimate uses current price; splits can change at trigger.</div>
         </div>
       </div>
     </form>
     <template #footer>
       <div class="flex gap-2 justify-end pt-2">
         <button type="button" class="btn btn-secondary" @click="emit('close')">Cancel</button>
-        <button form="trailing-entry" type="submit" class="btn btn-primary">Submit</button>
+        <button form="trailing-entry" type="submit" class="btn btn-primary" :disabled="!validate()">
+          Submit
+        </button>
       </div>
     </template>
   </BaseCommandModal>
@@ -396,6 +424,9 @@ function formatNumber(value: number, digits: number) {
 .preview-warn {
   color: var(--color-danger);
   font-size: 11px;
+}
+.preview-error {
+  border-color: color-mix(in srgb, var(--color-danger) 60%, var(--border-color));
 }
 .preview-note {
   color: var(--color-text-dim);

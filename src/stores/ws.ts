@@ -399,9 +399,13 @@ export const useWsStore = defineStore('ws', () => {
   function handleServerError(payload: ServerToClientMessage['payload']): void {
     const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'ServerError' }>)
       .data
-    authAccepted.value = false
-    authError.value = data.error
+    if (data.request_uuid) {
+      const previewStore = useSplitPreviewStore()
+      previewStore.setError(data.request_uuid, data.error)
+    }
     if (isAuthError(data.error)) {
+      authAccepted.value = false
+      authError.value = data.error
       localStorage.removeItem('auth_token')
       logger.warn('cleared cached auth token after auth error')
     }
