@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { accountMetadataChips, useAccountsStore, type AccountRecord } from '@/stores/accounts'
+import {
+  accountMetadataChips,
+  accountMetadataStatus,
+  useAccountsStore,
+  type AccountRecord,
+} from '@/stores/accounts'
 import { useWsStore } from '@/stores/ws'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 import { X } from 'lucide-vue-next'
@@ -280,6 +285,17 @@ watch(
                   >
                     {{ capabilityStatus(account) }}
                   </span>
+                </span>
+                <span
+                  v-if="accountMetadataStatus(account)"
+                  class="text-[11px]"
+                  :class="
+                    account.exchange_metadata?.account_mode && account.exchange_metadata?.margin_mode
+                      ? 'text-[var(--color-success)]'
+                      : 'text-warning'
+                  "
+                >
+                  {{ accountMetadataStatus(account) }}
                 </span>
               </button>
 

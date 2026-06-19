@@ -3,7 +3,12 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useWsStore } from '@/stores/ws'
-import { accountMetadataChips, useAccountsStore, type AccountRecord } from '@/stores/accounts'
+import {
+  accountMetadataChips,
+  accountMetadataStatus,
+  useAccountsStore,
+  type AccountRecord,
+} from '@/stores/accounts'
 import { useBillingStore } from '@/stores/billing'
 // import { apiPut } from '@/lib/apiClient'
 import { useAuth0 } from '@auth0/auth0-vue'
@@ -326,6 +331,18 @@ const returnToOrigin = window.location.origin
                               {{ chip }}
                             </span>
                           </div>
+                          <p
+                            v-if="accountMetadataStatus(account as AccountRecord)"
+                            class="text-xs"
+                            :class="
+                              (account as AccountRecord).exchange_metadata?.account_mode &&
+                              (account as AccountRecord).exchange_metadata?.margin_mode
+                                ? 'text-[var(--color-success)]'
+                                : 'text-warning'
+                            "
+                          >
+                            {{ accountMetadataStatus(account as AccountRecord) }}
+                          </p>
                         </div>
                       </div>
 

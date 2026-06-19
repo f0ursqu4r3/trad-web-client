@@ -58,6 +58,15 @@ export function accountMetadataChips(account: AccountRecord): string[] {
   return chips
 }
 
+export function accountMetadataStatus(account: AccountRecord): string | null {
+  if (account.exchange !== ExchangeType.Bybit) return null
+  const meta = account.exchange_metadata
+  if (meta?.account_mode && meta?.margin_mode) {
+    return `Exchange metadata verified: ${meta.account_mode} / ${meta.margin_mode}`
+  }
+  return 'Bybit exchange metadata unvalidated; refresh credentials before live trading.'
+}
+
 export const useAccountsStore = defineStore('accounts', () => {
   const { isAuthenticated } = useAuth0()
 
