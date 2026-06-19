@@ -44,7 +44,9 @@ const selectedCapabilities = computed(() =>
 
 const availableCommands = computed(() =>
   allCommands.value.map((command) =>
-    commandWithMarketAvailability(command, selectedCapabilities.value),
+    commandWithMarketAvailability(command, selectedCapabilities.value, {
+      capabilitiesPending: !!selectedMarketContext.value && !selectedCapabilities.value,
+    }),
   ),
 )
 

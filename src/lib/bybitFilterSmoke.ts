@@ -276,6 +276,22 @@ export function runBybitFilterSmoke(): void {
   const bybitLauncherCommands = commandRegistry.map((command) =>
     commandWithMarketAvailability(command, bybitProtocolFixtures.bybitCapabilities),
   )
+  const pendingLauncherCommands = commandRegistry.map((command) =>
+    commandWithMarketAvailability(command, null, { capabilitiesPending: true }),
+  )
+  assertSmoke(
+    pendingLauncherCommands.find((command) => command.kind === 'MarketOrder')?.disabled === true,
+    'launcher should disable market orders while selected market capabilities are pending',
+  )
+  assertSmoke(
+    pendingLauncherCommands.find((command) => command.kind === 'LimitOrder')?.disabled === true,
+    'launcher should disable limit orders while selected market capabilities are pending',
+  )
+  assertSmoke(
+    pendingLauncherCommands.find((command) => command.kind === 'TrailingEntryOrder')?.disabled ===
+      true,
+    'launcher should disable trailing entry while selected market capabilities are pending',
+  )
   assertSmoke(
     bybitLauncherCommands.find((command) => command.kind === 'MarketOrder')?.disabled !== true,
     'Bybit launcher should keep market orders available',
