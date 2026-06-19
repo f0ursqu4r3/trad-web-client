@@ -25,6 +25,7 @@ import {
   type DeviceLifecycleEvent,
   type MarketContext,
   type MarketRef,
+  type ProtectionState,
 } from '@/lib/ws/protocol'
 import { createLogger } from '@/lib/utils'
 import { normalizeMarketContext } from '@/lib/marketContext'
@@ -148,6 +149,9 @@ export const useDeviceStore = defineStore('device', () => {
     }
     if (Object.prototype.hasOwnProperty.call(data, 'market_ref')) {
       device.market_ref = data.market_ref ?? null
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'protection_state')) {
+      device.protection_state = data.protection_state ?? null
     }
     // parent/children topology (best-effort; children may not exist yet)
     if (Object.prototype.hasOwnProperty.call(data, 'parent_device')) {
@@ -861,6 +865,7 @@ export interface Device {
   associated_command_id: string
   created_at: Date
   market_ref: MarketRef | null
+  protection_state: ProtectionState | null
 
   parent_device: string | null
   children_devices: string[]
@@ -1049,6 +1054,7 @@ function newDevice(deviceId: string, kind: string, command_id: string | null): D
     associated_command_id: command_id,
     created_at: new Date(),
     market_ref: null,
+    protection_state: null,
     parent_device: null,
     children_devices: [],
     complete: false,

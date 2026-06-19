@@ -65,6 +65,40 @@ export type MarketRef = {
   symbol?: string | null
 }
 
+export enum ProtectionStrategy {
+  ManagedGuard = 'ManagedGuard',
+  NativeAttachedTpsl = 'NativeAttachedTpsl',
+  NativePositionTpsl = 'NativePositionTpsl',
+}
+
+export enum ProtectionLifecycle {
+  PendingParent = 'PendingParent',
+  ParentAccepted = 'ParentAccepted',
+  ParentPartiallyFilled = 'ParentPartiallyFilled',
+  Active = 'Active',
+  Triggered = 'Triggered',
+  Canceled = 'Canceled',
+  Rejected = 'Rejected',
+  Complete = 'Complete',
+  Unknown = 'Unknown',
+}
+
+export type ProtectionState = {
+  strategy: ProtectionStrategy
+  lifecycle: ProtectionLifecycle
+  parent_client_order_id?: string | null
+  parent_remote_order_id?: string | null
+  take_profit_client_order_id?: string | null
+  take_profit_remote_order_id?: string | null
+  stop_loss_client_order_id?: string | null
+  stop_loss_remote_order_id?: string | null
+  take_profit_trigger_price?: number | null
+  stop_loss_trigger_price?: number | null
+  protected_qty?: number | null
+  filled_qty?: number | null
+  last_reconciled_at?: string | null
+}
+
 export interface Market {
   symbol?: string
   [k: string]: unknown
@@ -566,6 +600,7 @@ export type DeviceSnapshotLiteData = {
   owner_user_id: Uuid
   associated_command_id: Uuid
   market_ref?: MarketRef | null
+  protection_state?: ProtectionState | null
   parent_device?: Uuid | null
   children_devices?: Uuid[] | null
   created_at: string
