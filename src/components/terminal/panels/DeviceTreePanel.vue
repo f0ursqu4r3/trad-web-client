@@ -43,10 +43,12 @@ const deviceFilters = ref<{
   exchange: string[]
   product: string[]
   account: string[]
+  symbol: string[]
 }>({
   exchange: [],
   product: [],
   account: [],
+  symbol: [],
 })
 
 type DeviceFilterGroup = keyof typeof deviceFilters.value
@@ -54,6 +56,7 @@ type DeviceMarketFacet = {
   exchange: string
   product: string
   account: string | null
+  symbol: string | null
   labels: {
     exchange: string | null
     product: string | null
@@ -72,7 +75,15 @@ function directMarketContext(device: Device): MarketContext | null {
   return normalizeMarketContext(device.state.market_context)
 }
 
-function marketContextFacet(ctx: MarketContext | null | undefined): DeviceMarketFacet | null {
+function deviceSymbol(device: Device): string | null {
+  const symbol = typeof device.state.symbol === 'string' ? device.state.symbol.trim() : ''
+  return symbol ? symbol.toUpperCase() : null
+}
+
+function marketContextFacet(
+  ctx: MarketContext | null | undefined,
+  symbol: string | null,
+): DeviceMarketFacet | null {
   if (!ctx?.type || ctx.type === 'none') return null
   const accountId = marketContextAccountId(ctx)
   const product = marketContextProductKey(ctx)
@@ -80,6 +91,7 @@ function marketContextFacet(ctx: MarketContext | null | undefined): DeviceMarket
     exchange: ctx.type,
     product,
     account: accountId,
+    symbol,
     labels: {
       exchange: marketContextExchangeLabel(ctx),
       product: marketProductLabel(product),
@@ -89,13 +101,18 @@ function marketContextFacet(ctx: MarketContext | null | undefined): DeviceMarket
   }
 }
 
-function marketRefFacet(ref: MarketRef | null | undefined): DeviceMarketFacet | null {
+function marketRefFacet(
+  ref: MarketRef | null | undefined,
+  fallbackSymbol: string | null,
+): DeviceMarketFacet | null {
   if (!ref) return null
   const product = ref.product ?? 'none'
+  const refSymbol = ref.symbol?.trim()
   return {
     exchange: ref.exchange,
     product,
     account: ref.trading_account_id ?? null,
+    symbol: refSymbol ? refSymbol.toUpperCase() : fallbackSymbol,
     labels: {
       exchange: marketRefExchangeLabel(ref.exchange),
       product: ref.product ? marketProductLabel(ref.product) : null,
@@ -108,7 +125,8 @@ function marketRefFacet(ref: MarketRef | null | undefined): DeviceMarketFacet | 
 }
 
 function directDeviceMarketFacet(device: Device): DeviceMarketFacet | null {
-  return marketRefFacet(device.market_ref) ?? marketContextFacet(directMarketContext(device))
+  const symbol = deviceSymbol(device)
+  return marketRefFacet(device.market_ref, symbol) ?? marketContextFacet(directMarketContext(device), symbol)
 }
 
 function inheritedDeviceMarketFacet(
@@ -178,6 +196,14 @@ const activeDeviceAccounts = computed<string[]>(() => {
   return Array.from(ids).sort()
 })
 
+const activeDeviceSymbols = computed<string[]>(() => {
+  const symbols = new Set<string>()
+  deviceMarketFacetMap.value.forEach((facet) => {
+    if (facet.symbol) symbols.add(facet.symbol)
+  })
+  return Array.from(symbols).sort()
+})
+
 const hiddenDeviceCount = computed(
   () => commandScopedDevices.value.length - filteredDevices.value.length,
 )
@@ -186,6 +212,7 @@ const filteredDevices = computed<Device[]>(() => {
   const exchangeFilter = deviceFilters.value.exchange
   const productFilter = deviceFilters.value.product
   const accountFilter = deviceFilters.value.account
+  const symbolFilter = deviceFilters.value.symbol
   return commandScopedDevices.value.filter((device) => {
     const facet = deviceMarketFacetMap.value.get(device.id)
     const exchange = facet?.exchange ?? 'none'
@@ -194,6 +221,8 @@ const filteredDevices = computed<Device[]>(() => {
     if (productFilter.length > 0 && !productFilter.includes(product)) return false
     const accountId = facet?.account ?? ''
     if (accountFilter.length > 0 && !accountFilter.includes(accountId)) return false
+    const symbol = facet?.symbol ?? ''
+    if (symbolFilter.length > 0 && !symbolFilter.includes(symbol)) return false
     return true
   })
 })
@@ -223,6 +252,7 @@ function clearDeviceFilters() {
   deviceFilters.value.exchange = []
   deviceFilters.value.product = []
   deviceFilters.value.account = []
+  deviceFilters.value.symbol = []
 }
 
 function getAccountLabel(accountId: string): string {
@@ -362,7 +392,10 @@ const rowClass = (item: TreeItem): string => {
   <div class="w-full h-full scroll-area p-2 space-y-2">
     <div
       v-if="
-        activeDeviceExchanges.length || activeDeviceProducts.length || activeDeviceAccounts.length
+        activeDeviceExchanges.length ||
+        activeDeviceProducts.length ||
+        activeDeviceAccounts.length ||
+        activeDeviceSymbols.length
       "
       class="device-filters"
     >
@@ -403,6 +436,19 @@ const rowClass = (item: TreeItem): string => {
           @click="toggleDeviceFilter('account', option, $event)"
         >
           {{ getAccountLabel(option) }}
+        </button>
+      </div>
+      <div v-if="activeDeviceSymbols.length" class="filter-group">
+        <span class="filter-label">Symbol</span>
+        <button
+          v-for="option in activeDeviceSymbols"
+          :key="option"
+          class="btn btn-sm btn-ghost filter-btn"
+          :data-pressed="isDeviceFilterActive('symbol', option)"
+          :aria-pressed="isDeviceFilterActive('symbol', option)"
+          @click="toggleDeviceFilter('symbol', option, $event)"
+        >
+          {{ option }}
         </button>
       </div>
       <button

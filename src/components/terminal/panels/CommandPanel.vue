@@ -68,7 +68,14 @@ const timeOptions = [
   { label: 'Month', value: 'Month' },
 ] as const
 
-type MultiFilterGroup = 'kind' | 'status' | 'position' | 'exchange' | 'product' | 'account'
+type MultiFilterGroup =
+  | 'kind'
+  | 'status'
+  | 'position'
+  | 'exchange'
+  | 'product'
+  | 'account'
+  | 'symbol'
 
 function getMultiFilter(group: MultiFilterGroup): readonly string[] {
   switch (group) {
@@ -84,6 +91,8 @@ function getMultiFilter(group: MultiFilterGroup): readonly string[] {
       return commandStore.commandFilters.product
     case 'account':
       return commandStore.commandFilters.account
+    case 'symbol':
+      return commandStore.commandFilters.symbol ?? []
   }
 }
 
@@ -106,6 +115,9 @@ function setMultiFilter(group: MultiFilterGroup, values: string[]) {
       return
     case 'account':
       commandStore.commandFilters.account = values
+      return
+    case 'symbol':
+      commandStore.commandFilters.symbol = values
       return
   }
 }
@@ -394,6 +406,23 @@ function saveRename() {
                 @click="toggleMultiFilter('account', option, $event)"
               >
                 {{ getAccountLabel(option) }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="commandStore.activeCommandSymbols.length" class="space-y-2">
+            <div class="text-[11px] uppercase tracking-wide text-(--color-text-dim)">Symbol</div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="option in commandStore.activeCommandSymbols"
+                :key="option"
+                class="btn btn-sm btn-ghost filter-btn"
+                :data-pressed="isFilterActive('symbol', option)"
+                :aria-pressed="isFilterActive('symbol', option)"
+                :class="isSoloActive('symbol', option) ? 'filter-solo' : ''"
+                @click="toggleMultiFilter('symbol', option, $event)"
+              >
+                {{ option }}
               </button>
             </div>
           </div>

@@ -92,6 +92,7 @@ export const useCommandStore = defineStore(
       exchange: string[]
       product: string[]
       account: string[]
+      symbol: string[]
       timeRange: TimeRangeFilter
       solo: {
         kind: boolean
@@ -100,6 +101,7 @@ export const useCommandStore = defineStore(
         exchange: boolean
         product: boolean
         account: boolean
+        symbol: boolean
       }
     }>({
       kind: [],
@@ -108,6 +110,7 @@ export const useCommandStore = defineStore(
       exchange: [],
       product: [],
       account: [],
+      symbol: [],
       timeRange: 'Any',
       solo: {
         kind: false,
@@ -116,6 +119,7 @@ export const useCommandStore = defineStore(
         exchange: false,
         product: false,
         account: false,
+        symbol: false,
       },
     })
 
@@ -191,6 +195,14 @@ export const useCommandStore = defineStore(
       return normalizeMarketContext(raw as Record<string, unknown>)
     }
 
+    function commandSymbol(cmd: OrderedCommandHistoryItem): string | null {
+      const refSymbol = cmd.market_ref?.symbol?.trim()
+      if (refSymbol) return refSymbol.toUpperCase()
+      const data = (cmd.command as { data?: { symbol?: unknown } } | undefined)?.data
+      const payloadSymbol = typeof data?.symbol === 'string' ? data.symbol.trim() : ''
+      return payloadSymbol ? payloadSymbol.toUpperCase() : null
+    }
+
     const activeCommandExchanges = computed<string[]>(() => {
       const exchanges = new Set<string>()
       commands.value.forEach((cmd) => {
@@ -225,6 +237,17 @@ export const useCommandStore = defineStore(
       return Array.from(products).sort()
     })
 
+    const activeCommandSymbols = computed<string[]>(() => {
+      const symbols = new Set<string>()
+      commands.value.forEach((cmd) => {
+        const symbol = commandSymbol(cmd)
+        if (symbol) {
+          symbols.add(symbol)
+        }
+      })
+      return Array.from(symbols).sort()
+    })
+
     const filteredCommands = computed<OrderedCommandHistoryItem[]>(() => {
       const kindFilter = commandFilters.value.kind ?? []
       const statusFilter = commandFilters.value.status ?? []
@@ -232,6 +255,7 @@ export const useCommandStore = defineStore(
       const exchangeFilter = commandFilters.value.exchange ?? []
       const productFilter = commandFilters.value.product ?? []
       const accountFilter = commandFilters.value.account ?? []
+      const symbolFilter = commandFilters.value.symbol ?? []
       const timeRange = commandFilters.value.timeRange
       const now = Date.now()
 
@@ -302,6 +326,11 @@ export const useCommandStore = defineStore(
 
         const accountId = marketContext ? (marketContextAccountId(marketContext) ?? '') : ''
         if (accountFilter.length > 0 && !accountFilter.includes(accountId)) {
+          return false
+        }
+
+        const symbol = commandSymbol(cmd) ?? ''
+        if (symbolFilter.length > 0 && !symbolFilter.includes(symbol)) {
           return false
         }
 
@@ -394,6 +423,7 @@ export const useCommandStore = defineStore(
       activeCommandExchanges,
       activeCommandProducts,
       activeCommandAccounts,
+      activeCommandSymbols,
       dustedCommandIds,
       /* actions */
       inspectCommand,
