@@ -717,6 +717,8 @@ export type NativeProtectionSnapshot = {
   observed_protection_orders: number
   observed_entry_order_ids?: string[]
   observed_protection_order_ids?: string[]
+  tracked_parent_client_order_ids?: string[]
+  tracked_parent_remote_order_ids?: string[]
   entry_filled_qty: number
   protection_filled_qty: number
   status: NativeProtectionStatus
@@ -916,6 +918,8 @@ export type DeviceNpDelta =
         observed_protection_orders: number
         observed_entry_order_ids?: string[]
         observed_protection_order_ids?: string[]
+        tracked_parent_client_order_ids?: string[]
+        tracked_parent_remote_order_ids?: string[]
         entry_filled_qty: number
         protection_filled_qty: number
         status: NativeProtectionStatus
@@ -926,6 +930,15 @@ export type DeviceNpDelta =
         last_order_reason?: string | null
         last_update_seen_at?: string | null
         created_at: string
+      }
+    }
+  | {
+      kind: 'ParentOrderSubmitted'
+      data: {
+        client_order_id: string
+        remote_order_id?: string | null
+        tracked_parent_client_order_ids: string[]
+        tracked_parent_remote_order_ids: string[]
       }
     }
   | {

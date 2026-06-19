@@ -266,6 +266,8 @@ export const useDeviceStore = defineStore('device', () => {
         np.expected_entries = s.expected_entries
         np.observed_entries = s.observed_entries
         np.observed_protection_orders = s.observed_protection_orders
+        np.tracked_parent_client_order_ids = s.tracked_parent_client_order_ids ?? []
+        np.tracked_parent_remote_order_ids = s.tracked_parent_remote_order_ids ?? []
         np.entry_filled_qty = s.entry_filled_qty
         np.protection_filled_qty = s.protection_filled_qty
         np.status = s.status
@@ -737,6 +739,8 @@ export const useDeviceStore = defineStore('device', () => {
           expected_entries,
           observed_entries,
           observed_protection_orders,
+          tracked_parent_client_order_ids,
+          tracked_parent_remote_order_ids,
           entry_filled_qty,
           protection_filled_qty,
           status,
@@ -756,6 +760,8 @@ export const useDeviceStore = defineStore('device', () => {
         np.expected_entries = expected_entries
         np.observed_entries = observed_entries
         np.observed_protection_orders = observed_protection_orders
+        np.tracked_parent_client_order_ids = tracked_parent_client_order_ids ?? []
+        np.tracked_parent_remote_order_ids = tracked_parent_remote_order_ids ?? []
         np.entry_filled_qty = entry_filled_qty
         np.protection_filled_qty = protection_filled_qty
         np.status = status
@@ -794,6 +800,20 @@ export const useDeviceStore = defineStore('device', () => {
             np.entry_filled_qty = cum_qty
           }
         }
+        break
+      }
+      case 'ParentOrderSubmitted': {
+        const {
+          client_order_id,
+          remote_order_id,
+          tracked_parent_client_order_ids,
+          tracked_parent_remote_order_ids,
+        } = delta.data
+        np.tracked_parent_client_order_ids = tracked_parent_client_order_ids
+        np.tracked_parent_remote_order_ids = tracked_parent_remote_order_ids
+        np.last_client_order_id = client_order_id
+        np.last_remote_order_id = remote_order_id ?? null
+        np.last_update_seen_at = eventTime
         break
       }
       case 'Coverage': {
@@ -1014,6 +1034,8 @@ export interface NativeProtectionState {
   expected_entries: number
   observed_entries: number
   observed_protection_orders: number
+  tracked_parent_client_order_ids: string[]
+  tracked_parent_remote_order_ids: string[]
   entry_filled_qty: number
   protection_filled_qty: number
   status: NativeProtectionStatus
@@ -1176,6 +1198,8 @@ function newNativeProtectionState(): NativeProtectionState {
     expected_entries: 0,
     observed_entries: 0,
     observed_protection_orders: 0,
+    tracked_parent_client_order_ids: [],
+    tracked_parent_remote_order_ids: [],
     entry_filled_qty: 0,
     protection_filled_qty: 0,
     status: NativeProtectionStatus.Pending,

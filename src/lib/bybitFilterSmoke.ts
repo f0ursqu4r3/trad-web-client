@@ -138,6 +138,8 @@ function bybitNativeProtectionDevice(): Device {
     expected_entries: 2,
     observed_entries: 1,
     observed_protection_orders: 1,
+    tracked_parent_client_order_ids: ['bybit-entry-1'],
+    tracked_parent_remote_order_ids: ['remote-bybit-entry-1'],
     entry_filled_qty: 0.001,
     protection_filled_qty: 0,
     status: NativeProtectionStatus.Tracking,
@@ -254,6 +256,7 @@ export async function runBybitNativeProtectionRenderSmoke(): Promise<void> {
     strategy: ProtectionStrategy.NativeAttachedTpsl,
     lifecycle: ProtectionLifecycle.Active,
     parent_client_order_id: 'bybit-entry-1',
+    parent_remote_order_id: 'remote-bybit-entry-1',
     take_profit_trigger_price: 68_000,
     stop_loss_trigger_price: 62_000,
     protected_qty: 0.001,
@@ -281,6 +284,10 @@ export async function runBybitNativeProtectionRenderSmoke(): Promise<void> {
     'Stop Loss',
     'Entry Updates',
     'Protection Updates',
+    'Parent Client',
+    'Parent Remote',
+    'bybit-entry-1',
+    'remote-bybit-entry-1',
     'Bybit Testnet',
   ]
   for (const label of expectedNativeLabels) {

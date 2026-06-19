@@ -176,6 +176,22 @@ function fmtDate(d?: Date | null): string {
         </div>
         <div>
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Parent Client
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)] text-[10px] break-all">
+            {{ protectionState?.parent_client_order_id || '-' }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Parent Remote
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)] text-[10px] break-all">
+            {{ protectionState?.parent_remote_order_id || '-' }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
             TP Trigger
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">
