@@ -234,6 +234,14 @@ function fmtDate(d?: Date | null): string {
         </div>
         <div>
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Order Reason
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)] text-[10px] break-all">
+            {{ device.last_order_reason || '-' }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
             Created At
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">

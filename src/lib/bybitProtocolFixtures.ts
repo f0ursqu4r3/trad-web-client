@@ -116,6 +116,7 @@ const bybitNativeProtectionSnapshot = {
   last_parent_client_order_id: 'te-parent-1',
   last_remote_order_id: '5cf98598-39a7-459e-97bf-76ca765ee020',
   last_order_status: 'PARTIALLY_FILLED',
+  last_order_reason: null,
   last_update_seen_at: '2026-06-19T00:00:00.000Z',
   created_at: '2026-06-19T00:00:00.000Z',
 } satisfies NativeProtectionSnapshot

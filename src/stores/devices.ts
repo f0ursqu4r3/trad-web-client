@@ -273,6 +273,7 @@ export const useDeviceStore = defineStore('device', () => {
         np.last_parent_client_order_id = s.last_parent_client_order_id ?? null
         np.last_remote_order_id = s.last_remote_order_id ?? null
         np.last_order_status = s.last_order_status ?? null
+        np.last_order_reason = s.last_order_reason ?? null
         np.last_update_seen_at = s.last_update_seen_at ? new Date(s.last_update_seen_at) : null
         np.created_at = new Date(s.created_at)
         break
@@ -743,6 +744,7 @@ export const useDeviceStore = defineStore('device', () => {
           last_parent_client_order_id,
           last_remote_order_id,
           last_order_status,
+          last_order_reason,
           last_update_seen_at,
           created_at,
         } = delta.data
@@ -761,6 +763,7 @@ export const useDeviceStore = defineStore('device', () => {
         np.last_parent_client_order_id = last_parent_client_order_id ?? null
         np.last_remote_order_id = last_remote_order_id ?? null
         np.last_order_status = last_order_status ?? null
+        np.last_order_reason = last_order_reason ?? null
         np.last_update_seen_at = last_update_seen_at ? new Date(last_update_seen_at) : null
         np.created_at = new Date(created_at)
         if (parent_device) {
@@ -774,6 +777,7 @@ export const useDeviceStore = defineStore('device', () => {
           parent_client_order_id,
           remote_order_id,
           status,
+          reason,
           cum_qty,
           is_protection_order,
         } = delta.data
@@ -781,6 +785,7 @@ export const useDeviceStore = defineStore('device', () => {
         np.last_parent_client_order_id = parent_client_order_id ?? null
         np.last_remote_order_id = remote_order_id ?? null
         np.last_order_status = status
+        np.last_order_reason = reason ?? null
         np.last_update_seen_at = eventTime
         if (typeof cum_qty === 'number') {
           if (is_protection_order) {
@@ -1016,6 +1021,7 @@ export interface NativeProtectionState {
   last_parent_client_order_id: string | null
   last_remote_order_id: string | null
   last_order_status: string | null
+  last_order_reason: string | null
   last_update_seen_at: Date | null
   created_at: Date
 }
@@ -1177,6 +1183,7 @@ function newNativeProtectionState(): NativeProtectionState {
     last_parent_client_order_id: null,
     last_remote_order_id: null,
     last_order_status: null,
+    last_order_reason: null,
     last_update_seen_at: null,
     created_at: new Date(),
   }

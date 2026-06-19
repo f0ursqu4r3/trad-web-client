@@ -722,6 +722,7 @@ export type NativeProtectionSnapshot = {
   last_parent_client_order_id?: string | null
   last_remote_order_id?: string | null
   last_order_status?: string | null
+  last_order_reason?: string | null
   last_update_seen_at?: string | null
   created_at: string
 }
@@ -918,6 +919,7 @@ export type DeviceNpDelta =
         last_parent_client_order_id?: string | null
         last_remote_order_id?: string | null
         last_order_status?: string | null
+        last_order_reason?: string | null
         last_update_seen_at?: string | null
         created_at: string
       }
@@ -929,6 +931,7 @@ export type DeviceNpDelta =
         parent_client_order_id?: string | null
         remote_order_id?: string | null
         status: string
+        reason?: string | null
         is_protection_order: boolean
         cum_qty?: number | null
         last_qty?: number | null
