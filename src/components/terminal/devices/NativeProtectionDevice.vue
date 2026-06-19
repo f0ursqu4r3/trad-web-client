@@ -291,6 +291,30 @@ function fmtDate(d?: Date | null): string {
         </div>
         <div>
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Exchange TP
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)] text-[10px] break-all">
+            {{ device.last_take_profit || '-' }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Exchange SL
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)] text-[10px] break-all">
+            {{ device.last_stop_loss || '-' }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            TP/SL Mode
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)] text-[10px] break-all">
+            {{ device.last_tpsl_mode || '-' }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
             Created At
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">

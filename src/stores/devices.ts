@@ -791,6 +791,9 @@ export const useDeviceStore = defineStore('device', () => {
           status,
           reason,
           cum_qty,
+          take_profit,
+          stop_loss,
+          tpsl_mode,
           is_protection_order,
         } = delta.data
         np.last_client_order_id = client_order_id ?? null
@@ -798,6 +801,9 @@ export const useDeviceStore = defineStore('device', () => {
         np.last_remote_order_id = remote_order_id ?? null
         np.last_order_status = status
         np.last_order_reason = reason ?? null
+        np.last_take_profit = take_profit ?? null
+        np.last_stop_loss = stop_loss ?? null
+        np.last_tpsl_mode = tpsl_mode ?? null
         np.last_update_seen_at = eventTime
         if (typeof cum_qty === 'number') {
           if (is_protection_order) {
@@ -1056,6 +1062,9 @@ export interface NativeProtectionState {
   last_remote_order_id: string | null
   last_order_status: string | null
   last_order_reason: string | null
+  last_take_profit: string | null
+  last_stop_loss: string | null
+  last_tpsl_mode: string | null
   last_update_seen_at: Date | null
   created_at: Date
 }
@@ -1222,6 +1231,9 @@ function newNativeProtectionState(): NativeProtectionState {
     last_remote_order_id: null,
     last_order_status: null,
     last_order_reason: null,
+    last_take_profit: null,
+    last_stop_loss: null,
+    last_tpsl_mode: null,
     last_update_seen_at: null,
     created_at: new Date(),
   }

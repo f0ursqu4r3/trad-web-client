@@ -955,6 +955,9 @@ export type DeviceNpDelta =
         cum_qty?: number | null
         last_qty?: number | null
         stop_price?: number | null
+        take_profit?: string | null
+        stop_loss?: string | null
+        tpsl_mode?: string | null
       }
     }
   | {
