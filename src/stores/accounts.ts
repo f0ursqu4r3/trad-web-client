@@ -8,6 +8,12 @@ import {
   binanceMarketContext,
   bybitMarketContext,
 } from '@/lib/marketContext'
+import {
+  accountMetadataChips,
+  accountMetadataStatus,
+  formatAccountProduct,
+  isBybitMetadataVerified,
+} from '@/lib/accountMetadata'
 import { accountsStoreKey, getSessionUserId } from '@/lib/userSession'
 import { createLogger } from '@/lib/utils'
 
@@ -40,47 +46,7 @@ export interface AccountRecord {
   exchange_metadata?: ExchangeAccountMetadata | null
 }
 
-export function formatAccountProduct(product?: string | null): string | null {
-  switch (product) {
-    case 'usdt_perp':
-      return 'USDT perp'
-    default:
-      return product || null
-  }
-}
-
-export function accountMetadataChips(account: AccountRecord): string[] {
-  const meta = account.exchange_metadata
-  const chips: string[] = [account.exchange, account.network || 'Unknown']
-  const product = formatAccountProduct(meta?.product)
-  if (product) chips.push(product)
-  if (meta?.hedge_mode_only) chips.push('Hedge only')
-  if (meta?.margin_mode) chips.push(meta.margin_mode)
-  if (meta?.account_mode) chips.push(meta.account_mode)
-  if (account.exchange === ExchangeType.Bybit && !meta?.margin_mode && !meta?.account_mode) {
-    chips.push('Mode unvalidated')
-  }
-  return chips
-}
-
-export function isBybitMetadataVerified(account: AccountRecord | null | undefined): boolean {
-  if (!account || account.exchange !== ExchangeType.Bybit) return true
-  const meta = account.exchange_metadata
-  return Boolean(
-    meta?.product === 'usdt_perp' &&
-      meta?.hedge_mode_only &&
-      meta?.account_mode &&
-      meta?.margin_mode,
-  )
-}
-
-export function accountMetadataStatus(account: AccountRecord): string | null {
-  if (account.exchange !== ExchangeType.Bybit) return null
-  if (isBybitMetadataVerified(account)) {
-    return `Exchange metadata verified: ${account.exchange_metadata?.account_mode} / ${account.exchange_metadata?.margin_mode}`
-  }
-  return 'Bybit exchange metadata unvalidated; refresh credentials before live trading.'
-}
+export { accountMetadataChips, accountMetadataStatus, formatAccountProduct, isBybitMetadataVerified }
 
 export const useAccountsStore = defineStore('accounts', () => {
   const { isAuthenticated } = useAuth0()

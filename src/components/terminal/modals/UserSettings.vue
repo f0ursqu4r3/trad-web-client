@@ -6,6 +6,7 @@ import { useWsStore } from '@/stores/ws'
 import {
   accountMetadataChips,
   accountMetadataStatus,
+  isBybitMetadataVerified,
   useAccountsStore,
   type AccountRecord,
 } from '@/stores/accounts'
@@ -335,8 +336,7 @@ const returnToOrigin = window.location.origin
                             v-if="accountMetadataStatus(account as AccountRecord)"
                             class="text-xs"
                             :class="
-                              (account as AccountRecord).exchange_metadata?.account_mode &&
-                              (account as AccountRecord).exchange_metadata?.margin_mode
+                              isBybitMetadataVerified(account as AccountRecord)
                                 ? 'text-[var(--color-success)]'
                                 : 'text-warning'
                             "

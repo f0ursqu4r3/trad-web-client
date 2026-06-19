@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   accountMetadataChips,
   accountMetadataStatus,
+  isBybitMetadataVerified,
   useAccountsStore,
   type AccountRecord,
 } from '@/stores/accounts'
@@ -289,11 +290,7 @@ watch(
                 <span
                   v-if="accountMetadataStatus(account)"
                   class="text-[11px]"
-                  :class="
-                    account.exchange_metadata?.account_mode && account.exchange_metadata?.margin_mode
-                      ? 'text-[var(--color-success)]'
-                      : 'text-warning'
-                  "
+                  :class="isBybitMetadataVerified(account) ? 'text-[var(--color-success)]' : 'text-warning'"
                 >
                   {{ accountMetadataStatus(account) }}
                 </span>

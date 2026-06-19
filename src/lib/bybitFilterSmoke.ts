@@ -30,6 +30,12 @@ import {
   uniqueFacetValues,
 } from '@/lib/marketFilterFacets'
 import { bybitTrailingEntryExitLevelError } from '@/lib/bybitOrderValidation'
+import {
+  accountMetadataChips,
+  accountMetadataStatus,
+  isBybitMetadataVerified,
+  type AccountMetadataLike,
+} from '@/lib/accountMetadata'
 import type { Device, MarketOrderState, NativeProtectionState, SplitState } from '@/stores/devices'
 
 function assertSmoke(condition: unknown, message: string): asserts condition {
@@ -84,6 +90,25 @@ const accounts = [
     network: NetworkType.Testnet,
   },
 ] satisfies AccountDisplayRecord[]
+
+function bybitAccountWithMetadata(
+  metadata: Pick<
+    NonNullable<AccountMetadataLike['exchange_metadata']>,
+    'account_mode' | 'margin_mode'
+  >,
+): AccountMetadataLike {
+  return {
+    id: bybitProtocolFixtures.bybitAccountId,
+    label: 'Bybit Testnet',
+    network: NetworkType.Testnet,
+    exchange: ExchangeType.Bybit,
+    exchange_metadata: {
+      product: 'usdt_perp',
+      hedge_mode_only: true,
+      ...metadata,
+    },
+  }
+}
 
 function baseDevice(
   id: string,
@@ -193,6 +218,38 @@ export function runBybitFilterSmoke(): void {
   assertSmoke(
     formatMarketContext(bybitProtocolFixtures.bybitContext, accounts).includes('Bybit Testnet'),
     'Bybit market context display should accept wire shape',
+  )
+  const unknownModeAccount = bybitAccountWithMetadata({
+    account_mode: 'Unknown account mode',
+    margin_mode: 'REGULAR_MARGIN',
+  })
+  assertSmoke(
+    !isBybitMetadataVerified(unknownModeAccount),
+    'Bybit account metadata with unknown account mode should not verify',
+  )
+  assertSmoke(
+    accountMetadataStatus(unknownModeAccount)?.includes('unvalidated'),
+    'Bybit unknown account mode should render unvalidated status',
+  )
+  assertSmoke(
+    accountMetadataChips(unknownModeAccount).includes('Mode unvalidated'),
+    'Bybit unknown account mode should render unvalidated chip',
+  )
+  const blankMarginAccount = bybitAccountWithMetadata({
+    account_mode: 'UTA 2.0',
+    margin_mode: '  ',
+  })
+  assertSmoke(
+    !isBybitMetadataVerified(blankMarginAccount),
+    'Bybit account metadata with blank margin mode should not verify',
+  )
+  const verifiedMetadataAccount = bybitAccountWithMetadata({
+    account_mode: 'UTA 2.0',
+    margin_mode: 'REGULAR_MARGIN',
+  })
+  assertSmoke(
+    isBybitMetadataVerified(verifiedMetadataAccount),
+    'Bybit account metadata with concrete account and margin modes should verify',
   )
   assertSmoke(
     bybitTrailingEntryExitLevelError(PositionSide.Long, 65_000, 62_000, 68_000) === null,
