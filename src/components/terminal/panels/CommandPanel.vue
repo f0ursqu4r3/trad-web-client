@@ -16,6 +16,8 @@ import CommandHistoryItem from '@/components/terminal/commands/CommandHistoryIte
 import CommandBase from '../commands/CommandBase.vue'
 import TELongCommand from '@/components/terminal/commands/TELongCommand.vue'
 import MarketOrderCommand from '@/components/terminal/commands/MarketOrderCommand.vue'
+import SetHedgeModeCommand from '@/components/terminal/commands/SetHedgeModeCommand.vue'
+import SetLeverageCommand from '@/components/terminal/commands/SetLeverageCommand.vue'
 
 defineOptions({
   inheritAttrs: false,
@@ -145,6 +147,10 @@ function getCommandComponent(command: UserCommandPayload): Component | string {
   switch (command.kind) {
     case 'MarketOrder':
       return MarketOrderCommand
+    case 'SetHedgeMode':
+      return SetHedgeModeCommand
+    case 'SetLeverage':
+      return SetLeverageCommand
     case 'TrailingEntryOrder':
       return TELongCommand
     default:
@@ -154,11 +160,15 @@ function getCommandComponent(command: UserCommandPayload): Component | string {
 
 function getCommandLabel(command: UserCommandPayload): string {
   if (command.kind === 'TrailingEntryOrder') return 'Trailing Entry'
+  if (command.kind === 'SetHedgeMode') return 'Set Hedge Mode'
+  if (command.kind === 'SetLeverage') return 'Set Leverage'
   return command.kind
 }
 
 function getKindLabel(kind: string): string {
   if (kind === 'TrailingEntryOrder') return 'Trailing Entry'
+  if (kind === 'SetHedgeMode') return 'Set Hedge Mode'
+  if (kind === 'SetLeverage') return 'Set Leverage'
   return formatName(kind)
 }
 

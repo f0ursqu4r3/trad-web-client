@@ -5,6 +5,8 @@ import {
   type Uuid,
   type LimitOrderCommand,
   type MarketOrderCommand,
+  type SetHedgeModeCommand,
+  type SetLeverageCommand,
   type SplitMarketOrderCommand,
   type TrailingEntryOrderCommand,
 } from '@/lib/ws/protocol'
@@ -34,6 +36,8 @@ export interface OrderedCommandHistoryItem extends CommandHistoryItem {
 export enum interestingCommandKinds {
   LimitOrder,
   MarketOrder,
+  SetHedgeMode,
+  SetLeverage,
   SplitMarketOrder,
   TrailingEntryOrder,
 }
@@ -41,6 +45,8 @@ export enum interestingCommandKinds {
 export type InterestingCommand =
   | LimitOrderCommand
   | MarketOrderCommand
+  | SetHedgeModeCommand
+  | SetLeverageCommand
   | SplitMarketOrderCommand
   | TrailingEntryOrderCommand
 
