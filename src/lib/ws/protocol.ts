@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 9
+export const PROTOCOL_VERSION = 10
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -34,6 +34,10 @@ export enum ExchangeType {
   Bifake = 'bifake',
   Bybit = 'bybit',
 }
+
+export type MarketProduct = 'usdt_perp'
+
+export type ProtectionStrategyCapability = 'managed_stop_guard' | 'native_attached_tpsl' | 'none'
 
 export type DeviceKind =
   | 'TrailingEntry'
@@ -183,6 +187,7 @@ export type SystemMessagePayload =
   | { kind: 'ResyncDevice'; data: ResyncDeviceRequest }
   | { kind: 'CancelCommand'; data: CancelCommandRequest }
   | { kind: 'RefreshAccountKeys'; data: RefreshAccountKeysMessage }
+  | { kind: 'GetMarketCapabilities'; data: GetMarketCapabilitiesRequest }
   | { kind: 'GetBalance'; data: GetBalanceRequest }
   | { kind: 'ListPositions'; data: ListPositionsRequest }
   | { kind: 'ListDevices'; data: ListDevicesCommand }
@@ -206,6 +211,10 @@ export type RefreshAccountKeysMessage = {
 }
 
 export type GetBalanceRequest = {
+  market_context: MarketContext
+}
+
+export type GetMarketCapabilitiesRequest = {
   market_context: MarketContext
 }
 
@@ -369,6 +378,7 @@ export type ServerToClientPayload =
   | { kind: 'FatalServerError'; data: FatalServerErrorData }
   | { kind: 'InspectReady'; data: InspectReadyData }
   | { kind: 'Message'; data: MessageData }
+  | { kind: 'MarketCapabilities'; data: MarketCapabilitiesData }
   | { kind: 'Pong'; data: PongData }
   | { kind: 'PositionsSnapshot'; data: PositionsSnapshotData }
   | { kind: 'ServerError'; data: ServerErrorData }
@@ -391,6 +401,23 @@ export type AlertData = { message: string }
 export type ChatMessageData = { from: string; message: string }
 export type ServerErrorData = { request_uuid?: Uuid | null; error: string }
 export type FatalServerErrorData = { error: string }
+export type MarketCapabilitiesData = {
+  request_uuid: Uuid
+  market_context: MarketContext
+  supports_market_orders: boolean
+  supports_limit_orders: boolean
+  supports_trailing_entry: boolean
+  supports_direct_close_market_orders: boolean
+  supports_trailing_entry_close_command: boolean
+  supports_leverage: boolean
+  supports_hedge_mode: boolean
+  hedge_mode_only: boolean
+  supports_attached_take_profit_stop_loss: boolean
+  supports_position_trading_stop: boolean
+  protection_strategy: ProtectionStrategyCapability
+  product?: MarketProduct | null
+  notes: string[]
+}
 export type ServerHelloData = {
   protocol_version: number
   server_name: string

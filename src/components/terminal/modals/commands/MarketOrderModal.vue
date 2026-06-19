@@ -5,11 +5,13 @@ import {
   ExchangeType,
   MarketAction,
   PositionSide,
+  type MarketContext,
   type MarketOrderCommand,
   type UserCommandPayload,
 } from '@/lib/ws/protocol'
 import { useAccountsStore } from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
+import { useWsStore } from '@/stores/ws'
 
 import type { MarketOrderPrefill } from './types'
 import { createLogger } from '@/lib/utils'
@@ -24,6 +26,7 @@ const emit = defineEmits<{
 
 const accounts = useAccountsStore()
 const modals = useModalStore()
+const ws = useWsStore()
 
 const selectedAccountId = ref<string>('')
 const symbol = ref<string>('BTCUSDT')
@@ -37,10 +40,23 @@ const stop_loss = ref<number | null | ''>(null)
 const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
 )
-const supportsAttachedExit = computed(
-  () =>
-    selectedAccount.value?.exchange === ExchangeType.Bybit && action.value === MarketAction.Open,
+const selectedMarketContext = computed<MarketContext | null>(() =>
+  accounts.getMarketContextForAccount(selectedAccountId.value),
 )
+const supportsAttachedExit = computed(
+  () => {
+    if (action.value !== MarketAction.Open) return false
+    const capabilities = ws.capabilitiesForMarketContext(selectedMarketContext.value)
+    if (capabilities) return capabilities.supports_attached_take_profit_stop_loss
+    return selectedAccount.value?.exchange === ExchangeType.Bybit
+  },
+)
+
+function requestSelectedCapabilities() {
+  if (selectedMarketContext.value) {
+    ws.requestMarketCapabilities(selectedMarketContext.value)
+  }
+}
 
 function applyInitialValues() {
   const preset = (modals.modalValues['MarketOrder'] as MarketOrderPrefill) ?? {}
@@ -58,6 +74,7 @@ watch(
   () => props.open,
   (o) => {
     if (o) applyInitialValues()
+    if (o) requestSelectedCapabilities()
   },
 )
 
@@ -70,6 +87,7 @@ watch(selectedAccountId, (next, prev) => {
     symbol.value = nextDefault
   }
   lastAccountId.value = next
+  requestSelectedCapabilities()
 })
 
 watch(supportsAttachedExit, (supported) => {

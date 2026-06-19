@@ -1,5 +1,6 @@
 import {
   type MarketContext,
+  type MarketCapabilitiesData,
   type ServerToClientMessage,
   type SystemMessagePayload,
   type UserCommandPayload,
@@ -48,6 +49,7 @@ export const useWsStore = defineStore('ws', () => {
   const reconnectCount = ref(0)
   const authAccepted = ref<boolean | null>(null)
   const authError = ref<string | null>(null)
+  const marketCapabilities = ref<Record<string, MarketCapabilitiesData>>({})
   let lastPingSend: number | null = null
   let perfLoopTimer: number | null = null
 
@@ -222,6 +224,34 @@ export const useWsStore = defineStore('ws', () => {
     })
   }
 
+  function marketContextKey(marketContext: MarketContext): string {
+    switch (marketContext.type) {
+      case 'binance':
+      case 'bifake':
+      case 'bybit':
+        return `${marketContext.type}:${marketContext.account_id}`
+      case 'sim':
+        return `${marketContext.type}:${marketContext.sim_market_id}`
+      case 'none':
+      default:
+        return 'none'
+    }
+  }
+
+  function requestMarketCapabilities(marketContext: MarketContext) {
+    sendSystemCommand({
+      kind: 'GetMarketCapabilities',
+      data: { market_context: marketContext },
+    })
+  }
+
+  function capabilitiesForMarketContext(
+    marketContext: MarketContext | null | undefined,
+  ): MarketCapabilitiesData | null {
+    if (!marketContext) return null
+    return marketCapabilities.value[marketContextKey(marketContext)] ?? null
+  }
+
   function onServerMessage(msg: ServerToClientMessage) {
     const payload = msg.payload
     if (inboundDebugEnabled.value) {
@@ -251,6 +281,7 @@ export const useWsStore = defineStore('ws', () => {
       DeviceSplitDelta: handleDeviceSplitDelta,
       DeviceMoDelta: handleDeviceMoDelta,
       SplitPreview: handleSplitPreview,
+      MarketCapabilities: handleMarketCapabilities,
     } as Record<string, (p: ServerToClientMessage['payload']) => void>
     const handler = handlers[payload.kind] || handleUnknowServerMessage
     handler(payload)
@@ -360,6 +391,13 @@ export const useWsStore = defineStore('ws', () => {
       localStorage.removeItem('auth_token')
       logger.warn('cleared cached auth token after auth error')
     }
+  }
+
+  function handleMarketCapabilities(payload: ServerToClientMessage['payload']): void {
+    const data = (
+      payload as Extract<ServerToClientMessage['payload'], { kind: 'MarketCapabilities' }>
+    ).data
+    marketCapabilities.value[marketContextKey(data.market_context)] = data
   }
 
   function handleCommandHistory(payload: ServerToClientMessage['payload']): void {
@@ -495,6 +533,7 @@ export const useWsStore = defineStore('ws', () => {
     reconnectCount,
     authAccepted,
     authError,
+    marketCapabilities,
     // getters
     isConnected,
     // actions
@@ -510,6 +549,8 @@ export const useWsStore = defineStore('ws', () => {
     sendCancelCommand,
     sendCloseTrailingEntryPosition,
     sendRefreshAccountKeys,
+    requestMarketCapabilities,
+    capabilitiesForMarketContext,
     getDeviceTree,
     flushPerfLog,
   }
