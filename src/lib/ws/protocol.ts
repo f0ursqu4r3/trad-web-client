@@ -10,7 +10,7 @@ export const PROTOCOL_VERSION = 10
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
 // ==============================================================================================
-// External/shared domain types (placeholders — align with server definitions)
+// External/shared domain types mirrored from Rust shared protocol definitions.
 // ==============================================================================================
 
 export enum OrderSide {
@@ -44,8 +44,8 @@ export type DeviceKind =
   | 'MarketOrder'
   | 'Split'
   | 'StopGuard'
+  | 'NativeProtection'
   | 'Unknown'
-  | string
 
 export type MarketContext =
   // Rust wire shape is externally tagged, e.g. { bybit: { account_id } }.

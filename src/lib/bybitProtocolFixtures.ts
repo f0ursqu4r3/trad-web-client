@@ -8,6 +8,7 @@ import {
   ProtectionLifecycle,
   ProtectionStrategy,
   type CommandHistoryItem,
+  type DeviceKind,
   type DeviceSnapshotLiteData,
   type MarketCapabilitiesData,
   type MarketRef,
@@ -20,6 +21,7 @@ import { bybitMarketContext, marketContextAccountId } from '@/lib/marketContext'
 
 const bybitAccountId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const bybitContext = bybitMarketContext(bybitAccountId)
+const bybitNativeProtectionKind = 'NativeProtection' satisfies DeviceKind
 
 const bybitMarketRef = {
   exchange: ExchangeType.Bybit,
@@ -151,7 +153,7 @@ const bybitDeviceSnapshotLite = {
   awaiting_children: false,
   failure_reason: null,
   snapshot: {
-    kind: 'NativeProtection',
+    kind: bybitNativeProtectionKind,
     data: bybitNativeProtectionSnapshot,
   },
 } satisfies DeviceSnapshotLiteData
