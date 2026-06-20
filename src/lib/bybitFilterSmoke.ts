@@ -108,10 +108,7 @@ const accounts = [
 ] satisfies AccountDisplayRecord[]
 
 function bybitAccountWithMetadata(
-  metadata: Pick<
-    NonNullable<AccountMetadataLike['exchange_metadata']>,
-    'account_mode' | 'margin_mode'
-  >,
+  metadata: Partial<NonNullable<AccountMetadataLike['exchange_metadata']>>,
 ): AccountMetadataLike {
   return {
     id: bybitProtocolFixtures.bybitAccountId,
@@ -263,6 +260,24 @@ export function runBybitFilterSmoke(): void {
   assertSmoke(
     !isBybitMetadataVerified(blankMarginAccount),
     'Bybit account metadata with blank margin mode should not verify',
+  )
+  const missingProductAccount = bybitAccountWithMetadata({
+    product: null,
+    account_mode: 'UTA 2.0',
+    margin_mode: 'REGULAR_MARGIN',
+  })
+  assertSmoke(
+    !isBybitMetadataVerified(missingProductAccount),
+    'Bybit account metadata without USDT perp product should not verify',
+  )
+  const nonHedgeAccount = bybitAccountWithMetadata({
+    hedge_mode_only: false,
+    account_mode: 'UTA 2.0',
+    margin_mode: 'REGULAR_MARGIN',
+  })
+  assertSmoke(
+    !isBybitMetadataVerified(nonHedgeAccount),
+    'Bybit account metadata without hedge-only marker should not verify',
   )
   const verifiedMetadataAccount = bybitAccountWithMetadata({
     account_mode: 'UTA 2.0',
