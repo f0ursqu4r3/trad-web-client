@@ -12,7 +12,10 @@ import {
 import { accountMetadataChips, isBybitMetadataVerified, useAccountsStore } from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
 import { useWsStore } from '@/stores/ws'
-import { bybitMarketOrderExitLevelError } from '@/lib/bybitOrderValidation'
+import {
+  bybitMarketOrderExitLevelError,
+  normalizeBybitUsdtSymbol,
+} from '@/lib/bybitOrderValidation'
 
 import type { MarketOrderPrefill } from './types'
 import { createLogger } from '@/lib/utils'
@@ -149,7 +152,7 @@ function submit() {
 
   const data: MarketOrderCommand = {
     market_context: marketContext,
-    symbol: symbol.value,
+    symbol: isBybitAccount.value ? normalizeBybitUsdtSymbol(symbol.value) : symbol.value,
     quantity_usd: quantity_usd.value!,
     position_side: position_side.value,
     action: action.value,

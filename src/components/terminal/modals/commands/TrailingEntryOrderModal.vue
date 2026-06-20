@@ -18,7 +18,10 @@ import { useWsStore } from '@/stores/ws'
 import type { TrailingEntryPrefill } from './types'
 import { createLogger } from '@/lib/utils'
 import { formatNumberShort } from '@/lib/numberFormat'
-import { bybitTrailingEntryExitLevelError } from '@/lib/bybitOrderValidation'
+import {
+  bybitTrailingEntryExitLevelError,
+  normalizeBybitUsdtSymbol,
+} from '@/lib/bybitOrderValidation'
 
 const logger = createLogger('commands')
 
@@ -188,7 +191,7 @@ function submit() {
     risk_amount: risk_amount.value as number,
     stop_loss: stop_loss.value as number,
     take_profit: normalizedTakeProfit,
-    symbol: symbol.value,
+    symbol: isBybitAccount.value ? normalizeBybitUsdtSymbol(symbol.value) : symbol.value,
   }
   const split_settings = {
     target_child_notional: split_target_notional.value ?? undefined,
@@ -231,7 +234,7 @@ function requestPreview() {
   }
 
   const data: SplitPreviewCommand = {
-    symbol: symbol.value,
+    symbol: isBybitAccount.value ? normalizeBybitUsdtSymbol(symbol.value) : symbol.value,
     market_context: marketContext,
     position_side: position_side.value,
     activation_price: activation_price.value as number,

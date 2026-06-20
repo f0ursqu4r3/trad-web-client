@@ -11,8 +11,13 @@ import { useWsStore } from '@/stores/ws'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 import { X } from 'lucide-vue-next'
 import { getBearerToken } from '@/lib/auth0Helpers'
+import { normalizeBybitUsdtSymbol } from '@/lib/bybitOrderValidation'
 import { createLogger } from '@/lib/utils'
-import type { MarketCapabilitiesData, UserCommandPayload } from '@/lib/ws/protocol'
+import {
+  ExchangeType,
+  type MarketCapabilitiesData,
+  type UserCommandPayload,
+} from '@/lib/ws/protocol'
 
 const logger = createLogger('accounts')
 
@@ -144,16 +149,20 @@ function setLeverage(account: AccountRecord) {
     controlError.value = 'Leverage settings are unavailable for this account.'
     return
   }
+  const symbol =
+    account.exchange === ExchangeType.Bybit
+      ? normalizeBybitUsdtSymbol(form.symbol)
+      : form.symbol.trim().toUpperCase()
   const payload: Extract<UserCommandPayload, { kind: 'SetLeverage' }> = {
     kind: 'SetLeverage',
     data: {
-      symbol: form.symbol.trim().toUpperCase(),
+      symbol,
       leverage: form.leverage,
       market_context: marketContext,
     },
   }
   ws.sendUserCommand(payload)
-  controlMessage.value = `Submitted leverage update for ${form.symbol.trim().toUpperCase()}.`
+  controlMessage.value = `Submitted leverage update for ${symbol}.`
 }
 
 function enableHedgeMode(account: AccountRecord) {

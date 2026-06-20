@@ -2,6 +2,11 @@ import { PositionSide } from '@/lib/ws/protocol'
 
 type OptionalPrice = number | null | ''
 
+export function normalizeBybitUsdtSymbol(symbol: string): string {
+  const upper = symbol.trim().toUpperCase()
+  return upper.endsWith('USDT') ? upper : `${upper}USDT`
+}
+
 function positiveFinite(value: number | null): boolean {
   return value !== null && Number.isFinite(value) && value > 0
 }

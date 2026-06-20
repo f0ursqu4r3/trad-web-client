@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import {
+  ExchangeType,
   type MarketContext,
   PositionSide,
   type LimitOrderCommand,
@@ -11,6 +12,7 @@ import {
 import { useWsStore } from '@/stores/ws'
 import { accountMetadataChips, useAccountsStore } from '@/stores/accounts'
 import { createLogger } from '@/lib/utils'
+import { normalizeBybitUsdtSymbol } from '@/lib/bybitOrderValidation'
 
 const logger = createLogger('commands')
 
@@ -35,6 +37,9 @@ const supportsLimitOrders = computed(() => {
   const capabilities = ws.capabilitiesForMarketContext(selectedMarketContext.value)
   return capabilities?.supports_limit_orders === true
 })
+const selectedAccount = computed(
+  () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
+)
 
 function requestSelectedCapabilities() {
   if (selectedMarketContext.value) {
@@ -90,7 +95,10 @@ function submit() {
   }
   const data: LimitOrderCommand = {
     side: side.value,
-    symbol: symbol.value,
+    symbol:
+      selectedAccount.value?.exchange === ExchangeType.Bybit
+        ? normalizeBybitUsdtSymbol(symbol.value)
+        : symbol.value,
     quantity: quantity.value,
     price: price.value,
     position_side: posSide.value,

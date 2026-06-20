@@ -37,6 +37,7 @@ import {
 import {
   bybitMarketOrderExitLevelError,
   bybitTrailingEntryExitLevelError,
+  normalizeBybitUsdtSymbol,
 } from '@/lib/bybitOrderValidation'
 import { commandWithMarketAvailability } from '@/lib/commandAvailability'
 import { commandRegistry } from '@/components/terminal/commands/commandRegistry'
@@ -326,6 +327,14 @@ export function runBybitFilterSmoke(): void {
       'below stop loss',
     ),
     'Bybit short market order should reject TP above SL',
+  )
+  assertSmoke(
+    normalizeBybitUsdtSymbol(' btc ') === 'BTCUSDT',
+    'Bybit symbol normalizer should trim, uppercase, and append USDT',
+  )
+  assertSmoke(
+    normalizeBybitUsdtSymbol('ethusdt') === 'ETHUSDT',
+    'Bybit symbol normalizer should preserve existing USDT suffix',
   )
   const bybitLauncherCommands = commandRegistry.map((command) =>
     commandWithMarketAvailability(command, bybitProtocolFixtures.bybitCapabilities),
