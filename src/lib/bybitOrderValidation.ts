@@ -4,6 +4,7 @@ type OptionalPrice = number | null | ''
 
 export function normalizeBybitUsdtSymbol(symbol: string): string {
   const upper = symbol.trim().toUpperCase()
+  if (!upper) return upper
   return upper.endsWith('USDT') ? upper : `${upper}USDT`
 }
 

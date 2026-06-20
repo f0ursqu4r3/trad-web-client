@@ -146,7 +146,7 @@ watch(supportsTeTakeProfit, (supported) => {
 function validate(): boolean {
   if (!selectedAccountId.value) return false
   if (blocksOpeningOrder.value) return false
-  if (!symbol.value) return false
+  if (!symbol.value.trim()) return false
   if (bybitExitLevelError.value) return false
   if (previewError.value) return false
   if (requiresSuccessfulPreview.value && !preview.value) return false
@@ -212,7 +212,7 @@ function submit() {
 
 function canPreview(): boolean {
   if (!selectedAccountId.value) return false
-  if (!symbol.value) return false
+  if (!symbol.value.trim()) return false
   if (activation_price.value === null) return false
   if (stop_loss.value === null) return false
   if (bybitExitLevelError.value) return false

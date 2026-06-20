@@ -77,7 +77,7 @@ watch(selectedAccountId, (next, prev) => {
 function validate(): boolean {
   if (!supportsLimitOrders.value) return false
   if (!selectedAccountId.value) return false
-  if (!symbol.value) return false
+  if (!symbol.value.trim()) return false
   if (!Number.isFinite(quantity.value) || quantity.value <= 0) return false
   if (!Number.isFinite(price.value) || price.value <= 0) return false
   return true

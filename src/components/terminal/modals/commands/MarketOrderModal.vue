@@ -112,7 +112,7 @@ watch(supportsAttachedExit, (supported) => {
 function validate(): boolean {
   if (!selectedAccountId.value) return false
   if (blocksOpeningOrder.value) return false
-  if (!symbol.value) return false
+  if (!symbol.value.trim()) return false
   if (quantity_usd.value === null || quantity_usd.value <= 0) return false
   if (bybitExitLevelError.value) return false
   const tp = optionalPositivePrice(take_profit.value)

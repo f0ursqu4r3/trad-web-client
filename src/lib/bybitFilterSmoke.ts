@@ -336,6 +336,10 @@ export function runBybitFilterSmoke(): void {
     normalizeBybitUsdtSymbol('ethusdt') === 'ETHUSDT',
     'Bybit symbol normalizer should preserve existing USDT suffix',
   )
+  assertSmoke(
+    normalizeBybitUsdtSymbol('   ') === '',
+    'Bybit symbol normalizer should not turn blank input into USDT',
+  )
   const bybitLauncherCommands = commandRegistry.map((command) =>
     commandWithMarketAvailability(command, bybitProtocolFixtures.bybitCapabilities),
   )
