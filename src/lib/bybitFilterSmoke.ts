@@ -34,7 +34,10 @@ import {
   marketFacetMatchesFilters,
   uniqueFacetValues,
 } from '@/lib/marketFilterFacets'
-import { bybitTrailingEntryExitLevelError } from '@/lib/bybitOrderValidation'
+import {
+  bybitMarketOrderExitLevelError,
+  bybitTrailingEntryExitLevelError,
+} from '@/lib/bybitOrderValidation'
 import { commandWithMarketAvailability } from '@/lib/commandAvailability'
 import { commandRegistry } from '@/components/terminal/commands/commandRegistry'
 import {
@@ -288,6 +291,26 @@ export function runBybitFilterSmoke(): void {
       'below activation',
     ),
     'Bybit short TE should reject TP above activation',
+  )
+  assertSmoke(
+    bybitMarketOrderExitLevelError(PositionSide.Long, 68_000, 62_000) === null,
+    'Bybit long market order should allow TP above SL',
+  )
+  assertSmoke(
+    bybitMarketOrderExitLevelError(PositionSide.Long, 62_000, 68_000)?.includes(
+      'above stop loss',
+    ),
+    'Bybit long market order should reject TP below SL',
+  )
+  assertSmoke(
+    bybitMarketOrderExitLevelError(PositionSide.Short, 62_000, 68_000) === null,
+    'Bybit short market order should allow TP below SL',
+  )
+  assertSmoke(
+    bybitMarketOrderExitLevelError(PositionSide.Short, 68_000, 62_000)?.includes(
+      'below stop loss',
+    ),
+    'Bybit short market order should reject TP above SL',
   )
   const bybitLauncherCommands = commandRegistry.map((command) =>
     commandWithMarketAvailability(command, bybitProtocolFixtures.bybitCapabilities),

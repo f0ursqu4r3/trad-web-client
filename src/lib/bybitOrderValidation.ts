@@ -44,3 +44,29 @@ export function bybitTrailingEntryExitLevelError(
 
   return null
 }
+
+export function bybitMarketOrderExitLevelError(
+  positionSide: PositionSide,
+  takeProfit: OptionalPrice,
+  stopLoss: OptionalPrice,
+): string | null {
+  const normalizedTakeProfit = normalizeOptionalPrice(takeProfit)
+  const normalizedStopLoss = normalizeOptionalPrice(stopLoss)
+
+  if (normalizedTakeProfit !== null && !positiveFinite(normalizedTakeProfit)) {
+    return 'Bybit market take profit must be positive.'
+  }
+  if (normalizedStopLoss !== null && !positiveFinite(normalizedStopLoss)) {
+    return 'Bybit market stop loss must be positive.'
+  }
+  if (normalizedTakeProfit === null || normalizedStopLoss === null) return null
+
+  if (positionSide === PositionSide.Long && normalizedTakeProfit <= normalizedStopLoss) {
+    return 'Bybit long market take profit must be above stop loss.'
+  }
+  if (positionSide === PositionSide.Short && normalizedTakeProfit >= normalizedStopLoss) {
+    return 'Bybit short market take profit must be below stop loss.'
+  }
+
+  return null
+}

@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import {
   MarketAction,
+  ExchangeType,
   PositionSide,
   type MarketContext,
   type MarketOrderCommand,
@@ -11,6 +12,7 @@ import {
 import { accountMetadataChips, isBybitMetadataVerified, useAccountsStore } from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
 import { useWsStore } from '@/stores/ws'
+import { bybitMarketOrderExitLevelError } from '@/lib/bybitOrderValidation'
 
 import type { MarketOrderPrefill } from './types'
 import { createLogger } from '@/lib/utils'
@@ -48,11 +50,16 @@ const selectedCapabilities = computed(() =>
 const blocksOpeningOrder = computed(
   () => action.value === MarketAction.Open && !isBybitMetadataVerified(selectedAccount.value),
 )
+const isBybitAccount = computed(() => selectedAccount.value?.exchange === ExchangeType.Bybit)
 const supportsAttachedExit = computed(
   () =>
     action.value === MarketAction.Open &&
     selectedCapabilities.value?.supports_attached_take_profit_stop_loss === true,
 )
+const bybitExitLevelError = computed(() => {
+  if (!isBybitAccount.value || !supportsAttachedExit.value) return null
+  return bybitMarketOrderExitLevelError(position_side.value, take_profit.value, stop_loss.value)
+})
 
 function requestSelectedCapabilities() {
   if (selectedMarketContext.value) {
@@ -104,6 +111,7 @@ function validate(): boolean {
   if (blocksOpeningOrder.value) return false
   if (!symbol.value) return false
   if (quantity_usd.value === null || quantity_usd.value <= 0) return false
+  if (bybitExitLevelError.value) return false
   const tp = optionalPositivePrice(take_profit.value)
   const sl = optionalPositivePrice(stop_loss.value)
   if (take_profit.value !== null && take_profit.value !== '' && tp === null) return false
@@ -199,6 +207,9 @@ function submit() {
       </div>
       <div v-if="blocksOpeningOrder" class="text-xs text-error">
         Bybit metadata is unvalidated. Refresh credentials before opening live Bybit orders.
+      </div>
+      <div v-else-if="bybitExitLevelError" class="text-xs text-error">
+        {{ bybitExitLevelError }}
       </div>
     </form>
     <template #footer>
