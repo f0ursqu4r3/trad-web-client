@@ -4,8 +4,12 @@ type OptionalPrice = number | null | ''
 
 export function normalizeBybitUsdtSymbol(symbol: string): string {
   const upper = symbol.trim().toUpperCase()
-  if (!upper) return upper
+  if (!upper || upper === 'USDT') return ''
   return upper.endsWith('USDT') ? upper : `${upper}USDT`
+}
+
+export function isValidBybitUsdtSymbol(symbol: string): boolean {
+  return normalizeBybitUsdtSymbol(symbol) !== ''
 }
 
 function positiveFinite(value: number | null): boolean {

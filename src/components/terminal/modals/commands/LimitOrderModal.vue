@@ -12,7 +12,7 @@ import {
 import { useWsStore } from '@/stores/ws'
 import { accountMetadataChips, useAccountsStore } from '@/stores/accounts'
 import { createLogger } from '@/lib/utils'
-import { normalizeBybitUsdtSymbol } from '@/lib/bybitOrderValidation'
+import { isValidBybitUsdtSymbol, normalizeBybitUsdtSymbol } from '@/lib/bybitOrderValidation'
 
 const logger = createLogger('commands')
 
@@ -78,6 +78,12 @@ function validate(): boolean {
   if (!supportsLimitOrders.value) return false
   if (!selectedAccountId.value) return false
   if (!symbol.value.trim()) return false
+  if (
+    selectedAccount.value?.exchange === ExchangeType.Bybit &&
+    !isValidBybitUsdtSymbol(symbol.value)
+  ) {
+    return false
+  }
   if (!Number.isFinite(quantity.value) || quantity.value <= 0) return false
   if (!Number.isFinite(price.value) || price.value <= 0) return false
   return true

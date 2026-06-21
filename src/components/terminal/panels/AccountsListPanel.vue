@@ -11,7 +11,7 @@ import { useWsStore } from '@/stores/ws'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 import { X } from 'lucide-vue-next'
 import { getBearerToken } from '@/lib/auth0Helpers'
-import { normalizeBybitUsdtSymbol } from '@/lib/bybitOrderValidation'
+import { isValidBybitUsdtSymbol, normalizeBybitUsdtSymbol } from '@/lib/bybitOrderValidation'
 import { createLogger } from '@/lib/utils'
 import {
   ExchangeType,
@@ -131,6 +131,9 @@ function validateLeverage(account: AccountRecord): boolean {
   if (!capabilities?.supports_leverage) return false
   if (!form) return false
   if (!form.symbol.trim()) return false
+  if (account.exchange === ExchangeType.Bybit && !isValidBybitUsdtSymbol(form.symbol)) {
+    return false
+  }
   if (!Number.isFinite(form.leverage) || form.leverage <= 0) return false
   return ws.status === 'ready'
 }

@@ -37,6 +37,7 @@ import {
 import {
   bybitMarketOrderExitLevelError,
   bybitTrailingEntryExitLevelError,
+  isValidBybitUsdtSymbol,
   normalizeBybitUsdtSymbol,
 } from '@/lib/bybitOrderValidation'
 import { commandWithMarketAvailability } from '@/lib/commandAvailability'
@@ -339,6 +340,14 @@ export function runBybitFilterSmoke(): void {
   assertSmoke(
     normalizeBybitUsdtSymbol('   ') === '',
     'Bybit symbol normalizer should not turn blank input into USDT',
+  )
+  assertSmoke(
+    normalizeBybitUsdtSymbol('usdt') === '',
+    'Bybit symbol normalizer should not accept bare USDT as a market symbol',
+  )
+  assertSmoke(
+    !isValidBybitUsdtSymbol('usdt') && isValidBybitUsdtSymbol('btc'),
+    'Bybit symbol validator should reject bare USDT and accept base coin shorthand',
   )
   const bybitLauncherCommands = commandRegistry.map((command) =>
     commandWithMarketAvailability(command, bybitProtocolFixtures.bybitCapabilities),

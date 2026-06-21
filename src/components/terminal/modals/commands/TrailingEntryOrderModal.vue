@@ -20,6 +20,7 @@ import { createLogger } from '@/lib/utils'
 import { formatNumberShort } from '@/lib/numberFormat'
 import {
   bybitTrailingEntryExitLevelError,
+  isValidBybitUsdtSymbol,
   normalizeBybitUsdtSymbol,
 } from '@/lib/bybitOrderValidation'
 
@@ -147,6 +148,7 @@ function validate(): boolean {
   if (!selectedAccountId.value) return false
   if (blocksOpeningOrder.value) return false
   if (!symbol.value.trim()) return false
+  if (isBybitAccount.value && !isValidBybitUsdtSymbol(symbol.value)) return false
   if (bybitExitLevelError.value) return false
   if (previewError.value) return false
   if (requiresSuccessfulPreview.value && !preview.value) return false
@@ -213,6 +215,7 @@ function submit() {
 function canPreview(): boolean {
   if (!selectedAccountId.value) return false
   if (!symbol.value.trim()) return false
+  if (isBybitAccount.value && !isValidBybitUsdtSymbol(symbol.value)) return false
   if (activation_price.value === null) return false
   if (stop_loss.value === null) return false
   if (bybitExitLevelError.value) return false
