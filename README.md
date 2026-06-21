@@ -99,11 +99,13 @@ bun install
 bun dev
 ```
 
-### API proxy and Auth0 tokens
+### API proxy and auth tokens
 
-During development, API requests to `/api/*` are proxied to `VITE_API_TARGET` (default `http://localhost:5173`). The dev proxy is configured in `vite.config.ts` and strips the leading `/api` when forwarding. Adjust the `rewrite` rule as needed for your backend.
+During development, API requests to `/api/*` are proxied to `VITE_API_TARGET` (default `http://localhost:8080`). The dev proxy is configured in `vite.config.ts` and strips the leading `/api` when forwarding. Local values should live in `.env.local`. Adjust the `rewrite` rule as needed for your backend.
 
-This app uses Auth0. When making requests via the helpers in `src/lib/apiClient.ts`, an `Authorization: Bearer <token>` header is attached automatically when the user is authenticated. Make sure to set the correct `VITE_AUTH0_AUDIENCE` (and optional `VITE_AUTH0_SCOPE`) so that the token contains your API audience.
+This app uses a provider-agnostic auth boundary in `src/lib/auth`, currently backed by Auth0. When making requests via the helpers in `src/lib/apiClient.ts`, an `Authorization: Bearer <token>` header is attached automatically when the user is authenticated. Make sure to set the correct `VITE_AUTH0_AUDIENCE` (and optional `VITE_AUTH0_SCOPE`) so that the token contains your API audience.
+
+Access tokens are kept in the Auth0 SPA SDK's in-memory cache and are no longer copied into app-owned `localStorage`. WebSocket authentication requests a fresh provider token when the socket connects instead of reusing a persisted browser token.
 
 Env variables:
 
@@ -112,7 +114,7 @@ Env variables:
 - `VITE_AUTH0_AUDIENCE` (optional but recommended for API access)
 - `VITE_AUTH0_SCOPE` (optional; default `openid profile email`)
 - `VITE_API_BASE` (prod base URL for API; defaults to `/api`)
-- `VITE_API_TARGET` (dev proxy target; defaults to `http://localhost:5173`)
+- `VITE_API_TARGET` (dev proxy target; defaults to `http://localhost:8080`)
 
 Example usage:
 
@@ -128,7 +130,7 @@ const order = await apiPost('/orders', { symbol: 'BTCUSD', side: 'buy' })
 
 ### Authtentcation flow
 
-This app uses [Auth0 SPA SDK](https://auth0.com/docs/libraries/auth0-spa-js) for authentication. The main logic is in `src/lib/auth.ts` and the Auth0 provider is configured in `src/main.ts`.
+This app uses [Auth0 SPA SDK](https://auth0.com/docs/libraries/auth0-spa-js) for authentication behind the app auth interface in `src/lib/auth`. The Auth0 provider is configured in `src/plugins/auth0.ts` and registered in `src/main.ts`.
 
 ```mermaid
 flowchart TD

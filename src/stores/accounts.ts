@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import { useAuth0 } from '@auth0/auth0-vue'
+import { useAuth } from '@/lib/auth'
 import { apiPut, apiGet, apiDelete } from '@/lib/apiClient'
 import { ExchangeType, type MarketContext, type NetworkType } from '@/lib/ws/protocol'
 import { accountsStoreKey, getSessionUserId } from '@/lib/userSession'
@@ -25,7 +25,7 @@ export interface AccountRecord {
 }
 
 export const useAccountsStore = defineStore('accounts', () => {
-  const { isAuthenticated } = useAuth0()
+  const { isAuthenticated } = useAuth()
 
   const accountsRaw = ref<AccountRecord[]>([])
   const loading = ref(false)

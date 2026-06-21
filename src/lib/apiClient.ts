@@ -1,4 +1,4 @@
-import { getAuth0Client } from '@/plugins/auth0'
+import { getBearerToken } from '@/lib/auth'
 
 import { createLogger } from '@/lib/utils'
 
@@ -20,11 +20,6 @@ function getBaseUrl() {
 }
 
 async function authFetch(input: string, init: RequestOptions = {}) {
-  const auth0 = getAuth0Client() as {
-    isAuthenticated?: { value?: boolean }
-    getAccessTokenSilently?: (options?: Record<string, unknown>) => Promise<unknown>
-  } | null
-
   const headers = new Headers(init.headers || {})
   if (init.body && !headers.has('Content-Type')) {
     const body = init.body as unknown
@@ -41,29 +36,15 @@ async function authFetch(input: string, init: RequestOptions = {}) {
 
   // Attach bearer token when available
   try {
-    if (auth0?.isAuthenticated?.value && typeof auth0.getAccessTokenSilently === 'function') {
-      const token = await auth0
-        .getAccessTokenSilently({
-          authorizationParams: {
-            audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-            scope: import.meta.env.VITE_AUTH0_SCOPE,
-          },
-        })
-        .catch((error: unknown) => {
-          logger.warn('Error getting access token', error)
-          return null
-        })
-      if (typeof token === 'string' && token.length > 0) {
-        headers.set('Authorization', `Bearer ${token}`)
-        // Store token for WebSocket auth
-        localStorage.setItem('auth_token', token)
-      }
+    const token = await getBearerToken()
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
     }
   } catch (error) {
     logger.warn('Error getting access token', error)
   }
 
-  const res = await fetch(input, { ...init, headers })
+  const res = await fetch(input, { ...init, credentials: init.credentials ?? 'include', headers })
   if (init.throwOnHTTPError && !res.ok) {
     const text = await res.text().catch(() => '')
     const error = new Error(`HTTP ${res.status} ${res.statusText}${text ? `: ${text}` : ''}`)

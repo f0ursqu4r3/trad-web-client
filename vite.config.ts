@@ -5,14 +5,97 @@ import { defineConfig, loadEnv, type Plugin, type ViteDevServer } from 'vite'
 import type { ClientRequest, IncomingMessage, ServerResponse } from 'node:http'
 type NextFunction = (err?: unknown) => void
 import vue from '@vitejs/plugin-vue'
-import vueDevTools from 'vite-plugin-vue-devtools'
 import tailwindcss from '@tailwindcss/vite'
 
 const logger = createLogger('vite')
 
+type StorageLike = {
+  readonly length: number
+  clear(): void
+  getItem(key: string): string | null
+  key(index: number): string | null
+  removeItem(key: string): void
+  setItem(key: string, value: string): void
+}
+
+function createMemoryLocalStorage(): StorageLike {
+  const entries = new Map<string, string>()
+
+  return {
+    get length() {
+      return entries.size
+    },
+    clear() {
+      entries.clear()
+    },
+    getItem(key: string) {
+      return entries.get(key) ?? null
+    },
+    key(index: number) {
+      return Array.from(entries.keys())[index] ?? null
+    },
+    removeItem(key: string) {
+      entries.delete(key)
+    },
+    setItem(key: string, value: string) {
+      entries.set(key, value)
+    },
+  }
+}
+
+function isUsableLocalStorage(value: unknown): value is StorageLike {
+  const storage = value as Partial<StorageLike> | undefined
+
+  return (
+    storage !== undefined &&
+    storage !== null &&
+    typeof storage.getItem === 'function' &&
+    typeof storage.setItem === 'function' &&
+    typeof storage.removeItem === 'function'
+  )
+}
+
+function ensureConfigLocalStorage(): void {
+  const storageDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+
+  if (
+    storageDescriptor &&
+    'value' in storageDescriptor &&
+    isUsableLocalStorage(storageDescriptor.value)
+  ) {
+    return
+  }
+
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    enumerable: true,
+    value: createMemoryLocalStorage(),
+  })
+}
+
+function applyEnvToProcess(env: Record<string, string>): void {
+  for (const [key, value] of Object.entries(env)) {
+    process.env[key] ??= value
+  }
+}
+
+function createClientEnvDefines(env: Record<string, string>): Record<string, string> {
+  return Object.entries(env).reduce<Record<string, string>>((defines, [key, value]) => {
+    if (key.startsWith('VITE_')) {
+      defines[`import.meta.env.${key}`] = JSON.stringify(value)
+    }
+    return defines
+  }, {})
+}
+
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
+export default defineConfig(async ({ mode }) => {
+  ensureConfigLocalStorage()
+  const { default: vueDevTools } = await import('vite-plugin-vue-devtools')
+
+  const root = process.cwd()
+  const env = loadEnv(mode, root, '')
+  applyEnvToProcess(env)
   const apiTarget = env.VITE_API_TARGET || env.API_TARGET || 'http://localhost:8080'
   const preserveApiPrefix = (env.VITE_API_PRESERVE_PREFIX || '').toLowerCase() === 'true'
 
@@ -39,6 +122,8 @@ export default defineConfig(({ mode }) => {
     },
   }
   return {
+    envDir: root,
+    define: createClientEnvDefines(env),
     plugins: [
       // simple logger plugin for dev-time visibility
       loggerPlugin,
@@ -60,6 +145,12 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       proxy: {
+        '/auth': {
+          target: apiTarget,
+          changeOrigin: true,
+          secure: false,
+          xfwd: true,
+        },
         // Forward frontend calls to /api -> backend API server, avoiding CORS in dev
         '/api': {
           target: apiTarget,

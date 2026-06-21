@@ -1,7 +1,7 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useAuth0 } from '@auth0/auth0-vue'
+import { useAuth } from '@/lib/auth'
 import { useUiStore } from '@/stores/ui'
 import { useRouter } from 'vue-router'
 import { Sun, Moon } from 'lucide-vue-next'
@@ -11,7 +11,7 @@ import WsIndicator from '@/components/general/WsIndicator.vue'
 const ui = useUiStore()
 const router = useRouter()
 
-const { loginWithRedirect, logout, isAuthenticated, user } = useAuth0()
+const { login, logout, isAuthenticated, error: authError, user } = useAuth()
 
 const themeIcon = computed(() => {
   // For synthwave show a sun icon to indicate next will be light (reuse)
@@ -34,27 +34,18 @@ const themeToggleLabel = computed(() => {
 
 const showDebug = ref(false)
 
-interface Auth0UserLike {
-  name?: string
-  email?: string
-  nickname?: string
-}
 const userLabel = computed(() => {
-  const u = (user?.value ?? {}) as Auth0UserLike
+  const u = user?.value ?? {}
   return u.name || u.email || u.nickname || 'user'
 })
 
-const login = async () => {
-  await loginWithRedirect({
-    authorizationParams: {
-      audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-      scope: import.meta.env.VITE_AUTH0_SCOPE,
-    },
-  })
+const loginUser = async () => {
+  const redirect = (router.currentRoute.value.query.redirect as string) || '/terminal'
+  await login({ appState: { target: redirect } })
 }
 
 const logoutUser = async () => {
-  await logout({ logoutParams: { returnTo: window.location.origin } })
+  await logout({ returnTo: window.location.origin })
 }
 
 const goTerminal = () => router.push('/terminal')
@@ -95,13 +86,17 @@ onMounted(() => {
       <!-- Body -->
       <div class="p-4 sm:p-6">
         <h1 class="text-xl mb-1">Sign in</h1>
-        <p class="muted">Access your trading workspace with your Auth0 account.</p>
+        <p class="muted">Access your trading workspace with your account.</p>
 
         <div class="section-divider" />
 
+        <p v-if="authError" class="notice-err mb-4">
+          {{ authError.message || 'Authentication failed. Please try again.' }}
+        </p>
+
         <div class="space-y-3">
-          <button v-if="!isAuthenticated" class="btn-primary w-full" @click="login">
-            Continue with Auth0
+          <button v-if="!isAuthenticated" class="btn-primary w-full" @click="loginUser">
+            Continue
           </button>
 
           <div v-else class="space-y-2">
@@ -134,15 +129,19 @@ onMounted(() => {
         <transition name="fade">
           <div v-if="showDebug" class="mt-3 text-[12px]">
             <div class="grid grid-cols-[10rem_1fr] gap-2">
-              <div class="muted">Auth0 isAuthenticated</div>
+              <div class="muted">Auth isAuthenticated</div>
               <div>
                 <span class="pill" :class="isAuthenticated ? 'pill-ok' : 'pill-err'">{{
                   isAuthenticated ? 'true' : 'false'
                 }}</span>
               </div>
-              <div class="muted">Auth0 user</div>
+              <div class="muted">Auth user</div>
               <div>
                 <pre class="code-inline whitespace-pre-wrap leading-snug">{{ user }}</pre>
+              </div>
+              <div class="muted">Auth error</div>
+              <div>
+                <pre class="code-inline whitespace-pre-wrap leading-snug">{{ authError }}</pre>
               </div>
             </div>
           </div>

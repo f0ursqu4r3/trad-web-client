@@ -6,7 +6,7 @@ import { useWsStore } from '@/stores/ws'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import { useBillingStore } from '@/stores/billing'
 // import { apiPut } from '@/lib/apiClient'
-import { useAuth0 } from '@auth0/auth0-vue'
+import { useAuth } from '@/lib/auth'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 
 import ThemeSwitcher from '@/components/general/ThemeSwitcher.vue'
@@ -21,7 +21,7 @@ const userStore = useUserStore()
 const wsStore = useWsStore()
 const accountsStore = useAccountsStore()
 const billing = useBillingStore()
-const { logout, isAuthenticated } = useAuth0()
+const { logout, isAuthenticated } = useAuth()
 
 // Local editable preferences JSON
 const prefsEditor = ref('')
@@ -467,7 +467,7 @@ const returnToOrigin = window.location.origin
                 <button class="btn btn-secondary btn-sm" @click="reconnectWs">Reconnect WS</button>
                 <button
                   class="btn btn-danger btn-sm"
-                  @click="logout({ logoutParams: { returnTo: returnToOrigin } })"
+                  @click="logout({ returnTo: returnToOrigin })"
                 >
                   Logout
                 </button>

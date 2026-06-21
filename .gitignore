@@ -29,3 +29,6 @@ coverage
 
 *.tsbuildinfo
 *.rs
+
+.env*
+!.env.example

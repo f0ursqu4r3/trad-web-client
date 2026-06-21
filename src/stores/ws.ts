@@ -11,7 +11,7 @@ import { TradWebClient } from '@/lib/ws/websocketClient'
 import { useCommandStore } from '@/stores/command'
 import { useSplitPreviewStore } from '@/stores/splitPreview'
 import { useDeviceStore } from '@/stores/devices'
-import { getBearerToken } from '@/lib/auth0Helpers'
+import { getBearerToken } from '@/lib/auth'
 import { useUserStore } from './user'
 import { createLogger } from '@/lib/utils'
 import { recordPerf, recordPerfDuration, flushPerfLog, isPerfLogEnabled } from '@/lib/perfLog'
@@ -276,18 +276,11 @@ export const useWsStore = defineStore('ws', () => {
     void (async () => {
       const freshToken = await getBearerToken()
       if (freshToken) {
-        localStorage.setItem('auth_token', freshToken)
         logger.info('sending TokenLogin with fresh token')
         sendTokenLogin(freshToken)
         return
       }
-      const cachedToken = localStorage.getItem('auth_token')
-      if (cachedToken) {
-        logger.info('sending TokenLogin with stored token')
-        sendTokenLogin(cachedToken)
-      } else {
-        logger.info('no stored token found')
-      }
+      logger.info('no bearer token available for WebSocket auth')
     })()
     // reset reconnect count on successful connection
     reconnectCount.value = 0
@@ -356,8 +349,7 @@ export const useWsStore = defineStore('ws', () => {
     authAccepted.value = false
     authError.value = data.error
     if (isAuthError(data.error)) {
-      localStorage.removeItem('auth_token')
-      logger.warn('cleared cached auth token after auth error')
+      logger.warn('server rejected auth token')
     }
   }
 

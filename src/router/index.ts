@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import { watch } from 'vue'
-import { useAuth0 } from '@auth0/auth0-vue'
+import { useAuth } from '@/lib/auth'
 import { useUserStore } from '@/stores/user'
 
 const routes: RouteRecordRaw[] = [
@@ -30,25 +29,10 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
-  const { isAuthenticated, isLoading } = useAuth0()
+  const auth = useAuth()
+  await auth.waitUntilReady()
 
-  // Wait for Auth0 SDK to finish loading on initial refresh
-  if (isLoading.value) {
-    await new Promise<void>((resolve) => {
-      const stop = watch(
-        () => isLoading.value,
-        (loading: boolean) => {
-          if (!loading) {
-            stop()
-            resolve()
-          }
-        },
-        { immediate: true },
-      )
-    })
-  }
-
-  const authed = isAuthenticated.value
+  const authed = auth.isAuthenticated.value
 
   if (to.meta.requiresAuth && !authed) {
     return { path: '/login', query: { redirect: to.fullPath } }
