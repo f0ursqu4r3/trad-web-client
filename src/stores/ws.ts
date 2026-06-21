@@ -11,7 +11,7 @@ import { TradWebClient } from '@/lib/ws/websocketClient'
 import { useCommandStore } from '@/stores/command'
 import { useSplitPreviewStore } from '@/stores/splitPreview'
 import { useDeviceStore } from '@/stores/devices'
-import { getBearerToken } from '@/lib/auth'
+import { getWebSocketToken } from '@/lib/auth'
 import { useUserStore } from './user'
 import { createLogger } from '@/lib/utils'
 import { recordPerf, recordPerfDuration, flushPerfLog, isPerfLogEnabled } from '@/lib/perfLog'
@@ -274,13 +274,13 @@ export const useWsStore = defineStore('ws', () => {
     status.value = 'ready'
     logger.info('ServerHello received. status -> ready, protocol=', data.protocol_version)
     void (async () => {
-      const freshToken = await getBearerToken()
-      if (freshToken) {
-        logger.info('sending TokenLogin with fresh token')
-        sendTokenLogin(freshToken)
+      const token = await getWebSocketToken()
+      if (token) {
+        logger.info('sending TokenLogin with WebSocket auth token')
+        sendTokenLogin(token)
         return
       }
-      logger.info('no bearer token available for WebSocket auth')
+      logger.info('no WebSocket auth token available')
     })()
     // reset reconnect count on successful connection
     reconnectCount.value = 0

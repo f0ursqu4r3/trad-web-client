@@ -1,9 +1,3 @@
-import { getBearerToken } from '@/lib/auth'
-
-import { createLogger } from '@/lib/utils'
-
-const logger = createLogger('api')
-
 export interface RequestOptions extends RequestInit {
   // When true, throws on non-2xx; when false returns Response
   throwOnHTTPError?: boolean
@@ -19,7 +13,7 @@ function getBaseUrl() {
   return import.meta.env.VITE_API_BASE || '/api'
 }
 
-async function authFetch(input: string, init: RequestOptions = {}) {
+async function sessionFetch(input: string, init: RequestOptions = {}) {
   const headers = new Headers(init.headers || {})
   if (init.body && !headers.has('Content-Type')) {
     const body = init.body as unknown
@@ -32,16 +26,6 @@ async function authFetch(input: string, init: RequestOptions = {}) {
     if (!isFormData && !isBlob && !isArrayBuffer) {
       headers.set('Content-Type', 'application/json')
     }
-  }
-
-  // Attach bearer token when available
-  try {
-    const token = await getBearerToken()
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`)
-    }
-  } catch (error) {
-    logger.warn('Error getting access token', error)
   }
 
   const res = await fetch(input, { ...init, credentials: init.credentials ?? 'include', headers })
@@ -62,7 +46,7 @@ const parseUrl = (baseUrl: string, path: string) => {
 export async function apiGet<T = unknown>(path: string, opts: JsonOptions = {}): Promise<T> {
   const baseUrl = opts.baseUrl ?? getBaseUrl()
   const url = parseUrl(baseUrl, path)
-  const res = await authFetch(url, { ...opts, method: 'GET' })
+  const res = await sessionFetch(url, { ...opts, method: 'GET' })
   if (res.status === 204) return undefined as unknown as T
   return (await res.json()) as T
 }
@@ -79,7 +63,7 @@ export async function apiPost<T = unknown, B = unknown>(
     method: 'POST',
     body: body != null ? JSON.stringify(body) : undefined,
   }
-  const res = await authFetch(url, init)
+  const res = await sessionFetch(url, init)
   if (res.status === 204) return undefined as unknown as T
   return (await res.json()) as T
 }
@@ -96,7 +80,7 @@ export async function apiPut<T = unknown, B = unknown>(
     method: 'PUT',
     body: body != null ? JSON.stringify(body) : undefined,
   }
-  const res = await authFetch(url, init)
+  const res = await sessionFetch(url, init)
   if (res.status === 204) return undefined as unknown as T
   return (await res.json()) as T
 }
@@ -106,7 +90,7 @@ export async function apiDelete<T = unknown>(path: string, opts: JsonOptions = {
   const url = baseUrl.endsWith('/')
     ? `${baseUrl}${path.replace(/^\//, '')}`
     : `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
-  const res = await authFetch(url, { ...opts, method: 'DELETE' })
+  const res = await sessionFetch(url, { ...opts, method: 'DELETE' })
   if (res.status === 204) return undefined as unknown as T
   return (await res.json()) as T
 }

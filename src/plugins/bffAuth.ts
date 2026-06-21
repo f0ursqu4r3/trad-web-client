@@ -6,6 +6,11 @@ interface SessionResponse {
   user?: AuthUser | null
 }
 
+interface WsTicketResponse {
+  token: string
+  expires_in: number
+}
+
 export function createBffAuthProvider(): AuthProvider {
   const isAuthenticated = ref(false)
   const isLoading = ref(true)
@@ -57,8 +62,20 @@ export function createBffAuthProvider(): AuthProvider {
       user.value = null
       window.location.assign(options?.returnTo ?? '/login')
     },
-    async getAccessToken() {
-      return null
+    async getWebSocketToken() {
+      if (!isAuthenticated.value) return null
+      try {
+        const response = await fetch('/auth/ws-ticket', {
+          method: 'POST',
+          credentials: 'include',
+        })
+        if (!response.ok) return null
+
+        const ticket = (await response.json()) as WsTicketResponse
+        return typeof ticket.token === 'string' && ticket.token.length > 0 ? ticket.token : null
+      } catch {
+        return null
+      }
     },
     async waitUntilReady() {
       if (!isLoading.value) return

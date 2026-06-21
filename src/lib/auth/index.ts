@@ -13,8 +13,8 @@ export function useAuth(): AuthProvider {
   return authProvider
 }
 
-export async function getBearerToken(): Promise<string | null> {
-  return useAuth().getAccessToken()
+export async function getWebSocketToken(): Promise<string | null> {
+  return useAuth().getWebSocketToken()
 }
 
 export function clearLegacyAuthStorage(): void {
