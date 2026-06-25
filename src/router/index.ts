@@ -20,6 +20,15 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/StyleGuide.vue'),
     meta: { layout: 'blank' },
   },
+  ...(import.meta.env.VITE_E2E === '1'
+    ? [
+        {
+          path: '/e2e/bybit-terminal',
+          component: () => import('@/views/e2e/BybitTerminalFixture.vue'),
+          meta: { layout: 'blank' },
+        },
+      ]
+    : []),
   { path: '/:pathMatch(.*)*', redirect: '/terminal' },
 ]
 
