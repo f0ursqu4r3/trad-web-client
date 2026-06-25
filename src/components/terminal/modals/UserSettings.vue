@@ -12,9 +12,8 @@ import {
 } from '@/stores/accounts'
 import { useBillingStore } from '@/stores/billing'
 // import { apiPut } from '@/lib/apiClient'
-import { useAuth0 } from '@auth0/auth0-vue'
+import { getWebSocketToken, useAuth } from '@/lib/auth'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
-import { getBearerToken } from '@/lib/auth0Helpers'
 
 import ThemeSwitcher from '@/components/general/ThemeSwitcher.vue'
 import OrderedList from '@/components/general/OrderedList.vue'
@@ -28,7 +27,7 @@ const userStore = useUserStore()
 const wsStore = useWsStore()
 const accountsStore = useAccountsStore()
 const billing = useBillingStore()
-const { logout, isAuthenticated } = useAuth0()
+const { logout, isAuthenticated } = useAuth()
 
 // Local editable preferences JSON
 const prefsEditor = ref('')
@@ -101,7 +100,7 @@ async function refreshAccountKeys(account: AccountRecord) {
     prefsError.value = 'Account refresh requires an active server connection.'
     return
   }
-  const token = await getBearerToken()
+  const token = await getWebSocketToken()
   if (!token) {
     prefsError.value = 'Unable to refresh account credentials: no auth token available.'
     return
@@ -527,7 +526,7 @@ const returnToOrigin = window.location.origin
                 <button class="btn btn-secondary btn-sm" @click="reconnectWs">Reconnect WS</button>
                 <button
                   class="btn btn-danger btn-sm"
-                  @click="logout({ logoutParams: { returnTo: returnToOrigin } })"
+                  @click="logout({ returnTo: returnToOrigin })"
                 >
                   Logout
                 </button>

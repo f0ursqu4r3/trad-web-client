@@ -2,12 +2,12 @@
 import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRouter, RouterView } from 'vue-router'
-import { useAuth0 } from '@auth0/auth0-vue'
+import { useAuth } from '@/lib/auth'
 import { useUserStore } from '@/stores/user'
 
 import AuthenticatedLayout from '@/layouts/Authenticated.vue'
 
-const { isAuthenticated } = useAuth0()
+const { isAuthenticated } = useAuth()
 const userStore = useUserStore()
 const router = useRouter()
 
@@ -28,7 +28,7 @@ const layoutComponent = computed(() => {
 // Only force navigation to login if the CURRENT route actually requires auth.
 // The global router.beforeEach already blocks navigation into protected routes.
 // This prevents public routes like /style-guide from being hijacked during the
-// initial Auth0 loading phase (when isAuthenticated is still false).
+// initial auth loading phase (when isAuthenticated is still false).
 watch(
   () => [isAuthenticated.value, route.fullPath],
   ([isAuth]) => {

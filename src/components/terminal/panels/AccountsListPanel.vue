@@ -10,7 +10,7 @@ import {
 import { useWsStore } from '@/stores/ws'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 import { X } from 'lucide-vue-next'
-import { getBearerToken } from '@/lib/auth0Helpers'
+import { getWebSocketToken } from '@/lib/auth'
 import { isValidBybitUsdtSymbol, normalizeBybitUsdtSymbol } from '@/lib/bybitOrderValidation'
 import { createLogger } from '@/lib/utils'
 import {
@@ -67,7 +67,7 @@ async function refreshAccountKeys(account: AccountRecord) {
     refreshError.value = 'Account refresh requires an active server connection.'
     return
   }
-  const token = await getBearerToken()
+  const token = await getWebSocketToken()
   if (!token) {
     refreshError.value = 'Unable to refresh account credentials: no auth token available.'
     return

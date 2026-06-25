@@ -5,7 +5,7 @@ import { Settings, ArrowLeft } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useUiStore } from '@/stores/ui'
 import { useAccountsStore } from '@/stores/accounts'
-import { useAuth0 } from '@auth0/auth0-vue'
+import { useAuth } from '@/lib/auth'
 import { accountColorFromId } from '@/lib/accountColors'
 
 import WsIndicator from '@/components/general/WsIndicator.vue'
@@ -17,14 +17,14 @@ import CommandModalContainer from '@/components/terminal/modals/commands/Command
 const userStore = useUserStore()
 const ui = useUiStore()
 const accounts = useAccountsStore()
-const { logout } = useAuth0()
+const { logout } = useAuth()
 
 const username = computed(() => userStore.displayName || 'anonymous')
 const selectedAccount = computed(() => accounts.selectedAccount)
 
 function confirmLogout() {
   if (window.confirm('Are you sure you want to log out?')) {
-    logout({ logoutParams: { returnTo: window.location.origin } })
+    logout({ returnTo: window.location.origin })
   }
 }
 

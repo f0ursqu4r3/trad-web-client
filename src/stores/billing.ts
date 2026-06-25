@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
-import { useAuth0 } from '@auth0/auth0-vue'
+import { useAuth } from '@/lib/auth'
 import { apiGet, apiPost } from '@/lib/apiClient'
 import { createLogger } from '@/lib/utils'
 
@@ -42,7 +42,7 @@ export interface PricingPlan {
 }
 
 export const useBillingStore = defineStore('billing', () => {
-  const { isAuthenticated } = useAuth0()
+  const { isAuthenticated } = useAuth()
 
   const billingInfo = ref<BillingInfo | null>(null)
   const plans = ref<PricingPlan[]>([])

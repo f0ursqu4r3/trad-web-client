@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import { useAuth0 } from '@auth0/auth0-vue'
+import { useAuth } from '@/lib/auth'
 import { apiGet, apiPut } from '@/lib/apiClient'
 import { setv } from '@/lib/utils'
 import { clearSessionUserId, setSessionUserId } from '@/lib/userSession'
@@ -23,7 +23,7 @@ export interface UserMeta {
 }
 
 export const useUserStore = defineStore('user', () => {
-  const { isAuthenticated } = useAuth0()
+  const { isAuthenticated } = useAuth()
 
   const email = ref<string | null>(null)
   const userId = ref<string | null>(null)

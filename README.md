@@ -99,20 +99,18 @@ bun install
 bun dev
 ```
 
-### API proxy and Auth0 tokens
+### API proxy and BFF auth
 
-During development, API requests to `/api/*` are proxied to `VITE_API_TARGET` (default `http://localhost:5173`). The dev proxy is configured in `vite.config.ts` and strips the leading `/api` when forwarding. Adjust the `rewrite` rule as needed for your backend.
+During development, `/api/*` and `/auth/*` are proxied to `VITE_API_TARGET` (default `http://localhost:8080`). WebSocket requests to `/ws` are proxied to `VITE_WS_TARGET` (default `ws://localhost:8081`). Local values should live in `.env.local`.
 
-This app uses Auth0. When making requests via the helpers in `src/lib/apiClient.ts`, an `Authorization: Bearer <token>` header is attached automatically when the user is authenticated. Make sure to set the correct `VITE_AUTH0_AUDIENCE` (and optional `VITE_AUTH0_SCOPE`) so that the token contains your API audience.
+The browser uses the gateway BFF session cookie for HTTP requests. Auth0 configuration and secrets belong in the gateway environment, not in browser-exposed `VITE_*` variables. WebSocket authentication uses a short-lived BFF ticket from `/auth/ws-ticket`.
 
 Env variables:
 
-- `VITE_AUTH0_DOMAIN`
-- `VITE_AUTH0_CLIENT_ID`
-- `VITE_AUTH0_AUDIENCE` (optional but recommended for API access)
-- `VITE_AUTH0_SCOPE` (optional; default `openid profile email`)
 - `VITE_API_BASE` (prod base URL for API; defaults to `/api`)
-- `VITE_API_TARGET` (dev proxy target; defaults to `http://localhost:5173`)
+- `VITE_API_TARGET` (dev proxy target; defaults to `http://localhost:8080`)
+- `VITE_WS_URL` (optional explicit WebSocket URL; blank derives `/ws` from the current origin)
+- `VITE_WS_TARGET` (dev proxy target; defaults to `ws://localhost:8081`)
 
 Example usage:
 
@@ -126,22 +124,22 @@ const health = await apiGet<{ ok: boolean }>('/health')
 const order = await apiPost('/orders', { symbol: 'BTCUSD', side: 'buy' })
 ```
 
-### Authtentcation flow
+### Authentication flow
 
-This app uses [Auth0 SPA SDK](https://auth0.com/docs/libraries/auth0-spa-js) for authentication. The main logic is in `src/lib/auth.ts` and the Auth0 provider is configured in `src/main.ts`.
+This app uses the gateway as a BFF. The browser never stores Auth0 access tokens; it redirects to `/auth/login`, receives an HttpOnly session cookie from the gateway, and calls authenticated HTTP routes with `credentials: include`.
 
 ```mermaid
 flowchart TD
-    A[App Load] --> B{Is Authenticated?}
-    B -- Yes --> C[Get Access Token Silently]
-    B -- No --> D[Show Login Button]
-    D --> E[User Clicks Login]
-    E --> F[Redirect to Auth0]
-    F --> G[User Authenticates]
-    G --> H[Redirect Back to App]
-    H --> I[Handle Redirect Callback]
-    I --> C
-    C --> J[Make Authenticated API Requests]
+    A[App Load] --> B[GET /auth/session]
+    B --> C{Authenticated?}
+    C -- No --> D[Show Login Button]
+    D --> E[Redirect to /auth/login]
+    E --> F[Gateway completes Auth0 code flow]
+    F --> G[Set HttpOnly BFF cookie]
+    G --> H[Return to app]
+    C -- Yes --> I[Call /api with session cookie]
+    H --> I
+    I --> J[POST /auth/ws-ticket for WebSocket login]
 ```
 
 ### Type-Check, Compile and Minify for Production

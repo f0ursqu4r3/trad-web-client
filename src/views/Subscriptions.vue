@@ -61,12 +61,12 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useAuth0 } from '@auth0/auth0-vue'
+import { useAuth } from '@/lib/auth'
 import { useBillingStore } from '@/stores/billing'
 import PricingTable from '@/components/billing/PricingTable.vue'
 
 const route = useRoute()
-const { isAuthenticated, loginWithRedirect } = useAuth0()
+const { isAuthenticated, login } = useAuth()
 const billing = useBillingStore()
 
 // Fetch plans on mount
@@ -77,19 +77,15 @@ onMounted(() => {
   }
 })
 
-// Expose a boolean for template (Auth0 exposes a Ref<boolean>)
+// Expose a boolean for template (the auth provider exposes a Ref<boolean>)
 const authIsAuthenticated = computed(() => isAuthenticated.value)
 const showEntitlementNotice = computed(() => Boolean(route.query.redirect))
 
 async function handleSubscribe(priceId: string) {
   if (!isAuthenticated.value) {
     // Redirect to login, then back here
-    await loginWithRedirect({
-      appState: { targetUrl: route.fullPath },
-      authorizationParams: {
-        audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-        scope: import.meta.env.VITE_AUTH0_SCOPE,
-      },
+    await login({
+      appState: { target: route.fullPath },
     })
     return
   }

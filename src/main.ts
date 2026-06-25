@@ -14,7 +14,8 @@ import DeviceTreePanel from '@/components/terminal/panels/DeviceTreePanel.vue'
 import DeviceDetailsPanel from '@/components/terminal/panels/DeviceDetailsPanel.vue'
 import InboundDebugPanel from './components/terminal/panels/InboundDebugPanel.vue'
 
-import { auth0, setAuth0Client } from '@/plugins/auth0'
+import { createBffAuthProvider } from '@/plugins/bffAuth'
+import { clearLegacyAuthStorage, setAuthProvider } from '@/lib/auth'
 import { useUiStore } from '@/stores/ui'
 
 const app = createApp(App)
@@ -26,10 +27,10 @@ const pinia = createPinia()
 pinia.use(piniaPluginPersistedstate)
 app.use(pinia)
 
-app.use(router)
+clearLegacyAuthStorage()
+setAuthProvider(createBffAuthProvider())
 
-app.use(auth0)
-setAuth0Client(app.config.globalProperties.$auth0)
+app.use(router)
 
 app.component('ChartPanel', ChartPanel)
 app.component('DeviceTreePanel', DeviceTreePanel)

@@ -13,7 +13,7 @@ import { useCommandStore } from '@/stores/command'
 import { useSplitPreviewStore } from '@/stores/splitPreview'
 import { useDeviceStore } from '@/stores/devices'
 import { useAccountsStore } from '@/stores/accounts'
-import { getBearerToken } from '@/lib/auth0Helpers'
+import { clearLegacyAuthStorage, getWebSocketToken } from '@/lib/auth'
 import { useUserStore } from './user'
 import { createLogger } from '@/lib/utils'
 import { recordPerf, recordPerfDuration, flushPerfLog, isPerfLogEnabled } from '@/lib/perfLog'
@@ -314,20 +314,13 @@ export const useWsStore = defineStore('ws', () => {
     status.value = 'ready'
     logger.info('ServerHello received. status -> ready, protocol=', data.protocol_version)
     void (async () => {
-      const freshToken = await getBearerToken()
-      if (freshToken) {
-        localStorage.setItem('auth_token', freshToken)
-        logger.info('sending TokenLogin with fresh token')
-        sendTokenLogin(freshToken)
+      const token = await getWebSocketToken()
+      if (token) {
+        logger.info('sending TokenLogin with WebSocket auth token')
+        sendTokenLogin(token)
         return
       }
-      const cachedToken = localStorage.getItem('auth_token')
-      if (cachedToken) {
-        logger.info('sending TokenLogin with stored token')
-        sendTokenLogin(cachedToken)
-      } else {
-        logger.info('no stored token found')
-      }
+      logger.info('no WebSocket auth token available')
     })()
     // reset reconnect count on successful connection
     reconnectCount.value = 0
@@ -406,8 +399,8 @@ export const useWsStore = defineStore('ws', () => {
     if (isAuthError(data.error)) {
       authAccepted.value = false
       authError.value = data.error
-      localStorage.removeItem('auth_token')
-      logger.warn('cleared cached auth token after auth error')
+      clearLegacyAuthStorage()
+      logger.warn('server rejected auth token')
     }
   }
 
