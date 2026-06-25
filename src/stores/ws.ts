@@ -47,6 +47,7 @@ export const useWsStore = defineStore('ws', () => {
   const username = ref<string>('anonymous')
   const protocolVersion = ref<number | null>(null)
   const inbound = ref<RawInboundRecord[]>([])
+  const serverMessages = ref<string[]>([])
   const inboundDebugEnabled = ref(localStorage.getItem('fe_inbound_debug') === '1')
   const outboundCount = ref(0)
   const reconnectCount = ref(0)
@@ -274,6 +275,7 @@ export const useWsStore = defineStore('ws', () => {
       SetUser: handleSetUser,
       UnsetUser: handleUnsetUser,
       CommandResponse: handleCommandResponse,
+      Message: handleMessage,
       Pong: handlePong,
       FatalServerError: handleFatalServerError,
       ServerError: handleServerError,
@@ -359,6 +361,13 @@ export const useWsStore = defineStore('ws', () => {
         logger.error('failed to refresh accounts after account-key refresh', err)
       })
     }
+  }
+
+  function handleMessage(payload: ServerToClientMessage['payload']): void {
+    const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'Message' }>).data
+    serverMessages.value.push(data.message)
+    if (serverMessages.value.length > 200) serverMessages.value.shift()
+    logger.info('Server message received:', data.message)
   }
 
   function handlePong(): void {
@@ -539,6 +548,7 @@ export const useWsStore = defineStore('ws', () => {
     username,
     protocolVersion,
     inbound,
+    serverMessages,
     inboundDebugEnabled,
     outboundCount,
     reconnectCount,

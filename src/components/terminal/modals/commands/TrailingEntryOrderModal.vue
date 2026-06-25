@@ -320,7 +320,7 @@ function formatNumber(value: number, digits: number) {
           <span>Take Profit</span><input type="number" v-model.number="take_profit" />
         </label>
         <label class="field">
-          <span>Risk Amount</span><input type="number" v-model.number="risk_amount" />
+          <span>Risk Amount</span><input type="number" step="any" v-model.number="risk_amount" />
         </label>
       </div>
 
