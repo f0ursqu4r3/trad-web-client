@@ -211,18 +211,19 @@ export const useAccountsStore = defineStore('accounts', () => {
   function loadPersistedState(userId: string): void {
     try {
       const raw = localStorage.getItem(accountsStoreKey(userId))
-      if (!raw) return
-      const parsed = JSON.parse(raw) as {
-        selectedAccountId?: string | null
-        accountOrder?: string[]
-      }
-      if (Array.isArray(parsed.accountOrder)) {
-        accountOrder.value = parsed.accountOrder
-      }
-      if (typeof parsed.selectedAccountId === 'string') {
-        selectedAccountId.value = parsed.selectedAccountId
-      } else if (parsed.selectedAccountId === null) {
-        selectedAccountId.value = null
+      if (raw) {
+        const parsed = JSON.parse(raw) as {
+          selectedAccountId?: string | null
+          accountOrder?: string[]
+        }
+        if (Array.isArray(parsed.accountOrder)) {
+          accountOrder.value = parsed.accountOrder
+        }
+        if (typeof parsed.selectedAccountId === 'string') {
+          selectedAccountId.value = parsed.selectedAccountId
+        } else if (parsed.selectedAccountId === null) {
+          selectedAccountId.value = null
+        }
       }
     } catch {
       /* ignore invalid persisted state */
