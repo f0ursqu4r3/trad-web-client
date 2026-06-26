@@ -79,6 +79,16 @@ function numberParam(name: string, fallback: number): number {
   return parsed
 }
 
+function nonNegativeNumberParam(name: string, fallback: number): number {
+  const raw = param(name)
+  if (raw === null || raw.trim() === '') return fallback
+  const parsed = Number(raw)
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`${name} must be a non-negative number`)
+  }
+  return parsed
+}
+
 async function sleep(ms: number) {
   await new Promise((resolve) => window.setTimeout(resolve, ms))
 }
@@ -112,7 +122,7 @@ function stopLagMonitor() {
 }
 
 function commandStatus(commandId: string): CommandStatus | null {
-  return commands.history.find((item) => item.command_id === commandId)?.status ?? null
+  return commands.commandStatus(commandId)
 }
 
 function commandResponseMessage(commandId: string): string | null {
@@ -186,7 +196,7 @@ async function runSmoke() {
     state.submitted = 0
     state.inspected = 0
     state.maxEventLoopLagMs = 0
-    commands.history = []
+    commands.clearHistory()
     devices.clearDevices()
     // Needed briefly so the page can parse the CreateSimMarket command response.
     // Disable before TE fanout because the debug buffer is intentionally reactive.
@@ -195,7 +205,7 @@ async function runSmoke() {
 
     const token = param('token')
     const count = Math.floor(numberParam('count', 25))
-    const inspect = Math.floor(numberParam('inspect', count))
+    const inspect = Math.floor(nonNegativeNumberParam('inspect', count))
     const durationMs = Math.floor(numberParam('durationMs', 15_000))
     const tickMs = numberParam('tickMs', 100)
     const center = numberParam('center', 100)
@@ -241,7 +251,9 @@ async function runSmoke() {
         },
       } satisfies UserCommandPayload)
       commandIds.push(commandId)
-      state.submitted = commandIds.length
+      if (commandIds.length % 25 === 0 || commandIds.length === count) {
+        state.submitted = commandIds.length
+      }
     }
     record(`submitted ${count} TEs in ${Math.round(performance.now() - submitStarted)}ms`)
     await waitFor(
@@ -251,7 +263,7 @@ async function runSmoke() {
     )
 
     for (const commandId of commandIds.slice(0, Math.min(inspect, commandIds.length))) {
-      commands.inspectCommand(commandId)
+      ws.inspectCommand(commandId)
       state.inspected += 1
     }
     record(`inspecting ${state.inspected} commands`)
@@ -268,6 +280,7 @@ async function runSmoke() {
       updateCounters()
       await sleep(250)
     }
+    await sendControlSim(simMarketId, 'Stop')
     updateCounters()
     state.phase = 'done'
     record(

@@ -48,5 +48,7 @@ test('FE websocket handles simulated TE load', async ({ page }) => {
   expect(result?.error).toBeNull()
   expect(result?.submitted).toBe(Number(count))
   expect(result?.teDeviceCount).toBeGreaterThanOrEqual(expectedInspected)
-  expect(result?.totalTePoints).toBeGreaterThan(0)
+  if (expectedInspected > 0) {
+    expect(result?.totalTePoints).toBeGreaterThan(0)
+  }
 })

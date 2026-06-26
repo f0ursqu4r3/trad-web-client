@@ -31,6 +31,7 @@ import { createLogger } from '@/lib/utils'
 import { normalizeMarketContext } from '@/lib/marketContext'
 
 const logger = createLogger('devices')
+const MAX_HOT_TE_POINTS = 5000
 
 export const useDeviceStore = defineStore('device', () => {
   const deviceMap = ref<Record<string, Device>>({})
@@ -469,11 +470,16 @@ export const useDeviceStore = defineStore('device', () => {
       case 'PointsInit':
         {
           const { points, start_idx, total_len } = delta.data
-          te.points_snapshot = points
-          te.base_index = start_idx
+          if (points.length > MAX_HOT_TE_POINTS) {
+            const drop = points.length - MAX_HOT_TE_POINTS
+            te.points_snapshot = points.slice(drop)
+            te.base_index = start_idx + drop
+          } else {
+            te.points_snapshot = points
+            te.base_index = start_idx
+          }
           te.total_points = total_len
-          // Ensure reactive update for chart watchers.
-          te.points_snapshot = [...te.points_snapshot]
+          te.points_version += 1
         }
         break
       case 'Point':
@@ -497,8 +503,12 @@ export const useDeviceStore = defineStore('device', () => {
             }
           }
           te.total_points = Math.max(te.total_points, idx + 1)
-          // Force array ref update so computed chart data reacts to point changes.
-          te.points_snapshot = [...te.points_snapshot]
+          if (te.points_snapshot.length > MAX_HOT_TE_POINTS) {
+            const drop = te.points_snapshot.length - MAX_HOT_TE_POINTS
+            te.points_snapshot.splice(0, drop)
+            te.base_index += drop
+          }
+          te.points_version += 1
         }
         break
       case 'Peak':
@@ -1043,6 +1053,7 @@ export interface TrailingEntryState {
 
   // review
   points_snapshot: number[]
+  points_version: number
   base_index: number // number of points discarded from the front (for absolute indexing)
   total_points: number // total points ever seen; indices are absolute in [0..total_points)
   start_trigger_index: number | null
@@ -1208,6 +1219,7 @@ function newTrailingEntryState(): TrailingEntryState {
     succeeded: false,
     stop_loss_hit: false,
     points_snapshot: [],
+    points_version: 0,
     base_index: 0,
     total_points: 0,
     start_trigger_index: null,

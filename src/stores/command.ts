@@ -57,10 +57,16 @@ export const useCommandStore = defineStore(
     const deviceStore = useDeviceStore()
 
     const history = ref<CommandHistoryItem[]>([])
+    const commandIndexById = new Map<Uuid, number>()
+    const pendingStatusUpdates = new Map<Uuid, CommandStatus>()
+    const pendingHistoryAppends: CommandHistoryItem[] = []
+    const pendingHistoryById = new Map<Uuid, CommandHistoryItem>()
+    let statusFlushScheduled = false
+    let historyFlushScheduled = false
     const devices = ref<Record<Uuid, CommandDevicesListData>>(
       {} as Record<Uuid, CommandDevicesListData>,
     )
-    const pendingCommands = ref<Record<Uuid, PendingCommand>>({})
+    const pendingCommands = new Map<Uuid, PendingCommand>()
     const selectedCommandId = ref<string | null>(null)
 
     const commandMeta = ref<
@@ -292,29 +298,130 @@ export const useCommandStore = defineStore(
       return commandMap.value[selectedCommandId.value] || null
     })
 
+    function rebuildCommandIndex() {
+      commandIndexById.clear()
+      history.value.forEach((item, index) => {
+        commandIndexById.set(item.command_id, index)
+      })
+    }
+
+    function setCommandHistory(items: CommandHistoryItem[]) {
+      history.value = items
+      rebuildCommandIndex()
+    }
+
+    function clearHistory() {
+      setCommandHistory([])
+      pendingStatusUpdates.clear()
+      pendingHistoryAppends.splice(0, pendingHistoryAppends.length)
+      pendingHistoryById.clear()
+    }
+
+    function commandHistoryIndex(commandId: Uuid): number {
+      const cached = commandIndexById.get(commandId)
+      if (cached !== undefined && history.value[cached]?.command_id === commandId) {
+        return cached
+      }
+      const index = history.value.findIndex((item) => item.command_id === commandId)
+      if (index !== -1) {
+        commandIndexById.set(commandId, index)
+      }
+      return index
+    }
+
+    function commandStatus(commandId: Uuid): CommandStatus | null {
+      const index = commandHistoryIndex(commandId)
+      if (index !== -1) return history.value[index].status
+      return pendingHistoryById.get(commandId)?.status ?? null
+    }
+
+    function applyCommandStatus(commandId: Uuid, status: CommandStatus): boolean {
+      const pending = pendingHistoryById.get(commandId)
+      if (pending) {
+        pending.status = status
+        return true
+      }
+      const index = commandHistoryIndex(commandId)
+      if (index === -1) return false
+      if (history.value[index].status !== status) {
+        history.value[index].status = status
+      }
+      return true
+    }
+
+    function flushCommandStatusUpdates() {
+      statusFlushScheduled = false
+      if (pendingStatusUpdates.size === 0) return
+
+      const stillPending = new Map<Uuid, CommandStatus>()
+      pendingStatusUpdates.forEach((status, commandId) => {
+        if (!applyCommandStatus(commandId, status)) {
+          stillPending.set(commandId, status)
+        }
+      })
+      pendingStatusUpdates.clear()
+      stillPending.forEach((status, commandId) => {
+        pendingStatusUpdates.set(commandId, status)
+      })
+    }
+
+    function setCommandStatus(commandId: Uuid, status: CommandStatus) {
+      pendingStatusUpdates.set(commandId, status)
+      if (statusFlushScheduled) return
+      statusFlushScheduled = true
+      window.requestAnimationFrame(flushCommandStatusUpdates)
+    }
+
+    function flushCommandHistoryAppends() {
+      historyFlushScheduled = false
+      if (pendingHistoryAppends.length === 0) return
+
+      const startIndex = history.value.length
+      const batch = pendingHistoryAppends.splice(0, pendingHistoryAppends.length)
+      history.value.push(...batch)
+      batch.forEach((item, offset) => {
+        commandIndexById.set(item.command_id, startIndex + offset)
+        pendingHistoryById.delete(item.command_id)
+      })
+      flushCommandStatusUpdates()
+    }
+
+    function scheduleCommandHistoryFlush() {
+      if (historyFlushScheduled) return
+      historyFlushScheduled = true
+      window.requestAnimationFrame(flushCommandHistoryAppends)
+    }
+
     function addPendingCommand(commandId: string, command: unknown) {
-      pendingCommands.value[commandId] = {
+      pendingCommands.set(commandId, {
         commandId,
         sentAt: performance.now(),
         command,
-      }
+      })
     }
 
     function verifyPendingCommand(commandId: string): number | undefined {
-      if (!pendingCommands.value[commandId]) return
+      const pending = pendingCommands.get(commandId)
+      if (!pending) return
       const now = performance.now()
-      const pending = pendingCommands.value[commandId]
       const latency = now - pending.sentAt
       logger.debug(`Command ${commandId} acknowledged, latency=${Math.round(latency)}ms`)
-      // Move to history
-      history.value.push({
+      const item = {
         command_id: commandId,
         command: pending.command,
         status: CommandStatus.Running,
         created_at: new Date().toISOString(),
-      } as CommandHistoryItem)
+      } as CommandHistoryItem
+      pendingHistoryAppends.push(item)
+      pendingHistoryById.set(commandId, item)
+      const pendingStatus = pendingStatusUpdates.get(commandId)
+      if (pendingStatus) {
+        applyCommandStatus(commandId, pendingStatus)
+        pendingStatusUpdates.delete(commandId)
+      }
       // Remove from pending
-      delete pendingCommands.value[commandId]
+      pendingCommands.delete(commandId)
+      scheduleCommandHistoryFlush()
       return latency
     }
 
@@ -380,6 +487,10 @@ export const useCommandStore = defineStore(
       closePosition,
       addPendingCommand,
       verifyPendingCommand,
+      setCommandHistory,
+      clearHistory,
+      commandStatus,
+      setCommandStatus,
       setCommandNickname,
       setCommandNicknameColor,
       toggleCommandPin,

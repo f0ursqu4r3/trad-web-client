@@ -351,11 +351,7 @@ export const useWsStore = defineStore('ws', () => {
     const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandResponse' }>)
       .data
     const wasAccountRefresh = pendingAccountRefreshes.delete(data.request_uuid)
-    const pending = commandStore.pendingCommands[data.request_uuid]
     commandStore.verifyPendingCommand(data.request_uuid)
-    if (pending && (pending.command as { kind?: string }).kind === 'TrailingEntryOrder') {
-      commandStore.inspectCommand(data.request_uuid)
-    }
     if (wasAccountRefresh) {
       accountsStore.fetchAccounts().catch((err) => {
         logger.error('failed to refresh accounts after account-key refresh', err)
@@ -423,18 +419,14 @@ export const useWsStore = defineStore('ws', () => {
   function handleCommandHistory(payload: ServerToClientMessage['payload']): void {
     const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandHistory' }>)
       .data
-    commandStore.history = data.items
+    commandStore.setCommandHistory(data.items)
   }
 
   function handleSetCommandStatus(payload: ServerToClientMessage['payload']): void {
     const data = (
       payload as Extract<ServerToClientMessage['payload'], { kind: 'SetCommandStatus' }>
     ).data
-    const idx = commandStore.history.findIndex((item) => item.command_id === data.command_id)
-    if (idx !== -1) {
-      commandStore.history[idx].status = data.status
-      commandStore.history = [...commandStore.history]
-    }
+    commandStore.setCommandStatus(data.command_id, data.status)
   }
 
   function handleCommandDevicesList(payload: ServerToClientMessage['payload']): void {

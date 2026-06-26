@@ -103,6 +103,7 @@ function applyChartTheme() {
 
 const devicePoints = computed(() => {
   if (!teDevice.value) return []
+  teDevice.value.points_version
   return (
     (teDevice.value?.points_snapshot.map((price, idx) => ({
       idx,
