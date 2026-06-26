@@ -23,7 +23,9 @@ export default defineConfig({
     url: 'http://127.0.0.1:4173/e2e/bybit-terminal',
     reuseExistingServer: !process.env.CI,
     env: {
+      ...process.env,
       VITE_E2E: '1',
+      VITE_WS_URL: process.env.VITE_WS_URL || '',
     },
   },
 })
