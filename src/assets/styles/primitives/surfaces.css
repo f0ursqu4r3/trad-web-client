@@ -7,21 +7,21 @@
   .panel-card {
     @apply border shadow-sm;
     border-radius: var(--radius-card);
-    background: var(--panel-bg);
-    border-color: var(--border-color);
+    background: var(--surface-base);
+    border-color: var(--border-normal);
   }
   .panel {
     @apply border;
     border-radius: var(--radius-panel);
-    background: var(--panel-bg);
-    border-color: var(--border-color);
+    background: var(--surface-base);
+    border-color: var(--border-normal);
   }
   .panel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: var(--panel-header-bg);
-    border-bottom: 1px solid var(--panel-border-inner);
+    background: var(--surface-muted);
+    border-bottom: 1px solid var(--border-subtle);
     padding: 0 0.5rem;
   }
   .panel-options {
@@ -33,29 +33,29 @@
     font-size: 13px;
     line-height: 28px;
     font-weight: 400;
-    color: var(--color-text-dim);
+    color: var(--fg-muted);
   }
   .code-inline {
     @apply border px-1.5 py-0.5 text-[12px] font-mono;
     border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--panel-header-bg) 70%, transparent);
-    border-color: var(--border-color);
+    background: color-mix(in srgb, var(--surface-muted) 70%, transparent);
+    border-color: var(--border-normal);
   }
   .panel-header-row {
     @apply flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide;
-    background: var(--panel-header-bg);
-    border-bottom: 1px solid var(--panel-border-inner);
-    color: var(--color-text-dim);
+    background: var(--surface-muted);
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--fg-muted);
   }
   .section-divider {
     @apply my-2 h-px w-full border-0;
-    background: var(--panel-border-inner);
+    background: var(--border-subtle);
   }
   .toolbar-row {
     @apply flex items-center justify-between gap-2 border-b px-2 py-1 text-[12px];
-    background: var(--panel-header-bg);
-    border-color: var(--panel-border-inner);
-    color: var(--color-text-dim);
+    background: var(--surface-muted);
+    border-color: var(--border-subtle);
+    color: var(--fg-muted);
   }
   .toolbar-section {
     @apply inline-flex items-center gap-4;
@@ -69,49 +69,52 @@
   .menu-dropdown {
     @apply absolute right-0 top-[110%] z-50 min-w-[140px] flex flex-col border py-1 text-[13px] shadow-lg;
     border-radius: var(--radius-menu);
-    background: var(--panel-bg);
-    border-color: var(--border-color);
-    color: var(--color-text);
-    z-index: 1000;
+    background: var(--surface-base);
+    border-color: var(--border-normal);
+    color: var(--fg);
+    z-index: var(--z-dropdown);
   }
   .menu-item {
     @apply cursor-pointer whitespace-nowrap px-2.5 py-1.5 flex items-center gap-2;
   }
   .menu-item:hover {
-    background: color-mix(in srgb, var(--panel-header-bg) 24%, transparent);
+    background: var(--row-hover-bg);
   }
   .menu-item:active,
   .menu-item.selected,
   .menu-item[aria-checked='true'],
   .menu-item[data-checked='true'] {
-    background: color-mix(in srgb, var(--accent-color) 18%, transparent);
+    background: var(--row-selected-bg);
   }
   .menu-item:disabled,
   .menu-empty {
-    @apply px-2.5 py-1.5 text-[12px] text-term-dim;
+    @apply px-2.5 py-1.5 text-[12px];
+    color: var(--fg-disabled);
   }
   .skeleton {
-    @apply animate-pulse bg-slate-500/20;
+    @apply animate-pulse;
+    background: var(--skeleton-bg);
     border-radius: var(--radius-sm);
   }
   .skeleton-line {
-    @apply animate-pulse bg-slate-500/20 h-3;
+    @apply animate-pulse h-3;
+    background: var(--skeleton-bg);
     border-radius: var(--radius-sm);
   }
   .list-row {
     @apply flex items-center justify-between gap-3 border-b px-2 py-1.5 text-[13px];
-    border-color: var(--panel-border-inner);
+    border-color: var(--border-subtle);
   }
   .list-row-hover:hover {
-    background: color-mix(in srgb, var(--panel-header-bg) 18%, transparent);
+    background: var(--row-hover-bg);
   }
   .badge,
   .chip {
     @apply inline-flex items-center gap-1 border px-1.5 py-0.5 text-[11px];
     border-radius: var(--radius-badge);
-    background: var(--panel-header-bg);
-    border-color: var(--border-color);
-    color: var(--color-text-dim);
+    background: var(--surface-muted);
+    border-color: var(--border-normal);
+    color: var(--fg-muted);
   }
   .pill {
     @apply inline-flex items-center px-2 py-0.5 text-[11px] font-medium;
@@ -151,35 +154,38 @@
     @apply w-full text-[12px];
   }
   .table-tiny thead th {
-    @apply py-1 text-left font-medium text-term-dim border-b;
-    border-bottom-color: var(--panel-border-inner);
+    @apply py-1 text-left font-medium border-b;
+    color: var(--fg-muted);
+    border-bottom-color: var(--border-subtle);
   }
   .table-tiny tbody td {
     @apply py-1 align-top border-b;
-    border-bottom-color: var(--panel-border-inner);
+    border-bottom-color: var(--border-subtle);
   }
   .table-compact tbody tr:hover {
-    background: color-mix(in srgb, var(--panel-header-bg) 18%, transparent);
+    background: var(--row-hover-bg);
   }
   .table-compact tbody tr:last-child td {
     @apply border-b-0;
   }
   table.striped tbody tr:nth-child(odd),
   .list.striped .row:nth-child(odd) {
-    background: color-mix(in srgb, var(--panel-header-bg) 12%, transparent);
+    background: color-mix(in srgb, var(--surface-muted) 12%, transparent);
   }
   .notice {
     @apply mt-3 text-[12px];
   }
   .notice-ok {
-    @apply mt-3 text-[12px] text-term-ok;
+    @apply mt-3 text-[12px];
+    color: var(--state-success);
   }
   .notice-err {
-    @apply mt-3 text-[12px] text-term-err;
+    @apply mt-3 text-[12px];
+    color: var(--state-error);
   }
   .status-indicator {
     @apply inline-block h-2 w-2 rounded-full;
-    --_c: var(--color-term-dim);
+    --_c: var(--state-neutral);
     background-color: var(--_c);
     border: 1px solid color-mix(in srgb, var(--_c) 20%, transparent);
     box-shadow:
@@ -187,7 +193,7 @@
       0 2px 6px color-mix(in srgb, var(--_c) 25%, transparent);
   }
   .status-indicator-neutral {
-    --_c: var(--color-term-dim);
+    --_c: var(--state-neutral);
     background-color: var(--_c);
     border: 1px solid color-mix(in srgb, var(--_c) 20%, transparent);
     box-shadow:
@@ -196,7 +202,7 @@
   }
   .status-indicator-ok,
   .status-indicator-success {
-    --_c: var(--color-term-ok);
+    --_c: var(--state-success);
     background-color: var(--_c);
     border: 1px solid color-mix(in srgb, var(--_c) 20%, transparent);
     box-shadow:
@@ -205,7 +211,7 @@
   }
   .status-indicator-warn,
   .status-indicator-warning {
-    --_c: var(--color-term-warn);
+    --_c: var(--state-warning);
     background-color: var(--_c);
     border: 1px solid color-mix(in srgb, var(--_c) 20%, transparent);
     box-shadow:
@@ -213,7 +219,7 @@
       0 2px 6px color-mix(in srgb, var(--_c) 25%, transparent);
   }
   .status-indicator-info {
-    --_c: var(--color-term-info);
+    --_c: var(--state-info);
     background-color: var(--_c);
     border: 1px solid color-mix(in srgb, var(--_c) 20%, transparent);
     box-shadow:
@@ -222,7 +228,7 @@
   }
   .status-indicator-err,
   .status-indicator-error {
-    --_c: var(--color-term-err);
+    --_c: var(--state-error);
     background-color: var(--_c);
     border: 1px solid color-mix(in srgb, var(--_c) 20%, transparent);
     box-shadow:

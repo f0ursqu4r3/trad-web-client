@@ -57,11 +57,70 @@
   --color-info: #2f81f7;
   --color-border-strong: #cfd6dd;
 
+  /* Semantic roles: compatibility tier for all theme packs */
+  --surface-canvas: var(--color-bg);
+  --surface-base: var(--panel-bg);
+  --surface-raised: var(--color-bg-alt);
+  --surface-muted: var(--panel-header-bg);
+  --surface-sunken: var(--color-bg-secondary);
+  --surface-hover: color-mix(in srgb, var(--surface-muted) 42%, transparent);
+  --surface-active: color-mix(in srgb, var(--accent-color) 14%, var(--surface-muted));
+  --surface-selected: color-mix(in srgb, var(--accent-color) 18%, transparent);
+  --surface-disabled: color-mix(in srgb, var(--surface-muted) 54%, transparent);
+
+  --border-subtle: var(--panel-border-inner);
+  --border-normal: var(--border-color);
+  --border-strong: var(--color-border-strong);
+
+  --fg-strong: var(--color-text);
+  --fg: var(--color-text);
+  --fg-muted: var(--color-text-dim);
+  --fg-subtle: color-mix(in srgb, var(--color-text-dim) 78%, var(--color-text));
+  --fg-disabled: color-mix(in srgb, var(--color-text-dim) 72%, var(--surface-base));
+  --fg-on-accent: #ffffff;
+
+  --state-success: var(--color-success);
+  --state-error: var(--color-error);
+  --state-warning: var(--color-warning);
+  --state-info: var(--color-info);
+  --state-neutral: var(--fg-muted);
+
+  --focus-ring-color: var(--accent-color);
+  --focus-ring: 0 0 0 2px color-mix(in srgb, var(--focus-ring-color) 55%, transparent);
+  --focus-ring-strong:
+    0 0 0 1px var(--surface-base),
+    0 0 0 3px color-mix(in srgb, var(--focus-ring-color) 62%, transparent);
+
+  --selection-bg: color-mix(in srgb, var(--accent-color) 30%, transparent);
+  --row-hover-bg: color-mix(in srgb, var(--surface-muted) 24%, transparent);
+  --row-selected-bg: var(--surface-selected);
+  --skeleton-bg: color-mix(in srgb, var(--fg-muted) 22%, transparent);
+
+  --control-bg: transparent;
+  --control-bg-disabled: var(--surface-disabled);
+  --control-border: var(--border-normal);
+  --control-border-hover: var(--border-strong);
+  --control-border-focus: var(--focus-ring-color);
+  --control-fg: var(--fg);
+  --control-placeholder: var(--fg-muted);
+  --control-invalid: var(--state-error);
+  --control-hint: var(--fg-muted);
+
   /* Button gradient + typography */
   --btn-bg-start: #ffffff;
   --btn-bg-end: #f1f4f8;
   --btn-border: #dfe3e8;
   --btn-fg: #1f2328;
+  --button-bg: linear-gradient(180deg, var(--btn-bg-start), var(--btn-bg-end));
+  --button-bg-hover: color-mix(in srgb, var(--btn-bg-start) 82%, var(--accent-color));
+  --button-bg-active: color-mix(in srgb, var(--btn-bg-end) 86%, var(--accent-color));
+  --button-border: var(--btn-border);
+  --button-fg: var(--btn-fg);
+  --button-disabled-bg: var(--surface-disabled);
+  --button-disabled-fg: var(--fg-disabled);
+  --button-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--fg-on-accent) 34%, transparent),
+    0 1px 2px color-mix(in srgb, var(--fg-strong) 12%, transparent);
 
   /* Pill (status) tokens (light) */
   --pill-color-neutral: var(--color-text-dim);
@@ -115,6 +174,19 @@
   --control-checked-bg: var(--accent-color);
   --control-mark-color: #fff; /* color of checkmark/dot; override per theme if needed */
 
+  /* Motion and stacking */
+  --duration-fast: 120ms;
+  --duration-normal: 180ms;
+  --duration-slow: 240ms;
+  --ease-out-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-standard: cubic-bezier(0.65, 0, 0.35, 1);
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-modal-backdrop: 1200;
+  --z-modal: 1300;
+  --z-toast: 1400;
+  --z-tooltip: 1500;
+
   /* Scrollbar (light) */
   --scrollbar-track: inherit;
   --scrollbar-thumb: #c8d1da;
@@ -157,8 +229,8 @@
 
 /* Body inheritance helper */
 body {
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: var(--surface-canvas);
+  color: var(--fg);
 }
 
 /* Grouping tokens for potential future export (e.g., JS consumption) */

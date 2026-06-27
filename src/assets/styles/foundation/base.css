@@ -17,8 +17,8 @@
     line-height: 1.35;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background: var(--color-bg);
-    color: var(--color-text);
+    background: var(--surface-canvas);
+    color: var(--fg);
     scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
   body,
@@ -28,8 +28,8 @@
   body,
   .dockview-wrapper {
     transition:
-      background-color 0.25s ease,
-      color 0.25s ease;
+      background-color var(--duration-slow) var(--ease-out-standard),
+      color var(--duration-slow) var(--ease-out-standard);
   }
   ::-webkit-scrollbar {
     width: 0.5rem;
@@ -56,6 +56,20 @@
     background: var(--scrollbar-thumb-hover);
   }
   ::selection {
-    background: color-mix(in srgb, var(--accent-color) 30%, transparent);
+    background: var(--selection-bg);
+  }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring-strong);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 1ms !important;
+    }
   }
 }

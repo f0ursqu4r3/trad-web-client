@@ -14,13 +14,16 @@
     @apply mb-2 flex items-center gap-2;
   }
   .prompt-chevron {
-    @apply w-4 text-center text-term-accent;
+    @apply w-4 text-center;
+    color: var(--focus-ring-color);
   }
   .prompt-label {
-    @apply w-24 shrink-0 text-[12px] text-term-dim;
+    @apply w-24 shrink-0 text-[12px];
+    color: var(--fg-muted);
   }
   .muted {
-    @apply text-[12px] text-term-dim;
+    @apply text-[12px];
+    color: var(--fg-muted);
   }
   .mono {
     font-family: var(
@@ -35,41 +38,43 @@
     );
   }
   .dim {
-    color: var(--color-text-dim);
+    color: var(--fg-muted);
   }
   /* Semantic text colors */
   .text-primary {
-    color: var(--color-text);
+    color: var(--fg);
   }
   .text-success {
-    color: var(--color-success);
+    color: var(--state-success);
   }
   .text-error {
-    color: var(--color-error);
+    color: var(--state-error);
   }
   .text-warning {
-    color: var(--color-warning);
+    color: var(--state-warning);
   }
   .text-info {
-    color: var(--color-info);
+    color: var(--state-info);
   }
   /* Section title utility (common device/detail pattern) */
   .section-title {
     @apply text-[11px] uppercase tracking-wide m-0 border-b pb-1;
-    color: var(--color-text-dim);
-    border-color: var(--border-color);
+    color: var(--fg-muted);
+    border-color: var(--border-normal);
   }
   /* Definition term/label utility */
   .dt-label {
     @apply text-[10px] uppercase tracking-[0.04em] mb-1;
-    color: var(--color-text-dim);
+    color: var(--fg-muted);
   }
   .kbd {
-    @apply inline-block border px-1.5 py-0.5 text-[11px] font-mono text-term-dim tracking-widest;
+    @apply inline-block border px-1.5 py-0.5 text-[11px] font-mono tracking-widest;
     border-radius: var(--radius-none);
+    color: var(--fg-muted);
+    border-color: var(--border-normal);
   }
   .text-accent {
-    color: var(--accent-color);
+    color: var(--focus-ring-color);
   }
   .shadow-term {
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);

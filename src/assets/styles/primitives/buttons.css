@@ -3,12 +3,16 @@
   .btn {
     @apply inline-flex items-center gap-1 border px-2 py-1 text-[12px] font-medium tracking-wide cursor-pointer transition select-none;
     border-radius: var(--radius-btn);
-    border-color: var(--btn-border);
-    background: var(--btn-bg, var(--btn-bg-start));
-    color: var(--btn-fg);
-    box-shadow:
-      0 1px 2px rgba(0, 0, 0, 0.4),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    border-color: var(--button-border);
+    background: var(--btn-bg, var(--button-bg));
+    color: var(--button-fg);
+    box-shadow: var(--button-shadow);
+    transition:
+      background-color var(--duration-fast) var(--ease-out-standard),
+      border-color var(--duration-fast) var(--ease-out-standard),
+      color var(--duration-fast) var(--ease-out-standard),
+      transform var(--duration-fast) var(--ease-out-standard),
+      box-shadow var(--duration-fast) var(--ease-out-standard);
   }
   .btn:hover:not(:disabled) {
     opacity: 0.95;
@@ -18,19 +22,19 @@
   }
   .btn:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px var(--accent-color);
+    box-shadow: var(--focus-ring-strong);
   }
   .btn:disabled {
     @apply opacity-60 cursor-not-allowed;
-    background: var(--panel-bg);
-    color: var(--color-text-dim);
+    background: var(--button-disabled-bg);
+    color: var(--button-disabled-fg);
     box-shadow: none;
   }
   .btn[aria-pressed='true'],
   .btn[data-pressed='true'] {
     box-shadow:
-      0 0 0 2px var(--accent-color),
-      inset 0 0 0 1px var(--accent-color);
+      var(--focus-ring),
+      inset 0 0 0 1px var(--focus-ring-color);
   }
   .btn-xs {
     @apply px-1 py-0.5 text-[10px];
@@ -152,7 +156,7 @@
   .btn-outline[data-pressed='true'],
   .btn-outline-primary[aria-pressed='true'],
   .btn-outline-primary[data-pressed='true'] {
-    background: color-mix(in srgb, var(--accent-color) 15%, transparent);
+    background: color-mix(in srgb, var(--_c) var(--btn-alpha-outline-surface-active), transparent);
   }
   .btn-outline-danger {
     text-transform: lowercase;
@@ -327,6 +331,12 @@
   .icon-btn {
     @apply inline-flex items-center justify-center border text-[12px] font-medium tracking-wide cursor-pointer transition select-none px-1.5 py-1 gap-1;
     border-radius: var(--radius-btn);
+    transition:
+      background-color var(--duration-fast) var(--ease-out-standard),
+      border-color var(--duration-fast) var(--ease-out-standard),
+      color var(--duration-fast) var(--ease-out-standard),
+      transform var(--duration-fast) var(--ease-out-standard),
+      box-shadow var(--duration-fast) var(--ease-out-standard);
   }
   .icon-btn:hover:not(:disabled) {
     opacity: 0.95;
@@ -336,29 +346,27 @@
   }
   .icon-btn:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px var(--accent-color);
+    box-shadow: var(--focus-ring-strong);
   }
   .icon-btn:disabled {
     @apply opacity-60 cursor-not-allowed;
   }
   .icon-btn:not(.btn) {
-    background: var(--btn-bg, var(--btn-bg-start));
-    border-color: var(--btn-border);
-    color: var(--btn-fg);
-    box-shadow:
-      0 1px 2px rgba(0, 0, 0, 0.4),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    background: var(--btn-bg, var(--button-bg));
+    border-color: var(--button-border);
+    color: var(--button-fg);
+    box-shadow: var(--button-shadow);
   }
   .icon-btn:not(.btn):disabled {
-    background: var(--panel-bg);
-    color: var(--color-text-dim);
+    background: var(--button-disabled-bg);
+    color: var(--button-disabled-fg);
     box-shadow: none;
   }
   .icon-btn[aria-pressed='true'],
   .icon-btn[data-pressed='true'] {
     box-shadow:
-      0 0 0 2px var(--accent-color),
-      inset 0 0 0 1px var(--accent-color);
+      var(--focus-ring),
+      inset 0 0 0 1px var(--focus-ring-color);
   }
   .icon-btn.btn-xs,
   .btn-xs.icon-btn {
