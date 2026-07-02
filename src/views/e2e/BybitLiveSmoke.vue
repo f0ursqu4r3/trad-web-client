@@ -100,10 +100,6 @@ async function waitFor(label: string, predicate: () => boolean, timeoutMs: numbe
   throw new Error(`Timed out waiting for ${label}`)
 }
 
-async function sleep(ms: number) {
-  await new Promise((resolve) => window.setTimeout(resolve, ms))
-}
-
 function seedAccount(accountId: string) {
   const account = {
     id: accountId,
@@ -165,8 +161,8 @@ async function startSmoke() {
     const symbol = (param('symbol') || 'BTCUSDT').trim().toUpperCase()
     const price = numberParam('price')
     const risk = numberParam('risk', 1.5)
-    const openWaitMs = numberParam('openWaitMs', 10_000)
-    const closeWaitMs = numberParam('closeWaitMs', 15_000)
+    const openWaitMs = numberParam('openWaitMs', 30_000)
+    const closeWaitMs = numberParam('closeWaitMs', 30_000)
     if (!accountId) throw new Error('accountId is required')
     if (!token) throw new Error('token is required')
 
@@ -230,7 +226,14 @@ async function startSmoke() {
 
     state.phase = 'waiting-open'
     record(`waiting ${openWaitMs}ms for TE trigger/open fill`)
-    await sleep(openWaitMs)
+    await waitFor(
+      'open MarketOrder fill',
+      () => {
+        if (state.teCommandId) throwIfCommandFailed(state.teCommandId)
+        return !!state.teCommandId && !!findMarketOrder(state.teCommandId, MarketAction.Open)
+      },
+      openWaitMs,
+    )
     throwIfCommandFailed(state.teCommandId)
     const open = findMarketOrder(state.teCommandId, MarketAction.Open)
     if (open) {
@@ -239,16 +242,17 @@ async function startSmoke() {
       state.parentOrderLinkId = mo.client_order_id ?? null
       record(`frontend observed open device=${open.id} parent=${state.parentOrderLinkId || '-'}`)
     } else {
-      record('frontend did not observe open MarketOrder before close request')
+      throw new Error('frontend did not observe open MarketOrder before close request')
     }
 
     state.phase = 'waiting-protection'
-    if (hasNativeProtection(state.teCommandId)) {
-      state.nativeProtectionSeen = true
-      record('native protection device observed')
-    } else {
-      record('frontend did not observe NativeProtection before close request')
-    }
+    await waitFor(
+      'NativeProtection device',
+      () => !!state.teCommandId && hasNativeProtection(state.teCommandId),
+      10_000,
+    )
+    state.nativeProtectionSeen = true
+    record('native protection device observed')
 
     state.phase = 'closing'
     state.closeCommandId = ws.sendUserCommand({
@@ -257,14 +261,23 @@ async function startSmoke() {
     })
     record(`submitted TE close ${state.closeCommandId}`)
     commands.inspectCommand(state.teCommandId)
-    await sleep(closeWaitMs)
+    await waitFor(
+      'close MarketOrder fill',
+      () => {
+        if (state.closeCommandId) throwIfCommandFailed(state.closeCommandId)
+        if (state.teCommandId) throwIfCommandFailed(state.teCommandId)
+        return !!state.teCommandId && !!findMarketOrder(state.teCommandId, MarketAction.Close)
+      },
+      closeWaitMs,
+    )
+    if (state.closeCommandId) throwIfCommandFailed(state.closeCommandId)
     throwIfCommandFailed(state.teCommandId)
     const close = findMarketOrder(state.teCommandId, MarketAction.Close)
     if (close) {
       state.closeDeviceId = close.id
       record(`frontend observed close device=${close.id}`)
     } else {
-      record('frontend did not observe close MarketOrder before backend final assertion')
+      throw new Error('frontend did not observe close MarketOrder before backend final assertion')
     }
     if (!state.nativeProtectionSeen && state.teCommandId) {
       commands.inspectCommand(state.teCommandId)
