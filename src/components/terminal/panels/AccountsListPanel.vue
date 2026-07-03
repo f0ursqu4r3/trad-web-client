@@ -217,6 +217,20 @@ function formatMs(ms: number | null | undefined): string {
   return `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`
 }
 
+function formatBybitRateLimit(snapshot: OrderThrottleSnapshotData | null): string {
+  const rate = snapshot?.bybit_rate_limit
+  if (!rate) return '-'
+  const remaining = rate.remaining?.trim() || '-'
+  const limit = rate.limit?.trim() || '-'
+  return `${remaining}/${limit}`
+}
+
+function formatBybitRateLimitAge(snapshot: OrderThrottleSnapshotData | null): string {
+  const observedAt = snapshot?.bybit_rate_limit?.observed_at_unix_ms
+  if (!observedAt) return '-'
+  return formatMs(Math.max(0, Date.now() - observedAt))
+}
+
 function enableHedgeMode(account: AccountRecord) {
   controlError.value = null
   controlMessage.value = null
@@ -428,7 +442,7 @@ watch(
               </div>
               <div
                 v-if="accounts.selectedAccountId === account.id"
-                class="grid gap-2 text-[10px] uppercase tracking-[0.06em] dim sm:grid-cols-4 xl:grid-cols-7"
+                class="grid gap-2 text-[10px] uppercase tracking-[0.06em] dim sm:grid-cols-4 xl:grid-cols-8"
               >
                 <div class="flex flex-col gap-1">
                   <span>Queue</span>
@@ -472,6 +486,15 @@ watch(
                   <span>Delayed</span>
                   <span class="font-mono text-primary">
                     {{ throttleForAccount(account)?.delayed_by_limiter_total ?? 0 }}
+                  </span>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <span>Bybit Remain</span>
+                  <span class="font-mono text-primary">
+                    {{ formatBybitRateLimit(throttleForAccount(account)) }}
+                    <span class="dim normal-case">
+                      {{ formatBybitRateLimitAge(throttleForAccount(account)) }}
+                    </span>
                   </span>
                 </div>
               </div>

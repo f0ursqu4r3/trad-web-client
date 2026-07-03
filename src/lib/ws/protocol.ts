@@ -487,6 +487,14 @@ export type OrderThrottleAccountData = {
   oldest_queued_age_ms?: number | null
   estimated_drain_ms?: number | null
 }
+export type BybitRateLimitSnapshotData = {
+  method: string
+  path: string
+  limit?: string | null
+  remaining?: string | null
+  reset_timestamp_ms?: string | null
+  observed_at_unix_ms: number
+}
 export type OrderThrottleSnapshotData = {
   request_uuid: Uuid
   market_context: MarketContext
@@ -500,6 +508,7 @@ export type OrderThrottleSnapshotData = {
   stale_rejected_total: number
   rate_limit_rejected_total: number
   delayed_by_limiter_total: number
+  bybit_rate_limit?: BybitRateLimitSnapshotData | null
   min_interval_ms: number
   max_in_flight_per_account: number
   accounts: OrderThrottleAccountData[]
