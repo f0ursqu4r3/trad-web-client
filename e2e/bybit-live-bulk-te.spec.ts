@@ -51,13 +51,23 @@ test('FE terminal drives many live Bybit trailing entries and closes', async ({ 
   await page.goto(`/e2e/bybit-live-bulk-te?${params.toString()}`)
 
   await page.waitForFunction(
-    () => (window as any).__tradBybitLiveBulkTe?.getState().phase === 'closed',
+    () => {
+      const phase = (window as any).__tradBybitLiveBulkTe?.getState().phase
+      return phase === 'closed' || phase === 'failed'
+    },
     undefined,
     { timeout: Number(openWaitMs) + Number(closeWaitMs) + 120_000 },
   )
 
   const result = await page.evaluate(() => (window as any).__tradBybitLiveBulkTe?.getState())
   expect(result).toBeTruthy()
+  if (process.env.BYBIT_LIVE_FE_BULK_TE_RESULT_PATH) {
+    writeFileSync(
+      process.env.BYBIT_LIVE_FE_BULK_TE_RESULT_PATH,
+      `${JSON.stringify(result, null, 2)}\n`,
+    )
+  }
+
   expect(result.phase).toBe('closed')
   expect(result.error).toBeNull()
   expect(result.requested).toBeGreaterThanOrEqual(1)
@@ -68,13 +78,6 @@ test('FE terminal drives many live Bybit trailing entries and closes', async ({ 
   expect(result.nativeProtectionCount).toBeGreaterThanOrEqual(result.openFilled)
   expect(result.inspectedCommandId).toBeTruthy()
   expect(result.inspectedTeDeviceId).toBeTruthy()
-
-  if (process.env.BYBIT_LIVE_FE_BULK_TE_RESULT_PATH) {
-    writeFileSync(
-      process.env.BYBIT_LIVE_FE_BULK_TE_RESULT_PATH,
-      `${JSON.stringify(result, null, 2)}\n`,
-    )
-  }
 
   await expect(page.getByTestId('bybit-live-bulk-te')).toBeVisible()
   await expect(page.getByTestId('bulk-phase')).toHaveText('closed')
