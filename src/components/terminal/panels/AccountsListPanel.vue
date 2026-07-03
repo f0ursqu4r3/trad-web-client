@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import {
   accountMetadataChips,
   accountMetadataStatus,
@@ -16,6 +16,7 @@ import { createLogger } from '@/lib/utils'
 import {
   ExchangeType,
   type MarketCapabilitiesData,
+  type OrderThrottleSnapshotData,
   type UserCommandPayload,
 } from '@/lib/ws/protocol'
 
@@ -31,6 +32,7 @@ const refreshError = ref<string | null>(null)
 const controlError = ref<string | null>(null)
 const controlMessage = ref<string | null>(null)
 const leverageForms = reactive<Record<string, { symbols: string; leverage: number }>>({})
+let throttleRefreshTimer: number | null = null
 
 const sortedAccounts = computed(() => {
   accounts.accounts.forEach(ensureLeverageForm)
@@ -54,6 +56,7 @@ function selectAccount(account: AccountRecord) {
   accounts.selectedAccountId = account.id
   ensureLeverageForm(account)
   requestAccountCapabilities(account)
+  requestAccountThrottle(account)
 }
 
 async function refreshAccounts() {
@@ -100,6 +103,10 @@ function capabilitiesForAccount(account: AccountRecord): MarketCapabilitiesData 
   return ws.capabilitiesForMarketContext(marketContextForAccount(account))
 }
 
+function throttleForAccount(account: AccountRecord): OrderThrottleSnapshotData | null {
+  return ws.orderThrottleForMarketContext(marketContextForAccount(account))
+}
+
 function requestAccountCapabilities(account: AccountRecord) {
   if (ws.status !== 'ready') return
   const marketContext = marketContextForAccount(account)
@@ -111,11 +118,24 @@ function requestAccountCapabilities(account: AccountRecord) {
   ws.requestMarketCapabilities(marketContext)
 }
 
+function requestAccountThrottle(account: AccountRecord) {
+  if (ws.status !== 'ready') return
+  const marketContext = marketContextForAccount(account)
+  if (!marketContext) return
+  ws.requestOrderThrottleSnapshot(marketContext)
+}
+
 function requestVisibleCapabilities() {
   if (ws.status !== 'ready') return
   for (const account of accounts.accounts) {
     requestAccountCapabilities(account)
   }
+}
+
+function requestSelectedThrottle() {
+  const account = accounts.selectedAccount
+  if (!account) return
+  requestAccountThrottle(account)
 }
 
 function capabilityStatus(account: AccountRecord): string {
@@ -191,6 +211,12 @@ function summarizeSymbols(symbols: string[]): string {
   return symbols.length > 4 ? `${shown}, ...` : shown
 }
 
+function formatMs(ms: number | null | undefined): string {
+  if (ms == null) return '-'
+  if (ms < 1000) return `${ms}ms`
+  return `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`
+}
+
 function enableHedgeMode(account: AccountRecord) {
   controlError.value = null
   controlMessage.value = null
@@ -218,6 +244,15 @@ onMounted(() => {
   }
   accounts.accounts.forEach(ensureLeverageForm)
   requestVisibleCapabilities()
+  requestSelectedThrottle()
+  throttleRefreshTimer = window.setInterval(requestSelectedThrottle, 2000)
+})
+
+onUnmounted(() => {
+  if (throttleRefreshTimer != null) {
+    window.clearInterval(throttleRefreshTimer)
+    throttleRefreshTimer = null
+  }
 })
 
 watch(
@@ -232,6 +267,14 @@ watch(
   () => ws.status,
   () => {
     requestVisibleCapabilities()
+    requestSelectedThrottle()
+  },
+)
+
+watch(
+  () => accounts.selectedAccountId,
+  () => {
+    requestSelectedThrottle()
   },
 )
 </script>
@@ -382,6 +425,37 @@ watch(
                 >
                   Enable Hedge
                 </button>
+              </div>
+              <div
+                v-if="accounts.selectedAccountId === account.id"
+                class="grid gap-2 text-[10px] uppercase tracking-[0.06em] dim sm:grid-cols-4"
+              >
+                <div class="flex flex-col gap-1">
+                  <span>Queue</span>
+                  <span class="font-mono text-primary">
+                    {{ throttleForAccount(account)?.total_queued ?? 0 }} queued /
+                    {{ throttleForAccount(account)?.total_in_flight ?? 0 }} live
+                  </span>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <span>Oldest</span>
+                  <span class="font-mono text-primary">
+                    {{ formatMs(throttleForAccount(account)?.accounts[0]?.oldest_queued_age_ms) }}
+                  </span>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <span>Drain Est</span>
+                  <span class="font-mono text-primary">
+                    {{ formatMs(throttleForAccount(account)?.accounts[0]?.estimated_drain_ms) }}
+                  </span>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <span>Errors</span>
+                  <span class="font-mono text-primary">
+                    {{ throttleForAccount(account)?.errored_total ?? 0 }} err /
+                    {{ throttleForAccount(account)?.canceled_total ?? 0 }} cancel
+                  </span>
+                </div>
               </div>
             </div>
 

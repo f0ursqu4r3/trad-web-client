@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 11
+export const PROTOCOL_VERSION = 12
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -240,6 +240,7 @@ export type SystemMessagePayload =
   | { kind: 'CancelCommand'; data: CancelCommandRequest }
   | { kind: 'RefreshAccountKeys'; data: RefreshAccountKeysMessage }
   | { kind: 'GetMarketCapabilities'; data: GetMarketCapabilitiesRequest }
+  | { kind: 'GetOrderThrottleSnapshot'; data: GetOrderThrottleSnapshotRequest }
   | { kind: 'GetBalance'; data: GetBalanceRequest }
   | { kind: 'ListPositions'; data: ListPositionsRequest }
   | { kind: 'ListDevices'; data: ListDevicesCommand }
@@ -267,6 +268,10 @@ export type GetBalanceRequest = {
 }
 
 export type GetMarketCapabilitiesRequest = {
+  market_context: MarketContext
+}
+
+export type GetOrderThrottleSnapshotRequest = {
   market_context: MarketContext
 }
 
@@ -435,6 +440,7 @@ export type ServerToClientPayload =
   | { kind: 'InspectReady'; data: InspectReadyData }
   | { kind: 'Message'; data: MessageData }
   | { kind: 'MarketCapabilities'; data: MarketCapabilitiesData }
+  | { kind: 'OrderThrottleSnapshot'; data: OrderThrottleSnapshotData }
   | { kind: 'Pong'; data: PongData }
   | { kind: 'PositionsSnapshot'; data: PositionsSnapshotData }
   | { kind: 'ServerError'; data: ServerErrorData }
@@ -473,6 +479,27 @@ export type MarketCapabilitiesData = {
   protection_strategy: ProtectionStrategyCapability
   product?: MarketProduct | null
   notes: string[]
+}
+export type OrderThrottleAccountData = {
+  account_id: Uuid
+  queued: number
+  in_flight: number
+  oldest_queued_age_ms?: number | null
+  estimated_drain_ms?: number | null
+}
+export type OrderThrottleSnapshotData = {
+  request_uuid: Uuid
+  market_context: MarketContext
+  total_queued: number
+  total_in_flight: number
+  enqueued_total: number
+  started_total: number
+  completed_total: number
+  canceled_total: number
+  errored_total: number
+  min_interval_ms: number
+  max_in_flight_per_account: number
+  accounts: OrderThrottleAccountData[]
 }
 export type ServerHelloData = {
   protocol_version: number

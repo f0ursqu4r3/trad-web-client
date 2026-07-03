@@ -1,6 +1,7 @@
 import {
   type MarketContext,
   type MarketCapabilitiesData,
+  type OrderThrottleSnapshotData,
   type ServerToClientMessage,
   type SystemMessagePayload,
   type UserCommandPayload,
@@ -54,6 +55,7 @@ export const useWsStore = defineStore('ws', () => {
   const authAccepted = ref<boolean | null>(null)
   const authError = ref<string | null>(null)
   const marketCapabilities = ref<Record<string, MarketCapabilitiesData>>({})
+  const orderThrottleSnapshots = ref<Record<string, OrderThrottleSnapshotData>>({})
   let lastPingSend: number | null = null
   let perfLoopTimer: number | null = null
   const pendingAccountRefreshes = new Set<Uuid>()
@@ -261,11 +263,25 @@ export const useWsStore = defineStore('ws', () => {
     })
   }
 
+  function requestOrderThrottleSnapshot(marketContext: MarketContext) {
+    sendSystemCommand({
+      kind: 'GetOrderThrottleSnapshot',
+      data: { market_context: marketContext },
+    })
+  }
+
   function capabilitiesForMarketContext(
     marketContext: MarketContext | null | undefined,
   ): MarketCapabilitiesData | null {
     if (!marketContext) return null
     return marketCapabilities.value[marketContextKey(marketContext)] ?? null
+  }
+
+  function orderThrottleForMarketContext(
+    marketContext: MarketContext | null | undefined,
+  ): OrderThrottleSnapshotData | null {
+    if (!marketContext) return null
+    return orderThrottleSnapshots.value[marketContextKey(marketContext)] ?? null
   }
 
   function onServerMessage(msg: ServerToClientMessage) {
@@ -299,6 +315,7 @@ export const useWsStore = defineStore('ws', () => {
       DeviceMoDelta: handleDeviceMoDelta,
       SplitPreview: handleSplitPreview,
       MarketCapabilities: handleMarketCapabilities,
+      OrderThrottleSnapshot: handleOrderThrottleSnapshot,
     } as Record<string, (p: ServerToClientMessage['payload']) => void>
     const handler = handlers[payload.kind] || handleUnknowServerMessage
     handler(payload)
@@ -421,6 +438,13 @@ export const useWsStore = defineStore('ws', () => {
       payload as Extract<ServerToClientMessage['payload'], { kind: 'MarketCapabilities' }>
     ).data
     marketCapabilities.value[marketContextKey(data.market_context)] = data
+  }
+
+  function handleOrderThrottleSnapshot(payload: ServerToClientMessage['payload']): void {
+    const data = (
+      payload as Extract<ServerToClientMessage['payload'], { kind: 'OrderThrottleSnapshot' }>
+    ).data
+    orderThrottleSnapshots.value[marketContextKey(data.market_context)] = data
   }
 
   function handleCommandHistory(payload: ServerToClientMessage['payload']): void {
@@ -572,6 +596,8 @@ export const useWsStore = defineStore('ws', () => {
     sendRefreshAccountKeys,
     requestMarketCapabilities,
     capabilitiesForMarketContext,
+    requestOrderThrottleSnapshot,
+    orderThrottleForMarketContext,
     getDeviceTree,
     flushPerfLog,
   }
