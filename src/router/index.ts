@@ -33,6 +33,11 @@ const routes: RouteRecordRaw[] = [
           meta: { layout: 'blank' },
         },
         {
+          path: '/e2e/bybit-live-account-panel',
+          component: () => import('@/views/e2e/BybitLiveAccountPanel.vue'),
+          meta: { layout: 'blank' },
+        },
+        {
           path: '/e2e/sim-load-smoke',
           component: () => import('@/views/e2e/SimLoadSmoke.vue'),
           meta: { layout: 'blank' },
