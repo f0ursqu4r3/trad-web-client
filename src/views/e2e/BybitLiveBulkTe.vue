@@ -44,6 +44,7 @@ type BulkState = {
   phase: BulkPhase
   accountId: string | null
   requested: number
+  minOpenCount: number
   submitted: number
   accepted: number
   openFilled: number
@@ -62,6 +63,7 @@ const state = reactive<BulkState>({
   phase: 'idle',
   accountId: null,
   requested: 0,
+  minOpenCount: 0,
   submitted: 0,
   accepted: 0,
   openFilled: 0,
@@ -368,11 +370,16 @@ async function startSmoke() {
     const targetChildNotional = numberParam('targetChildNotional', 1000)
     const maxSplitsCap = numberParam('maxSplitsCap', 1)
     const plans = buildPlans()
+    const minOpenCount = Math.min(
+      plans.length,
+      Math.max(1, Math.floor(numberParam('minOpenCount', plans.length))),
+    )
     if (!accountId) throw new Error('accountId is required')
     if (!token) throw new Error('token is required')
 
     state.accountId = accountId
     state.requested = plans.length
+    state.minOpenCount = minOpenCount
     seedAccount(accountId)
 
     ws.setInboundDebugEnabled(true)
@@ -440,18 +447,21 @@ async function startSmoke() {
     )
 
     state.phase = 'waiting-open'
-    record(`waiting for ${plans.length} open fills up to ${openWaitMs}ms`)
+    record(`waiting for ${minOpenCount}/${plans.length} open fills up to ${openWaitMs}ms`)
     await waitFor(
       'bulk TE open fills',
       () => {
         inspectSubmittedCommands()
         throwOnAnySubmittedFailure()
         refreshCounts()
-        return state.openFilled === submittedCommandIds.length
+        return state.openFilled >= minOpenCount
       },
       openWaitMs,
     )
 
+    state.phase = 'cleanup'
+    cancelSubmittedTrailingEntries()
+    await wait(1_000)
     state.phase = 'closing'
     await closeFilledOpenPositions(closeWaitMs)
 
@@ -528,6 +538,7 @@ onMounted(() => {
       <dl>
         <div><dt>Phase</dt><dd data-testid="bulk-phase">{{ state.phase }}</dd></div>
         <div><dt>Requested</dt><dd>{{ state.requested }}</dd></div>
+        <div><dt>Min Opens</dt><dd>{{ state.minOpenCount }}</dd></div>
         <div><dt>Accepted</dt><dd>{{ state.accepted }}</dd></div>
         <div><dt>Open Filled</dt><dd>{{ state.openFilled }}</dd></div>
         <div><dt>Close Filled</dt><dd>{{ state.closeFilled }}</dd></div>

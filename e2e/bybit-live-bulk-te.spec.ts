@@ -14,6 +14,7 @@ test('FE terminal drives many live Bybit trailing entries and closes', async ({ 
   const risk = process.env.BYBIT_LIVE_BULK_TE_RISK || '1'
   const openWaitMs = process.env.BYBIT_LIVE_BULK_TE_OPEN_WAIT_MS || '300000'
   const closeWaitMs = process.env.BYBIT_LIVE_BULK_TE_CLOSE_WAIT_MS || '300000'
+  const minOpenCount = process.env.BYBIT_LIVE_BULK_TE_MIN_OPEN_COUNT || ''
   const activationFrac = process.env.BYBIT_LIVE_BULK_TE_ACTIVATION_FRAC || '0.001'
   const stopLossFrac = process.env.BYBIT_LIVE_BULK_TE_STOP_LOSS_FRAC || '0.05'
   const takeProfitFrac = process.env.BYBIT_LIVE_BULK_TE_TAKE_PROFIT_FRAC || '0.02'
@@ -43,6 +44,7 @@ test('FE terminal drives many live Bybit trailing entries and closes', async ({ 
     risk,
     openWaitMs,
     closeWaitMs,
+    ...(minOpenCount ? { minOpenCount } : {}),
     activationFrac,
     stopLossFrac,
     takeProfitFrac,
@@ -72,7 +74,9 @@ test('FE terminal drives many live Bybit trailing entries and closes', async ({ 
   expect(result.error).toBeNull()
   expect(result.requested).toBeGreaterThanOrEqual(1)
   expect(result.accepted).toBe(result.requested)
-  expect(result.openFilled).toBe(result.requested)
+  expect(result.minOpenCount).toBeGreaterThanOrEqual(1)
+  expect(result.openFilled).toBeGreaterThanOrEqual(result.minOpenCount)
+  expect(result.openFilled).toBeLessThanOrEqual(result.requested)
   expect(result.closeRequested).toBe(result.openFilled)
   expect(result.closeFilled).toBe(result.closeRequested)
   expect(result.nativeProtectionCount).toBeGreaterThanOrEqual(result.openFilled)
