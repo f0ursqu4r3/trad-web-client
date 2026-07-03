@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test'
 import { writeFileSync } from 'node:fs'
 
 test('FE terminal drives many live Bybit trailing entries and closes', async ({ page }) => {
-  test.setTimeout(720_000)
   test.skip(
     process.env.BYBIT_LIVE_FE_BULK_TE_SMOKE !== '1',
     'live Bybit bulk TE smoke is explicitly gated',
@@ -19,6 +18,8 @@ test('FE terminal drives many live Bybit trailing entries and closes', async ({ 
   const stopLossFrac = process.env.BYBIT_LIVE_BULK_TE_STOP_LOSS_FRAC || '0.05'
   const takeProfitFrac = process.env.BYBIT_LIVE_BULK_TE_TAKE_PROFIT_FRAC || '0.02'
   const jumpFracThreshold = process.env.BYBIT_LIVE_BULK_TE_JUMP_FRAC_THRESHOLD || '0.001'
+  const waitBudgetMs = Number(openWaitMs) + Number(closeWaitMs) + 240_000
+  test.setTimeout(Math.max(900_000, waitBudgetMs + 60_000))
 
   await page.route('**/auth/session', async (route) => {
     await route.fulfill({
@@ -52,14 +53,19 @@ test('FE terminal drives many live Bybit trailing entries and closes', async ({ 
   })
   await page.goto(`/e2e/bybit-live-bulk-te?${params.toString()}`)
 
-  await page.waitForFunction(
-    () => {
-      const phase = (window as any).__tradBybitLiveBulkTe?.getState().phase
-      return phase === 'closed' || phase === 'failed'
-    },
-    undefined,
-    { timeout: Number(openWaitMs) + Number(closeWaitMs) + 120_000 },
-  )
+  let waitError: unknown = null
+  try {
+    await page.waitForFunction(
+      () => {
+        const phase = (window as any).__tradBybitLiveBulkTe?.getState().phase
+        return phase === 'closed' || phase === 'failed'
+      },
+      undefined,
+      { timeout: waitBudgetMs },
+    )
+  } catch (err) {
+    waitError = err
+  }
 
   const result = await page.evaluate(() => (window as any).__tradBybitLiveBulkTe?.getState())
   expect(result).toBeTruthy()
@@ -70,6 +76,7 @@ test('FE terminal drives many live Bybit trailing entries and closes', async ({ 
     )
   }
 
+  expect(waitError, JSON.stringify(result, null, 2)).toBeNull()
   expect(result.phase).toBe('closed')
   expect(result.error).toBeNull()
   expect(result.requested).toBeGreaterThanOrEqual(1)
