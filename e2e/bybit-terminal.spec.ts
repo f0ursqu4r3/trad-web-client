@@ -61,7 +61,8 @@ test('Bybit account panel renders order queue telemetry', async ({ page }) => {
   await expect(accountPanel.getByText('1', { exact: true })).toBeVisible()
   await expect(accountPanel.getByText('4', { exact: true })).toBeVisible()
   await expect(accountPanel.getByText('16', { exact: true })).toBeVisible()
-  await expect(accountPanel.getByText('7/10')).toBeVisible()
+  await expect(accountPanel.getByText('0/10')).toBeVisible()
+  await expect(accountPanel.getByText('hold 2.5s')).toBeVisible()
 })
 
 test('Bybit rejected market order shows no-position rejection reason', async ({ page }) => {

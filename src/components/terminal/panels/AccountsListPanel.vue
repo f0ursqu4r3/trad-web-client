@@ -272,6 +272,18 @@ function formatBybitRateLimitAge(snapshot: OrderThrottleSnapshotData | null): st
   return formatMs(Math.max(0, Date.now() - observedAt))
 }
 
+function formatBybitRateLimitReset(snapshot: OrderThrottleSnapshotData | null): string {
+  const rate = snapshot?.bybit_rate_limit
+  if (!rate) return ''
+  if (rate.exhausted) {
+    return `hold ${formatMs(rate.reset_in_ms)}`
+  }
+  if (rate.reset_in_ms != null && rate.reset_in_ms > 0) {
+    return `reset ${formatMs(rate.reset_in_ms)}`
+  }
+  return ''
+}
+
 function formatLeverageValue(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return '?'
   return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2)}x`
@@ -573,6 +585,7 @@ watch(
                     {{ formatBybitRateLimit(throttleForAccount(account)) }}
                     <span class="dim normal-case">
                       {{ formatBybitRateLimitAge(throttleForAccount(account)) }}
+                      {{ formatBybitRateLimitReset(throttleForAccount(account)) }}
                     </span>
                   </span>
                 </div>

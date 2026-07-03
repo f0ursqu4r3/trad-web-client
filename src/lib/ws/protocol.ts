@@ -500,6 +500,8 @@ export type BybitRateLimitSnapshotData = {
   limit?: string | null
   remaining?: string | null
   reset_timestamp_ms?: string | null
+  reset_in_ms?: number | null
+  exhausted: boolean
   observed_at_unix_ms: number
 }
 export type OrderThrottleSnapshotData = {
