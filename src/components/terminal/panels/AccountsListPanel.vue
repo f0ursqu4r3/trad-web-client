@@ -30,7 +30,7 @@ const requestedCapabilityAccountIds = ref<Set<string>>(new Set())
 const refreshError = ref<string | null>(null)
 const controlError = ref<string | null>(null)
 const controlMessage = ref<string | null>(null)
-const leverageForms = reactive<Record<string, { symbol: string; leverage: number }>>({})
+const leverageForms = reactive<Record<string, { symbols: string; leverage: number }>>({})
 
 const sortedAccounts = computed(() => {
   accounts.accounts.forEach(ensureLeverageForm)
@@ -87,7 +87,7 @@ async function refreshAccountKeys(account: AccountRecord) {
 function ensureLeverageForm(account: AccountRecord) {
   if (leverageForms[account.id]) return
   leverageForms[account.id] = {
-    symbol: accounts.getDefaultSymbolForAccount(account.id),
+    symbols: accounts.getDefaultSymbolForAccount(account.id),
     leverage: 1,
   }
 }
@@ -130,10 +130,8 @@ function validateLeverage(account: AccountRecord): boolean {
   const form = leverageForms[account.id]
   if (!capabilities?.supports_leverage) return false
   if (!form) return false
-  if (!form.symbol.trim()) return false
-  if (account.exchange === ExchangeType.Bybit && !isValidBybitUsdtSymbol(form.symbol)) {
-    return false
-  }
+  const symbols = parseLeverageSymbols(account, form.symbols)
+  if (symbols.length === 0) return false
   if (!Number.isFinite(form.leverage) || form.leverage <= 0) return false
   return ws.status === 'ready'
 }
@@ -152,20 +150,45 @@ function setLeverage(account: AccountRecord) {
     controlError.value = 'Leverage settings are unavailable for this account.'
     return
   }
-  const symbol =
-    account.exchange === ExchangeType.Bybit
-      ? normalizeBybitUsdtSymbol(form.symbol)
-      : form.symbol.trim().toUpperCase()
-  const payload: Extract<UserCommandPayload, { kind: 'SetLeverage' }> = {
-    kind: 'SetLeverage',
-    data: {
-      symbol,
-      leverage: form.leverage,
-      market_context: marketContext,
-    },
+  const symbols = parseLeverageSymbols(account, form.symbols)
+  for (const symbol of symbols) {
+    const payload: Extract<UserCommandPayload, { kind: 'SetLeverage' }> = {
+      kind: 'SetLeverage',
+      data: {
+        symbol,
+        leverage: form.leverage,
+        market_context: marketContext,
+      },
+    }
+    ws.sendUserCommand(payload)
   }
-  ws.sendUserCommand(payload)
-  controlMessage.value = `Submitted leverage update for ${symbol}.`
+  controlMessage.value =
+    symbols.length === 1
+      ? `Submitted leverage update for ${symbols[0]}.`
+      : `Submitted leverage updates for ${symbols.length} symbols: ${summarizeSymbols(symbols)}.`
+}
+
+function parseLeverageSymbols(account: AccountRecord, raw: string): string[] {
+  const tokens = raw
+    .split(/[,\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+  const symbols = tokens
+    .map((token) => {
+      if (account.exchange === ExchangeType.Bybit) {
+        return isValidBybitUsdtSymbol(token) ? normalizeBybitUsdtSymbol(token) : ''
+      }
+      return token.toUpperCase()
+    })
+    .filter(Boolean)
+
+  return [...new Set(symbols)]
+}
+
+function summarizeSymbols(symbols: string[]): string {
+  const shown = symbols.slice(0, 4).join(', ')
+  return symbols.length > 4 ? `${shown}, ...` : shown
 }
 
 function enableHedgeMode(account: AccountRecord) {
@@ -310,16 +333,27 @@ watch(
 
               <div
                 v-if="accounts.selectedAccountId === account.id"
-                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(96px,1fr)_96px_auto_auto]"
+                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(132px,1fr)_96px_auto_auto]"
               >
                 <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
-                  <span>Symbol</span>
+                  <span>{{ account.exchange === ExchangeType.Bybit ? 'Symbols' : 'Symbol' }}</span>
                   <input
-                    v-model.trim="leverageForms[account.id].symbol"
+                    v-model.trim="leverageForms[account.id].symbols"
                     class="input h-7 text-xs"
                     spellcheck="false"
+                    :placeholder="
+                      account.exchange === ExchangeType.Bybit
+                        ? 'BTC, ETH, SOL'
+                        : 'BTCUSDT or ALL'
+                    "
                     @focus="ensureLeverageForm(account)"
                   />
+                  <span
+                    v-if="account.exchange === ExchangeType.Bybit"
+                    class="normal-case tracking-normal text-[var(--color-text-dim)]"
+                  >
+                    Comma or space separated; applied per symbol.
+                  </span>
                 </label>
                 <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
                   <span>Lev</span>

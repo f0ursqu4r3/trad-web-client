@@ -34,6 +34,7 @@ const isSubmitDisabled = computed(() => {
 
 function reset() {
   network.value = DEFAULT_NETWORK
+  exchange.value = DEFAULT_EXCHANGE
   name.value = ''
   apiKey.value = ''
   secretKey.value = ''
