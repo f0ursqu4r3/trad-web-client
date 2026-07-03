@@ -101,6 +101,7 @@ let cancelRequestedCommandIds = new Set<string>()
 let filledOpenTeCommandIds = new Set<string>()
 let filledCloseTeCommandIds = new Set<string>()
 let observedNativeProtectionTeCommandIds = new Set<string>()
+let observedOpenOrderTeCommandIds = new Set<string>()
 let throttlePoll: number | null = null
 let lastInspectAllAt = 0
 
@@ -277,10 +278,13 @@ function observeFilledMarketOrders() {
     }
     if (device.kind !== 'MarketOrder' || !device.associated_command_id) continue
     const mo = device.state as { market_action?: MarketAction; status?: MarketOrderStatus }
-    if (mo.status !== MarketOrderStatus.Filled) continue
     if (mo.market_action === MarketAction.Open && submittedCommandIds.includes(device.associated_command_id)) {
-      filledOpenTeCommandIds.add(device.associated_command_id)
+      observedOpenOrderTeCommandIds.add(device.associated_command_id)
+      if (mo.status === MarketOrderStatus.Filled) {
+        filledOpenTeCommandIds.add(device.associated_command_id)
+      }
     }
+    if (mo.status !== MarketOrderStatus.Filled) continue
     if (mo.market_action === MarketAction.Close) {
       const parentCommandId =
         closeCommandToTeCommandId.get(device.associated_command_id) ??
@@ -326,9 +330,13 @@ function observeCloseCommandStatuses() {
   }
 }
 
-function filledMarketOrderCommandIds(action: MarketAction): string[] {
+function openLikeCommandIds(): string[] {
   observeFilledMarketOrders()
-  const ids = action === MarketAction.Open ? filledOpenTeCommandIds : filledCloseTeCommandIds
+  const ids = new Set<string>([
+    ...filledOpenTeCommandIds,
+    ...observedNativeProtectionTeCommandIds,
+    ...observedOpenOrderTeCommandIds,
+  ])
   return submittedCommandIds.filter((commandId) => ids.has(commandId))
 }
 
@@ -337,7 +345,7 @@ function refreshCounts() {
   observeTrailingEntryStats()
   observeCloseCommandStatuses()
   state.accepted = acceptedCommandIds().length
-  state.openFilled = filledOpenTeCommandIds.size
+  state.openFilled = openLikeCommandIds().length
   state.closeFilled = filledCloseTeCommandIds.size
   state.nativeProtectionCount = observedNativeProtectionTeCommandIds.size
 }
@@ -359,8 +367,7 @@ function cancelSubmittedTrailingEntries() {
 function submitCloseRequestsForFilledOpenPositions() {
   inspectSubmittedCommands(true)
   refreshCounts()
-  const filledCommands = filledMarketOrderCommandIds(MarketAction.Open)
-  for (const commandId of filledCommands) {
+  for (const commandId of openLikeCommandIds()) {
     if (closeRequestedTeCommandIds.has(commandId)) continue
     const closeCommandId = ws.sendUserCommand({
       kind: 'CloseTrailingEntryPosition',
@@ -449,6 +456,7 @@ async function startSmoke() {
     filledOpenTeCommandIds = new Set<string>()
     filledCloseTeCommandIds = new Set<string>()
     observedNativeProtectionTeCommandIds = new Set<string>()
+    observedOpenOrderTeCommandIds = new Set<string>()
     lastInspectAllAt = 0
 
     const accountId = param('accountId')
