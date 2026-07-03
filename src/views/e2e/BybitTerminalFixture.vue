@@ -2,6 +2,7 @@
 import { nextTick, onMounted, ref } from 'vue'
 import AccountsListPanel from '@/components/terminal/panels/AccountsListPanel.vue'
 import CommandPanel from '@/components/terminal/panels/CommandPanel.vue'
+import DeviceDetailsPanel from '@/components/terminal/panels/DeviceDetailsPanel.vue'
 import DeviceTreePanel from '@/components/terminal/panels/DeviceTreePanel.vue'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import { useCommandStore } from '@/stores/command'
@@ -30,6 +31,8 @@ const wsStore = useWsStore()
 const binanceAccountId = '11111111-1111-4111-8111-111111111111'
 const binanceCommandId = '22222222-2222-4222-8222-222222222222'
 const binanceDeviceId = '33333333-3333-4333-8333-333333333333'
+const bybitRejectedCommandId = '77777777-7777-4777-8777-777777777777'
+const bybitRejectedDeviceId = '88888888-8888-4888-8888-888888888888'
 const binanceContext = {
   binance: { account_id: binanceAccountId },
 } satisfies MarketContext
@@ -138,6 +141,30 @@ const binanceCommand = {
   created_at: '2026-06-19T00:01:00.000Z',
 } satisfies CommandHistoryItem
 
+const bybitRejectedCommand = {
+  command_id: bybitRejectedCommandId,
+  command: {
+    kind: 'MarketOrder',
+    data: {
+      action: MarketAction.Open,
+      symbol: 'ADAUSDT',
+      quantity_usd: 50,
+      position_side: PositionSide.Long,
+      market_context: bybitProtocolFixtures.bybitContext,
+      attached_exit_plan: {
+        take_profit: 0.7,
+        stop_loss: 0.5,
+      },
+    },
+  },
+  market_ref: {
+    ...bybitProtocolFixtures.bybitMarketRef,
+    symbol: 'ADAUSDT',
+  },
+  status: CommandStatus.Failed,
+  created_at: '2026-06-19T00:02:00.000Z',
+} satisfies CommandHistoryItem
+
 const binanceMarketOrderDevice = {
   device_id: binanceDeviceId,
   owner_user_id: '44444444-4444-4444-8444-444444444444',
@@ -175,11 +202,56 @@ const binanceMarketOrderDevice = {
   },
 } satisfies DeviceSnapshotLiteData
 
+const bybitRejectedMarketOrderDevice = {
+  device_id: bybitRejectedDeviceId,
+  owner_user_id: '99999999-9999-4999-8999-999999999999',
+  associated_command_id: bybitRejectedCommandId,
+  market_ref: {
+    ...bybitProtocolFixtures.bybitMarketRef,
+    symbol: 'ADAUSDT',
+  },
+  protection_state: null,
+  parent_device: null,
+  children_devices: null,
+  created_at: '2026-06-19T00:02:00.000Z',
+  complete: true,
+  failed: true,
+  canceled: false,
+  awaiting_children: false,
+  failure_reason:
+    'Bybit rejected market order before opening a position: retCode=110007 retMsg=ab not enough for new order symbol=ADAUSDT orderLinkId=mo-rejected. No position was established by this order.',
+  snapshot: {
+    kind: 'MarketOrder',
+    data: {
+      market_context: bybitProtocolFixtures.bybitContext,
+      market_action: MarketAction.Open,
+      symbol: 'ADAUSDT',
+      order_side: OrderSide.Buy,
+      quantity: 100,
+      position_side: PositionSide.Long,
+      price: 0,
+      throttle: false,
+      status: MarketOrderStatus.Rejected,
+      filled_qty: null,
+      remote_id: null,
+      remote_order_id: null,
+      client_order_id: 'mo-rejected',
+      sent_at: null,
+      last_status_check_at: null,
+      last_update_seen_at: null,
+    },
+  },
+} satisfies DeviceSnapshotLiteData
+
 onMounted(async () => {
   const commandStore = useCommandStore()
   const deviceStore = useDeviceStore()
 
-  commandStore.history = [binanceCommand, bybitProtocolFixtures.bybitCommandHistoryItem]
+  commandStore.history = [
+    binanceCommand,
+    bybitProtocolFixtures.bybitCommandHistoryItem,
+    bybitRejectedCommand,
+  ]
   commandStore.commandFilters = {
     kind: [],
     status: [],
@@ -210,11 +282,17 @@ onMounted(async () => {
       nicknameColor: null,
       pinned: false,
     },
+    [bybitRejectedCommandId]: {
+      nickname: 'Bybit ADA rejected open',
+      nicknameColor: null,
+      pinned: false,
+    },
   }
 
   deviceStore.clearDevices()
   deviceStore.handleDeviceSnapshotLite(binanceMarketOrderDevice)
   deviceStore.handleDeviceSnapshotLite(bybitProtocolFixtures.bybitDeviceSnapshotLite)
+  deviceStore.handleDeviceSnapshotLite(bybitRejectedMarketOrderDevice)
 
   await nextTick()
   commandPanelRef.value?.toggleFilters()
@@ -234,6 +312,10 @@ onMounted(async () => {
     <section class="e2e-panel" data-testid="device-tree-panel" aria-label="Device Tree">
       <DeviceTreePanel />
     </section>
+
+    <section class="e2e-panel" data-testid="device-details-panel" aria-label="Device Details">
+      <DeviceDetailsPanel />
+    </section>
   </main>
 </template>
 
@@ -241,7 +323,9 @@ onMounted(async () => {
 .e2e-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: minmax(360px, 0.9fr) minmax(360px, 1fr) minmax(360px, 1fr);
+  grid-template-columns:
+    minmax(320px, 0.9fr) minmax(320px, 1fr) minmax(320px, 1fr)
+    minmax(320px, 1fr);
   gap: 12px;
   padding: 12px;
   background: var(--color-bg);

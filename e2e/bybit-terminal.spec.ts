@@ -20,7 +20,7 @@ test('Bybit command and device filters are explicit, not selected-account scoped
   await expect(commandPanel.getByText('Bybit BTC native TP/SL')).toBeVisible()
   await expect(commandPanel.getByText('Binance ETH legacy')).toBeVisible()
   await expect(devicePanel.getByText('Native Protection')).toBeVisible()
-  await expect(devicePanel.getByText('Market Order')).toBeVisible()
+  await expect(deviceRows.filter({ hasText: 'Market Order' }).first()).toBeVisible()
 
   await commandPanel.getByRole('button', { name: 'Bybit', exact: true }).click()
 
@@ -33,7 +33,7 @@ test('Bybit command and device filters are explicit, not selected-account scoped
   await devicePanel.getByRole('button', { name: 'Bybit', exact: true }).click()
 
   await expect(deviceRows.filter({ hasText: 'Native Protection' })).toBeVisible()
-  await expect(deviceRows.filter({ hasText: 'Bybit' })).toBeVisible()
+  await expect(deviceRows.filter({ hasText: 'Bybit' }).first()).toBeVisible()
   await expect(deviceRows.filter({ hasText: 'Binance' })).toHaveCount(0)
 })
 
@@ -62,4 +62,28 @@ test('Bybit account panel renders order queue telemetry', async ({ page }) => {
   await expect(accountPanel.getByText('4', { exact: true })).toBeVisible()
   await expect(accountPanel.getByText('16', { exact: true })).toBeVisible()
   await expect(accountPanel.getByText('7/10')).toBeVisible()
+})
+
+test('Bybit rejected market order shows no-position rejection reason', async ({ page }) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+
+  const devicePanel = page.getByTestId('device-tree-panel')
+  const detailsPanel = page.getByTestId('device-details-panel')
+
+  await devicePanel.locator('.device-row').filter({ hasText: 'ADAUSDT' }).click()
+
+  await expect(detailsPanel.getByText('Market Order Device')).toBeVisible()
+  await expect(detailsPanel.getByText('Rejected', { exact: true })).toBeVisible()
+  await expect(detailsPanel.getByText('Rejection Reason')).toBeVisible()
+  await expect(detailsPanel.getByText('Bybit rejected market order before opening')).toBeVisible()
+  await expect(detailsPanel.getByText('retCode=110007')).toBeVisible()
+  await expect(detailsPanel.getByText('No position was established by this order.')).toBeVisible()
 })
