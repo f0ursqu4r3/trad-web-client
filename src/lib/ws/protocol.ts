@@ -127,6 +127,7 @@ export enum TrailingEntryLifecycle {
   ChildrenSpawned = 'Children Spawned',
   MissedEntryPaused = 'MissedEntryPaused',
   Completed = 'Completed',
+  Canceled = 'Canceled',
 }
 
 export type SplitMode = 'prefer_target' | 'max_splits'
