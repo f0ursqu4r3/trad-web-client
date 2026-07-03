@@ -316,6 +316,16 @@ function observeTrailingEntryStats() {
   }
 }
 
+function observeCloseCommandStatuses() {
+  for (const [closeCommandId, parentCommandId] of closeCommandToTeCommandId.entries()) {
+    if (!closeRequestedTeCommandIds.has(parentCommandId)) continue
+    const item = commands.history.find((entry) => entry.command_id === closeCommandId)
+    if (item?.status === CommandStatus.Succeeded) {
+      filledCloseTeCommandIds.add(parentCommandId)
+    }
+  }
+}
+
 function filledMarketOrderCommandIds(action: MarketAction): string[] {
   observeFilledMarketOrders()
   const ids = action === MarketAction.Open ? filledOpenTeCommandIds : filledCloseTeCommandIds
@@ -325,6 +335,7 @@ function filledMarketOrderCommandIds(action: MarketAction): string[] {
 function refreshCounts() {
   observeFilledMarketOrders()
   observeTrailingEntryStats()
+  observeCloseCommandStatuses()
   state.accepted = acceptedCommandIds().length
   state.openFilled = filledOpenTeCommandIds.size
   state.closeFilled = filledCloseTeCommandIds.size
