@@ -350,14 +350,17 @@ function refreshCounts() {
   state.nativeProtectionCount = observedNativeProtectionTeCommandIds.size
 }
 
-function throwOnAnySubmittedFailure() {
-  const failure = [...submittedCommandIds, ...closeCommandIds].map(commandFailed).find(Boolean)
+function throwOnAnySubmittedFailure(includeSubmitted = true) {
+  const commandIds = includeSubmitted ? [...submittedCommandIds, ...closeCommandIds] : closeCommandIds
+  const failure = commandIds.map(commandFailed).find(Boolean)
   if (failure) throw new Error(failure)
 }
 
 function cancelSubmittedTrailingEntries() {
+  const openLikeIds = new Set(openLikeCommandIds())
   for (const commandId of submittedCommandIds) {
     if (cancelRequestedCommandIds.has(commandId)) continue
+    if (openLikeIds.has(commandId)) continue
     ws.sendCancelCommand(commandId)
     cancelRequestedCommandIds.add(commandId)
     record(`requested TE cancel ${commandId}`)
@@ -381,7 +384,11 @@ function submitCloseRequestsForFilledOpenPositions() {
   }
 }
 
-async function closeFilledOpenPositionsUntilQuiet(quietMs: number, timeoutMs: number) {
+async function closeFilledOpenPositionsUntilQuiet(
+  quietMs: number,
+  timeoutMs: number,
+  includeSubmittedFailures = true,
+) {
   const started = Date.now()
   let lastUnclosedCount = -1
   let lastChangeAt = Date.now()
@@ -398,7 +405,7 @@ async function closeFilledOpenPositionsUntilQuiet(quietMs: number, timeoutMs: nu
       lastChangeAt = Date.now()
       continue
     }
-    throwOnAnySubmittedFailure()
+    throwOnAnySubmittedFailure(includeSubmittedFailures)
     if (state.openFilled === state.closeFilled && Date.now() - lastChangeAt >= quietMs) {
       return
     }
@@ -558,6 +565,7 @@ async function startSmoke() {
     )
 
     state.phase = 'cleanup'
+    submitCloseRequestsForFilledOpenPositions()
     cancelSubmittedTrailingEntries()
     await wait(1_000)
     state.phase = 'closing'
@@ -574,13 +582,14 @@ async function startSmoke() {
       if (submittedCommandIds.length > 0) {
         state.phase = 'cleanup'
         record(`failure cancel starting after: ${originalError}`)
+        submitCloseRequestsForFilledOpenPositions()
         cancelSubmittedTrailingEntries()
         await wait(1_000)
         inspectSubmittedCommands(true)
       }
       state.phase = 'closing'
       record(`failure cleanup starting after: ${originalError}`)
-      await closeFilledOpenPositionsUntilQuiet(10_000, 180_000)
+      await closeFilledOpenPositionsUntilQuiet(10_000, 180_000, false)
       record('failure cleanup close requests completed')
     } catch (cleanupErr) {
       record(
