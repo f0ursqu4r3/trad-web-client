@@ -432,6 +432,158 @@ const bybitMissingProtectionDevice = {
   },
 } satisfies DeviceSnapshotLiteData
 
+const highCountBybitSymbols = [
+  'DOGEUSDT',
+  'XRPUSDT',
+  'ADAUSDT',
+  'TRXUSDT',
+  'XLMUSDT',
+  'SUIUSDT',
+  'LINKUSDT',
+  'AVAXUSDT',
+  'DOTUSDT',
+  'LTCUSDT',
+  'SOLUSDT',
+  'BNBUSDT',
+  'BCHUSDT',
+  'ETCUSDT',
+  'APTUSDT',
+  'NEARUSDT',
+  'FILUSDT',
+  'OPUSDT',
+  'ARBUSDT',
+  'INJUSDT',
+  'ATOMUSDT',
+  'UNIUSDT',
+  'AAVEUSDT',
+  'ALGOUSDT',
+  'HBARUSDT',
+  'ICPUSDT',
+  'SEIUSDT',
+  'TIAUSDT',
+  'WLDUSDT',
+  'JUPUSDT',
+  'PYTHUSDT',
+  'WIFUSDT',
+  'ORDIUSDT',
+  '1000PEPEUSDT',
+  '1000SHIBUSDT',
+  '1000BONKUSDT',
+  'FETUSDT',
+  'RENDERUSDT',
+  'GRTUSDT',
+  'MKRUSDT',
+  'COMPUSDT',
+  'SANDUSDT',
+  'MANAUSDT',
+  'GALAUSDT',
+  'RUNEUSDT',
+  'IMXUSDT',
+  'ENAUSDT',
+  'ONDOUSDT',
+  'JTOUSDT',
+  'ZROUSDT',
+]
+
+function highCountId(prefix: string, index: number): string {
+  return `${prefix}000000-0000-4000-8000-${index.toString(16).padStart(12, '0')}`
+}
+
+const highCountBybitCommands = highCountBybitSymbols.map((symbol, index) => {
+  const price = 1 + index * 0.25
+  return {
+    command_id: highCountId('20', index + 1),
+    command: {
+      kind: 'TrailingEntryOrder',
+      data: {
+        position_side: PositionSide.Long,
+        symbol,
+        activation_price: price,
+        jump_frac_threshold: 0.000001,
+        stop_loss: price * 0.95,
+        take_profit: price * 1.02,
+        risk_amount: 1,
+        market_context: bybitProtocolFixtures.bybitContext,
+        split_settings: {
+          target_child_notional: 25,
+          max_splits_cap: 1,
+          mode: 'prefer_target',
+          slippage_margin: 0.001,
+        },
+      },
+    },
+    market_ref: {
+      ...bybitProtocolFixtures.bybitMarketRef,
+      symbol,
+    },
+    status: CommandStatus.Running,
+    created_at: `2026-06-19T01:${String(index).padStart(2, '0')}:00.000Z`,
+  } satisfies CommandHistoryItem
+})
+
+const highCountBybitDevices = highCountBybitSymbols.map((symbol, index) => {
+  const price = 1 + index * 0.25
+  return {
+    device_id: highCountId('30', index + 1),
+    owner_user_id: highCountId('40', index + 1),
+    associated_command_id: highCountBybitCommands[index].command_id,
+    market_ref: {
+      ...bybitProtocolFixtures.bybitMarketRef,
+      symbol,
+    },
+    protection_state: null,
+    parent_device: null,
+    children_devices: null,
+    created_at: `2026-06-19T01:${String(index).padStart(2, '0')}:00.000Z`,
+    complete: false,
+    failed: false,
+    canceled: false,
+    awaiting_children: false,
+    failure_reason: null,
+    snapshot: {
+      kind: 'TrailingEntry',
+      data: {
+        symbol,
+        market_context: bybitProtocolFixtures.bybitContext,
+        position_side: PositionSide.Long,
+        activation_price: price,
+        jump_frac_threshold: 0.000001,
+        stop_loss: price * 0.95,
+        take_profit: price * 1.02,
+        risk_amount: 1,
+        split_settings: {
+          target_child_notional: 25,
+          max_splits_cap: 1,
+          mode: 'prefer_target',
+          slippage_margin: 0.001,
+        },
+        phase: TrailingEntryPhase.Initial,
+        peak: price,
+        peak_index: 0,
+        position_size: 0,
+        actual_activation_price: 0,
+        buy_or_sell_price: 0,
+        completed: false,
+        cancelled: false,
+        succeeded: false,
+        stop_loss_hit: false,
+        base_index: 0,
+        total_points: 120 + index,
+        start_trigger_index: null,
+        end_trigger_index: null,
+        lifecycle: TrailingEntryLifecycle.Running,
+        stats: {
+          open_filled_qty: 0,
+          close_filled_qty: 0,
+          open_filled_notional: 0,
+          close_filled_notional: 0,
+          dust_threshold: 0.001,
+        },
+      },
+    },
+  } satisfies DeviceSnapshotLiteData
+})
+
 onMounted(async () => {
   const commandStore = useCommandStore()
   const deviceStore = useDeviceStore()
@@ -491,6 +643,7 @@ onMounted(async () => {
   deviceStore.handleDeviceSnapshotLite(bybitMissedTrailingEntryDevice)
   deviceStore.handleDeviceSnapshotLite(bybitMissedMarketOrderDevice)
   deviceStore.handleDeviceSnapshotLite(bybitMissingProtectionDevice)
+  highCountBybitDevices.forEach((device) => deviceStore.handleDeviceSnapshotLite(device))
 
   await nextTick()
   commandPanelRef.value?.toggleFilters()

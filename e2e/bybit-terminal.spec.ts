@@ -65,6 +65,42 @@ test('Bybit account panel renders order queue telemetry', async ({ page }) => {
   await expect(accountPanel.getByText('hold 2.5s')).toBeVisible()
 })
 
+test('Bybit terminal remains inspectable with many active TE rows', async ({ page }) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+
+  const commandPanel = page.getByTestId('command-panel')
+  const devicePanel = page.getByTestId('device-tree-panel')
+  const detailsPanel = page.getByTestId('device-details-panel')
+  const deviceRows = devicePanel.locator('.device-row')
+
+  await expect(commandPanel.getByText('Bybit missed BTC entry')).toBeVisible()
+  await expect(deviceRows.filter({ hasText: 'Trailing Entry' })).toHaveCount(51)
+
+  await devicePanel.getByRole('button', { name: 'Bybit', exact: true }).click()
+  await expect(deviceRows.filter({ hasText: 'Binance' })).toHaveCount(0)
+  await expect(deviceRows.filter({ hasText: 'Trailing Entry' })).toHaveCount(51)
+
+  await devicePanel.getByRole('button', { name: 'ZROUSDT', exact: true }).click()
+  await expect(deviceRows.filter({ hasText: 'Trailing Entry' })).toHaveCount(1)
+
+  const zroRow = deviceRows.filter({ hasText: 'ZROUSDT' })
+  await zroRow.scrollIntoViewIfNeeded()
+  await zroRow.click()
+
+  await expect(detailsPanel.getByText('Trailing Entry Device')).toBeVisible()
+  await expect(detailsPanel.getByText('ZROUSDT').first()).toBeVisible()
+  await expect(detailsPanel.getByText('Risk Amount')).toBeVisible()
+  await expect(detailsPanel.getByText('Running', { exact: true }).first()).toBeVisible()
+})
+
 test('Bybit rejected market order shows no-position rejection reason', async ({ page }) => {
   await page.route('**/auth/session', async (route) => {
     await route.fulfill({
@@ -79,7 +115,11 @@ test('Bybit rejected market order shows no-position rejection reason', async ({ 
   const devicePanel = page.getByTestId('device-tree-panel')
   const detailsPanel = page.getByTestId('device-details-panel')
 
-  await devicePanel.locator('.device-row').filter({ hasText: 'ADAUSDT' }).click()
+  await devicePanel
+    .locator('.device-row')
+    .filter({ hasText: 'Market Order' })
+    .filter({ hasText: 'ADAUSDT' })
+    .click()
 
   await expect(detailsPanel.getByText('Market Order Device')).toBeVisible()
   await expect(detailsPanel.getByText('Rejected', { exact: true }).first()).toBeVisible()
