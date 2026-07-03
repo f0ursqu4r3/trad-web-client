@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
+import { buildAccountFormPayload } from '@/lib/accountFormPayload'
 import { enumKeyName } from '@/lib/utils'
 import { NetworkType, ExchangeType } from '@/lib/ws/protocol'
-import { useAccountsStore, type AccountFormPayload } from '@/stores/accounts'
+import { useAccountsStore } from '@/stores/accounts'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -60,13 +61,15 @@ async function submit() {
   isSubmitting.value = true
   formError.value = null
   try {
-    await accounts.addAccount({
-      label: name.value.trim(),
-      key: apiKey.value.trim(),
-      secret: secretKey.value.trim(),
-      network: network.value.toLowerCase() as NetworkType,
-      exchange: exchange.value.toLowerCase() as ExchangeType,
-    } as AccountFormPayload)
+    await accounts.addAccount(
+      buildAccountFormPayload({
+        label: name.value,
+        key: apiKey.value,
+        secret: secretKey.value,
+        network: network.value,
+        exchange: exchange.value,
+      }),
+    )
     close()
   } catch (err) {
     formError.value = err instanceof Error ? err.message : String(err)

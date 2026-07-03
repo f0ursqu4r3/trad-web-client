@@ -7,6 +7,7 @@ const server = await createServer({
 
 try {
   const smoke = await server.ssrLoadModule('/src/lib/bybitFilterSmoke.ts')
+  smoke.runBybitAccountPayloadSmoke()
   smoke.runBybitFilterSmoke()
   await smoke.runBybitNativeProtectionRenderSmoke()
   console.log('Bybit frontend filter smoke passed')

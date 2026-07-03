@@ -48,6 +48,7 @@ import {
   isBybitMetadataVerified,
   type AccountMetadataLike,
 } from '@/lib/accountMetadata'
+import { buildAccountFormPayload } from '@/lib/accountFormPayload'
 import {
   useDeviceStore,
   type Device,
@@ -64,6 +65,22 @@ function assertSmoke(condition: unknown, message: string): asserts condition {
 
 function sorted(value: Iterable<string>): string[] {
   return Array.from(value).sort()
+}
+
+export function runBybitAccountPayloadSmoke(): void {
+  const payload = buildAccountFormPayload({
+    label: '  Bybit Live Dev  ',
+    key: '  api-key  ',
+    secret: '  secret-key  ',
+    network: NetworkType.Mainnet,
+    exchange: ExchangeType.Bybit,
+  })
+
+  assertSmoke(payload.label === 'Bybit Live Dev', 'Bybit account label should be trimmed')
+  assertSmoke(payload.key === 'api-key', 'Bybit account API key should be trimmed')
+  assertSmoke(payload.secret === 'secret-key', 'Bybit account secret should be trimmed')
+  assertSmoke(payload.network === NetworkType.Mainnet, 'Bybit account network should be mainnet')
+  assertSmoke(payload.exchange === ExchangeType.Bybit, 'Bybit account exchange should be bybit')
 }
 
 const binanceAccountId = '11111111-1111-1111-1111-111111111111'
