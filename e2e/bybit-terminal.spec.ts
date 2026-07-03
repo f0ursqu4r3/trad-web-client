@@ -19,7 +19,7 @@ test('Bybit command and device filters are explicit, not selected-account scoped
 
   await expect(commandPanel.getByText('Bybit BTC native TP/SL')).toBeVisible()
   await expect(commandPanel.getByText('Binance ETH legacy')).toBeVisible()
-  await expect(devicePanel.getByText('Native Protection')).toBeVisible()
+  await expect(deviceRows.filter({ hasText: 'Native Protection' }).first()).toBeVisible()
   await expect(deviceRows.filter({ hasText: 'Market Order' }).first()).toBeVisible()
 
   await commandPanel.getByRole('button', { name: 'Bybit', exact: true }).click()
@@ -32,7 +32,7 @@ test('Bybit command and device filters are explicit, not selected-account scoped
 
   await devicePanel.getByRole('button', { name: 'Bybit', exact: true }).click()
 
-  await expect(deviceRows.filter({ hasText: 'Native Protection' })).toBeVisible()
+  await expect(deviceRows.filter({ hasText: 'Native Protection' }).first()).toBeVisible()
   await expect(deviceRows.filter({ hasText: 'Bybit' }).first()).toBeVisible()
   await expect(deviceRows.filter({ hasText: 'Binance' })).toHaveCount(0)
 })
@@ -82,11 +82,38 @@ test('Bybit rejected market order shows no-position rejection reason', async ({ 
   await devicePanel.locator('.device-row').filter({ hasText: 'ADAUSDT' }).click()
 
   await expect(detailsPanel.getByText('Market Order Device')).toBeVisible()
-  await expect(detailsPanel.getByText('Rejected', { exact: true })).toBeVisible()
+  await expect(detailsPanel.getByText('Rejected', { exact: true }).first()).toBeVisible()
   await expect(detailsPanel.getByText('Rejection Reason')).toBeVisible()
   await expect(detailsPanel.getByText('Bybit rejected market order before opening')).toBeVisible()
   await expect(detailsPanel.getByText('retCode=110007')).toBeVisible()
   await expect(detailsPanel.getByText('No position was established by this order.')).toBeVisible()
+})
+
+test('Bybit missing native protection is loud in device details', async ({ page }) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+
+  const devicePanel = page.getByTestId('device-tree-panel')
+  const detailsPanel = page.getByTestId('device-details-panel')
+
+  await devicePanel.locator('.device-row').filter({ hasText: 'MISSINGUSDT' }).click()
+
+  await expect(detailsPanel.getByText('Native Protection')).toBeVisible()
+  await expect(detailsPanel.getByText('Rejected', { exact: true }).first()).toBeVisible()
+  await expect(detailsPanel.getByText('Protection Summary')).toBeVisible()
+  await expect(detailsPanel.getByText('Native TP/SL', { exact: true })).toBeVisible()
+  await expect(detailsPanel.getByText('Native Bybit TP/SL protection missing')).toBeVisible()
+  await expect(detailsPanel.getByText('native_protection_missing')).toBeVisible()
+  await expect(
+    detailsPanel.getByText('observed 1 linked TP/SL orders, expected 2'),
+  ).toBeVisible()
 })
 
 test('Bybit account creation submits exchange credentials through account API', async ({ page }) => {

@@ -14,9 +14,12 @@ import {
   ExchangeType,
   MarketAction,
   MarketOrderStatus,
+  NativeProtectionStatus,
   NetworkType,
   OrderSide,
   PositionSide,
+  ProtectionLifecycle,
+  ProtectionStrategy,
   TrailingEntryLifecycle,
   TrailingEntryPhase,
   type CommandHistoryItem,
@@ -38,6 +41,7 @@ const bybitRejectedDeviceId = '88888888-8888-4888-8888-888888888888'
 const bybitMissedCommandId = '12121212-1212-4212-8212-121212121212'
 const bybitMissedTeDeviceId = '13131313-1313-4313-8313-131313131313'
 const bybitMissedMoDeviceId = '14141414-1414-4414-8414-141414141414'
+const bybitMissingProtectionDeviceId = '16161616-1616-4616-8616-161616161616'
 const binanceContext = {
   binance: { account_id: binanceAccountId },
 } satisfies MarketContext
@@ -371,6 +375,63 @@ const bybitMissedMarketOrderDevice = {
   },
 } satisfies DeviceSnapshotLiteData
 
+const bybitMissingProtectionDevice = {
+  device_id: bybitMissingProtectionDeviceId,
+  owner_user_id: '17171717-1717-4717-8717-171717171717',
+  associated_command_id: bybitProtocolFixtures.bybitCommandHistoryItem.command_id,
+  market_ref: {
+    ...bybitProtocolFixtures.bybitMarketRef,
+    symbol: 'MISSINGUSDT',
+  },
+  protection_state: {
+    strategy: ProtectionStrategy.NativeAttachedTpsl,
+    lifecycle: ProtectionLifecycle.Rejected,
+    parent_client_order_id: 'mo-missing-protection-parent',
+    parent_remote_order_id: 'remote-missing-protection-parent',
+    take_profit_trigger_price: 2.42,
+    stop_loss_trigger_price: 1.91,
+    protected_qty: null,
+    filled_qty: 0,
+    last_reconciled_at: '2026-06-19T00:04:05.000Z',
+  },
+  parent_device: null,
+  children_devices: null,
+  created_at: '2026-06-19T00:04:00.000Z',
+  complete: true,
+  failed: true,
+  canceled: false,
+  awaiting_children: false,
+  failure_reason:
+    'Native Bybit TP/SL protection missing: observed 1 linked protection order, expected 2.',
+  snapshot: {
+    kind: 'NativeProtection',
+    data: {
+      symbol: 'MISSINGUSDT',
+      market_context: bybitProtocolFixtures.bybitContext,
+      position_side: PositionSide.Long,
+      take_profit: 2.42,
+      stop_loss: 1.91,
+      expected_entries: 1,
+      observed_entries: 1,
+      observed_protection_orders: 1,
+      observed_entry_order_ids: ['mo-missing-protection-parent'],
+      observed_protection_order_ids: ['partial-stop-only'],
+      tracked_parent_client_order_ids: ['mo-missing-protection-parent'],
+      tracked_parent_remote_order_ids: ['remote-missing-protection-parent'],
+      entry_filled_qty: 25,
+      protection_filled_qty: 0,
+      status: NativeProtectionStatus.Rejected,
+      last_client_order_id: 'partial-stop-only',
+      last_parent_client_order_id: 'mo-missing-protection-parent',
+      last_remote_order_id: 'remote-partial-stop-only',
+      last_order_status: 'Rejected',
+      last_order_reason: 'native_protection_missing: observed 1 linked TP/SL orders, expected 2',
+      last_update_seen_at: '2026-06-19T00:04:05.000Z',
+      created_at: '2026-06-19T00:04:00.000Z',
+    },
+  },
+} satisfies DeviceSnapshotLiteData
+
 onMounted(async () => {
   const commandStore = useCommandStore()
   const deviceStore = useDeviceStore()
@@ -429,6 +490,7 @@ onMounted(async () => {
   deviceStore.handleDeviceSnapshotLite(bybitRejectedMarketOrderDevice)
   deviceStore.handleDeviceSnapshotLite(bybitMissedTrailingEntryDevice)
   deviceStore.handleDeviceSnapshotLite(bybitMissedMarketOrderDevice)
+  deviceStore.handleDeviceSnapshotLite(bybitMissingProtectionDevice)
 
   await nextTick()
   commandPanelRef.value?.toggleFilters()
