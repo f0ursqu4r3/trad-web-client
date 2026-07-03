@@ -237,6 +237,12 @@ function requestThrottleSnapshot() {
   refreshThrottle()
 }
 
+function queueDrained(): boolean {
+  requestThrottleSnapshot()
+  refreshThrottle()
+  return (state.throttle?.total_queued ?? 0) === 0 && (state.throttle?.total_in_flight ?? 0) === 0
+}
+
 function startThrottlePolling() {
   if (throttlePoll !== null) return
   throttlePoll = window.setInterval(requestThrottleSnapshot, 1000)
@@ -575,6 +581,7 @@ async function startSmoke() {
     await closeFilledOpenPositionsUntilQuiet(10_000, closeWaitMs + 60_000)
 
     state.phase = 'waiting-close'
+    await waitFor('order queue drain', queueDrained, 30_000)
     state.phase = 'closed'
     refreshCounts()
     requestThrottleSnapshot()
