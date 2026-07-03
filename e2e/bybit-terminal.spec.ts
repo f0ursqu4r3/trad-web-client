@@ -249,7 +249,17 @@ test('Missed Bybit trailing entry exposes Continue Anyway action', async ({ page
   })
 
   await missedRow.getByTitle('Menu').click()
-  await expect(page.getByRole('menuitem', { name: 'Continue Anyway' })).toBeVisible()
+  const continueAction = page.getByRole('menuitem', { name: 'Continue Anyway' })
+  await expect(continueAction).toBeVisible()
+  await continueAction.click()
+
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as any).__tradBybitTerminalFixture?.getContinueMissedEntrySends() ?? [],
+      ),
+    )
+    .toEqual(['12121212-1212-4212-8212-121212121212'])
 
   await page.keyboard.press('Escape')
   await rejectedRow.getByTitle('Menu').click()

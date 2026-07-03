@@ -32,6 +32,24 @@ import {
 const commandPanelRef = ref<InstanceType<typeof CommandPanel> | null>(null)
 const accountStore = useAccountsStore()
 const wsStore = useWsStore()
+const continueMissedEntrySends = ref<string[]>([])
+
+wsStore.sendContinueMissedTrailingEntry = (commandId: string) => {
+  continueMissedEntrySends.value = [...continueMissedEntrySends.value, commandId]
+  return commandId
+}
+
+declare global {
+  interface Window {
+    __tradBybitTerminalFixture?: {
+      getContinueMissedEntrySends: () => string[]
+    }
+  }
+}
+
+window.__tradBybitTerminalFixture = {
+  getContinueMissedEntrySends: () => [...continueMissedEntrySends.value],
+}
 
 const binanceAccountId = '11111111-1111-4111-8111-111111111111'
 const binanceCommandId = '22222222-2222-4222-8222-222222222222'
