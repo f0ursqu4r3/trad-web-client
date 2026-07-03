@@ -167,15 +167,16 @@ test('Bybit account creation submits exchange credentials through account API', 
 
   let putUrl = ''
   let putPayload: Record<string, unknown> | null = null
-  await page.route('**/api/accounts/**', async (route) => {
+  let accountCreated = false
+  await page.route('**/api/accounts**', async (route) => {
     const request = route.request()
     if (request.method() === 'PUT') {
       putUrl = request.url()
       putPayload = request.postDataJSON() as Record<string, unknown>
+      accountCreated = true
       await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ ok: true }),
+        status: 204,
+        body: '',
       })
       return
     }
@@ -183,8 +184,102 @@ test('Bybit account creation submits exchange credentials through account API', 
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify([
-        {
+      body: JSON.stringify(
+        accountCreated
+          ? [
+              {
+                id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+                label: 'Bybit Live QA',
+                key: 'bybit-api-key',
+                network: 'testnet',
+                exchange: 'bybit',
+                exchange_metadata: {
+                  product: 'usdt_perp',
+                  hedge_mode_only: true,
+                  account_mode: 'UTA 1.0 Pro',
+                  margin_mode: 'REGULAR_MARGIN',
+                  unified_margin_status: 5,
+                },
+              },
+            ]
+          : [],
+      ),
+    })
+  })
+
+  await page.route('**/api/order-throttle**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total_queued: 0,
+        total_in_flight: 0,
+        enqueued_total: 0,
+        started_total: 0,
+        completed_total: 0,
+        canceled_total: 0,
+        errored_total: 0,
+        stale_rejected_total: 0,
+        rate_limit_rejected_total: 0,
+        delayed_by_limiter_total: 0,
+        min_interval_ms: 200,
+        max_in_flight_per_account: 3,
+        accounts: [],
+        bybit_rate_limit: {
+          method: 'POST',
+          path: '/v5/order/create',
+          limit: '10',
+          remaining: '9',
+          reset_timestamp_ms: '0',
+          reset_in_ms: 0,
+          exhausted: false,
+          observed_at_unix_ms: Date.now(),
+        },
+      }),
+    })
+  })
+
+  await page.route('**/api/market-capabilities**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        supported: true,
+        features: {
+          hedge_mode_control: true,
+          leverage_control: true,
+        },
+        warnings: ['USDT linear perpetuals only in Bybit v1.'],
+      }),
+    })
+  })
+
+  await page.route('**/api/account-leverage**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        symbol: 'BTCUSDT',
+        long_leverage: '1',
+        short_leverage: '1',
+      }),
+    })
+  })
+
+  await page.route('**/api/ws-ticket', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ticket: 'fixture-ticket' }),
+    })
+  })
+
+  await page.route('**/api/account-keys/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        account: {
           id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
           label: 'Bybit Live QA',
           key: 'bybit-api-key',
@@ -193,12 +288,12 @@ test('Bybit account creation submits exchange credentials through account API', 
           exchange_metadata: {
             product: 'usdt_perp',
             hedge_mode_only: true,
-            account_mode: 'unified',
-            margin_mode: 'regular_margin',
+            account_mode: 'UTA 1.0 Pro',
+            margin_mode: 'REGULAR_MARGIN',
             unified_margin_status: 5,
           },
         },
-      ]),
+      }),
     })
   })
 
@@ -227,6 +322,15 @@ test('Bybit account creation submits exchange credentials through account API', 
     network: 'testnet',
     exchange: 'bybit',
   })
+
+  await expect(dialog).toBeHidden()
+  await expect(accountPanel.getByText('Bybit Live QA')).toBeVisible()
+  await expect(accountPanel.getByText('USDT perp')).toBeVisible()
+  await expect(accountPanel.getByText('Hedge only')).toBeVisible()
+  await expect(accountPanel.getByText('Exchange metadata verified: UTA 1.0 Pro / REGULAR_MARGIN')).toBeVisible()
+  await expect(accountPanel.getByText('Queue', { exact: true })).toBeVisible()
+  await expect(accountPanel.getByText(/queued\s*\/\s*\d+\s+live/)).toBeVisible()
+  await expect(accountPanel.getByText('Bybit Remain')).toBeVisible()
 })
 
 test('Missed Bybit trailing entry exposes Continue Anyway action', async ({ page }) => {
