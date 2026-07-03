@@ -3,6 +3,7 @@ import {
   type MarketCapabilitiesData,
   type OrderThrottleSnapshotData,
   type ServerToClientMessage,
+  type SymbolLeverageSnapshotData,
   type SystemMessagePayload,
   type UserCommandPayload,
   type Uuid,
@@ -56,6 +57,7 @@ export const useWsStore = defineStore('ws', () => {
   const authError = ref<string | null>(null)
   const marketCapabilities = ref<Record<string, MarketCapabilitiesData>>({})
   const orderThrottleSnapshots = ref<Record<string, OrderThrottleSnapshotData>>({})
+  const symbolLeverageSnapshots = ref<Record<string, SymbolLeverageSnapshotData>>({})
   let lastPingSend: number | null = null
   let perfLoopTimer: number | null = null
   const pendingAccountRefreshes = new Set<Uuid>()
@@ -270,6 +272,13 @@ export const useWsStore = defineStore('ws', () => {
     })
   }
 
+  function requestSymbolLeverage(marketContext: MarketContext, symbols: string[]) {
+    sendSystemCommand({
+      kind: 'GetSymbolLeverage',
+      data: { market_context: marketContext, symbols },
+    })
+  }
+
   function capabilitiesForMarketContext(
     marketContext: MarketContext | null | undefined,
   ): MarketCapabilitiesData | null {
@@ -282,6 +291,13 @@ export const useWsStore = defineStore('ws', () => {
   ): OrderThrottleSnapshotData | null {
     if (!marketContext) return null
     return orderThrottleSnapshots.value[marketContextKey(marketContext)] ?? null
+  }
+
+  function symbolLeverageForMarketContext(
+    marketContext: MarketContext | null | undefined,
+  ): SymbolLeverageSnapshotData | null {
+    if (!marketContext) return null
+    return symbolLeverageSnapshots.value[marketContextKey(marketContext)] ?? null
   }
 
   function onServerMessage(msg: ServerToClientMessage) {
@@ -316,6 +332,7 @@ export const useWsStore = defineStore('ws', () => {
       SplitPreview: handleSplitPreview,
       MarketCapabilities: handleMarketCapabilities,
       OrderThrottleSnapshot: handleOrderThrottleSnapshot,
+      SymbolLeverageSnapshot: handleSymbolLeverageSnapshot,
     } as Record<string, (p: ServerToClientMessage['payload']) => void>
     const handler = handlers[payload.kind] || handleUnknowServerMessage
     handler(payload)
@@ -445,6 +462,13 @@ export const useWsStore = defineStore('ws', () => {
       payload as Extract<ServerToClientMessage['payload'], { kind: 'OrderThrottleSnapshot' }>
     ).data
     orderThrottleSnapshots.value[marketContextKey(data.market_context)] = data
+  }
+
+  function handleSymbolLeverageSnapshot(payload: ServerToClientMessage['payload']): void {
+    const data = (
+      payload as Extract<ServerToClientMessage['payload'], { kind: 'SymbolLeverageSnapshot' }>
+    ).data
+    symbolLeverageSnapshots.value[marketContextKey(data.market_context)] = data
   }
 
   function handleCommandHistory(payload: ServerToClientMessage['payload']): void {
@@ -598,6 +622,8 @@ export const useWsStore = defineStore('ws', () => {
     capabilitiesForMarketContext,
     requestOrderThrottleSnapshot,
     orderThrottleForMarketContext,
+    requestSymbolLeverage,
+    symbolLeverageForMarketContext,
     getDeviceTree,
     flushPerfLog,
   }

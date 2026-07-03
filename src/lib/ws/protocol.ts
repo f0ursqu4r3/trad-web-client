@@ -241,6 +241,7 @@ export type SystemMessagePayload =
   | { kind: 'RefreshAccountKeys'; data: RefreshAccountKeysMessage }
   | { kind: 'GetMarketCapabilities'; data: GetMarketCapabilitiesRequest }
   | { kind: 'GetOrderThrottleSnapshot'; data: GetOrderThrottleSnapshotRequest }
+  | { kind: 'GetSymbolLeverage'; data: GetSymbolLeverageRequest }
   | { kind: 'GetBalance'; data: GetBalanceRequest }
   | { kind: 'ListPositions'; data: ListPositionsRequest }
   | { kind: 'ListDevices'; data: ListDevicesCommand }
@@ -273,6 +274,11 @@ export type GetMarketCapabilitiesRequest = {
 
 export type GetOrderThrottleSnapshotRequest = {
   market_context: MarketContext
+}
+
+export type GetSymbolLeverageRequest = {
+  market_context: MarketContext
+  symbols: string[]
 }
 
 export type ListPositionsRequest = {
@@ -443,6 +449,7 @@ export type ServerToClientPayload =
   | { kind: 'OrderThrottleSnapshot'; data: OrderThrottleSnapshotData }
   | { kind: 'Pong'; data: PongData }
   | { kind: 'PositionsSnapshot'; data: PositionsSnapshotData }
+  | { kind: 'SymbolLeverageSnapshot'; data: SymbolLeverageSnapshotData }
   | { kind: 'ServerError'; data: ServerErrorData }
   | { kind: 'ServerHello'; data: ServerHelloData }
   | { kind: 'SetCommandStatus'; data: SetCommandStatusData }
@@ -512,6 +519,17 @@ export type OrderThrottleSnapshotData = {
   min_interval_ms: number
   max_in_flight_per_account: number
   accounts: OrderThrottleAccountData[]
+}
+export type SymbolLeverageSummaryData = {
+  symbol: string
+  long_leverage?: number | null
+  short_leverage?: number | null
+}
+export type SymbolLeverageSnapshotData = {
+  request_uuid: Uuid
+  market_context: MarketContext
+  leverages: SymbolLeverageSummaryData[]
+  unavailable_symbols: string[]
 }
 export type ServerHelloData = {
   protocol_version: number

@@ -27,6 +27,7 @@ const ws = useWsStore()
 
 const isCreateModalOpen = ref(false)
 const refreshingAccountIds = ref<Set<string>>(new Set())
+const refreshingLeverageAccountIds = ref<Set<string>>(new Set())
 const requestedCapabilityAccountIds = ref<Set<string>>(new Set())
 const refreshError = ref<string | null>(null)
 const controlError = ref<string | null>(null)
@@ -57,6 +58,9 @@ function selectAccount(account: AccountRecord) {
   ensureLeverageForm(account)
   requestAccountCapabilities(account)
   requestAccountThrottle(account)
+  if (account.exchange === ExchangeType.Bybit) {
+    requestAccountLeverage(account)
+  }
 }
 
 async function refreshAccounts() {
@@ -105,6 +109,10 @@ function capabilitiesForAccount(account: AccountRecord): MarketCapabilitiesData 
 
 function throttleForAccount(account: AccountRecord): OrderThrottleSnapshotData | null {
   return ws.orderThrottleForMarketContext(marketContextForAccount(account))
+}
+
+function symbolLeverageForAccount(account: AccountRecord) {
+  return ws.symbolLeverageForMarketContext(marketContextForAccount(account))
 }
 
 function requestAccountCapabilities(account: AccountRecord) {
@@ -156,6 +164,15 @@ function validateLeverage(account: AccountRecord): boolean {
   return ws.status === 'ready'
 }
 
+function canCheckLeverage(account: AccountRecord): boolean {
+  if (account.exchange !== ExchangeType.Bybit) return false
+  const marketContext = marketContextForAccount(account)
+  const form = leverageForms[account.id]
+  if (!marketContext || !form) return false
+  if (parseLeverageSymbols(account, form.symbols).length === 0) return false
+  return ws.status === 'ready'
+}
+
 function canSetHedgeMode(account: AccountRecord): boolean {
   const capabilities = capabilitiesForAccount(account)
   return ws.status === 'ready' && !!capabilities?.supports_hedge_mode
@@ -182,10 +199,34 @@ function setLeverage(account: AccountRecord) {
     }
     ws.sendUserCommand(payload)
   }
+  window.setTimeout(() => requestAccountLeverage(account), 2500)
   controlMessage.value =
     symbols.length === 1
       ? `Submitted leverage update for ${symbols[0]}.`
       : `Submitted leverage updates for ${symbols.length} symbols: ${summarizeSymbols(symbols)}.`
+}
+
+function requestAccountLeverage(account: AccountRecord) {
+  controlError.value = null
+  const marketContext = marketContextForAccount(account)
+  const form = leverageForms[account.id]
+  if (!marketContext || !form || account.exchange !== ExchangeType.Bybit) return
+  const symbols = parseLeverageSymbols(account, form.symbols)
+  if (symbols.length === 0) {
+    controlError.value = 'Enter at least one Bybit USDT perpetual symbol.'
+    return
+  }
+  if (ws.status !== 'ready') {
+    controlError.value = 'Leverage check requires an active server connection.'
+    return
+  }
+  refreshingLeverageAccountIds.value = new Set([...refreshingLeverageAccountIds.value, account.id])
+  ws.requestSymbolLeverage(marketContext, symbols)
+  window.setTimeout(() => {
+    const next = new Set(refreshingLeverageAccountIds.value)
+    next.delete(account.id)
+    refreshingLeverageAccountIds.value = next
+  }, 2500)
 }
 
 function parseLeverageSymbols(account: AccountRecord, raw: string): string[] {
@@ -229,6 +270,24 @@ function formatBybitRateLimitAge(snapshot: OrderThrottleSnapshotData | null): st
   const observedAt = snapshot?.bybit_rate_limit?.observed_at_unix_ms
   if (!observedAt) return '-'
   return formatMs(Math.max(0, Date.now() - observedAt))
+}
+
+function formatLeverageValue(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '?'
+  return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2)}x`
+}
+
+function formatSymbolLeverage(account: AccountRecord): string {
+  const snapshot = symbolLeverageForAccount(account)
+  if (!snapshot) return 'Not checked'
+  const parts = snapshot.leverages.slice(0, 4).map((item) => {
+    return `${item.symbol} L/S ${formatLeverageValue(item.long_leverage)} / ${formatLeverageValue(item.short_leverage)}`
+  })
+  if (snapshot.leverages.length > 4) parts.push(`+${snapshot.leverages.length - 4} more`)
+  if (snapshot.unavailable_symbols.length > 0) {
+    parts.push(`unknown ${snapshot.unavailable_symbols.slice(0, 3).join(',')}`)
+  }
+  return parts.length > 0 ? parts.join(' | ') : 'Unknown'
 }
 
 function enableHedgeMode(account: AccountRecord) {
@@ -390,7 +449,7 @@ watch(
 
               <div
                 v-if="accounts.selectedAccountId === account.id"
-                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(132px,1fr)_96px_auto_auto]"
+                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(132px,1fr)_96px_auto_auto_auto]"
               >
                 <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
                   <span>{{ account.exchange === ExchangeType.Bybit ? 'Symbols' : 'Symbol' }}</span>
@@ -432,6 +491,15 @@ watch(
                   Set Leverage
                 </button>
                 <button
+                  v-if="account.exchange === ExchangeType.Bybit"
+                  class="btn btn-secondary btn-xs self-end"
+                  type="button"
+                  :disabled="!canCheckLeverage(account) || refreshingLeverageAccountIds.has(account.id)"
+                  @click="requestAccountLeverage(account)"
+                >
+                  Check Lev
+                </button>
+                <button
                   class="btn btn-secondary btn-xs self-end"
                   type="button"
                   :disabled="!canSetHedgeMode(account)"
@@ -444,6 +512,9 @@ watch(
                 v-if="accounts.selectedAccountId === account.id && account.exchange === ExchangeType.Bybit"
                 class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)]"
               >
+                Current Lev:
+                <span class="font-mono text-primary">{{ formatSymbolLeverage(account) }}</span>
+                <br />
                 Bybit leverage is persistent per-symbol exchange state. Attached TP/SL is
                 exchange-managed after acceptance, but fills remain subject to liquidity, gaps, and
                 liquidation risk.
