@@ -28,6 +28,7 @@ type BulkPhase =
   | 'waiting-open'
   | 'closing'
   | 'waiting-close'
+  | 'cleanup'
   | 'closed'
   | 'failed'
 
@@ -93,6 +94,7 @@ const currentComponent = computed<Component>(() => {
 let submittedCommandIds: string[] = []
 let closeCommandIds: string[] = []
 let closeRequestedTeCommandIds = new Set<string>()
+let cancelRequestedCommandIds = new Set<string>()
 let throttlePoll: number | null = null
 let lastInspectAllAt = 0
 
@@ -285,6 +287,15 @@ function throwOnAnySubmittedFailure() {
   if (failure) throw new Error(failure)
 }
 
+function cancelSubmittedTrailingEntries() {
+  for (const commandId of submittedCommandIds) {
+    if (cancelRequestedCommandIds.has(commandId)) continue
+    ws.sendCancelCommand(commandId)
+    cancelRequestedCommandIds.add(commandId)
+    record(`requested TE cancel ${commandId}`)
+  }
+}
+
 async function closeFilledOpenPositions(closeWaitMs: number) {
   const filledCommands = filledMarketOrderCommandIds(MarketAction.Open)
   for (const commandId of filledCommands) {
@@ -345,6 +356,7 @@ async function startSmoke() {
     submittedCommandIds = []
     closeCommandIds = []
     closeRequestedTeCommandIds = new Set<string>()
+    cancelRequestedCommandIds = new Set<string>()
     lastInspectAllAt = 0
 
     const accountId = param('accountId')
@@ -451,6 +463,13 @@ async function startSmoke() {
   } catch (err) {
     const originalError = err instanceof Error ? err.message : String(err)
     try {
+      if (submittedCommandIds.length > 0) {
+        state.phase = 'cleanup'
+        record(`failure cancel starting after: ${originalError}`)
+        cancelSubmittedTrailingEntries()
+        await wait(1_000)
+        inspectSubmittedCommands(true)
+      }
       refreshCounts()
       if (state.openFilled > state.closeRequested) {
         state.phase = 'closing'
