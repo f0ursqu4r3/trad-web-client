@@ -38,6 +38,11 @@ const routes: RouteRecordRaw[] = [
           meta: { layout: 'blank' },
         },
         {
+          path: '/e2e/bybit-live-watch-only',
+          component: () => import('@/views/e2e/BybitLiveWatchOnly.vue'),
+          meta: { layout: 'blank' },
+        },
+        {
           path: '/e2e/sim-load-smoke',
           component: () => import('@/views/e2e/SimLoadSmoke.vue'),
           meta: { layout: 'blank' },
