@@ -87,3 +87,76 @@ test('Bybit rejected market order shows no-position rejection reason', async ({ 
   await expect(detailsPanel.getByText('retCode=110007')).toBeVisible()
   await expect(detailsPanel.getByText('No position was established by this order.')).toBeVisible()
 })
+
+test('Bybit account creation submits exchange credentials through account API', async ({ page }) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  let putUrl = ''
+  let putPayload: Record<string, unknown> | null = null
+  await page.route('**/api/accounts/**', async (route) => {
+    const request = route.request()
+    if (request.method() === 'PUT') {
+      putUrl = request.url()
+      putPayload = request.postDataJSON() as Record<string, unknown>
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true }),
+      })
+      return
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+          label: 'Bybit Live QA',
+          key: 'bybit-api-key',
+          network: 'testnet',
+          exchange: 'bybit',
+          exchange_metadata: {
+            product: 'usdt_perp',
+            hedge_mode_only: true,
+            account_mode: 'unified',
+            margin_mode: 'regular_margin',
+            unified_margin_status: 5,
+          },
+        },
+      ]),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+
+  const accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: 'New' }).click()
+
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByText('Create Account')).toBeVisible()
+  await dialog.locator('select').nth(0).selectOption('testnet')
+  await dialog.locator('select').nth(1).selectOption('bybit')
+  await expect(dialog.getByText('USDT Perpetuals')).toBeVisible()
+  await expect(dialog.getByText('Bybit key scope')).toBeVisible()
+  await dialog.getByPlaceholder('Exchange key label').fill('  Bybit Live QA  ')
+  await dialog.getByPlaceholder('API key').fill('  bybit-api-key  ')
+  await dialog.getByPlaceholder('Secret key').fill('  bybit-secret  ')
+  await dialog.getByRole('button', { name: 'Create' }).click()
+
+  await expect.poll(() => putPayload?.exchange).toBe('bybit')
+  expect(putUrl).toContain('/api/accounts/Bybit%20Live%20QA')
+  expect(putPayload).toEqual({
+    label: 'Bybit Live QA',
+    key: 'bybit-api-key',
+    secret: 'bybit-secret',
+    network: 'testnet',
+    exchange: 'bybit',
+  })
+})
