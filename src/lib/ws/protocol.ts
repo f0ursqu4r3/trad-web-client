@@ -497,6 +497,9 @@ export type OrderThrottleSnapshotData = {
   completed_total: number
   canceled_total: number
   errored_total: number
+  stale_rejected_total: number
+  rate_limit_rejected_total: number
+  delayed_by_limiter_total: number
   min_interval_ms: number
   max_in_flight_per_account: number
   accounts: OrderThrottleAccountData[]

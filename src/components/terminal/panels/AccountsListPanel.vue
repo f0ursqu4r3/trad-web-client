@@ -428,7 +428,7 @@ watch(
               </div>
               <div
                 v-if="accounts.selectedAccountId === account.id"
-                class="grid gap-2 text-[10px] uppercase tracking-[0.06em] dim sm:grid-cols-4"
+                class="grid gap-2 text-[10px] uppercase tracking-[0.06em] dim sm:grid-cols-4 xl:grid-cols-7"
               >
                 <div class="flex flex-col gap-1">
                   <span>Queue</span>
@@ -454,6 +454,24 @@ watch(
                   <span class="font-mono text-primary">
                     {{ throttleForAccount(account)?.errored_total ?? 0 }} err /
                     {{ throttleForAccount(account)?.canceled_total ?? 0 }} cancel
+                  </span>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <span>Stale</span>
+                  <span class="font-mono text-primary">
+                    {{ throttleForAccount(account)?.stale_rejected_total ?? 0 }}
+                  </span>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <span>Rate Limit</span>
+                  <span class="font-mono text-primary">
+                    {{ throttleForAccount(account)?.rate_limit_rejected_total ?? 0 }}
+                  </span>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <span>Delayed</span>
+                  <span class="font-mono text-primary">
+                    {{ throttleForAccount(account)?.delayed_by_limiter_total ?? 0 }}
                   </span>
                 </div>
               </div>
