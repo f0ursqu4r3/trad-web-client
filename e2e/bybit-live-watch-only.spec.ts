@@ -58,18 +58,18 @@ test('FE terminal holds many live Bybit watch-only trailing entries', async ({ p
   expect(result.inspectedCommandId).toBeTruthy()
   expect(result.inspectedTeDeviceId).toBeTruthy()
 
-  await expect(page.getByTestId('bybit-live-watch-only')).toBeVisible()
-  await expect(page.getByTestId('watch-phase')).toHaveText('done')
-  await expect(page.getByText('Trailing Entry').first()).toBeVisible()
-  await expect(page.getByText('Graph of TE: Long')).toBeVisible()
-  await expect(page.getByText('Device Details')).toBeVisible()
-
   if (process.env.BYBIT_LIVE_FE_WATCH_ONLY_RESULT_PATH) {
     writeFileSync(
       process.env.BYBIT_LIVE_FE_WATCH_ONLY_RESULT_PATH,
       `${JSON.stringify(result, null, 2)}\n`,
     )
   }
+
+  await expect(page.getByTestId('bybit-live-watch-only')).toBeVisible()
+  await expect(page.getByTestId('watch-phase')).toHaveText('done')
+  await expect(page.locator('.command-row').filter({ hasText: 'Trailing Entry' }).first()).toBeVisible()
+  await expect(page.getByText(new RegExp(`Graph of TE: Long ${result.inspectedSymbol}`))).toBeVisible()
+  await expect(page.getByText('Device Details')).toBeVisible()
 })
 
 function requiredEnv(name: string): string {

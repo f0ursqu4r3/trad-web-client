@@ -217,6 +217,13 @@ function commandFailed(commandId: string): string | null {
   return null
 }
 
+function allSubmittedCommandsSucceeded(): boolean {
+  return submittedCommandIds.every((commandId) => {
+    const item = commands.history.find((entry) => entry.command_id === commandId)
+    return item?.status === CommandStatus.Succeeded
+  })
+}
+
 let submittedCommandIds: string[] = []
 
 async function startSmoke() {
@@ -321,7 +328,7 @@ async function startSmoke() {
       state.cleanupRequested += 1
     }
     record(`requested cleanup for ${state.cleanupRequested} watch-only TEs`)
-    await wait(2_000)
+    await waitFor('watch-only cancel completion', allSubmittedCommandsSucceeded, 120_000)
 
     state.phase = 'done'
     record('watch-only frontend smoke completed')
