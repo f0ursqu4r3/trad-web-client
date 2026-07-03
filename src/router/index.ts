@@ -43,6 +43,11 @@ const routes: RouteRecordRaw[] = [
           meta: { layout: 'blank' },
         },
         {
+          path: '/e2e/bybit-live-native-tpsl-fill',
+          component: () => import('@/views/e2e/BybitLiveNativeTpslFill.vue'),
+          meta: { layout: 'blank' },
+        },
+        {
           path: '/e2e/sim-load-smoke',
           component: () => import('@/views/e2e/SimLoadSmoke.vue'),
           meta: { layout: 'blank' },
