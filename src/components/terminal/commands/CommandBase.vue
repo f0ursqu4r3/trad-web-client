@@ -15,6 +15,7 @@ const props = withDefaults(
     nickname?: string | null
     nicknameColor?: string | null
     pinned?: boolean
+    canClosePosition?: boolean
   }>(),
   {
     commandKind: '',
@@ -23,6 +24,7 @@ const props = withDefaults(
     nickname: null,
     nicknameColor: null,
     pinned: false,
+    canClosePosition: false,
   },
 )
 
@@ -85,7 +87,7 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
       action: () => emit('duplicate', props.commandId),
     },
   ]
-  if (props.commandKind === 'TrailingEntryOrder') {
+  if (props.commandKind === 'TrailingEntryOrder' && props.canClosePosition) {
     items.push({
       label: 'Close Position',
       action: () => emit('close-position', props.commandId),

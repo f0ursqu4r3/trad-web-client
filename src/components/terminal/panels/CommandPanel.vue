@@ -481,6 +481,7 @@ function saveRename() {
                             commandStore.commandMeta?.[cmd.command_id]?.nicknameColor ?? null
                           "
                           :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
+                          :canClosePosition="commandStore.canClosePosition(cmd.command_id)"
                           :createdAt="cmd.created_at"
                           @duplicate="handleDuplicate(cmd.command)"
                           @cancel="handleCancel"
@@ -533,6 +534,7 @@ function saveRename() {
                         commandStore.commandMeta?.[cmd.command_id]?.nicknameColor ?? null
                       "
                       :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
+                      :canClosePosition="commandStore.canClosePosition(cmd.command_id)"
                       :createdAt="cmd.created_at"
                       @duplicate="handleDuplicate(cmd.command)"
                       @cancel="handleCancel"
@@ -583,6 +585,7 @@ function saveRename() {
               :nickname="commandStore.commandMeta?.[cmd.command_id]?.nickname ?? null"
               :nicknameColor="commandStore.commandMeta?.[cmd.command_id]?.nicknameColor ?? null"
               :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
+              :canClosePosition="commandStore.canClosePosition(cmd.command_id)"
               :createdAt="cmd.created_at"
               @duplicate="handleDuplicate(cmd.command)"
               @cancel="handleCancel"

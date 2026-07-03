@@ -13,7 +13,7 @@ import {
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useWsStore } from '@/stores/ws'
-import { useDeviceStore } from '@/stores/devices'
+import { useDeviceStore, type TrailingEntryState } from '@/stores/devices'
 import { createLogger } from '@/lib/utils'
 import {
   commandMarketFacets,
@@ -135,12 +135,9 @@ export const useCommandStore = defineStore(
       const ids = new Set<string>()
       deviceStore.devices.forEach((device) => {
         if (device.kind !== 'TrailingEntry') return
-        const stats = (device.state as any)?.stats as {
-          net_base?: number
-          close_filled_qty?: number
-        }
+        const stats = (device.state as TrailingEntryState)?.stats
         if (!stats) return
-        const netBase = stats.net_base ?? 0
+        const netBase = (stats.open_filled_qty ?? 0) - (stats.close_filled_qty ?? 0)
         const closeFilled = stats.close_filled_qty ?? 0
         if (closeFilled > 0 && netBase > 0) {
           ids.add(device.associated_command_id)
@@ -148,6 +145,17 @@ export const useCommandStore = defineStore(
       })
       return ids
     })
+
+    function canClosePosition(commandId: string): boolean {
+      return deviceStore.devices.some((device) => {
+        if (device.kind !== 'TrailingEntry') return false
+        if (device.associated_command_id !== commandId) return false
+        const stats = (device.state as TrailingEntryState).stats
+        const netBase = (stats.open_filled_qty ?? 0) - (stats.close_filled_qty ?? 0)
+        const dustThreshold = stats.dust_threshold ?? 0
+        return netBase > Math.max(dustThreshold, 1e-12)
+      })
+    }
 
     const commandMap = computed<Record<string, OrderedCommandHistoryItem>>(() => {
       return history.value
@@ -459,6 +467,7 @@ export const useCommandStore = defineStore(
     }
 
     function closePosition(commandId: string) {
+      if (!canClosePosition(commandId)) return
       ws.sendCloseTrailingEntryPosition(commandId)
     }
 
@@ -481,6 +490,7 @@ export const useCommandStore = defineStore(
       activeCommandAccounts,
       activeCommandSymbols,
       dustedCommandIds,
+      canClosePosition,
       /* actions */
       inspectCommand,
       cancelCommand,
