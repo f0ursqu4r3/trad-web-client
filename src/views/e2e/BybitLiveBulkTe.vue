@@ -148,6 +148,7 @@ async function waitFor(label: string, predicate: () => boolean, timeoutMs: numbe
     if (predicate()) return
     await wait(250)
   }
+  if (predicate()) return
   throw new Error(`Timed out waiting for ${label}`)
 }
 
@@ -443,6 +444,7 @@ function inspectSubmittedCommands(force = false) {
 }
 
 async function startSmoke() {
+  let configuredCloseWaitMs = 300_000
   try {
     state.error = null
     state.phase = 'connecting'
@@ -470,6 +472,7 @@ async function startSmoke() {
     const token = param('token')
     const openWaitMs = numberParam('openWaitMs', 300_000)
     const closeWaitMs = numberParam('closeWaitMs', 300_000)
+    configuredCloseWaitMs = closeWaitMs
     const risk = numberParam('risk', 1)
     const jumpFracThreshold = numberParam('jumpFracThreshold', 0.001)
     const targetChildNotional = numberParam('targetChildNotional', 1000)
@@ -589,7 +592,7 @@ async function startSmoke() {
       }
       state.phase = 'closing'
       record(`failure cleanup starting after: ${originalError}`)
-      await closeFilledOpenPositionsUntilQuiet(10_000, 180_000, false)
+      await closeFilledOpenPositionsUntilQuiet(10_000, configuredCloseWaitMs + 60_000, false)
       record('failure cleanup close requests completed')
     } catch (cleanupErr) {
       record(
