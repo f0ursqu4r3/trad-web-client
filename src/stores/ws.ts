@@ -304,6 +304,10 @@ export const useWsStore = defineStore('ws', () => {
     return symbolLeverageSnapshots.value[marketContextKey(marketContext)] ?? null
   }
 
+  function applySymbolLeverageSnapshot(data: SymbolLeverageSnapshotData): void {
+    symbolLeverageSnapshots.value[marketContextKey(data.market_context)] = data
+  }
+
   function onServerMessage(msg: ServerToClientMessage) {
     const payload = msg.payload
     if (inboundDebugEnabled.value) {
@@ -472,7 +476,7 @@ export const useWsStore = defineStore('ws', () => {
     const data = (
       payload as Extract<ServerToClientMessage['payload'], { kind: 'SymbolLeverageSnapshot' }>
     ).data
-    symbolLeverageSnapshots.value[marketContextKey(data.market_context)] = data
+    applySymbolLeverageSnapshot(data)
   }
 
   function handleCommandHistory(payload: ServerToClientMessage['payload']): void {
@@ -628,6 +632,7 @@ export const useWsStore = defineStore('ws', () => {
     applyOrderThrottleSnapshot,
     orderThrottleForMarketContext,
     requestSymbolLeverage,
+    applySymbolLeverageSnapshot,
     symbolLeverageForMarketContext,
     getDeviceTree,
     flushPerfLog,

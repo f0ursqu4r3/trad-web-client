@@ -51,6 +51,9 @@ test('Bybit account panel renders order queue telemetry', async ({ page }) => {
   const accountPanel = page.getByTestId('accounts-panel')
 
   await expect(accountPanel.getByText('Bybit QA')).toBeVisible()
+  await expect(accountPanel.getByText('DOGEUSDT L/S 2x / 3x')).toBeVisible()
+  await expect(accountPanel.getByText('ETHUSDT L/S ? / 1x')).toBeVisible()
+  await expect(accountPanel.getByText('unknown MISSINGUSDT')).toBeVisible()
   await expect(accountPanel.getByText('20 queued / 5 live')).toBeVisible()
   await expect(accountPanel.getByText('8.5s')).toBeVisible()
   await expect(accountPanel.getByText('4.0s')).toBeVisible()

@@ -103,6 +103,23 @@ wsStore.applyOrderThrottleSnapshot({
     },
   ],
 })
+wsStore.applySymbolLeverageSnapshot({
+  request_uuid: '66666666-6666-4666-8666-666666666666',
+  market_context: bybitProtocolFixtures.bybitContext,
+  leverages: [
+    {
+      symbol: 'DOGEUSDT',
+      long_leverage: 2,
+      short_leverage: 3,
+    },
+    {
+      symbol: 'ETHUSDT',
+      long_leverage: null,
+      short_leverage: 1,
+    },
+  ],
+  unavailable_symbols: ['MISSINGUSDT'],
+})
 
 const binanceCommand = {
   command_id: binanceCommandId,
