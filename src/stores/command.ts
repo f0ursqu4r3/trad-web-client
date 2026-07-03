@@ -2,6 +2,7 @@ import {
   CommandStatus,
   MarketAction,
   MarketOrderStatus,
+  TrailingEntryLifecycle,
   type CommandDevicesListData,
   type CommandHistoryItem,
   type Uuid,
@@ -160,6 +161,14 @@ export const useCommandStore = defineStore(
     }
 
     function canContinueMissedEntry(commandId: string): boolean {
+      const pausedTeExists = deviceStore.devices.some((device) => {
+        if (device.kind !== 'TrailingEntry') return false
+        if (device.associated_command_id !== commandId) return false
+        const te = device.state as TrailingEntryState
+        return te.lifecycle === TrailingEntryLifecycle.MissedEntryPaused
+      })
+      if (!pausedTeExists) return false
+
       return deviceStore.devices.some((device) => {
         if (device.kind !== 'MarketOrder') return false
         if (device.associated_command_id !== commandId) return false
