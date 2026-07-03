@@ -293,6 +293,10 @@ export const useWsStore = defineStore('ws', () => {
     return orderThrottleSnapshots.value[marketContextKey(marketContext)] ?? null
   }
 
+  function applyOrderThrottleSnapshot(data: OrderThrottleSnapshotData): void {
+    orderThrottleSnapshots.value[marketContextKey(data.market_context)] = data
+  }
+
   function symbolLeverageForMarketContext(
     marketContext: MarketContext | null | undefined,
   ): SymbolLeverageSnapshotData | null {
@@ -461,7 +465,7 @@ export const useWsStore = defineStore('ws', () => {
     const data = (
       payload as Extract<ServerToClientMessage['payload'], { kind: 'OrderThrottleSnapshot' }>
     ).data
-    orderThrottleSnapshots.value[marketContextKey(data.market_context)] = data
+    applyOrderThrottleSnapshot(data)
   }
 
   function handleSymbolLeverageSnapshot(payload: ServerToClientMessage['payload']): void {
@@ -621,6 +625,7 @@ export const useWsStore = defineStore('ws', () => {
     requestMarketCapabilities,
     capabilitiesForMarketContext,
     requestOrderThrottleSnapshot,
+    applyOrderThrottleSnapshot,
     orderThrottleForMarketContext,
     requestSymbolLeverage,
     symbolLeverageForMarketContext,

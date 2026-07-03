@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from 'vue'
+import AccountsListPanel from '@/components/terminal/panels/AccountsListPanel.vue'
 import CommandPanel from '@/components/terminal/panels/CommandPanel.vue'
 import DeviceTreePanel from '@/components/terminal/panels/DeviceTreePanel.vue'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import { useCommandStore } from '@/stores/command'
 import { useDeviceStore } from '@/stores/devices'
+import { useWsStore } from '@/stores/ws'
 import { bybitProtocolFixtures } from '@/lib/bybitProtocolFixtures'
 import {
   CommandStatus,
@@ -22,6 +24,8 @@ import {
 } from '@/lib/ws/protocol'
 
 const commandPanelRef = ref<InstanceType<typeof CommandPanel> | null>(null)
+const accountStore = useAccountsStore()
+const wsStore = useWsStore()
 
 const binanceAccountId = '11111111-1111-4111-8111-111111111111'
 const binanceCommandId = '22222222-2222-4222-8222-222222222222'
@@ -61,6 +65,44 @@ const accounts = [
     exchange: ExchangeType.Binance,
   },
 ] satisfies AccountRecord[]
+
+accountStore.accountsRaw = accounts
+accountStore.accountOrder = accounts.map((account) => account.id)
+accountStore.selectedAccountId = bybitProtocolFixtures.bybitAccountId
+accountStore.lastFetchedAt = Date.now()
+wsStore.applyOrderThrottleSnapshot({
+  request_uuid: '55555555-5555-4555-8555-555555555555',
+  market_context: bybitProtocolFixtures.bybitContext,
+  total_queued: 20,
+  total_in_flight: 5,
+  enqueued_total: 42,
+  started_total: 17,
+  completed_total: 12,
+  canceled_total: 3,
+  errored_total: 2,
+  stale_rejected_total: 1,
+  rate_limit_rejected_total: 4,
+  delayed_by_limiter_total: 16,
+  bybit_rate_limit: {
+    method: 'POST',
+    path: '/v5/order/create',
+    limit: '10',
+    remaining: '7',
+    reset_timestamp_ms: '1781827201000',
+    observed_at_unix_ms: Date.now() - 1500,
+  },
+  min_interval_ms: 200,
+  max_in_flight_per_account: 5,
+  accounts: [
+    {
+      account_id: bybitProtocolFixtures.bybitAccountId,
+      queued: 20,
+      in_flight: 5,
+      oldest_queued_age_ms: 8_500,
+      estimated_drain_ms: 4_000,
+    },
+  ],
+})
 
 const binanceCommand = {
   command_id: binanceCommandId,
@@ -117,13 +159,8 @@ const binanceMarketOrderDevice = {
 } satisfies DeviceSnapshotLiteData
 
 onMounted(async () => {
-  const accountStore = useAccountsStore()
   const commandStore = useCommandStore()
   const deviceStore = useDeviceStore()
-
-  accountStore.accountsRaw = accounts
-  accountStore.accountOrder = accounts.map((account) => account.id)
-  accountStore.selectedAccountId = bybitProtocolFixtures.bybitAccountId
 
   commandStore.history = [binanceCommand, bybitProtocolFixtures.bybitCommandHistoryItem]
   commandStore.commandFilters = {
@@ -169,6 +206,10 @@ onMounted(async () => {
 
 <template>
   <main class="e2e-shell">
+    <section class="e2e-panel" data-testid="accounts-panel" aria-label="Trading Accounts">
+      <AccountsListPanel />
+    </section>
+
     <section class="e2e-panel" data-testid="command-panel" aria-label="Command History">
       <CommandPanel ref="commandPanelRef" />
     </section>
@@ -183,7 +224,7 @@ onMounted(async () => {
 .e2e-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: minmax(360px, 1fr) minmax(360px, 1fr);
+  grid-template-columns: minmax(360px, 0.9fr) minmax(360px, 1fr) minmax(360px, 1fr);
   gap: 12px;
   padding: 12px;
   background: var(--color-bg);
