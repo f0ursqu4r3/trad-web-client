@@ -440,6 +440,14 @@ watch(
                   Enable Hedge
                 </button>
               </div>
+              <p
+                v-if="accounts.selectedAccountId === account.id && account.exchange === ExchangeType.Bybit"
+                class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)]"
+              >
+                Bybit leverage is persistent per-symbol exchange state. Attached TP/SL is
+                exchange-managed after acceptance, but fills remain subject to liquidity, gaps, and
+                liquidation risk.
+              </p>
               <div
                 v-if="accounts.selectedAccountId === account.id"
                 class="grid gap-2 text-[10px] uppercase tracking-[0.06em] dim sm:grid-cols-4 xl:grid-cols-8"
