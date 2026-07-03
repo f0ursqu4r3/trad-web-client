@@ -16,6 +16,7 @@ const props = withDefaults(
     nicknameColor?: string | null
     pinned?: boolean
     canClosePosition?: boolean
+    canContinueMissedEntry?: boolean
   }>(),
   {
     commandKind: '',
@@ -25,6 +26,7 @@ const props = withDefaults(
     nicknameColor: null,
     pinned: false,
     canClosePosition: false,
+    canContinueMissedEntry: false,
   },
 )
 
@@ -34,6 +36,7 @@ const emit = defineEmits<{
   (e: 'cancel', commandId: string): void
   (e: 'inspect', commandId: string): void
   (e: 'close-position', commandId: string): void
+  (e: 'continue-missed-entry', commandId: string): void
   (e: 'rename', commandId: string): void
   (e: 'pin', commandId: string): void
 }>()
@@ -91,6 +94,12 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
     items.push({
       label: 'Close Position',
       action: () => emit('close-position', props.commandId),
+    })
+  }
+  if (props.commandKind === 'TrailingEntryOrder' && props.canContinueMissedEntry) {
+    items.push({
+      label: 'Continue Anyway',
+      action: () => emit('continue-missed-entry', props.commandId),
     })
   }
   if (canCancel.value) {

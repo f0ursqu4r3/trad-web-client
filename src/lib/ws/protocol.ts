@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 10
+export const PROTOCOL_VERSION = 11
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -125,6 +125,7 @@ export enum TrailingEntryLifecycle {
   Running = 'Running',
   SpawningChildren = 'Spawning Children',
   ChildrenSpawned = 'Children Spawned',
+  MissedEntryPaused = 'MissedEntryPaused',
   Completed = 'Completed',
 }
 
@@ -336,6 +337,7 @@ export type SplitPreviewCommand = {
   split_settings?: SplitSettings | null
 }
 export type CloseTrailingEntryPositionCommand = { command_id: Uuid }
+export type ContinueMissedTrailingEntryCommand = { command_id: Uuid }
 export type ListDevicesCommand = { filter: DeviceFilter }
 export type GetDeviceTreeCommand = { device_id: Uuid }
 export type CancelDeviceCommand = { device_id: Uuid }
@@ -373,6 +375,7 @@ export type UserCommandPayload =
   | { kind: 'CancelDevice'; data: CancelDeviceCommand }
   | { kind: 'CancelPosition'; data: CancelPositionCommand }
   | { kind: 'CloseTrailingEntryPosition'; data: CloseTrailingEntryPositionCommand }
+  | { kind: 'ContinueMissedTrailingEntry'; data: ContinueMissedTrailingEntryCommand }
   | { kind: 'ControlSimMarket'; data: ControlSimMarketCommand }
   | { kind: 'CreateHistoricSimMarket'; data: CreateHistoricSimMarketCommand }
   | { kind: 'CreateSimMarket'; data: CreateSimMarketCommand }

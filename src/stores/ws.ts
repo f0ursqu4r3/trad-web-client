@@ -183,6 +183,13 @@ export const useWsStore = defineStore('ws', () => {
     })
   }
 
+  function sendContinueMissedTrailingEntry(commandId: Uuid) {
+    sendUserCommand({
+      kind: 'ContinueMissedTrailingEntry',
+      data: { command_id: commandId },
+    })
+  }
+
   function inspectCommand(commandId: Uuid) {
     sendSystemCommand({
       kind: 'InspectStart',
@@ -561,6 +568,7 @@ export const useWsStore = defineStore('ws', () => {
     sendUserCommandPreview,
     sendCancelCommand,
     sendCloseTrailingEntryPosition,
+    sendContinueMissedTrailingEntry,
     sendRefreshAccountKeys,
     requestMarketCapabilities,
     capabilitiesForMarketContext,

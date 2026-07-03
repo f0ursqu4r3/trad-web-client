@@ -1,5 +1,7 @@
 import {
   CommandStatus,
+  MarketAction,
+  MarketOrderStatus,
   type CommandDevicesListData,
   type CommandHistoryItem,
   type Uuid,
@@ -13,7 +15,7 @@ import {
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useWsStore } from '@/stores/ws'
-import { useDeviceStore, type TrailingEntryState } from '@/stores/devices'
+import { useDeviceStore, type MarketOrderState, type TrailingEntryState } from '@/stores/devices'
 import { createLogger } from '@/lib/utils'
 import {
   commandMarketFacets,
@@ -154,6 +156,17 @@ export const useCommandStore = defineStore(
         const netBase = (stats.open_filled_qty ?? 0) - (stats.close_filled_qty ?? 0)
         const dustThreshold = stats.dust_threshold ?? 0
         return netBase > Math.max(dustThreshold, 1e-12)
+      })
+    }
+
+    function canContinueMissedEntry(commandId: string): boolean {
+      return deviceStore.devices.some((device) => {
+        if (device.kind !== 'MarketOrder') return false
+        if (device.associated_command_id !== commandId) return false
+        const mo = device.state as MarketOrderState
+        if (mo.market_action !== MarketAction.Open) return false
+        if (mo.status !== MarketOrderStatus.Rejected) return false
+        return (device.failure_reason ?? '').includes('stale before submit')
       })
     }
 
@@ -471,6 +484,11 @@ export const useCommandStore = defineStore(
       ws.sendCloseTrailingEntryPosition(commandId)
     }
 
+    function continueMissedEntry(commandId: string) {
+      if (!canContinueMissedEntry(commandId)) return
+      ws.sendContinueMissedTrailingEntry(commandId)
+    }
+
     return {
       /* state */
       history,
@@ -491,10 +509,12 @@ export const useCommandStore = defineStore(
       activeCommandSymbols,
       dustedCommandIds,
       canClosePosition,
+      canContinueMissedEntry,
       /* actions */
       inspectCommand,
       cancelCommand,
       closePosition,
+      continueMissedEntry,
       addPendingCommand,
       verifyPendingCommand,
       setCommandHistory,

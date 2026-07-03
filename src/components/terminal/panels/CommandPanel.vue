@@ -239,6 +239,12 @@ function handleClosePosition(commandId: string): void {
   commandStore.closePosition(commandId)
 }
 
+function handleContinueMissedEntry(commandId: string): void {
+  const cmd = commandStore.commandMap[commandId]
+  if (!cmd || cmd.command.kind !== 'TrailingEntryOrder') return
+  commandStore.continueMissedEntry(commandId)
+}
+
 function handleRename(commandId: string): void {
   const current = commandStore.commandMeta?.[commandId]?.nickname ?? ''
   const currentColor = commandStore.commandMeta?.[commandId]?.nicknameColor ?? null
@@ -482,11 +488,15 @@ function saveRename() {
                           "
                           :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
                           :canClosePosition="commandStore.canClosePosition(cmd.command_id)"
+                          :canContinueMissedEntry="
+                            commandStore.canContinueMissedEntry(cmd.command_id)
+                          "
                           :createdAt="cmd.created_at"
                           @duplicate="handleDuplicate(cmd.command)"
                           @cancel="handleCancel"
                           @inspect="handleInspect"
                           @close-position="handleClosePosition"
+                          @continue-missed-entry="handleContinueMissedEntry"
                           @rename="handleRename"
                           @pin="handlePin"
                         >
@@ -535,11 +545,13 @@ function saveRename() {
                       "
                       :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
                       :canClosePosition="commandStore.canClosePosition(cmd.command_id)"
+                      :canContinueMissedEntry="commandStore.canContinueMissedEntry(cmd.command_id)"
                       :createdAt="cmd.created_at"
                       @duplicate="handleDuplicate(cmd.command)"
                       @cancel="handleCancel"
                       @inspect="handleInspect"
                       @close-position="handleClosePosition"
+                      @continue-missed-entry="handleContinueMissedEntry"
                       @rename="handleRename"
                       @pin="handlePin"
                     >
@@ -586,11 +598,13 @@ function saveRename() {
               :nicknameColor="commandStore.commandMeta?.[cmd.command_id]?.nicknameColor ?? null"
               :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
               :canClosePosition="commandStore.canClosePosition(cmd.command_id)"
+              :canContinueMissedEntry="commandStore.canContinueMissedEntry(cmd.command_id)"
               :createdAt="cmd.created_at"
               @duplicate="handleDuplicate(cmd.command)"
               @cancel="handleCancel"
               @inspect="handleInspect"
               @close-position="handleClosePosition"
+              @continue-missed-entry="handleContinueMissedEntry"
               @rename="handleRename"
               @pin="handlePin"
             >
