@@ -92,6 +92,7 @@ const currentComponent = computed<Component>(() => {
 
 let submittedCommandIds: string[] = []
 let closeCommandIds: string[] = []
+let closeRequestedTeCommandIds = new Set<string>()
 let throttlePoll: number | null = null
 
 function record(message: string) {
@@ -283,6 +284,32 @@ function throwOnAnySubmittedFailure() {
   if (failure) throw new Error(failure)
 }
 
+async function closeFilledOpenPositions(closeWaitMs: number) {
+  const filledCommands = filledMarketOrderCommandIds(MarketAction.Open)
+  for (const commandId of filledCommands) {
+    if (closeRequestedTeCommandIds.has(commandId)) continue
+    const closeCommandId = ws.sendUserCommand({
+      kind: 'CloseTrailingEntryPosition',
+      data: { command_id: commandId },
+    })
+    closeRequestedTeCommandIds.add(commandId)
+    closeCommandIds.push(closeCommandId)
+    state.closeRequested = closeRequestedTeCommandIds.size
+    record(`submitted TE close ${closeCommandId} for ${commandId}`)
+  }
+
+  if (closeRequestedTeCommandIds.size === 0) return
+  await waitFor(
+    'bulk TE close fills',
+    () => {
+      throwOnAnySubmittedFailure()
+      refreshCounts()
+      return state.closeFilled >= closeRequestedTeCommandIds.size
+    },
+    closeWaitMs,
+  )
+}
+
 function inspectLastTe(plans: SymbolPlan[]) {
   const commandId = submittedCommandIds[submittedCommandIds.length - 1]
   const plan = plans[plans.length - 1]
@@ -306,6 +333,7 @@ async function startSmoke() {
     state.inspectedTeDeviceId = null
     submittedCommandIds = []
     closeCommandIds = []
+    closeRequestedTeCommandIds = new Set<string>()
 
     const accountId = param('accountId')
     const token = param('token')
@@ -399,35 +427,32 @@ async function startSmoke() {
     )
 
     state.phase = 'closing'
-    const filledCommands = filledMarketOrderCommandIds(MarketAction.Open)
-    for (const commandId of filledCommands) {
-      const closeCommandId = ws.sendUserCommand({
-        kind: 'CloseTrailingEntryPosition',
-        data: { command_id: commandId },
-      })
-      closeCommandIds.push(closeCommandId)
-      state.closeRequested = closeCommandIds.length
-      record(`submitted TE close ${closeCommandId} for ${commandId}`)
-    }
+    await closeFilledOpenPositions(closeWaitMs)
 
     state.phase = 'waiting-close'
-    await waitFor(
-      'bulk TE close fills',
-      () => {
-        throwOnAnySubmittedFailure()
-        refreshCounts()
-        return state.closeFilled >= state.closeRequested
-      },
-      closeWaitMs,
-    )
-
     state.phase = 'closed'
     refreshCounts()
     requestThrottleSnapshot()
     record('bulk TE frontend smoke completed')
   } catch (err) {
+    const originalError = err instanceof Error ? err.message : String(err)
+    try {
+      refreshCounts()
+      if (state.openFilled > state.closeRequested) {
+        state.phase = 'closing'
+        record(`failure cleanup starting after: ${originalError}`)
+        await closeFilledOpenPositions(120_000)
+        record('failure cleanup close requests completed')
+      }
+    } catch (cleanupErr) {
+      record(
+        `failure cleanup errored: ${
+          cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)
+        }`,
+      )
+    }
     state.phase = 'failed'
-    state.error = err instanceof Error ? err.message : String(err)
+    state.error = originalError
     record(`failed: ${state.error}`)
   } finally {
     stopThrottlePolling()
