@@ -345,7 +345,7 @@ function cancelSubmittedTrailingEntries() {
   }
 }
 
-async function closeFilledOpenPositions(closeWaitMs: number) {
+function submitCloseRequestsForFilledOpenPositions() {
   inspectSubmittedCommands(true)
   refreshCounts()
   const filledCommands = filledMarketOrderCommandIds(MarketAction.Open)
@@ -361,21 +361,9 @@ async function closeFilledOpenPositions(closeWaitMs: number) {
     state.closeRequested = closeRequestedTeCommandIds.size
     record(`submitted TE close ${closeCommandId} for ${commandId}`)
   }
-
-  if (closeRequestedTeCommandIds.size === 0) return
-  await waitFor(
-    'bulk TE close fills',
-    () => {
-      inspectSubmittedCommands()
-      throwOnAnySubmittedFailure()
-      refreshCounts()
-      return state.closeFilled >= closeRequestedTeCommandIds.size
-    },
-    closeWaitMs,
-  )
 }
 
-async function closeFilledOpenPositionsUntilQuiet(closeWaitMs: number, quietMs: number, timeoutMs: number) {
+async function closeFilledOpenPositionsUntilQuiet(quietMs: number, timeoutMs: number) {
   const started = Date.now()
   let lastUnclosedCount = -1
   let lastChangeAt = Date.now()
@@ -388,10 +376,11 @@ async function closeFilledOpenPositionsUntilQuiet(closeWaitMs: number, quietMs: 
       lastChangeAt = Date.now()
     }
     if (state.openFilled > state.closeRequested) {
-      await closeFilledOpenPositions(closeWaitMs)
+      submitCloseRequestsForFilledOpenPositions()
       lastChangeAt = Date.now()
       continue
     }
+    throwOnAnySubmittedFailure()
     if (state.openFilled === state.closeFilled && Date.now() - lastChangeAt >= quietMs) {
       return
     }
@@ -553,7 +542,7 @@ async function startSmoke() {
     cancelSubmittedTrailingEntries()
     await wait(1_000)
     state.phase = 'closing'
-    await closeFilledOpenPositionsUntilQuiet(closeWaitMs, 10_000, closeWaitMs + 60_000)
+    await closeFilledOpenPositionsUntilQuiet(10_000, closeWaitMs + 60_000)
 
     state.phase = 'waiting-close'
     state.phase = 'closed'
@@ -572,7 +561,7 @@ async function startSmoke() {
       }
       state.phase = 'closing'
       record(`failure cleanup starting after: ${originalError}`)
-      await closeFilledOpenPositionsUntilQuiet(120_000, 10_000, 180_000)
+      await closeFilledOpenPositionsUntilQuiet(10_000, 180_000)
       record('failure cleanup close requests completed')
     } catch (cleanupErr) {
       record(
