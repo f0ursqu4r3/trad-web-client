@@ -633,17 +633,25 @@ export async function runBybitNativeProtectionRenderSmoke(): Promise<void> {
     last_reconciled_at: '2026-06-19T00:00:00.000Z',
   } satisfies ProtectionState
 
-  const app = createSSRApp({
-    render: () =>
-      h(NativeProtectionDevice, {
-        device: nativeProtectionState,
-        marketRef: bybitProtection.market_ref,
-        protectionState,
-      }),
-  })
-  app.use(createPinia())
+  const renderNativeProtection = async (
+    device: NativeProtectionState,
+    state: ProtectionState,
+    failureReason?: string,
+  ): Promise<string> => {
+    const app = createSSRApp({
+      render: () =>
+        h(NativeProtectionDevice, {
+          device,
+          marketRef: bybitProtection.market_ref,
+          protectionState: state,
+          failureReason,
+        }),
+    })
+    app.use(createPinia())
+    return renderToString(app)
+  }
 
-  const html = await renderToString(app)
+  const html = await renderNativeProtection(nativeProtectionState, protectionState)
   const expectedNativeLabels = [
     'Native Protection',
     'Attached TP/SL',
@@ -680,6 +688,43 @@ export async function runBybitNativeProtectionRenderSmoke(): Promise<void> {
     assertSmoke(
       !html.includes(label),
       `NativeProtection render should not include managed StopGuard field "${label}"`,
+    )
+  }
+
+  const rejectedNativeProtectionState = {
+    ...nativeProtectionState,
+    observed_entries: 1,
+    observed_protection_orders: 1,
+    status: NativeProtectionStatus.Rejected,
+    last_order_status: 'Rejected',
+    last_order_reason: 'native_protection_missing: observed 1 linked TP/SL orders, expected 2',
+    last_update_seen_at: new Date('2026-06-19T00:00:05.000Z'),
+  } satisfies NativeProtectionState
+  const rejectedProtectionState = {
+    ...protectionState,
+    lifecycle: ProtectionLifecycle.Rejected,
+    protected_qty: null,
+    last_reconciled_at: '2026-06-19T00:00:05.000Z',
+  } satisfies ProtectionState
+  const failureReason =
+    'Native Bybit TP/SL protection missing: observed 1 linked protection order, expected 2.'
+  const rejectedHtml = await renderNativeProtection(
+    rejectedNativeProtectionState,
+    rejectedProtectionState,
+    failureReason,
+  )
+  const expectedRejectedLabels = [
+    'Rejected',
+    'Order Status',
+    'Order Reason',
+    'native_protection_missing',
+    'observed 1 linked TP/SL orders, expected 2',
+    'Native Bybit TP/SL protection missing',
+  ]
+  for (const label of expectedRejectedLabels) {
+    assertSmoke(
+      rejectedHtml.includes(label),
+      `Rejected NativeProtection render should include "${label}"`,
     )
   }
 }
