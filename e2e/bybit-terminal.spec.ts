@@ -160,3 +160,30 @@ test('Bybit account creation submits exchange credentials through account API', 
     exchange: 'bybit',
   })
 })
+
+test('Missed Bybit trailing entry exposes Continue Anyway action', async ({ page }) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+
+  const commandPanel = page.getByTestId('command-panel')
+  const missedRow = commandPanel.locator('.command-row').filter({
+    hasText: 'Bybit missed BTC entry',
+  })
+  const rejectedRow = commandPanel.locator('.command-row').filter({
+    hasText: 'Bybit ADA rejected open',
+  })
+
+  await missedRow.getByTitle('Menu').click()
+  await expect(page.getByRole('menuitem', { name: 'Continue Anyway' })).toBeVisible()
+
+  await page.keyboard.press('Escape')
+  await rejectedRow.getByTitle('Menu').click()
+  await expect(page.getByRole('menuitem', { name: 'Continue Anyway' })).toHaveCount(0)
+})

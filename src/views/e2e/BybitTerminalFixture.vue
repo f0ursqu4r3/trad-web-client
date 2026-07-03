@@ -17,6 +17,8 @@ import {
   NetworkType,
   OrderSide,
   PositionSide,
+  TrailingEntryLifecycle,
+  TrailingEntryPhase,
   type CommandHistoryItem,
   type DeviceSnapshotLiteData,
   type MarketContext,
@@ -33,6 +35,9 @@ const binanceCommandId = '22222222-2222-4222-8222-222222222222'
 const binanceDeviceId = '33333333-3333-4333-8333-333333333333'
 const bybitRejectedCommandId = '77777777-7777-4777-8777-777777777777'
 const bybitRejectedDeviceId = '88888888-8888-4888-8888-888888888888'
+const bybitMissedCommandId = '12121212-1212-4212-8212-121212121212'
+const bybitMissedTeDeviceId = '13131313-1313-4313-8313-131313131313'
+const bybitMissedMoDeviceId = '14141414-1414-4414-8414-141414141414'
 const binanceContext = {
   binance: { account_id: binanceAccountId },
 } satisfies MarketContext
@@ -165,6 +170,32 @@ const bybitRejectedCommand = {
   created_at: '2026-06-19T00:02:00.000Z',
 } satisfies CommandHistoryItem
 
+const bybitMissedCommand = {
+  command_id: bybitMissedCommandId,
+  command: {
+    kind: 'TrailingEntryOrder',
+    data: {
+      position_side: PositionSide.Long,
+      symbol: 'BTCUSDT',
+      activation_price: 65_000,
+      jump_frac_threshold: 0.001,
+      stop_loss: 62_000,
+      take_profit: 68_000,
+      risk_amount: 25,
+      market_context: bybitProtocolFixtures.bybitContext,
+      split_settings: {
+        target_child_notional: 25,
+        max_splits_cap: 4,
+        mode: 'prefer_target',
+        slippage_margin: 0.001,
+      },
+    },
+  },
+  market_ref: bybitProtocolFixtures.bybitMarketRef,
+  status: CommandStatus.Running,
+  created_at: '2026-06-19T00:03:00.000Z',
+} satisfies CommandHistoryItem
+
 const binanceMarketOrderDevice = {
   device_id: binanceDeviceId,
   owner_user_id: '44444444-4444-4444-8444-444444444444',
@@ -243,6 +274,101 @@ const bybitRejectedMarketOrderDevice = {
   },
 } satisfies DeviceSnapshotLiteData
 
+const bybitMissedTrailingEntryDevice = {
+  device_id: bybitMissedTeDeviceId,
+  owner_user_id: '15151515-1515-4515-8515-151515151515',
+  associated_command_id: bybitMissedCommandId,
+  market_ref: bybitProtocolFixtures.bybitMarketRef,
+  protection_state: null,
+  parent_device: null,
+  children_devices: [bybitMissedMoDeviceId],
+  created_at: '2026-06-19T00:03:00.000Z',
+  complete: false,
+  failed: false,
+  canceled: false,
+  awaiting_children: false,
+  failure_reason: 'Missed entry: queued open orders became stale before submit',
+  snapshot: {
+    kind: 'TrailingEntry',
+    data: {
+      symbol: 'BTCUSDT',
+      market_context: bybitProtocolFixtures.bybitContext,
+      position_side: PositionSide.Long,
+      activation_price: 65_000,
+      jump_frac_threshold: 0.001,
+      stop_loss: 62_000,
+      take_profit: 68_000,
+      risk_amount: 25,
+      split_settings: {
+        target_child_notional: 25,
+        max_splits_cap: 4,
+        mode: 'prefer_target',
+        slippage_margin: 0.001,
+      },
+      phase: TrailingEntryPhase.Initial,
+      peak: 0,
+      peak_index: 0,
+      position_size: 0,
+      actual_activation_price: 0,
+      buy_or_sell_price: 0,
+      completed: false,
+      cancelled: false,
+      succeeded: false,
+      stop_loss_hit: false,
+      base_index: 0,
+      total_points: 0,
+      start_trigger_index: null,
+      end_trigger_index: null,
+      lifecycle: TrailingEntryLifecycle.MissedEntryPaused,
+      stats: {
+        open_filled_qty: 0,
+        close_filled_qty: 0,
+        open_filled_notional: 0,
+        close_filled_notional: 0,
+        dust_threshold: 0.001,
+      },
+    },
+  },
+} satisfies DeviceSnapshotLiteData
+
+const bybitMissedMarketOrderDevice = {
+  device_id: bybitMissedMoDeviceId,
+  owner_user_id: '15151515-1515-4515-8515-151515151515',
+  associated_command_id: bybitMissedCommandId,
+  market_ref: bybitProtocolFixtures.bybitMarketRef,
+  protection_state: null,
+  parent_device: bybitMissedTeDeviceId,
+  children_devices: null,
+  created_at: '2026-06-19T00:03:01.000Z',
+  complete: true,
+  failed: true,
+  canceled: false,
+  awaiting_children: false,
+  failure_reason:
+    'Bybit queued market order mo-missed for BTCUSDT is stale before submit: age=17000ms max=16000ms.',
+  snapshot: {
+    kind: 'MarketOrder',
+    data: {
+      market_context: bybitProtocolFixtures.bybitContext,
+      market_action: MarketAction.Open,
+      symbol: 'BTCUSDT',
+      order_side: OrderSide.Buy,
+      quantity: 0.001,
+      position_side: PositionSide.Long,
+      price: 65_000,
+      throttle: true,
+      status: MarketOrderStatus.Rejected,
+      filled_qty: null,
+      remote_id: null,
+      remote_order_id: null,
+      client_order_id: 'mo-missed',
+      sent_at: null,
+      last_status_check_at: null,
+      last_update_seen_at: null,
+    },
+  },
+} satisfies DeviceSnapshotLiteData
+
 onMounted(async () => {
   const commandStore = useCommandStore()
   const deviceStore = useDeviceStore()
@@ -251,6 +377,7 @@ onMounted(async () => {
     binanceCommand,
     bybitProtocolFixtures.bybitCommandHistoryItem,
     bybitRejectedCommand,
+    bybitMissedCommand,
   ]
   commandStore.commandFilters = {
     kind: [],
@@ -287,12 +414,19 @@ onMounted(async () => {
       nicknameColor: null,
       pinned: false,
     },
+    [bybitMissedCommandId]: {
+      nickname: 'Bybit missed BTC entry',
+      nicknameColor: null,
+      pinned: false,
+    },
   }
 
   deviceStore.clearDevices()
   deviceStore.handleDeviceSnapshotLite(binanceMarketOrderDevice)
   deviceStore.handleDeviceSnapshotLite(bybitProtocolFixtures.bybitDeviceSnapshotLite)
   deviceStore.handleDeviceSnapshotLite(bybitRejectedMarketOrderDevice)
+  deviceStore.handleDeviceSnapshotLite(bybitMissedTrailingEntryDevice)
+  deviceStore.handleDeviceSnapshotLite(bybitMissedMarketOrderDevice)
 
   await nextTick()
   commandPanelRef.value?.toggleFilters()
