@@ -95,8 +95,12 @@ const currentComponent = computed<Component>(() => {
 
 let submittedCommandIds: string[] = []
 let closeCommandIds: string[] = []
+let closeCommandToTeCommandId = new Map<string, string>()
 let closeRequestedTeCommandIds = new Set<string>()
 let cancelRequestedCommandIds = new Set<string>()
+let filledOpenTeCommandIds = new Set<string>()
+let filledCloseTeCommandIds = new Set<string>()
+let observedNativeProtectionTeCommandIds = new Set<string>()
 let throttlePoll: number | null = null
 let lastInspectAllAt = 0
 
@@ -263,25 +267,68 @@ function acceptedCommandIds(): string[] {
   })
 }
 
-function filledMarketOrderCommandIds(action: MarketAction): string[] {
-  const ids = new Set<string>()
+function observeFilledMarketOrders() {
   for (const device of devices.devices) {
+    if (device.kind === 'NativeProtection' && device.associated_command_id) {
+      if (submittedCommandIds.includes(device.associated_command_id)) {
+        observedNativeProtectionTeCommandIds.add(device.associated_command_id)
+      }
+      continue
+    }
     if (device.kind !== 'MarketOrder' || !device.associated_command_id) continue
     const mo = device.state as { market_action?: MarketAction; status?: MarketOrderStatus }
-    if (mo.market_action === action && mo.status === MarketOrderStatus.Filled) {
-      ids.add(device.associated_command_id)
+    if (mo.status !== MarketOrderStatus.Filled) continue
+    if (mo.market_action === MarketAction.Open && submittedCommandIds.includes(device.associated_command_id)) {
+      filledOpenTeCommandIds.add(device.associated_command_id)
+    }
+    if (mo.market_action === MarketAction.Close) {
+      const parentCommandId =
+        closeCommandToTeCommandId.get(device.associated_command_id) ??
+        (submittedCommandIds.includes(device.associated_command_id)
+          ? device.associated_command_id
+          : null)
+      if (parentCommandId && closeRequestedTeCommandIds.has(parentCommandId)) {
+        filledCloseTeCommandIds.add(parentCommandId)
+      }
     }
   }
+}
+
+function observeTrailingEntryStats() {
+  for (const device of devices.devices) {
+    if (device.kind !== 'TrailingEntry' || !device.associated_command_id) continue
+    if (!submittedCommandIds.includes(device.associated_command_id)) continue
+    const te = device.state as TrailingEntryState
+    const stats = te.stats
+    if (!stats) continue
+    const dust = Math.max(stats.dust_threshold ?? 0, 1e-12)
+    const opened = stats.open_filled_qty ?? 0
+    const closed = stats.close_filled_qty ?? 0
+    if (opened > dust) {
+      filledOpenTeCommandIds.add(device.associated_command_id)
+    }
+    if (closeRequestedTeCommandIds.has(device.associated_command_id) && opened > dust) {
+      const netBase = opened - closed
+      if (closed > 0 && netBase <= dust) {
+        filledCloseTeCommandIds.add(device.associated_command_id)
+      }
+    }
+  }
+}
+
+function filledMarketOrderCommandIds(action: MarketAction): string[] {
+  observeFilledMarketOrders()
+  const ids = action === MarketAction.Open ? filledOpenTeCommandIds : filledCloseTeCommandIds
   return submittedCommandIds.filter((commandId) => ids.has(commandId))
 }
 
 function refreshCounts() {
+  observeFilledMarketOrders()
+  observeTrailingEntryStats()
   state.accepted = acceptedCommandIds().length
-  state.openFilled = filledMarketOrderCommandIds(MarketAction.Open).length
-  state.closeFilled = filledMarketOrderCommandIds(MarketAction.Close).length
-  state.nativeProtectionCount = devices.devices.filter(
-    (device) => device.kind === 'NativeProtection',
-  ).length
+  state.openFilled = filledOpenTeCommandIds.size
+  state.closeFilled = filledCloseTeCommandIds.size
+  state.nativeProtectionCount = observedNativeProtectionTeCommandIds.size
 }
 
 function throwOnAnySubmittedFailure() {
@@ -299,6 +346,8 @@ function cancelSubmittedTrailingEntries() {
 }
 
 async function closeFilledOpenPositions(closeWaitMs: number) {
+  inspectSubmittedCommands(true)
+  refreshCounts()
   const filledCommands = filledMarketOrderCommandIds(MarketAction.Open)
   for (const commandId of filledCommands) {
     if (closeRequestedTeCommandIds.has(commandId)) continue
@@ -307,6 +356,7 @@ async function closeFilledOpenPositions(closeWaitMs: number) {
       data: { command_id: commandId },
     })
     closeRequestedTeCommandIds.add(commandId)
+    closeCommandToTeCommandId.set(closeCommandId, commandId)
     closeCommandIds.push(closeCommandId)
     state.closeRequested = closeRequestedTeCommandIds.size
     record(`submitted TE close ${closeCommandId} for ${commandId}`)
@@ -325,6 +375,33 @@ async function closeFilledOpenPositions(closeWaitMs: number) {
   )
 }
 
+async function closeFilledOpenPositionsUntilQuiet(closeWaitMs: number, quietMs: number, timeoutMs: number) {
+  const started = Date.now()
+  let lastUnclosedCount = -1
+  let lastChangeAt = Date.now()
+  while (Date.now() - started < timeoutMs) {
+    inspectSubmittedCommands(true)
+    refreshCounts()
+    const unclosedCount = state.openFilled - state.closeFilled
+    if (unclosedCount !== lastUnclosedCount) {
+      lastUnclosedCount = unclosedCount
+      lastChangeAt = Date.now()
+    }
+    if (state.openFilled > state.closeRequested) {
+      await closeFilledOpenPositions(closeWaitMs)
+      lastChangeAt = Date.now()
+      continue
+    }
+    if (state.openFilled === state.closeFilled && Date.now() - lastChangeAt >= quietMs) {
+      return
+    }
+    await wait(500)
+  }
+  throw new Error(
+    `Timed out waiting for quiet bulk TE cleanup: openFilled=${state.openFilled} closeRequested=${state.closeRequested} closeFilled=${state.closeFilled}`,
+  )
+}
+
 function inspectLastTe(plans: SymbolPlan[]) {
   const commandId = submittedCommandIds[submittedCommandIds.length - 1]
   const plan = plans[plans.length - 1]
@@ -337,7 +414,16 @@ function inspectSubmittedCommands(force = false) {
   const now = Date.now()
   if (!force && now - lastInspectAllAt < 10_000) return
   lastInspectAllAt = now
+  const commandIds = new Set<string>()
   for (const commandId of submittedCommandIds) {
+    if (!filledCloseTeCommandIds.has(commandId)) {
+      commandIds.add(commandId)
+    }
+  }
+  for (const commandId of closeCommandIds) {
+    commandIds.add(commandId)
+  }
+  for (const commandId of commandIds) {
     commands.inspectCommand(commandId)
   }
 }
@@ -357,8 +443,12 @@ async function startSmoke() {
     state.inspectedTeDeviceId = null
     submittedCommandIds = []
     closeCommandIds = []
+    closeCommandToTeCommandId = new Map<string, string>()
     closeRequestedTeCommandIds = new Set<string>()
     cancelRequestedCommandIds = new Set<string>()
+    filledOpenTeCommandIds = new Set<string>()
+    filledCloseTeCommandIds = new Set<string>()
+    observedNativeProtectionTeCommandIds = new Set<string>()
     lastInspectAllAt = 0
 
     const accountId = param('accountId')
@@ -463,7 +553,7 @@ async function startSmoke() {
     cancelSubmittedTrailingEntries()
     await wait(1_000)
     state.phase = 'closing'
-    await closeFilledOpenPositions(closeWaitMs)
+    await closeFilledOpenPositionsUntilQuiet(closeWaitMs, 10_000, closeWaitMs + 60_000)
 
     state.phase = 'waiting-close'
     state.phase = 'closed'
@@ -480,13 +570,10 @@ async function startSmoke() {
         await wait(1_000)
         inspectSubmittedCommands(true)
       }
-      refreshCounts()
-      if (state.openFilled > state.closeRequested) {
-        state.phase = 'closing'
-        record(`failure cleanup starting after: ${originalError}`)
-        await closeFilledOpenPositions(120_000)
-        record('failure cleanup close requests completed')
-      }
+      state.phase = 'closing'
+      record(`failure cleanup starting after: ${originalError}`)
+      await closeFilledOpenPositionsUntilQuiet(120_000, 10_000, 180_000)
+      record('failure cleanup close requests completed')
     } catch (cleanupErr) {
       record(
         `failure cleanup errored: ${

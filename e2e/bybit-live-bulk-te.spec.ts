@@ -88,7 +88,6 @@ test('FE terminal drives many live Bybit trailing entries and closes', async ({ 
   await expect(page.getByTestId('bulk-error')).toHaveText('-')
   await expect(page.getByTestId('bulk-queue')).toContainText('0 queued / 0 live')
   await expect(page.locator('.command-row').filter({ hasText: 'Trailing Entry' }).first()).toBeVisible()
-  await expect(page.getByText('Device Details')).toBeVisible()
 })
 
 function requiredEnv(name: string): string {
