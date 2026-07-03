@@ -94,6 +94,7 @@ let submittedCommandIds: string[] = []
 let closeCommandIds: string[] = []
 let closeRequestedTeCommandIds = new Set<string>()
 let throttlePoll: number | null = null
+let lastInspectAllAt = 0
 
 function record(message: string) {
   state.events.push(`${new Date().toISOString()} ${message}`)
@@ -302,6 +303,7 @@ async function closeFilledOpenPositions(closeWaitMs: number) {
   await waitFor(
     'bulk TE close fills',
     () => {
+      inspectSubmittedCommands()
       throwOnAnySubmittedFailure()
       refreshCounts()
       return state.closeFilled >= closeRequestedTeCommandIds.size
@@ -316,6 +318,15 @@ function inspectLastTe(plans: SymbolPlan[]) {
   state.inspectedCommandId = commandId
   state.inspectedSymbol = plan?.symbol ?? null
   if (commandId) commands.inspectCommand(commandId)
+}
+
+function inspectSubmittedCommands(force = false) {
+  const now = Date.now()
+  if (!force && now - lastInspectAllAt < 10_000) return
+  lastInspectAllAt = now
+  for (const commandId of submittedCommandIds) {
+    commands.inspectCommand(commandId)
+  }
 }
 
 async function startSmoke() {
@@ -334,6 +345,7 @@ async function startSmoke() {
     submittedCommandIds = []
     closeCommandIds = []
     closeRequestedTeCommandIds = new Set<string>()
+    lastInspectAllAt = 0
 
     const accountId = param('accountId')
     const token = param('token')
@@ -399,6 +411,7 @@ async function startSmoke() {
     )
     throwOnAnySubmittedFailure()
     inspectLastTe(plans)
+    inspectSubmittedCommands(true)
     await waitFor(
       'inspected TE device',
       () =>
@@ -419,6 +432,7 @@ async function startSmoke() {
     await waitFor(
       'bulk TE open fills',
       () => {
+        inspectSubmittedCommands()
         throwOnAnySubmittedFailure()
         refreshCounts()
         return state.openFilled === submittedCommandIds.length
