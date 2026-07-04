@@ -463,6 +463,51 @@ function inspectSubmittedCommands(force = false) {
   }
 }
 
+async function waitForSystemCommandResponse(commandId: string, label: string, timeoutMs: number) {
+  await waitFor(
+    label,
+    () => {
+      const response = ws.inbound.find((record) => {
+        if (record.kind !== 'CommandResponse') return false
+        const payload = record.payload as { request_uuid?: string }
+        return payload.request_uuid === commandId
+      })
+      if (response) return true
+      const error = ws.inbound.find((record) => {
+        if (record.kind !== 'ServerError') return false
+        const payload = record.payload as { request_uuid?: string; error?: string }
+        return payload.request_uuid === commandId
+      })
+      if (error) {
+        const payload = error.payload as { error?: string }
+        throw new Error(payload.error || `${label} failed`)
+      }
+      return false
+    },
+    timeoutMs,
+  )
+}
+
+async function publishControlledTriggerTicks(plans: SymbolPlan[], jumpFracThreshold: number) {
+  const marketContext = selectedMarketContext()
+  if (!marketContext) throw new Error('market context unavailable for controlled trigger')
+  const thresholdFrac = jumpFracThreshold * 0.01
+  const triggerMultiplier = 1 + Math.max(thresholdFrac * 2, 0.00002)
+  const ticks = plans.flatMap((plan) => [
+    {
+      symbol: plan.symbol,
+      price: Number(plan.activation.toPrecision(10)),
+    },
+    {
+      symbol: plan.symbol,
+      price: Number((plan.activation * triggerMultiplier).toPrecision(10)),
+    },
+  ])
+  const commandId = ws.e2ePublishBybitPublicTrades(marketContext, ticks)
+  await waitForSystemCommandResponse(commandId, 'controlled trigger publish', 10_000)
+  record(`published controlled trigger ticks for ${plans.length} TEs`)
+}
+
 async function startSmoke() {
   let configuredCloseWaitMs = 300_000
   try {
@@ -497,6 +542,7 @@ async function startSmoke() {
     const jumpFracThreshold = numberParam('jumpFracThreshold', 0.001)
     const targetChildNotional = numberParam('targetChildNotional', 1000)
     const maxSplitsCap = numberParam('maxSplitsCap', 1)
+    const controlledTrigger = param('controlledTrigger') === '1'
     const plans = buildPlans()
     const minOpenCount = Math.min(
       plans.length,
@@ -573,6 +619,11 @@ async function startSmoke() {
         }),
       30_000,
     )
+
+    if (controlledTrigger) {
+      await publishControlledTriggerTicks(plans, jumpFracThreshold)
+      await wait(500)
+    }
 
     state.phase = 'waiting-open'
     record(`waiting for ${minOpenCount}/${plans.length} open fills up to ${openWaitMs}ms`)
