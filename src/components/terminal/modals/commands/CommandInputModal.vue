@@ -53,9 +53,20 @@ const availableCommands = computed(() =>
 const filteredCommands = computed(() => {
   const f = filter.value.trim().toLowerCase()
   if (!f) return availableCommands.value
-  return availableCommands.value.filter(
-    (c) => c.label.toLowerCase().includes(f) || c.kind.toLowerCase().includes(f),
-  )
+  return availableCommands.value
+    .filter((c) => {
+      const aliases = c.aliases ?? []
+      return (
+        c.label.toLowerCase().includes(f) ||
+        c.kind.toLowerCase().includes(f) ||
+        aliases.some((alias) => alias.toLowerCase().includes(f))
+      )
+    })
+    .sort((a, b) => {
+      const aExact = (a.aliases ?? []).some((alias) => alias.toLowerCase() === f) ? 1 : 0
+      const bExact = (b.aliases ?? []).some((alias) => alias.toLowerCase() === f) ? 1 : 0
+      return bExact - aExact
+    })
 })
 
 const isMac = computed(() => /Mac|iPhone|iPad|iPod/.test(navigator.platform))
@@ -242,7 +253,16 @@ onUnmounted(() => {
               >
                 <div class="font-medium">{{ c.label }}</div>
                 <div class="text-[11px] dim" v-if="c.description">{{ c.description }}</div>
-                <div class="text-[10px] mt-1 mono text-[var(--accent-color)]">{{ c.kind }}</div>
+                <div class="mt-1 flex flex-wrap items-center gap-1 text-[10px] mono">
+                  <span class="text-[var(--accent-color)]">{{ c.kind }}</span>
+                  <span
+                    v-for="alias in c.aliases"
+                    :key="alias"
+                    class="border border-[var(--border-color)] px-1 text-[var(--color-text-dim)]"
+                  >
+                    {{ alias }}
+                  </span>
+                </div>
               </li>
               <li v-if="!filteredCommands.length" class="p-3 text-[12px] text-center dim">
                 No matches

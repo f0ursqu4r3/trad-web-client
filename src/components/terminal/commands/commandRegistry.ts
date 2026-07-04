@@ -4,13 +4,20 @@ export interface CommandMeta {
   kind: UserCommandPayload['kind']
   label: string
   description?: string
+  aliases?: string[]
   modal?: boolean
   disabled?: boolean
 }
 
 // Central list of user commands; add remaining kinds iteratively.
 export const commandRegistry: CommandMeta[] = [
-  { kind: 'MarketOrder', label: 'Market Order', description: 'Submit a market order', modal: true },
+  {
+    kind: 'MarketOrder',
+    label: 'Market Order',
+    description: 'Submit a market order',
+    aliases: ['mo'],
+    modal: true,
+  },
   { kind: 'LimitOrder', label: 'Limit Order', description: 'Place a limit order', modal: true },
   {
     kind: 'SplitMarketOrder',
@@ -23,6 +30,7 @@ export const commandRegistry: CommandMeta[] = [
     kind: 'TrailingEntryOrder',
     label: 'Trailing Entry',
     description: 'Create trailing entry device',
+    aliases: ['te'],
     modal: true,
   },
   {

@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useWsStore } from '@/stores/ws'
+import { useUiStore } from '@/stores/ui'
 import {
   accountMetadataChips,
   accountMetadataStatus,
@@ -25,6 +26,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 const router = useRouter()
 const userStore = useUserStore()
 const wsStore = useWsStore()
+const uiStore = useUiStore()
 const accountsStore = useAccountsStore()
 const billing = useBillingStore()
 const { logout, isAuthenticated } = useAuth()
@@ -38,6 +40,10 @@ const prefsError = ref<string | null>(null)
 
 const isCreateAccountOpen = ref(false)
 const refreshingAccountIds = ref<Set<string>>(new Set())
+const showFullNumbers = computed({
+  get: () => uiStore.numberDisplayMode === 'full',
+  set: (enabled: boolean) => uiStore.setNumberDisplayMode(enabled ? 'full' : 'compact'),
+})
 
 // Load editor content from store when (a) modal opens or (b) store.preferences changes
 watch(
@@ -107,13 +113,13 @@ async function refreshAccountKeys(account: AccountRecord) {
   }
   refreshingAccountIds.value = new Set([...refreshingAccountIds.value, account.id])
   try {
-    wsStore.sendRefreshAccountKeys(account.id, account.label, token)
+    await wsStore.sendRefreshAccountKeys(account.id, account.label, token)
+  } catch (err) {
+    prefsError.value = err instanceof Error ? err.message : String(err)
   } finally {
-    window.setTimeout(() => {
-      const next = new Set(refreshingAccountIds.value)
-      next.delete(account.id)
-      refreshingAccountIds.value = next
-    }, 3000)
+    const next = new Set(refreshingAccountIds.value)
+    next.delete(account.id)
+    refreshingAccountIds.value = next
   }
 }
 
@@ -546,6 +552,10 @@ const returnToOrigin = window.location.origin
                 <div class="dim text-[11px]">Theme Mode</div>
                 <ThemeSwitcher />
               </div>
+              <label class="mt-3 flex items-center gap-2 text-[12px]">
+                <input v-model="showFullNumbers" type="checkbox" class="checkbox" />
+                <span>Show full numbers</span>
+              </label>
             </section>
 
             <!-- <hr class="section-divider" /> -->

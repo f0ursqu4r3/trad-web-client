@@ -43,12 +43,30 @@ const parseUrl = (baseUrl: string, path: string) => {
     : `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
 }
 
+async function parseJsonResponse<T>(res: Response): Promise<T> {
+  if (res.status === 204) return undefined as unknown as T
+
+  const text = await res.text()
+  if (!text.trim()) {
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} ${res.statusText}`)
+    }
+    return undefined as unknown as T
+  }
+
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    const preview = text.length > 300 ? `${text.slice(0, 300)}...` : text
+    throw new Error(`HTTP ${res.status} ${res.statusText}: ${preview}`)
+  }
+}
+
 export async function apiGet<T = unknown>(path: string, opts: JsonOptions = {}): Promise<T> {
   const baseUrl = opts.baseUrl ?? getBaseUrl()
   const url = parseUrl(baseUrl, path)
   const res = await sessionFetch(url, { ...opts, method: 'GET' })
-  if (res.status === 204) return undefined as unknown as T
-  return (await res.json()) as T
+  return parseJsonResponse<T>(res)
 }
 
 export async function apiPost<T = unknown, B = unknown>(
@@ -64,8 +82,7 @@ export async function apiPost<T = unknown, B = unknown>(
     body: body != null ? JSON.stringify(body) : undefined,
   }
   const res = await sessionFetch(url, init)
-  if (res.status === 204) return undefined as unknown as T
-  return (await res.json()) as T
+  return parseJsonResponse<T>(res)
 }
 
 export async function apiPut<T = unknown, B = unknown>(
@@ -81,8 +98,7 @@ export async function apiPut<T = unknown, B = unknown>(
     body: body != null ? JSON.stringify(body) : undefined,
   }
   const res = await sessionFetch(url, init)
-  if (res.status === 204) return undefined as unknown as T
-  return (await res.json()) as T
+  return parseJsonResponse<T>(res)
 }
 
 export async function apiDelete<T = unknown>(path: string, opts: JsonOptions = {}): Promise<T> {
@@ -91,6 +107,5 @@ export async function apiDelete<T = unknown>(path: string, opts: JsonOptions = {
     ? `${baseUrl}${path.replace(/^\//, '')}`
     : `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
   const res = await sessionFetch(url, { ...opts, method: 'DELETE' })
-  if (res.status === 204) return undefined as unknown as T
-  return (await res.json()) as T
+  return parseJsonResponse<T>(res)
 }

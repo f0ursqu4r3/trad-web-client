@@ -71,6 +71,7 @@ export const useCommandStore = defineStore(
     )
     const pendingCommands = new Map<Uuid, PendingCommand>()
     const selectedCommandId = ref<string | null>(null)
+    const autoInspectNewCommands = ref(true)
 
     const commandMeta = ref<
       Record<
@@ -430,6 +431,17 @@ export const useCommandStore = defineStore(
       })
     }
 
+    function shouldAutoInspectCommand(command: unknown): boolean {
+      if (!command || typeof command !== 'object' || !('kind' in command)) return false
+      const kind = (command as { kind?: unknown }).kind
+      return (
+        kind === 'MarketOrder' ||
+        kind === 'LimitOrder' ||
+        kind === 'SplitMarketOrder' ||
+        kind === 'TrailingEntryOrder'
+      )
+    }
+
     function verifyPendingCommand(commandId: string): number | undefined {
       const pending = pendingCommands.get(commandId)
       if (!pending) return
@@ -452,6 +464,9 @@ export const useCommandStore = defineStore(
       // Remove from pending
       pendingCommands.delete(commandId)
       scheduleCommandHistoryFlush()
+      if (autoInspectNewCommands.value && shouldAutoInspectCommand(pending.command)) {
+        inspectCommand(commandId)
+      }
       return latency
     }
 
@@ -460,6 +475,10 @@ export const useCommandStore = defineStore(
       deviceStore.clearDevices()
       if (!commandId) return
       ws.inspectCommand(commandId)
+    }
+
+    function setAutoInspectNewCommands(enabled: boolean) {
+      autoInspectNewCommands.value = enabled
     }
 
     function setCommandNickname(commandId: string, nickname: string | null, color?: string | null) {
@@ -507,6 +526,7 @@ export const useCommandStore = defineStore(
       filteredCommands,
       selectedCommandId,
       selectedCommand,
+      autoInspectNewCommands,
       pendingCommands,
       commandFilters,
       commandMeta,
@@ -521,6 +541,7 @@ export const useCommandStore = defineStore(
       canContinueMissedEntry,
       /* actions */
       inspectCommand,
+      setAutoInspectNewCommands,
       cancelCommand,
       closePosition,
       continueMissedEntry,

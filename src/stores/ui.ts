@@ -27,10 +27,13 @@ export type ThemeMode =
   | 'nordLight'
   | 'rosePineDawn'
 
+export type NumberDisplayMode = 'compact' | 'full'
+
 export const useUiStore = defineStore(
   'ui',
   () => {
     const theme = ref<ThemeMode>('system')
+    const numberDisplayMode = ref<NumberDisplayMode>('compact')
     const systemPrefersDark = ref<boolean>(
       typeof window !== 'undefined'
         ? window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -62,6 +65,11 @@ export const useUiStore = defineStore(
       setTheme(theme.value === 'dark' ? 'light' : 'dark')
     }
 
+    function setNumberDisplayMode(mode: NumberDisplayMode) {
+      numberDisplayMode.value = mode
+      useUserStore().saveProfile()
+    }
+
     function getVar(name: string, fallback?: string | undefined): string {
       return getComputedStyle(document.documentElement).getPropertyValue(name).trim() ?? fallback
     }
@@ -85,10 +93,12 @@ export const useUiStore = defineStore(
 
     return {
       theme,
+      numberDisplayMode,
       effectiveTheme,
       systemPrefersDark,
       setTheme,
       toggleTheme,
+      setNumberDisplayMode,
       getVar,
       settingsOpen,
       openSettings,
@@ -99,6 +109,6 @@ export const useUiStore = defineStore(
     }
   },
   {
-    persist: { key: 'trad-ui-store', pick: ['theme', 'showInboundPanel'] },
+    persist: { key: 'trad-ui-store', pick: ['theme', 'numberDisplayMode', 'showInboundPanel'] },
   },
 )

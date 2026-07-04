@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import {
   ExchangeType,
@@ -43,6 +43,8 @@ const symbol = ref<string>('BTCUSDT')
 const lastAccountId = ref<string>('')
 const activation_price = ref<number | null>(null)
 const jump_frac_threshold = ref<number | null>(null)
+const jump_absolute_threshold = ref<number | null>(null)
+const lastJumpInputMode = ref<'percent' | 'absolute'>('percent')
 const stop_loss = ref<number | null>(null)
 const take_profit = ref<number | null | ''>(null)
 const risk_amount = ref<number | null>(null)
@@ -52,7 +54,18 @@ const split_max_splits_cap = ref<number | null>(null)
 const split_mode = ref<SplitMode | ''>('')
 const split_slippage_margin = ref<number | null>(null)
 const previewRequestId = ref<string | null>(null)
+const bybitTickerPrice = ref<number | null>(null)
+const bybitTickerFetchedAt = ref<number | null>(null)
+const bybitTickerNow = ref(Date.now())
+const bybitTickerError = ref<string | null>(null)
+const bybitTickerLoading = ref(false)
 let previewTimer: number | null = null
+let bybitTickerTimer: number | null = null
+let bybitTickerClockTimer: number | null = null
+let bybitTickerAbort: AbortController | null = null
+let bybitTickerRequestSeq = 0
+
+const BYBIT_TICKER_POLL_MS = 5000
 
 const preview = computed(() => {
   if (!previewRequestId.value) return null
@@ -66,10 +79,13 @@ const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
 )
 const isBybitAccount = computed(() => selectedAccount.value?.exchange === ExchangeType.Bybit)
+const bybitTickerSymbol = computed(() => {
+  if (!props.open || !isBybitAccount.value) return null
+  if (!isValidBybitUsdtSymbol(symbol.value)) return null
+  return normalizeBybitUsdtSymbol(symbol.value)
+})
 const blocksOpeningOrder = computed(() => !isBybitMetadataVerified(selectedAccount.value))
-const requiresSuccessfulPreview = computed(
-  () => isBybitAccount.value && canPreview(),
-)
+const requiresSuccessfulPreview = computed(() => isBybitAccount.value && canPreview())
 const selectedMarketContext = computed<MarketContext | null>(() =>
   accounts.getMarketContextForAccount(selectedAccountId.value),
 )
@@ -94,6 +110,22 @@ const bybitExitLevelError = computed(() => {
     supportsTeTakeProfit.value ? take_profit.value : null,
   )
 })
+const hasValidActivationPrice = computed(() => isPositiveFiniteNumber(activation_price.value))
+const jumpDirectionLabel = computed(() =>
+  position_side.value === PositionSide.Long ? 'upward trigger move' : 'downward trigger move',
+)
+const bybitTickerAgeSeconds = computed(() => {
+  if (!bybitTickerFetchedAt.value) return null
+  return Math.max(0, Math.round((bybitTickerNow.value - bybitTickerFetchedAt.value) / 1000))
+})
+const bybitTickerStatusLabel = computed(() => {
+  if (!isBybitAccount.value) return null
+  if (!bybitTickerSymbol.value) return 'Enter a valid Bybit USDT symbol'
+  if (bybitTickerError.value) return 'Price unavailable'
+  if (bybitTickerPrice.value !== null) return 'Bybit public last'
+  if (bybitTickerLoading.value) return 'Loading Bybit price'
+  return 'Bybit public last'
+})
 
 function requestSelectedCapabilities() {
   if (selectedMarketContext.value) {
@@ -106,6 +138,8 @@ function applyInitialValues() {
   selectedAccountId.value = accounts.selectedAccount?.id ?? ''
   activation_price.value = preset.activation_price ?? null
   jump_frac_threshold.value = preset.jump_frac_threshold ?? null
+  lastJumpInputMode.value = 'percent'
+  syncJumpAbsoluteFromPercent()
   position_side.value = preset.position_side ?? PositionSide.Long
   risk_amount.value = preset.risk_amount ?? null
   stop_loss.value = preset.stop_loss ?? null
@@ -116,6 +150,45 @@ function applyInitialValues() {
   split_mode.value = ''
   split_slippage_margin.value = null
   lastAccountId.value = selectedAccountId.value
+}
+
+function isPositiveFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+}
+
+function isNonNegativeFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+}
+
+function syncJumpAbsoluteFromPercent() {
+  if (
+    !isPositiveFiniteNumber(activation_price.value) ||
+    !isNonNegativeFiniteNumber(jump_frac_threshold.value)
+  ) {
+    jump_absolute_threshold.value = null
+    return
+  }
+  jump_absolute_threshold.value = (activation_price.value * jump_frac_threshold.value) / 100
+}
+
+function syncJumpPercentFromAbsolute() {
+  if (
+    !isPositiveFiniteNumber(activation_price.value) ||
+    !isNonNegativeFiniteNumber(jump_absolute_threshold.value)
+  ) {
+    return
+  }
+  jump_frac_threshold.value = (jump_absolute_threshold.value / activation_price.value) * 100
+}
+
+function onJumpPercentInput() {
+  lastJumpInputMode.value = 'percent'
+  syncJumpAbsoluteFromPercent()
+}
+
+function onJumpAbsoluteInput() {
+  lastJumpInputMode.value = 'absolute'
+  syncJumpPercentFromAbsolute()
 }
 
 watch(
@@ -141,6 +214,14 @@ watch(selectedAccountId, (next, prev) => {
 watch(supportsTeTakeProfit, (supported) => {
   if (selectedCapabilities.value && !supported) {
     take_profit.value = null
+  }
+})
+
+watch(activation_price, () => {
+  if (lastJumpInputMode.value === 'absolute') {
+    syncJumpPercentFromAbsolute()
+  } else {
+    syncJumpAbsoluteFromPercent()
   }
 })
 
@@ -253,6 +334,105 @@ function requestPreview() {
   splitPreviewStore.clearPreview(previewRequestId.value)
 }
 
+function resetBybitTickerState() {
+  bybitTickerPrice.value = null
+  bybitTickerFetchedAt.value = null
+  bybitTickerError.value = null
+  bybitTickerLoading.value = false
+}
+
+function stopBybitTickerPoll(reset = false) {
+  if (bybitTickerTimer !== null) {
+    window.clearTimeout(bybitTickerTimer)
+    bybitTickerTimer = null
+  }
+  if (bybitTickerClockTimer !== null) {
+    window.clearInterval(bybitTickerClockTimer)
+    bybitTickerClockTimer = null
+  }
+  if (bybitTickerAbort) {
+    bybitTickerAbort.abort()
+    bybitTickerAbort = null
+  }
+  bybitTickerRequestSeq += 1
+  if (reset) {
+    resetBybitTickerState()
+  }
+}
+
+async function fetchBybitTicker(symbolToFetch: string, seq: number) {
+  bybitTickerAbort?.abort()
+  const controller = new AbortController()
+  bybitTickerAbort = controller
+  bybitTickerLoading.value = true
+
+  try {
+    const params = new URLSearchParams({ category: 'linear', symbol: symbolToFetch })
+    const response = await fetch(`https://api.bybit.com/v5/market/tickers?${params}`, {
+      method: 'GET',
+      signal: controller.signal,
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+    const body = (await response.json()) as {
+      retCode?: number
+      retMsg?: string
+      result?: { list?: Array<{ lastPrice?: string; markPrice?: string; symbol?: string }> }
+    }
+    if (body.retCode !== 0) {
+      throw new Error(body.retMsg || `retCode ${body.retCode}`)
+    }
+    const row = body.result?.list?.[0]
+    const rawPrice = row?.lastPrice ?? row?.markPrice
+    const price = rawPrice ? Number(rawPrice) : NaN
+    if (!Number.isFinite(price) || price <= 0) {
+      throw new Error('missing last price')
+    }
+    if (seq !== bybitTickerRequestSeq) return
+    bybitTickerPrice.value = price
+    bybitTickerFetchedAt.value = Date.now()
+    bybitTickerError.value = null
+  } catch (err) {
+    if (controller.signal.aborted || seq !== bybitTickerRequestSeq) return
+    bybitTickerPrice.value = null
+    bybitTickerFetchedAt.value = null
+    bybitTickerError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    if (seq === bybitTickerRequestSeq) {
+      bybitTickerLoading.value = false
+      bybitTickerAbort = null
+    }
+  }
+}
+
+function scheduleBybitTickerPoll(symbolToFetch: string, seq: number) {
+  if (bybitTickerTimer !== null) {
+    window.clearTimeout(bybitTickerTimer)
+  }
+  bybitTickerTimer = window.setTimeout(async () => {
+    if (seq !== bybitTickerRequestSeq || bybitTickerSymbol.value !== symbolToFetch) return
+    await fetchBybitTicker(symbolToFetch, seq)
+    if (seq === bybitTickerRequestSeq && bybitTickerSymbol.value === symbolToFetch) {
+      scheduleBybitTickerPoll(symbolToFetch, seq)
+    }
+  }, BYBIT_TICKER_POLL_MS)
+}
+
+function startBybitTickerPoll(symbolToFetch: string) {
+  stopBybitTickerPoll(true)
+  const seq = bybitTickerRequestSeq
+  bybitTickerNow.value = Date.now()
+  bybitTickerClockTimer = window.setInterval(() => {
+    bybitTickerNow.value = Date.now()
+  }, 1000)
+  void fetchBybitTicker(symbolToFetch, seq).then(() => {
+    if (seq === bybitTickerRequestSeq && bybitTickerSymbol.value === symbolToFetch) {
+      scheduleBybitTickerPoll(symbolToFetch, seq)
+    }
+  })
+}
+
 watch(
   [
     selectedAccountId,
@@ -277,6 +457,26 @@ watch(
     }, 300)
   },
 )
+
+watch(
+  bybitTickerSymbol,
+  (next) => {
+    if (!next) {
+      stopBybitTickerPoll(true)
+      return
+    }
+    startBybitTickerPoll(next)
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  stopBybitTickerPoll()
+  if (previewTimer) {
+    window.clearTimeout(previewTimer)
+    previewTimer = null
+  }
+})
 
 function formatNumber(value: number, digits: number) {
   return formatNumberShort(value, { minDecimals: digits, maxDecimals: 6 })
@@ -311,7 +511,24 @@ function formatNumber(value: number, digits: number) {
         </label>
         <label class="field">
           <span>Jump Threshold (%)</span>
-          <input type="number" step="0.0001" v-model.number="jump_frac_threshold" />
+          <input
+            type="number"
+            step="0.0001"
+            v-model.number="jump_frac_threshold"
+            @input="onJumpPercentInput"
+          />
+        </label>
+        <label class="field">
+          <span>Jump Movement</span>
+          <input
+            type="number"
+            step="any"
+            v-model.number="jump_absolute_threshold"
+            :disabled="!hasValidActivationPrice"
+            :placeholder="hasValidActivationPrice ? 'Price distance' : 'Requires activation price'"
+            @input="onJumpAbsoluteInput"
+          />
+          <small class="form-hint">{{ jumpDirectionLabel }}</small>
         </label>
         <label class="field">
           <span>Stop Loss</span><input type="number" v-model.number="stop_loss" />
@@ -322,6 +539,26 @@ function formatNumber(value: number, digits: number) {
         <label class="field">
           <span>Risk Amount</span><input type="number" step="any" v-model.number="risk_amount" />
         </label>
+      </div>
+
+      <div v-if="isBybitAccount" class="preview">
+        <div class="preview-row">
+          <span>{{ bybitTickerStatusLabel }}</span>
+          <span v-if="bybitTickerPrice !== null" class="preview-value">
+            ${{ formatNumber(bybitTickerPrice, 2) }}
+          </span>
+          <span v-else-if="bybitTickerLoading" class="preview-value">Loading</span>
+          <span v-else class="preview-value">-</span>
+        </div>
+        <div v-if="bybitTickerPrice !== null" class="preview-note">
+          Visual reference only · {{ bybitTickerAgeSeconds }}s ago
+        </div>
+        <div v-else-if="bybitTickerError" class="preview-note">
+          Visual reference unavailable: {{ bybitTickerError }}
+        </div>
+        <div v-else class="preview-note">
+          Visual reference only; not used for execution or split sizing.
+        </div>
       </div>
 
       <div class="space-y-2">
@@ -390,9 +627,7 @@ function formatNumber(value: number, digits: number) {
             <span>Bybit metadata</span>
             <span class="preview-value">Unvalidated</span>
           </div>
-          <div class="preview-warn">
-            Refresh credentials before opening live Bybit orders.
-          </div>
+          <div class="preview-warn">Refresh credentials before opening live Bybit orders.</div>
         </div>
         <div v-else-if="preview" class="preview">
           <div class="preview-row">

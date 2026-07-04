@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive } from 'vue'
+import { computed, onBeforeUnmount, onMounted, onUnmounted, reactive } from 'vue'
 import { useCommandStore } from '@/stores/command'
 import { useDeviceStore, type TrailingEntryState } from '@/stores/devices'
 import { useWsStore } from '@/stores/ws'
@@ -48,6 +48,8 @@ const state = reactive<SmokeState>({
 const ws = useWsStore()
 const commands = useCommandStore()
 const devices = useDeviceStore()
+commands.setAutoInspectNewCommands(false)
+onBeforeUnmount(() => commands.setAutoInspectNewCommands(true))
 
 let lagTimer: number | null = null
 

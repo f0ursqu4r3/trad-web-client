@@ -62,6 +62,14 @@ export const useWsStore = defineStore('ws', () => {
   let lastPingSend: number | null = null
   let perfLoopTimer: number | null = null
   const pendingAccountRefreshes = new Set<Uuid>()
+  const pendingAccountRefreshResolvers = new Map<
+    Uuid,
+    {
+      resolve: () => void
+      reject: (error: Error) => void
+      timer: number
+    }
+  >()
 
   // Build from env (fallback to same host /ws)
   const url = import.meta.env.VITE_WS_URL || location.origin.replace(/^http/, 'ws') + '/ws'
@@ -230,7 +238,7 @@ export const useWsStore = defineStore('ws', () => {
     })
   }
 
-  function sendRefreshAccountKeys(accountId: Uuid, label: string, userToken: string) {
+  function sendRefreshAccountKeys(accountId: Uuid, label: string, userToken: string): Promise<void> {
     const command = {
       kind: 'RefreshAccountKeys',
       data: {
@@ -241,7 +249,14 @@ export const useWsStore = defineStore('ws', () => {
     } satisfies SystemMessagePayload
     const commandId = sendSystemCommand(command)
     pendingAccountRefreshes.add(commandId)
-    return commandId
+    return new Promise((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        pendingAccountRefreshes.delete(commandId)
+        pendingAccountRefreshResolvers.delete(commandId)
+        reject(new Error('Account refresh timed out. Refresh accounts manually to check status.'))
+      }, 10000)
+      pendingAccountRefreshResolvers.set(commandId, { resolve, reject, timer })
+    })
   }
 
   function marketContextKey(marketContext: MarketContext): string {
@@ -411,11 +426,20 @@ export const useWsStore = defineStore('ws', () => {
     const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandResponse' }>)
       .data
     const wasAccountRefresh = pendingAccountRefreshes.delete(data.request_uuid)
+    const accountRefreshResolver = pendingAccountRefreshResolvers.get(data.request_uuid)
+    if (accountRefreshResolver) {
+      window.clearTimeout(accountRefreshResolver.timer)
+      pendingAccountRefreshResolvers.delete(data.request_uuid)
+    }
     commandStore.verifyPendingCommand(data.request_uuid)
     if (wasAccountRefresh) {
-      accountsStore.fetchAccounts().catch((err) => {
-        logger.error('failed to refresh accounts after account-key refresh', err)
-      })
+      accountsStore
+        .fetchAccounts()
+        .then(() => accountRefreshResolver?.resolve())
+        .catch((err) => {
+          logger.error('failed to refresh accounts after account-key refresh', err)
+          accountRefreshResolver?.reject(err instanceof Error ? err : new Error(String(err)))
+        })
     }
   }
 
@@ -460,6 +484,13 @@ export const useWsStore = defineStore('ws', () => {
     if (data.request_uuid) {
       const previewStore = useSplitPreviewStore()
       previewStore.setError(data.request_uuid, data.error)
+      const accountRefreshResolver = pendingAccountRefreshResolvers.get(data.request_uuid)
+      if (accountRefreshResolver) {
+        window.clearTimeout(accountRefreshResolver.timer)
+        pendingAccountRefreshes.delete(data.request_uuid)
+        pendingAccountRefreshResolvers.delete(data.request_uuid)
+        accountRefreshResolver.reject(new Error(data.error))
+      }
     }
     if (isAuthError(data.error)) {
       authAccepted.value = false

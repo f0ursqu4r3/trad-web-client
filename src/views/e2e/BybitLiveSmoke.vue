@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive } from 'vue'
+import { onBeforeUnmount, onMounted, reactive } from 'vue'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import { useCommandStore } from '@/stores/command'
 import { useDeviceStore } from '@/stores/devices'
@@ -60,6 +60,8 @@ const ws = useWsStore()
 const accounts = useAccountsStore()
 const commands = useCommandStore()
 const devices = useDeviceStore()
+commands.setAutoInspectNewCommands(false)
+onBeforeUnmount(() => commands.setAutoInspectNewCommands(true))
 
 function record(message: string) {
   state.events.push(`${new Date().toISOString()} ${message}`)

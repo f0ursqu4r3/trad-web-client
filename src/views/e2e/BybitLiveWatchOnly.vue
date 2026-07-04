@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, type Component } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, type Component } from 'vue'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import { useCommandStore } from '@/stores/command'
 import { useDeviceStore, type TrailingEntryState } from '@/stores/devices'
@@ -73,6 +73,8 @@ const ws = useWsStore()
 const accounts = useAccountsStore()
 const commands = useCommandStore()
 const devices = useDeviceStore()
+commands.setAutoInspectNewCommands(false)
+onBeforeUnmount(() => commands.setAutoInspectNewCommands(true))
 
 const componentMap: Record<string, Component> = {
   TrailingEntryOrder: TrailingEntryView,

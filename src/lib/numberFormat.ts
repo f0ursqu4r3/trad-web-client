@@ -1,3 +1,5 @@
+import { useUiStore } from '@/stores/ui'
+
 function isValidNumber(value: number): boolean {
   return Number.isFinite(value)
 }
@@ -25,8 +27,29 @@ export function formatNumberAuto(value: number, options: FormatOptions = {}): st
   return value.toFixed(decimals)
 }
 
+function formatNumberFull(value: number, options: FormatOptions = {}): string {
+  if (!isValidNumber(value)) return '-'
+  const { minDecimals = 0, maxDecimals = 8 } = options
+  let decimals = chooseDecimalsByMagnitude(value)
+  if (minDecimals > decimals) decimals = minDecimals
+  decimals = Math.min(decimals, maxDecimals)
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: minDecimals,
+    maximumFractionDigits: decimals,
+  })
+}
+
+function shouldUseFullNumbers(): boolean {
+  try {
+    return useUiStore().numberDisplayMode === 'full'
+  } catch {
+    return false
+  }
+}
+
 export function formatNumberShort(value: number, options: FormatOptions = {}): string {
   if (!isValidNumber(value)) return '-'
+  if (shouldUseFullNumbers()) return formatNumberFull(value, options)
   const abs = Math.abs(value)
   if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`
   if (abs >= 1_000) return `${(value / 1_000).toFixed(2)}k`
@@ -35,6 +58,10 @@ export function formatNumberShort(value: number, options: FormatOptions = {}): s
 
 export function formatUsdShort(value: number): string {
   if (!isValidNumber(value)) return '-'
+  if (shouldUseFullNumbers()) {
+    const maxDecimals = Math.abs(value) >= 1 ? 3 : 8
+    return `$${formatNumberFull(value, { minDecimals: 2, maxDecimals })}`
+  }
   const abs = Math.abs(value)
   if (abs >= 1_000) return `$${formatNumberShort(value)}`
   return `$${Math.round(value).toString()}`

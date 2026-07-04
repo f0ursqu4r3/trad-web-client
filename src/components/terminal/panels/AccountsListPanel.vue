@@ -81,13 +81,13 @@ async function refreshAccountKeys(account: AccountRecord) {
   }
   refreshingAccountIds.value = new Set([...refreshingAccountIds.value, account.id])
   try {
-    ws.sendRefreshAccountKeys(account.id, account.label, token)
+    await ws.sendRefreshAccountKeys(account.id, account.label, token)
+  } catch (err) {
+    refreshError.value = err instanceof Error ? err.message : String(err)
   } finally {
-    window.setTimeout(() => {
-      const next = new Set(refreshingAccountIds.value)
-      next.delete(account.id)
-      refreshingAccountIds.value = next
-    }, 3000)
+    const next = new Set(refreshingAccountIds.value)
+    next.delete(account.id)
+    refreshingAccountIds.value = next
   }
 }
 

@@ -16,6 +16,7 @@ import {
 } from 'lightweight-charts'
 import { storeToRefs } from 'pinia'
 import { useDeviceStore } from '@/stores/devices'
+import { useUiStore } from '@/stores/ui'
 import {
   createDraggablePriceLinesPlugin,
   type DraggablePriceLineDefinition,
@@ -27,8 +28,10 @@ import { recordPerfDuration, getPerfThreshold } from '@/lib/perfLog'
 import { formatNumberShort, formatUsdShort } from '@/lib/numberFormat'
 
 const store = useDeviceStore()
+const uiStore = useUiStore()
 
 const { selectedDeviceId, teDevice } = storeToRefs(store)
+const PRICE_AXIS_WHEEL_ZOOM_FACTOR = 1.12
 
 const emit = defineEmits<{
   (e: 'price-line-drag-start', payload: DraggablePriceLineDragEvent): void
@@ -101,6 +104,16 @@ function applyChartTheme() {
   })
 }
 
+function applyChartLocalization() {
+  if (!chart) return
+  chart.applyOptions({
+    localization: {
+      priceFormatter: (price: number) =>
+        formatNumberShort(price, { minDecimals: 2, maxDecimals: 6 }),
+    },
+  })
+}
+
 const devicePoints = computed(() => {
   if (!teDevice.value) return []
   teDevice.value.points_version
@@ -140,9 +153,7 @@ function getJumpLabel(jumpPrice: number) {
   const percent = te.jump_frac_threshold.toFixed(2)
   let label = `Jump ${prefix}${percent}%`
   const denom =
-    te.position_side === PositionSide.Long
-      ? jumpPrice - te.stop_loss
-      : te.stop_loss - jumpPrice
+    te.position_side === PositionSide.Long ? jumpPrice - te.stop_loss : te.stop_loss - jumpPrice
   if (denom > 0) {
     const size = te.risk_amount / denom
     const notional = size * jumpPrice
@@ -256,7 +267,12 @@ const statusMarker = computed(() => {
   const data = chartSeriesData.value
   if (!te || data.length === 0) return null
   const baseIndex = te.base_index ?? 0
-  if (te.completed && te.succeeded && te.end_trigger_index !== null && te.end_trigger_index >= baseIndex) {
+  if (
+    te.completed &&
+    te.succeeded &&
+    te.end_trigger_index !== null &&
+    te.end_trigger_index >= baseIndex
+  ) {
     const local = te.end_trigger_index - baseIndex
     const point = data[local]
     if (!point) return null
@@ -284,6 +300,63 @@ function syncChartSize() {
   const { clientWidth, clientHeight } = containerEl.value
   if (!clientWidth || !clientHeight) return
   chart.resize(clientWidth, clientHeight)
+}
+
+function isRightPriceAxisWheel(event: WheelEvent): boolean {
+  if (!chart || !containerEl.value) return false
+  const rightAxisWidth = chart.priceScale('right').width()
+  if (rightAxisWidth <= 0) return false
+  const rect = containerEl.value.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+  return x >= rect.width - rightAxisWidth && x <= rect.width && y >= 0 && y <= rect.height
+}
+
+function fallbackVisiblePriceRange(): { from: number; to: number } | null {
+  const values = chartSeriesData.value
+    .map((point) => point.value)
+    .filter((value) => Number.isFinite(value))
+  if (!values.length) return null
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const span = Math.max(max - min, Math.abs(max) * 0.001, 1)
+  return {
+    from: min - span * 0.2,
+    to: max + span * 0.2,
+  }
+}
+
+function handlePriceAxisWheel(event: WheelEvent) {
+  if (!series || !containerEl.value || !isRightPriceAxisWheel(event)) return
+  if (event.deltaY === 0) return
+
+  const priceScale = series.priceScale()
+  const currentRange = priceScale.getVisibleRange() ?? fallbackVisiblePriceRange()
+  if (!currentRange || currentRange.to <= currentRange.from) return
+
+  event.preventDefault()
+  event.stopPropagation()
+  event.stopImmediatePropagation()
+
+  const rect = containerEl.value.getBoundingClientRect()
+  const y = Math.max(0, Math.min(rect.height, event.clientY - rect.top))
+  const coordinatePrice = series.coordinateToPrice(y)
+  const anchor =
+    typeof coordinatePrice === 'number' && Number.isFinite(coordinatePrice)
+      ? coordinatePrice
+      : (currentRange.from + currentRange.to) / 2
+  const factor = event.deltaY > 0 ? PRICE_AXIS_WHEEL_ZOOM_FACTOR : 1 / PRICE_AXIS_WHEEL_ZOOM_FACTOR
+  const nextRange = {
+    from: anchor - (anchor - currentRange.from) * factor,
+    to: anchor + (currentRange.to - anchor) * factor,
+  }
+
+  const minSpan = Math.max(Math.abs(anchor) * 1e-8, 1e-8)
+  if (!Number.isFinite(nextRange.from) || !Number.isFinite(nextRange.to)) return
+  if (nextRange.to - nextRange.from < minSpan) return
+
+  priceScale.setAutoScale(false)
+  priceScale.setVisibleRange(nextRange)
 }
 
 function applySeriesData(data: AreaData[], reason: string) {
@@ -331,7 +404,9 @@ function syncMarkerSeries() {
   }
 
   if (statusMarkerSeries) {
-    statusMarkerSeries.setData(status ? ([{ time: status.time, value: status.value }] as LineData[]) : [])
+    statusMarkerSeries.setData(
+      status ? ([{ time: status.time, value: status.value }] as LineData[]) : [],
+    )
   }
   if (statusMarkersPlugin) {
     const markers: SeriesMarker<Time>[] = status
@@ -358,7 +433,8 @@ onMounted(() => {
     layout: { background: { color: theme.bg }, textColor: theme.text, attributionLogo: false },
     grid: { vertLines: { color: theme.grid }, horzLines: { color: theme.grid } },
     localization: {
-      priceFormatter: (price: number) => formatNumberShort(price, { minDecimals: 2, maxDecimals: 6 }),
+      priceFormatter: (price: number) =>
+        formatNumberShort(price, { minDecimals: 2, maxDecimals: 6 }),
     },
     rightPriceScale: {
       borderColor: theme.border,
@@ -374,8 +450,12 @@ onMounted(() => {
     timeScale: { visible: false, borderColor: theme.border },
   })
 
-  const resizeObserver = new ResizeObserver(() => syncChartSize())
+  resizeObserver = new ResizeObserver(() => syncChartSize())
   resizeObserver.observe(containerEl.value)
+  containerEl.value.addEventListener('wheel', handlePriceAxisWheel, {
+    passive: false,
+    capture: true,
+  })
   syncChartSize()
 
   // Add area series
@@ -466,6 +546,16 @@ watch(
 )
 
 watch(
+  () => uiStore.numberDisplayMode,
+  () => {
+    applyChartLocalization()
+    if (draggableLinesPlugin && teDevice.value) {
+      draggableLinesPlugin.setLines(draggableLines.value)
+    }
+  },
+)
+
+watch(
   activationMarker,
   () => {
     syncMarkerSeries()
@@ -489,6 +579,7 @@ watch(selectedDeviceId, () => {
 onBeforeUnmount(() => {
   const initial = chartSeriesData.value
   applySeriesData(initial, 'unmount')
+  containerEl.value?.removeEventListener('wheel', handlePriceAxisWheel, { capture: true })
   resizeObserver?.disconnect()
   resizeObserver = null
 })

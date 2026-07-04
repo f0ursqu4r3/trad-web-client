@@ -146,11 +146,19 @@ export const useAccountsStore = defineStore('accounts', () => {
     loading.value = false
   }
 
-  async function addAccount(payload: AccountFormPayload): Promise<void> {
+  async function addAccount(payload: AccountFormPayload): Promise<AccountRecord | null> {
     const label = encodeURIComponent(payload.label.trim())
     const resp = await apiPut(`/accounts/${label}`, payload)
     logger.debug('Add account response:', resp)
     await fetchAccounts()
+    return (
+      accounts.value.find(
+        (account) =>
+          account.label === payload.label.trim() &&
+          account.exchange === payload.exchange &&
+          account.network === payload.network,
+      ) ?? null
+    )
   }
 
   async function validateAccountKey(

@@ -3,13 +3,16 @@ import { computed, ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import { buildAccountFormPayload } from '@/lib/accountFormPayload'
 import { enumKeyName } from '@/lib/utils'
+import { getWebSocketToken } from '@/lib/auth'
 import { NetworkType, ExchangeType } from '@/lib/ws/protocol'
-import { useAccountsStore, type AccountKeyValidationResponse } from '@/stores/accounts'
+import { useAccountsStore, type AccountKeyValidationResponse, type AccountRecord } from '@/stores/accounts'
+import { useWsStore } from '@/stores/ws'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 const accounts = useAccountsStore()
+const ws = useWsStore()
 
 const DEFAULT_NETWORK: NetworkType = NetworkType.Mainnet
 const NETWORK_OPTIONS: NetworkType[] = [NetworkType.Mainnet, NetworkType.Testnet]
@@ -27,6 +30,7 @@ const apiKey = ref('')
 const secretKey = ref('')
 const formError = ref<string | null>(null)
 const isSubmitting = ref(false)
+const isRefreshingAfterCreate = ref(false)
 const isValidating = ref(false)
 const validationResult = ref<AccountKeyValidationResponse | null>(null)
 const validationError = ref<string | null>(null)
@@ -63,6 +67,7 @@ function reset() {
   secretKey.value = ''
   formError.value = null
   isSubmitting.value = false
+  isRefreshingAfterCreate.value = false
   isValidating.value = false
   validationResult.value = null
   validationError.value = null
@@ -113,9 +118,10 @@ async function submit() {
     return
   }
   isSubmitting.value = true
+  isRefreshingAfterCreate.value = false
   formError.value = null
   try {
-    await accounts.addAccount(
+    const createdAccount = await accounts.addAccount(
       buildAccountFormPayload({
         label: name.value,
         key: apiKey.value,
@@ -124,11 +130,28 @@ async function submit() {
         exchange: exchange.value,
       }),
     )
+    if (isBybit.value && createdAccount) {
+      await refreshCreatedBybitAccount(createdAccount)
+    }
     close()
   } catch (err) {
     formError.value = err instanceof Error ? err.message : String(err)
   } finally {
     isSubmitting.value = false
+  }
+}
+
+async function refreshCreatedBybitAccount(account: AccountRecord) {
+  if (ws.status !== 'ready') return
+  const token = await getWebSocketToken()
+  if (!token) return
+  isRefreshingAfterCreate.value = true
+  try {
+    await ws.sendRefreshAccountKeys(account.id, account.label, token)
+  } catch {
+    // Account creation succeeded. Leave manual refresh available if the metadata refresh misses.
+  } finally {
+    isRefreshingAfterCreate.value = false
   }
 }
 </script>
@@ -261,7 +284,8 @@ async function submit() {
           class="btn btn-primary"
           :disabled="isSubmitDisabled || isSubmitting"
         >
-          <span v-if="isSubmitting">Creating...</span>
+          <span v-if="isRefreshingAfterCreate">Refreshing...</span>
+          <span v-else-if="isSubmitting">Creating...</span>
           <span v-else>Create</span>
         </button>
       </div>
