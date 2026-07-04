@@ -112,7 +112,9 @@ const bybitExitLevelError = computed(() => {
 })
 const hasValidActivationPrice = computed(() => isPositiveFiniteNumber(activation_price.value))
 const jumpDirectionLabel = computed(() =>
-  position_side.value === PositionSide.Long ? 'upward trigger move' : 'downward trigger move',
+  position_side.value === PositionSide.Long
+    ? 'estimated upward move at activation; live trigger follows the low'
+    : 'estimated downward move at activation; live trigger follows the high',
 )
 const bybitTickerAgeSeconds = computed(() => {
   if (!bybitTickerFetchedAt.value) return null
@@ -519,7 +521,7 @@ function formatNumber(value: number, digits: number) {
           />
         </label>
         <label class="field">
-          <span>Jump Movement</span>
+          <span>Est. Jump Move @ Activation</span>
           <input
             type="number"
             step="any"
