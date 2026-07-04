@@ -237,12 +237,6 @@ function requestThrottleSnapshot() {
   refreshThrottle()
 }
 
-function queueDrained(): boolean {
-  requestThrottleSnapshot()
-  refreshThrottle()
-  return (state.throttle?.total_queued ?? 0) === 0 && (state.throttle?.total_in_flight ?? 0) === 0
-}
-
 function startThrottlePolling() {
   if (throttlePoll !== null) return
   throttlePoll = window.setInterval(requestThrottleSnapshot, 1000)
@@ -423,12 +417,32 @@ async function closeFilledOpenPositionsUntilQuiet(
   )
 }
 
+async function waitForFreshQueueDrain(timeoutMs: number) {
+  const started = Date.now()
+  let lastSeenRequest = state.throttle?.request_uuid ?? null
+  while (Date.now() - started < timeoutMs) {
+    requestThrottleSnapshot()
+    await wait(500)
+    refreshThrottle()
+    const throttle = state.throttle
+    if (!throttle || throttle.request_uuid === lastSeenRequest) {
+      continue
+    }
+    lastSeenRequest = throttle.request_uuid
+    if (throttle.total_queued === 0 && throttle.total_in_flight === 0) {
+      return
+    }
+  }
+  refreshThrottle()
+  throw new Error('Timed out waiting for order queue drain')
+}
+
 function inspectLastTe(plans: SymbolPlan[]) {
   const commandId = submittedCommandIds[submittedCommandIds.length - 1]
   const plan = plans[plans.length - 1]
   state.inspectedCommandId = commandId
   state.inspectedSymbol = plan?.symbol ?? null
-  if (commandId) commands.inspectCommand(commandId)
+  if (commandId) ws.inspectCommand(commandId)
 }
 
 function inspectSubmittedCommands(force = false) {
@@ -445,7 +459,7 @@ function inspectSubmittedCommands(force = false) {
     commandIds.add(commandId)
   }
   for (const commandId of commandIds) {
-    commands.inspectCommand(commandId)
+    ws.inspectCommand(commandId)
   }
 }
 
@@ -581,7 +595,7 @@ async function startSmoke() {
     await closeFilledOpenPositionsUntilQuiet(10_000, closeWaitMs + 60_000)
 
     state.phase = 'waiting-close'
-    await waitFor('order queue drain', queueDrained, 30_000)
+    await waitForFreshQueueDrain(30_000)
     state.phase = 'closed'
     refreshCounts()
     requestThrottleSnapshot()
