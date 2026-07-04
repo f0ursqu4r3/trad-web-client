@@ -341,12 +341,18 @@ function openLikeCommandIds(): string[] {
   return submittedCommandIds.filter((commandId) => ids.has(commandId))
 }
 
+function filledOpenCommandIds(): string[] {
+  observeFilledMarketOrders()
+  observeTrailingEntryStats()
+  return submittedCommandIds.filter((commandId) => filledOpenTeCommandIds.has(commandId))
+}
+
 function refreshCounts() {
   observeFilledMarketOrders()
   observeTrailingEntryStats()
   observeCloseCommandStatuses()
   state.accepted = acceptedCommandIds().length
-  state.openFilled = openLikeCommandIds().length
+  state.openFilled = filledOpenCommandIds().length
   state.closeFilled = filledCloseTeCommandIds.size
   state.nativeProtectionCount = observedNativeProtectionTeCommandIds.size
 }
@@ -358,10 +364,10 @@ function throwOnAnySubmittedFailure(includeSubmitted = true) {
 }
 
 function cancelSubmittedTrailingEntries() {
-  const openLikeIds = new Set(openLikeCommandIds())
+  const filledOpenIds = new Set(filledOpenCommandIds())
   for (const commandId of submittedCommandIds) {
     if (cancelRequestedCommandIds.has(commandId)) continue
-    if (openLikeIds.has(commandId)) continue
+    if (filledOpenIds.has(commandId)) continue
     ws.sendCancelCommand(commandId)
     cancelRequestedCommandIds.add(commandId)
     record(`requested TE cancel ${commandId}`)
@@ -371,7 +377,7 @@ function cancelSubmittedTrailingEntries() {
 function submitCloseRequestsForFilledOpenPositions() {
   inspectSubmittedCommands(true)
   refreshCounts()
-  for (const commandId of openLikeCommandIds()) {
+  for (const commandId of filledOpenCommandIds()) {
     if (closeRequestedTeCommandIds.has(commandId)) continue
     const closeCommandId = ws.sendUserCommand({
       kind: 'CloseTrailingEntryPosition',
