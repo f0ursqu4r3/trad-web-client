@@ -18,6 +18,7 @@ test('FE terminal drives many live Bybit trailing entries and closes', async ({ 
   const stopLossFrac = process.env.BYBIT_LIVE_BULK_TE_STOP_LOSS_FRAC || '0.05'
   const takeProfitFrac = process.env.BYBIT_LIVE_BULK_TE_TAKE_PROFIT_FRAC || '0.02'
   const jumpFracThreshold = process.env.BYBIT_LIVE_BULK_TE_JUMP_FRAC_THRESHOLD || '0.001'
+  const controlledTrigger = process.env.BYBIT_LIVE_BULK_TE_CONTROLLED_TRIGGER === '1' ? '1' : ''
   const waitBudgetMs = Number(openWaitMs) + Number(closeWaitMs) + 240_000
   test.setTimeout(Math.max(900_000, waitBudgetMs + 60_000))
 
@@ -50,6 +51,7 @@ test('FE terminal drives many live Bybit trailing entries and closes', async ({ 
     stopLossFrac,
     takeProfitFrac,
     jumpFracThreshold,
+    ...(controlledTrigger ? { controlledTrigger } : {}),
   })
   await page.goto(`/e2e/bybit-live-bulk-te?${params.toString()}`)
 
