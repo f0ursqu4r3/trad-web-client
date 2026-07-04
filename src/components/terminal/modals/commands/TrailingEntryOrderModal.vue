@@ -43,8 +43,6 @@ const symbol = ref<string>('BTCUSDT')
 const lastAccountId = ref<string>('')
 const activation_price = ref<number | null>(null)
 const jump_frac_threshold = ref<number | null>(null)
-const jump_absolute_threshold = ref<number | null>(null)
-const lastJumpInputMode = ref<'percent' | 'absolute'>('percent')
 const stop_loss = ref<number | null>(null)
 const take_profit = ref<number | null | ''>(null)
 const risk_amount = ref<number | null>(null)
@@ -111,11 +109,24 @@ const bybitExitLevelError = computed(() => {
   )
 })
 const hasValidActivationPrice = computed(() => isPositiveFiniteNumber(activation_price.value))
-const jumpDirectionLabel = computed(() =>
-  position_side.value === PositionSide.Long
-    ? 'estimated upward move at activation; live trigger follows the low'
-    : 'estimated downward move at activation; live trigger follows the high',
-)
+const jumpActivationMove = computed(() => {
+  if (
+    !isPositiveFiniteNumber(activation_price.value) ||
+    !isNonNegativeFiniteNumber(jump_frac_threshold.value)
+  ) {
+    return null
+  }
+  return (activation_price.value * jump_frac_threshold.value) / 100
+})
+const jumpBoundLabel = computed(() => {
+  const amount = jumpActivationMove.value
+  if (amount === null) return null
+  const formatted = formatNumber(amount, 2)
+  if (position_side.value === PositionSide.Long) {
+    return `Activation estimate: $${formatted} max jump; live move shrinks as the low improves.`
+  }
+  return `Activation estimate: $${formatted} min jump; live move grows as the high improves.`
+})
 const bybitTickerAgeSeconds = computed(() => {
   if (!bybitTickerFetchedAt.value) return null
   return Math.max(0, Math.round((bybitTickerNow.value - bybitTickerFetchedAt.value) / 1000))
@@ -140,8 +151,6 @@ function applyInitialValues() {
   selectedAccountId.value = accounts.selectedAccount?.id ?? ''
   activation_price.value = preset.activation_price ?? null
   jump_frac_threshold.value = preset.jump_frac_threshold ?? null
-  lastJumpInputMode.value = 'percent'
-  syncJumpAbsoluteFromPercent()
   position_side.value = preset.position_side ?? PositionSide.Long
   risk_amount.value = preset.risk_amount ?? null
   stop_loss.value = preset.stop_loss ?? null
@@ -160,37 +169,6 @@ function isPositiveFiniteNumber(value: unknown): value is number {
 
 function isNonNegativeFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
-}
-
-function syncJumpAbsoluteFromPercent() {
-  if (
-    !isPositiveFiniteNumber(activation_price.value) ||
-    !isNonNegativeFiniteNumber(jump_frac_threshold.value)
-  ) {
-    jump_absolute_threshold.value = null
-    return
-  }
-  jump_absolute_threshold.value = (activation_price.value * jump_frac_threshold.value) / 100
-}
-
-function syncJumpPercentFromAbsolute() {
-  if (
-    !isPositiveFiniteNumber(activation_price.value) ||
-    !isNonNegativeFiniteNumber(jump_absolute_threshold.value)
-  ) {
-    return
-  }
-  jump_frac_threshold.value = (jump_absolute_threshold.value / activation_price.value) * 100
-}
-
-function onJumpPercentInput() {
-  lastJumpInputMode.value = 'percent'
-  syncJumpAbsoluteFromPercent()
-}
-
-function onJumpAbsoluteInput() {
-  lastJumpInputMode.value = 'absolute'
-  syncJumpPercentFromAbsolute()
 }
 
 watch(
@@ -216,14 +194,6 @@ watch(selectedAccountId, (next, prev) => {
 watch(supportsTeTakeProfit, (supported) => {
   if (selectedCapabilities.value && !supported) {
     take_profit.value = null
-  }
-})
-
-watch(activation_price, () => {
-  if (lastJumpInputMode.value === 'absolute') {
-    syncJumpPercentFromAbsolute()
-  } else {
-    syncJumpAbsoluteFromPercent()
   }
 })
 
@@ -510,27 +480,23 @@ function formatNumber(value: number, digits: number) {
         <label class="field">
           <span>Activation Price</span>
           <input type="number" v-model.number="activation_price" />
+          <small v-if="isBybitAccount" class="form-hint">
+            <template v-if="bybitTickerPrice !== null">
+              Bybit public last ${{ formatNumber(bybitTickerPrice, 2) }} ·
+              {{ bybitTickerAgeSeconds }}s ago
+            </template>
+            <template v-else-if="bybitTickerLoading">Bybit public last loading</template>
+            <template v-else-if="bybitTickerError">Bybit public last unavailable</template>
+            <template v-else>{{ bybitTickerStatusLabel }}</template>
+          </small>
         </label>
         <label class="field">
           <span>Jump Threshold (%)</span>
-          <input
-            type="number"
-            step="0.0001"
-            v-model.number="jump_frac_threshold"
-            @input="onJumpPercentInput"
-          />
-        </label>
-        <label class="field">
-          <span>Est. Jump Move @ Activation</span>
-          <input
-            type="number"
-            step="any"
-            v-model.number="jump_absolute_threshold"
-            :disabled="!hasValidActivationPrice"
-            :placeholder="hasValidActivationPrice ? 'Price distance' : 'Requires activation price'"
-            @input="onJumpAbsoluteInput"
-          />
-          <small class="form-hint">{{ jumpDirectionLabel }}</small>
+          <input type="number" step="0.0001" v-model.number="jump_frac_threshold" />
+          <small v-if="jumpBoundLabel" class="form-hint">{{ jumpBoundLabel }}</small>
+          <small v-else-if="!hasValidActivationPrice" class="form-hint">
+            Add activation price to estimate the starting jump distance.
+          </small>
         </label>
         <label class="field">
           <span>Stop Loss</span><input type="number" v-model.number="stop_loss" />
@@ -541,26 +507,6 @@ function formatNumber(value: number, digits: number) {
         <label class="field">
           <span>Risk Amount</span><input type="number" step="any" v-model.number="risk_amount" />
         </label>
-      </div>
-
-      <div v-if="isBybitAccount" class="preview">
-        <div class="preview-row">
-          <span>{{ bybitTickerStatusLabel }}</span>
-          <span v-if="bybitTickerPrice !== null" class="preview-value">
-            ${{ formatNumber(bybitTickerPrice, 2) }}
-          </span>
-          <span v-else-if="bybitTickerLoading" class="preview-value">Loading</span>
-          <span v-else class="preview-value">-</span>
-        </div>
-        <div v-if="bybitTickerPrice !== null" class="preview-note">
-          Visual reference only · {{ bybitTickerAgeSeconds }}s ago
-        </div>
-        <div v-else-if="bybitTickerError" class="preview-note">
-          Visual reference unavailable: {{ bybitTickerError }}
-        </div>
-        <div v-else class="preview-note">
-          Visual reference only; not used for execution or split sizing.
-        </div>
       </div>
 
       <div class="space-y-2">
