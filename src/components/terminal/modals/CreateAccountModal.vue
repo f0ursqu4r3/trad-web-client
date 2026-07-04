@@ -4,7 +4,7 @@ import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandM
 import { buildAccountFormPayload } from '@/lib/accountFormPayload'
 import { enumKeyName } from '@/lib/utils'
 import { NetworkType, ExchangeType } from '@/lib/ws/protocol'
-import { useAccountsStore } from '@/stores/accounts'
+import { useAccountsStore, type AccountKeyValidationResponse } from '@/stores/accounts'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -27,11 +27,33 @@ const apiKey = ref('')
 const secretKey = ref('')
 const formError = ref<string | null>(null)
 const isSubmitting = ref(false)
+const isValidating = ref(false)
+const validationResult = ref<AccountKeyValidationResponse | null>(null)
+const validationError = ref<string | null>(null)
 const isBybit = computed(() => exchange.value === ExchangeType.Bybit)
+const hasBybitValidationPass = computed(() => {
+  return !isBybit.value || validationResult.value?.valid === true
+})
 
 const isSubmitDisabled = computed(() => {
-  return !network.value || !name.value.trim() || !apiKey.value.trim() || !secretKey.value.trim()
+  return (
+    !network.value ||
+    !name.value.trim() ||
+    !apiKey.value.trim() ||
+    !secretKey.value.trim() ||
+    isValidating.value ||
+    !hasBybitValidationPass.value
+  )
 })
+
+const hasValidationFailure = computed(() => {
+  return isBybit.value && validationResult.value !== null && !validationResult.value.valid
+})
+
+const keyInputClass = computed(() => ({
+  'input-invalid': hasValidationFailure.value || Boolean(validationError.value),
+  'input-valid': isBybit.value && validationResult.value?.valid === true,
+}))
 
 function reset() {
   network.value = DEFAULT_NETWORK
@@ -41,6 +63,9 @@ function reset() {
   secretKey.value = ''
   formError.value = null
   isSubmitting.value = false
+  isValidating.value = false
+  validationResult.value = null
+  validationError.value = null
 }
 
 watch(
@@ -52,12 +77,41 @@ watch(
   },
 )
 
+watch([apiKey, secretKey, network, exchange], () => {
+  validationResult.value = null
+  validationError.value = null
+})
+
 function close() {
   emit('close')
 }
 
+async function validatePermissions() {
+  if (!apiKey.value.trim() || !secretKey.value.trim() || isValidating.value) return
+  isValidating.value = true
+  validationResult.value = null
+  validationError.value = null
+  formError.value = null
+  try {
+    validationResult.value = await accounts.validateAccountKey({
+      key: apiKey.value.trim(),
+      secret: secretKey.value.trim(),
+      network: network.value,
+      exchange: exchange.value,
+    })
+  } catch (err) {
+    validationError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    isValidating.value = false
+  }
+}
+
 async function submit() {
   if (isSubmitDisabled.value || isSubmitting.value) return
+  if (isBybit.value && validationResult.value?.valid !== true) {
+    formError.value = 'Check Bybit key permissions before creating this account.'
+    return
+  }
   isSubmitting.value = true
   formError.value = null
   try {
@@ -113,23 +167,86 @@ async function submit() {
         </div>
         <label class="field">
           <span>API Key</span>
-          <input v-model.trim="apiKey" class="input" placeholder="API key" />
+          <input v-model.trim="apiKey" class="input" :class="keyInputClass" placeholder="API key" />
         </label>
         <label class="field">
           <span>Secret Key</span>
-          <input v-model.trim="secretKey" class="input" placeholder="Secret key" />
+          <input
+            v-model.trim="secretKey"
+            class="input"
+            :class="keyInputClass"
+            placeholder="Secret key"
+          />
         </label>
         <p class="col-span-2 text-[11px] text-[var(--color-text-dim)] leading-relaxed">
           Your keys are stored securely and are only accessible by the trading backend. Double-check
           the network matches the exchange the keys belong to.
         </p>
         <div v-if="isBybit" class="col-span-2 permission-note">
-          <div class="permission-note-title">Bybit key scope</div>
+          <div class="permission-note-title">Required Bybit key scope</div>
           <div class="permission-note-grid">
-            <span>Read account</span>
-            <span>Read positions/orders</span>
-            <span>Trade derivatives</span>
-            <span>No withdrawal permission</span>
+            <span>Read account data</span>
+            <span>Read orders and positions</span>
+            <span>Create/cancel contract orders</span>
+            <span>Withdrawals disabled</span>
+          </div>
+        </div>
+        <div v-if="isBybit" class="col-span-2 validation-panel" :class="{
+          'validation-panel-valid': validationResult?.valid,
+          'validation-panel-invalid': hasValidationFailure || validationError,
+        }">
+          <div class="validation-header">
+            <div>
+              <div class="validation-title">Bybit permission check</div>
+              <div class="validation-copy">
+                Validate this key before saving. If permissions are changed on Bybit, run the check
+                again.
+              </div>
+            </div>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              :disabled="isValidating || !apiKey.trim() || !secretKey.trim()"
+              @click="validatePermissions"
+            >
+              <span v-if="isValidating">Checking...</span>
+              <span v-else>Check permissions</span>
+            </button>
+          </div>
+          <div v-if="validationResult?.valid" class="validation-success">
+            Key permissions are valid for Bybit USDT perpetual trading.
+          </div>
+          <div v-if="validationError" class="validation-error">
+            {{ validationError }}
+          </div>
+          <div v-if="hasValidationFailure && validationResult" class="validation-details">
+            <div v-if="validationResult.missing_requirements.length">
+              <div class="validation-section-title">Missing</div>
+              <ul>
+                <li v-for="item in validationResult.missing_requirements" :key="item">{{ item }}</li>
+              </ul>
+            </div>
+            <div v-if="validationResult.warnings.length">
+              <div class="validation-section-title">Change on Bybit</div>
+              <ul>
+                <li v-for="item in validationResult.warnings" :key="item">{{ item }}</li>
+              </ul>
+            </div>
+            <div v-if="validationResult.present_permissions.length">
+              <div class="validation-section-title">Detected</div>
+              <div class="permission-chip-row">
+                <span
+                  v-for="item in validationResult.present_permissions"
+                  :key="item"
+                  class="permission-chip"
+                >
+                  {{ item }}
+                </span>
+              </div>
+            </div>
+            <div v-if="validationResult.exchange_message" class="validation-copy">
+              Bybit: {{ validationResult.exchange_message }}
+            </div>
           </div>
         </div>
       </div>
@@ -182,6 +299,14 @@ async function submit() {
   outline-offset: 1px;
 }
 
+.input-invalid {
+  border-color: color-mix(in srgb, #f87171 75%, var(--border-color));
+}
+
+.input-valid {
+  border-color: color-mix(in srgb, #22c55e 70%, var(--border-color));
+}
+
 .readonly-value {
   min-height: 30px;
   display: flex;
@@ -219,6 +344,84 @@ async function submit() {
 
 .permission-note-grid span {
   min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.validation-panel {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-panel);
+  padding: 0.55rem;
+  background: color-mix(in srgb, var(--panel-header-bg) 50%, transparent);
+}
+
+.validation-panel-valid {
+  border-color: color-mix(in srgb, #22c55e 60%, var(--border-color));
+}
+
+.validation-panel-invalid {
+  border-color: color-mix(in srgb, #f87171 70%, var(--border-color));
+}
+
+.validation-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.validation-title,
+.validation-section-title {
+  font-size: 11px;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.validation-copy {
+  margin-top: 0.2rem;
+  font-size: 11px;
+  color: var(--color-text-dim);
+  line-height: 1.35;
+}
+
+.validation-success {
+  margin-top: 0.5rem;
+  font-size: 11px;
+  color: #86efac;
+}
+
+.validation-error {
+  margin-top: 0.5rem;
+  font-size: 11px;
+  color: #fca5a5;
+}
+
+.validation-details {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+  font-size: 11px;
+  color: var(--color-text);
+}
+
+.validation-details ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1rem;
+}
+
+.permission-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.3rem;
+}
+
+.permission-chip {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-input);
+  padding: 0.15rem 0.35rem;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--panel-header-bg) 70%, transparent);
   overflow-wrap: anywhere;
 }
 

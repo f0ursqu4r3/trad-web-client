@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useAuth } from '@/lib/auth'
-import { apiPut, apiGet, apiDelete } from '@/lib/apiClient'
+import { apiPut, apiGet, apiDelete, apiPost } from '@/lib/apiClient'
 import { ExchangeType, type MarketContext, type NetworkType } from '@/lib/ws/protocol'
 import {
   bifakeMarketContext,
@@ -25,6 +25,26 @@ export interface AccountFormPayload {
   secret: string
   network: NetworkType
   exchange: ExchangeType
+}
+
+export interface AccountKeyValidationPayload {
+  key: string
+  secret: string
+  network: NetworkType
+  exchange: ExchangeType
+}
+
+export interface AccountKeyValidationResponse {
+  valid: boolean
+  skipped: boolean
+  exchange: ExchangeType
+  network: NetworkType
+  present_permissions: string[]
+  missing_requirements: string[]
+  warnings: string[]
+  read_only?: boolean | null
+  exchange_message?: string | null
+  error?: string
 }
 
 export interface ExchangeAccountMetadata {
@@ -131,6 +151,19 @@ export const useAccountsStore = defineStore('accounts', () => {
     const resp = await apiPut(`/accounts/${label}`, payload)
     logger.debug('Add account response:', resp)
     await fetchAccounts()
+  }
+
+  async function validateAccountKey(
+    payload: AccountKeyValidationPayload,
+  ): Promise<AccountKeyValidationResponse> {
+    const response = await apiPost<AccountKeyValidationResponse | { error?: string }>(
+      '/accounts/validate',
+      payload,
+    )
+    if ('error' in response && response.error) {
+      throw new Error(response.error)
+    }
+    return response as AccountKeyValidationResponse
   }
 
   async function removeAccount(label: string): Promise<void> {
@@ -279,6 +312,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     // actions
     fetchAccounts,
     addAccount,
+    validateAccountKey,
     removeAccount,
     reorderAccounts,
     getMarketContextForAccount,
