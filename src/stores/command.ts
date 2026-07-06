@@ -17,6 +17,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useWsStore } from '@/stores/ws'
 import { useDeviceStore, type MarketOrderState, type TrailingEntryState } from '@/stores/devices'
+import { useUiStore } from '@/stores/ui'
 import { createLogger } from '@/lib/utils'
 import {
   commandMarketFacets,
@@ -58,6 +59,7 @@ export const useCommandStore = defineStore(
   () => {
     const ws = useWsStore()
     const deviceStore = useDeviceStore()
+    const uiStore = useUiStore()
 
     const history = ref<CommandHistoryItem[]>([])
     const commandIndexById = new Map<Uuid, number>()
@@ -201,6 +203,17 @@ export const useCommandStore = defineStore(
         const aPinned = commandMeta.value[a.command_id]?.pinned ? 1 : 0
         const bPinned = commandMeta.value[b.command_id]?.pinned ? 1 : 0
         if (aPinned !== bPinned) return bPinned - aPinned
+        if (uiStore.newestCommandsFirst) {
+          const aTime = new Date(a.created_at).getTime()
+          const bTime = new Date(b.created_at).getTime()
+          if (Number.isFinite(aTime) && Number.isFinite(bTime) && aTime !== bTime) {
+            return bTime - aTime
+          }
+          if (Number.isFinite(aTime) !== Number.isFinite(bTime)) {
+            return Number.isFinite(bTime) ? 1 : -1
+          }
+          return b.orderIndex - a.orderIndex
+        }
         return a.orderIndex - b.orderIndex
       })
     })

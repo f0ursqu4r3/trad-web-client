@@ -202,11 +202,11 @@ function submit() {
         <template v-if="supportsAttachedExit">
           <label class="field">
             <span>Take Profit</span>
-            <input type="number" v-model.number="take_profit" class="input" />
+            <input type="number" step="any" v-model.number="take_profit" class="input" />
           </label>
           <label class="field">
             <span>Stop Loss</span>
-            <input type="number" v-model.number="stop_loss" class="input" />
+            <input type="number" step="any" v-model.number="stop_loss" class="input" />
           </label>
         </template>
       </div>

@@ -142,7 +142,7 @@ function submit() {
         </label>
         <label class="field">
           <span>Price</span>
-          <input type="number" v-model.number="price" class="input" />
+          <input type="number" step="any" v-model.number="price" class="input" />
         </label>
         <label class="field col-span-2">
           <span>Position Side</span>

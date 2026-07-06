@@ -5,6 +5,7 @@ import StickyScroller from '@/components/general/StickyScroller.vue'
 import { useCommandStore } from '@/stores/command'
 import { useAccountsStore } from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
+import { useUiStore } from '@/stores/ui'
 import { formatName } from '@/lib/utils'
 import { marketProductLabel } from '@/lib/marketContext'
 
@@ -26,6 +27,7 @@ defineOptions({
 const commandStore = useCommandStore()
 const accountsStore = useAccountsStore()
 const modalStore = useModalStore()
+const uiStore = useUiStore()
 
 const showFilters = ref(false)
 
@@ -465,7 +467,12 @@ function saveRename() {
             <div class="pinned-section flex-1 min-h-0">
               <div class="pinned-header">Pinned</div>
               <div class="pinned-body">
-                <StickyScroller :trigger="pinnedCommands.length" :smooth="true" :showButton="false">
+                <StickyScroller
+                  :trigger="pinnedCommands.length"
+                  :smooth="true"
+                  :showButton="false"
+                  :stickOnMount="!uiStore.newestCommandsFirst"
+                >
                   <div class="flex flex-col p-2 gap-2">
                     <template v-for="cmd in pinnedCommands" :key="cmd.command_id">
                       <div
@@ -520,7 +527,8 @@ function saveRename() {
             <StickyScroller
               :trigger="unpinnedCommands.length"
               :smooth="true"
-              :showButton="true"
+              :showButton="!uiStore.newestCommandsFirst"
+              :stickOnMount="!uiStore.newestCommandsFirst"
               class="flex-1 min-h-0"
             >
               <div class="flex flex-col p-2 gap-2">
@@ -575,7 +583,8 @@ function saveRename() {
       v-else
       :trigger="unpinnedCommands.length"
       :smooth="true"
-      :showButton="true"
+      :showButton="!uiStore.newestCommandsFirst"
+      :stickOnMount="!uiStore.newestCommandsFirst"
       class="flex-1 min-h-0"
     >
       <div class="flex flex-col p-2 gap-2">

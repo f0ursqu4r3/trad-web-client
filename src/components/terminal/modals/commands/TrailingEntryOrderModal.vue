@@ -479,7 +479,7 @@ function formatNumber(value: number, digits: number) {
         </label>
         <label class="field">
           <span>Activation Price</span>
-          <input type="number" v-model.number="activation_price" />
+          <input type="number" step="any" v-model.number="activation_price" />
           <small v-if="isBybitAccount" class="form-hint">
             <template v-if="bybitTickerPrice !== null">
               Bybit public last ${{ formatNumber(bybitTickerPrice, 2) }} ·
@@ -499,10 +499,10 @@ function formatNumber(value: number, digits: number) {
           </small>
         </label>
         <label class="field">
-          <span>Stop Loss</span><input type="number" v-model.number="stop_loss" />
+          <span>Stop Loss</span><input type="number" step="any" v-model.number="stop_loss" />
         </label>
         <label v-if="supportsTeTakeProfit" class="field">
-          <span>Take Profit</span><input type="number" v-model.number="take_profit" />
+          <span>Take Profit</span><input type="number" step="any" v-model.number="take_profit" />
         </label>
         <label class="field">
           <span>Risk Amount</span><input type="number" step="any" v-model.number="risk_amount" />

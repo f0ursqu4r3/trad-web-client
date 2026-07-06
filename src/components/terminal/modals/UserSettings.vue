@@ -44,6 +44,10 @@ const showFullNumbers = computed({
   get: () => uiStore.numberDisplayMode === 'full',
   set: (enabled: boolean) => uiStore.setNumberDisplayMode(enabled ? 'full' : 'compact'),
 })
+const newestCommandsFirst = computed({
+  get: () => uiStore.newestCommandsFirst,
+  set: (enabled: boolean) => uiStore.setNewestCommandsFirst(enabled),
+})
 
 // Load editor content from store when (a) modal opens or (b) store.preferences changes
 watch(
@@ -555,6 +559,10 @@ const returnToOrigin = window.location.origin
               <label class="mt-3 flex items-center gap-2 text-[12px]">
                 <input v-model="showFullNumbers" type="checkbox" class="checkbox" />
                 <span>Show full numbers</span>
+              </label>
+              <label class="mt-2 flex items-center gap-2 text-[12px]">
+                <input v-model="newestCommandsFirst" type="checkbox" class="checkbox" />
+                <span>Newest commands first</span>
               </label>
             </section>
 
