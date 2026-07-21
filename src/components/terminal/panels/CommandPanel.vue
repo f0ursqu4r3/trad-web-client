@@ -3,6 +3,7 @@ import { ref, computed, type Component, nextTick } from 'vue'
 import SplitView from '@/components/general/SplitView.vue'
 import StickyScroller from '@/components/general/StickyScroller.vue'
 import { useCommandStore } from '@/stores/command'
+import { useWsStore } from '@/stores/ws'
 import { useAccountsStore } from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
 import { useUiStore } from '@/stores/ui'
@@ -25,6 +26,7 @@ defineOptions({
 })
 
 const commandStore = useCommandStore()
+const wsStore = useWsStore()
 const accountsStore = useAccountsStore()
 const modalStore = useModalStore()
 const uiStore = useUiStore()
@@ -265,6 +267,15 @@ function handlePin(commandId: string): void {
   commandStore.toggleCommandPin(commandId)
 }
 
+function handleServerNoticeAction(): void {
+  const notice = wsStore.serverActionNotice
+  if (!notice?.action) return
+  if (notice.action.kind === 'inspect_command') {
+    commandStore.inspectCommand(notice.action.commandId)
+    wsStore.dismissServerActionNotice(notice.id)
+  }
+}
+
 const renameOpen = ref(false)
 const renameCommandId = ref<string | null>(null)
 const renameValue = ref('')
@@ -309,6 +320,34 @@ function saveRename() {
 
 <template>
   <div class="flex flex-col h-full min-h-0">
+    <div
+      v-if="wsStore.serverActionNotice"
+      class="server-action-notice"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="min-w-0">
+        <div class="notice-title">Command blocked</div>
+        <div class="notice-message">{{ wsStore.serverActionNotice.message }}</div>
+      </div>
+      <div class="notice-actions">
+        <button
+          v-if="wsStore.serverActionNotice.action"
+          class="btn btn-sm"
+          @click="handleServerNoticeAction"
+        >
+          {{ wsStore.serverActionNotice.action.label }}
+        </button>
+        <button
+          class="btn btn-sm btn-ghost"
+          aria-label="Dismiss command notice"
+          @click="wsStore.dismissServerActionNotice(wsStore.serverActionNotice?.id)"
+        >
+          x
+        </button>
+      </div>
+    </div>
+
     <Transition name="expand">
       <div v-show="showFilters">
         <div class="panel-content space-y-3 p-2 text-xs">
@@ -757,6 +796,38 @@ function saveRename() {
 .pinned-body {
   flex: 1;
   min-height: 0;
+}
+
+.server-action-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--color-error) 12%, var(--panel-bg));
+  color: var(--color-text);
+  font-size: 12px;
+}
+
+.notice-title {
+  font-size: 10px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--color-error);
+}
+
+.notice-message {
+  margin-top: 2px;
+  line-height: 1.3;
+  color: var(--color-text);
+}
+
+.notice-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .pane-fill {

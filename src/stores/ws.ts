@@ -38,6 +38,16 @@ interface RawInboundRecord {
   payload: unknown
 }
 
+interface ServerActionNotice {
+  id: number
+  message: string
+  action?: {
+    kind: 'inspect_command'
+    commandId: Uuid
+    label: string
+  }
+}
+
 export const useWsStore = defineStore('ws', () => {
   const commandStore = useCommandStore()
   const deviceStore = useDeviceStore()
@@ -56,11 +66,13 @@ export const useWsStore = defineStore('ws', () => {
   const reconnectCount = ref(0)
   const authAccepted = ref<boolean | null>(null)
   const authError = ref<string | null>(null)
+  const serverActionNotice = ref<ServerActionNotice | null>(null)
   const marketCapabilities = ref<Record<string, MarketCapabilitiesData>>({})
   const orderThrottleSnapshots = ref<Record<string, OrderThrottleSnapshotData>>({})
   const symbolLeverageSnapshots = ref<Record<string, SymbolLeverageSnapshotData>>({})
   let lastPingSend: number | null = null
   let perfLoopTimer: number | null = null
+  let serverActionNoticeId = 0
   const pendingAccountRefreshes = new Set<Uuid>()
   const pendingAccountRefreshResolvers = new Map<
     Uuid,
@@ -164,6 +176,31 @@ export const useWsStore = defineStore('ws', () => {
     if (perfLoopTimer === null) return
     window.clearInterval(perfLoopTimer)
     perfLoopTimer = null
+  }
+
+  function dismissServerActionNotice(id?: number) {
+    if (id !== undefined && serverActionNotice.value?.id !== id) return
+    serverActionNotice.value = null
+  }
+
+  function maybeSetActionableServerError(message: string) {
+    const match = message.match(
+      /^Active same-side TE already exists for\s+(\S+)\s+(Long|Short)\s+on this account:\s+device\s+([0-9a-f-]{36})\s+command\s+([0-9a-f-]{36}|unknown)\./i,
+    )
+    if (!match) return
+    const [, symbol, side, , commandId] = match
+    serverActionNotice.value = {
+      id: ++serverActionNoticeId,
+      message: `Hyperliquid already has an active ${side.toLowerCase()} TE for ${symbol} on this account.`,
+      action:
+        commandId === 'unknown'
+          ? undefined
+          : {
+              kind: 'inspect_command',
+              commandId,
+              label: 'Show existing',
+            },
+    }
   }
 
   /* System Commands */
@@ -492,6 +529,7 @@ export const useWsStore = defineStore('ws', () => {
         accountRefreshResolver.reject(new Error(data.error))
       }
     }
+    maybeSetActionableServerError(data.error)
     if (isAuthError(data.error)) {
       authAccepted.value = false
       authError.value = data.error
@@ -651,12 +689,14 @@ export const useWsStore = defineStore('ws', () => {
     reconnectCount,
     authAccepted,
     authError,
+    serverActionNotice,
     marketCapabilities,
     // getters
     isConnected,
     // actions
     connect,
     disconnect,
+    dismissServerActionNotice,
     setInboundDebugEnabled,
     inspectCommand,
     sendSystemPing,
