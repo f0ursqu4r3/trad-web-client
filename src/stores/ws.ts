@@ -1,5 +1,6 @@
 import {
   type E2eBybitPublicTradeTick,
+  type E2eHyperliquidPublicTradeTick,
   type MarketContext,
   type MarketCapabilitiesData,
   type OrderThrottleSnapshotData,
@@ -338,6 +339,16 @@ export const useWsStore = defineStore('ws', () => {
   ) {
     return sendSystemCommand({
       kind: 'E2ePublishBybitPublicTrades',
+      data: { market_context: marketContext, ticks },
+    })
+  }
+
+  function e2ePublishHyperliquidPublicTrades(
+    marketContext: MarketContext,
+    ticks: E2eHyperliquidPublicTradeTick[],
+  ) {
+    return sendSystemCommand({
+      kind: 'E2ePublishHyperliquidPublicTrades',
       data: { market_context: marketContext, ticks },
     })
   }
@@ -715,6 +726,7 @@ export const useWsStore = defineStore('ws', () => {
     orderThrottleForMarketContext,
     requestSymbolLeverage,
     e2ePublishBybitPublicTrades,
+    e2ePublishHyperliquidPublicTrades,
     applySymbolLeverageSnapshot,
     symbolLeverageForMarketContext,
     getDeviceTree,

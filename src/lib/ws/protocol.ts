@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 13
+export const PROTOCOL_VERSION = 14
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -247,6 +247,7 @@ export type SystemMessagePayload =
   | { kind: 'GetOrderThrottleSnapshot'; data: GetOrderThrottleSnapshotRequest }
   | { kind: 'GetSymbolLeverage'; data: GetSymbolLeverageRequest }
   | { kind: 'E2ePublishBybitPublicTrades'; data: E2ePublishBybitPublicTradesRequest }
+  | { kind: 'E2ePublishHyperliquidPublicTrades'; data: E2ePublishHyperliquidPublicTradesRequest }
   | { kind: 'GetBalance'; data: GetBalanceRequest }
   | { kind: 'ListPositions'; data: ListPositionsRequest }
   | { kind: 'ListDevices'; data: ListDevicesCommand }
@@ -296,6 +297,18 @@ export type E2eBybitPublicTradeTick = {
 export type E2ePublishBybitPublicTradesRequest = {
   market_context: MarketContext
   ticks: E2eBybitPublicTradeTick[]
+}
+
+export type E2eHyperliquidPublicTradeTick = {
+  symbol: string
+  price: number
+  quantity?: number | null
+  side?: OrderSide | null
+}
+
+export type E2ePublishHyperliquidPublicTradesRequest = {
+  market_context: MarketContext
+  ticks: E2eHyperliquidPublicTradeTick[]
 }
 
 export type ListPositionsRequest = {
