@@ -90,6 +90,79 @@ test('Hyperliquid account panel renders exchange-keyed queue telemetry', async (
   await expect(accountPanel.getByText('9', { exact: true })).toBeVisible()
 })
 
+test('Hyperliquid account panel shows and saves builder fee bps clearly', async ({ page }) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  let metadataPayload: Record<string, unknown> | null = null
+  await page.route('**/api/accounts/**/exchange-metadata', async (route) => {
+    const request = route.request()
+    if (request.method() !== 'PUT') {
+      await route.continue()
+      return
+    }
+    metadataPayload = request.postDataJSON() as Record<string, unknown>
+    const exchangeMetadata = metadataPayload.exchange_metadata as Record<string, unknown>
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: '17171717-1717-4717-8717-171717171717',
+        label: 'Hyperliquid QA',
+        key: 'redacted',
+        network: 'testnet',
+        exchange: 'hyperliquid',
+        exchange_metadata: exchangeMetadata,
+      }),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+
+  const accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
+
+  await expect(accountPanel.getByText('Agent Wallet')).toBeVisible()
+  await expect(accountPanel.getByRole('button', { name: 'Approve Agent' })).toBeEnabled()
+  await expect(accountPanel.getByRole('button', { name: 'Refresh Agent' })).toBeEnabled()
+  await expect(accountPanel.getByText('Builder Address')).toBeVisible()
+  await expect(accountPanel.getByPlaceholder('0x builder wallet')).toHaveValue(
+    '0x3333333333333333333333333333333333333333',
+  )
+  await expect(accountPanel.getByText('1.0 bps = 0.010%')).toBeVisible()
+  await expect(accountPanel.getByText('Approved max:')).toBeVisible()
+  await expect(accountPanel.getByText('1.0 bps', { exact: true })).toBeVisible()
+  await expect(accountPanel.getByText('approved', { exact: true }).last()).toBeVisible()
+
+  await accountPanel.getByRole('spinbutton', { name: /Fee/ }).fill('2.5')
+  await expect(accountPanel.getByText('2.5 bps = 0.025%')).toBeVisible()
+  await accountPanel.getByRole('button', { name: 'Save', exact: true }).click()
+
+  await expect.poll(() => metadataPayload).not.toBeNull()
+  expect(metadataPayload).toEqual({
+    exchange_metadata: {
+      product: 'usdc_perp',
+      hedge_mode_only: false,
+      user_address: '0x1111111111111111111111111111111111111111',
+      agent_address: '0x2222222222222222222222222222222222222222',
+      agent_approved: true,
+      builder_address: '0x3333333333333333333333333333333333333333',
+      builder_fee_tenths_bps: 25,
+      max_builder_fee_tenths_bps: 10,
+      builder_approved: false,
+      default_leverage: 1,
+    },
+  })
+  await expect(
+    accountPanel.getByText('Saved Hyperliquid builder settings for Hyperliquid QA.'),
+  ).toBeVisible()
+})
+
 test('Bybit terminal remains inspectable with many active TE rows', async ({ page }) => {
   await page.route('**/auth/session', async (route) => {
     await route.fulfill({
