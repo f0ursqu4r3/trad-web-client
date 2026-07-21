@@ -98,6 +98,19 @@ const throttleDelayLabel = computed(() => {
   if (diffMs < 0) return 'Queued'
   return `Queued ${formatDuration(diffMs)}`
 })
+
+const oneWayEffectLabel = computed(() => {
+  const effect = props.device.one_way_position_effect
+  if (!effect) return null
+  return effect.opened_quantity > 1e-12 ? 'Reversal' : 'Reduction only'
+})
+
+const baselineSideLabel = computed(() => {
+  const quantity = props.device.one_way_position_effect?.baseline_signed_quantity ?? 0
+  if (quantity > 0) return 'Long'
+  if (quantity < 0) return 'Short'
+  return 'Flat'
+})
 </script>
 
 <template>
@@ -143,6 +156,35 @@ const throttleDelayLabel = computed(() => {
           <dd class="m-0 font-mono text-primary">
             {{ device.execution.input_value }}
             {{ device.execution.input_mode === 'notional' ? 'USDC' : device.symbol }}
+          </dd>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="device.one_way_position_effect" class="space-y-3">
+      <h4 class="section-title">One-Way Net Effect</h4>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
+        <div>
+          <dt class="dt-label">Outcome</dt>
+          <dd class="m-0 font-mono text-primary">{{ oneWayEffectLabel }}</dd>
+        </div>
+        <div>
+          <dt class="dt-label">Baseline</dt>
+          <dd class="m-0 font-mono text-primary">
+            {{ baselineSideLabel }}
+            {{ formatQty(Math.abs(device.one_way_position_effect.baseline_signed_quantity)) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="dt-label">Reduced</dt>
+          <dd class="m-0 font-mono text-primary">
+            {{ formatQty(device.one_way_position_effect.reduced_quantity) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="dt-label">Opened Residual</dt>
+          <dd class="m-0 font-mono text-primary">
+            {{ formatQty(device.one_way_position_effect.opened_quantity) }}
           </dd>
         </div>
       </div>

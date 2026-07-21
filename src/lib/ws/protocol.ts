@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 16
+export const PROTOCOL_VERSION = 17
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -778,6 +778,12 @@ export type TrailingEntryStats = {
   dust_threshold: number
 }
 
+export type OneWayPositionEffect = {
+  baseline_signed_quantity: number
+  reduced_quantity: number
+  opened_quantity: number
+}
+
 export type MarketOrderSnapshot = {
   market_context: MarketContext
   market_action: MarketAction
@@ -788,6 +794,7 @@ export type MarketOrderSnapshot = {
   price: number
   execution?: OrderExecution
   throttle?: boolean | null
+  one_way_position_effect?: OneWayPositionEffect | null
   status: MarketOrderStatus
   filled_qty?: number | null
   remote_id?: number | null
@@ -937,6 +944,7 @@ export type DeviceMoDelta =
         price: number
         execution?: OrderExecution
         throttle?: boolean | null
+        one_way_position_effect?: OneWayPositionEffect | null
         status: MarketOrderStatus
         filled_qty?: number | null
         client_order_id?: string | null
@@ -955,6 +963,7 @@ export type DeviceMoDelta =
         sent_at?: string | null
       }
     }
+  | { kind: 'OneWayPositionEffect'; data: { effect: OneWayPositionEffect } }
   | {
       kind: 'PartiallyFilled'
       data: { cum_qty?: number | null; last_qty?: number | null; price?: number | null }

@@ -285,6 +285,7 @@ export const useDeviceStore = defineStore('device', () => {
         mo.price = s.price
         mo.execution = s.execution ?? { kind: 'market' }
         mo.throttle = s.throttle ?? false
+        mo.one_way_position_effect = s.one_way_position_effect ?? null
         mo.status = s.status
         mo.filled_qty = s.filled_qty ?? null
         mo.remote_id = s.remote_id ?? null
@@ -580,6 +581,7 @@ export const useDeviceStore = defineStore('device', () => {
             price,
             execution,
             throttle,
+            one_way_position_effect,
             status,
             filled_qty,
             client_order_id,
@@ -595,6 +597,7 @@ export const useDeviceStore = defineStore('device', () => {
           mo.price = price
           mo.execution = execution ?? { kind: 'market' }
           mo.throttle = throttle ?? false
+          mo.one_way_position_effect = one_way_position_effect ?? null
           mo.status = status
           mo.filled_qty = filled_qty ?? null
           mo.client_order_id = client_order_id || null
@@ -603,6 +606,9 @@ export const useDeviceStore = defineStore('device', () => {
             bindParent(device, parent_device)
           }
         }
+        break
+      case 'OneWayPositionEffect':
+        mo.one_way_position_effect = delta.data.effect
         break
       case 'Submitted':
         {
@@ -1097,6 +1103,7 @@ export interface MarketOrderState {
   price: number
   execution: OrderExecution
   throttle: boolean
+  one_way_position_effect: import('@/lib/ws/protocol').OneWayPositionEffect | null
 
   status: MarketOrderStatus
   filled_qty: number | null
@@ -1269,6 +1276,7 @@ function newMarketOrderState(): MarketOrderState {
     price: 0,
     execution: { kind: 'market' },
     throttle: false,
+    one_way_position_effect: null,
     status: MarketOrderStatus.NotYetSent,
     filled_qty: null,
     remote_id: null,
