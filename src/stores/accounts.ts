@@ -28,6 +28,7 @@ export interface AccountFormPayload {
   network: NetworkType
   exchange: ExchangeType
   exchange_metadata?: ExchangeAccountMetadata | null
+  generate_hyperliquid_agent_key?: boolean
 }
 
 export interface HyperliquidBuilderApprovalPayload {
@@ -72,17 +73,13 @@ interface HyperliquidBuilderApprovalRefreshResponse {
   builder_approved: boolean
 }
 
-export interface HyperliquidGeneratedAgentKey {
-  private_key: string
-  agent_address: string
-}
-
 export interface AccountKeyValidationPayload {
   key: string
   secret: string
   network: NetworkType
   exchange: ExchangeType
   exchange_metadata?: ExchangeAccountMetadata | null
+  generate_hyperliquid_agent_key?: boolean
 }
 
 export interface AccountKeyValidationResponse {
@@ -247,14 +244,6 @@ export const useAccountsStore = defineStore('accounts', () => {
       throw new Error(response.error)
     }
     return response as AccountKeyValidationResponse
-  }
-
-  async function generateHyperliquidAgentKey(): Promise<HyperliquidGeneratedAgentKey> {
-    return await apiPost<HyperliquidGeneratedAgentKey>(
-      '/accounts/hyperliquid/agent-key',
-      undefined,
-      { throwOnHTTPError: true },
-    )
   }
 
   async function updateAccountMetadata(
@@ -492,7 +481,6 @@ export const useAccountsStore = defineStore('accounts', () => {
     refreshHyperliquidBuilderApproval,
     approveHyperliquidAgent,
     refreshHyperliquidAgentApproval,
-    generateHyperliquidAgentKey,
     removeAccount,
     reorderAccounts,
     getMarketContextForAccount,

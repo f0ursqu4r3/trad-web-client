@@ -33,6 +33,7 @@ const exchange = ref<ExchangeType>(DEFAULT_EXCHANGE)
 const name = ref('')
 const apiKey = ref('')
 const secretKey = ref('')
+const hyperliquidAgentMode = ref<'generated' | 'existing'>('generated')
 const hyperliquidVaultAddress = ref('')
 const hyperliquidBuilderFeeBps = ref('1')
 const hyperliquidDefaultLeverage = ref('1')
@@ -41,15 +42,14 @@ const formError = ref<string | null>(null)
 const isSubmitting = ref(false)
 const isRefreshingAfterCreate = ref(false)
 const isValidating = ref(false)
-const isGeneratingHyperliquidAgentKey = ref(false)
-const generatedHyperliquidAgentAddress = ref<string | null>(null)
-const generatedHyperliquidAgentError = ref<string | null>(null)
-const lastGeneratedHyperliquidAgentSecret = ref<string | null>(null)
 const validationResult = ref<AccountKeyValidationResponse | null>(null)
 const validationError = ref<string | null>(null)
 const isBybit = computed(() => exchange.value === ExchangeType.Bybit)
 const isHyperliquid = computed(() => exchange.value === ExchangeType.Hyperliquid)
 const requiresValidation = computed(() => isBybit.value || isHyperliquid.value)
+const requiresSecret = computed(
+  () => !isHyperliquid.value || hyperliquidAgentMode.value === 'existing',
+)
 const hasKeyValidationPass = computed(() => {
   return !requiresValidation.value || validationResult.value?.valid === true
 })
@@ -65,12 +65,16 @@ const validationTitle = computed(() =>
 )
 const validationCopy = computed(() =>
   isHyperliquid.value
-    ? 'Validate the wallet address, derived agent wallet, and read-only Hyperliquid account-state access before saving. Agent and builder approvals are handled separately with wallet signatures.'
+    ? hyperliquidAgentMode.value === 'generated'
+      ? 'Validate the wallet and read-only Hyperliquid account-state access. Trad generates and encrypts the agent key only when the account is saved; agent and builder approvals follow with wallet signatures.'
+      : 'Validate the wallet address, derived existing agent wallet, and read-only Hyperliquid account-state access before saving. Agent and builder approvals are handled separately with wallet signatures.'
     : 'Validate this key before saving. If permissions are changed on Bybit, run the check again.',
 )
 const validationSuccess = computed(() =>
   isHyperliquid.value
-    ? 'Wallet, agent key, and read-only Hyperliquid account-state access are valid.'
+    ? hyperliquidAgentMode.value === 'generated'
+      ? 'Wallet and read-only account access are valid. The agent key will be generated securely when saved.'
+      : 'Wallet, existing agent key, and read-only Hyperliquid account-state access are valid.'
     : 'Key permissions are valid for Bybit USDT perpetual trading.',
 )
 const builderFeeTenthsBps = computed(() => {
@@ -97,7 +101,7 @@ const isSubmitDisabled = computed(() => {
     !network.value ||
     !name.value.trim() ||
     !apiKey.value.trim() ||
-    !secretKey.value.trim() ||
+    (requiresSecret.value && !secretKey.value.trim()) ||
     isValidating.value ||
     !hasKeyValidationPass.value ||
     !isHyperliquidMetadataValid.value
@@ -121,6 +125,7 @@ function reset() {
   name.value = ''
   apiKey.value = ''
   secretKey.value = ''
+  hyperliquidAgentMode.value = 'generated'
   hyperliquidVaultAddress.value = ''
   hyperliquidBuilderFeeBps.value = '1'
   hyperliquidDefaultLeverage.value = '1'
@@ -129,10 +134,6 @@ function reset() {
   isSubmitting.value = false
   isRefreshingAfterCreate.value = false
   isValidating.value = false
-  isGeneratingHyperliquidAgentKey.value = false
-  generatedHyperliquidAgentAddress.value = null
-  generatedHyperliquidAgentError.value = null
-  lastGeneratedHyperliquidAgentSecret.value = null
   validationResult.value = null
   validationError.value = null
 }
@@ -146,16 +147,9 @@ watch(
   },
 )
 
-watch([apiKey, secretKey, network, exchange], () => {
+watch([apiKey, secretKey, network, exchange, hyperliquidAgentMode], () => {
   validationResult.value = null
   validationError.value = null
-})
-
-watch(secretKey, (next) => {
-  if (next && next === lastGeneratedHyperliquidAgentSecret.value) return
-  lastGeneratedHyperliquidAgentSecret.value = null
-  generatedHyperliquidAgentAddress.value = null
-  generatedHyperliquidAgentError.value = null
 })
 
 function close() {
@@ -163,7 +157,12 @@ function close() {
 }
 
 async function validatePermissions() {
-  if (!apiKey.value.trim() || !secretKey.value.trim() || isValidating.value) return
+  if (
+    !apiKey.value.trim() ||
+    (requiresSecret.value && !secretKey.value.trim()) ||
+    isValidating.value
+  )
+    return
   isValidating.value = true
   validationResult.value = null
   validationError.value = null
@@ -175,6 +174,9 @@ async function validatePermissions() {
       network: network.value,
       exchange: exchange.value,
       exchange_metadata: buildExchangeMetadata(),
+      ...(isHyperliquid.value
+        ? { generate_hyperliquid_agent_key: hyperliquidAgentMode.value === 'generated' }
+        : {}),
     })
   } catch (err) {
     validationError.value = err instanceof Error ? err.message : String(err)
@@ -183,31 +185,11 @@ async function validatePermissions() {
   }
 }
 
-async function generateHyperliquidAgentKey() {
-  if (!isHyperliquid.value || isGeneratingHyperliquidAgentKey.value) return
-  isGeneratingHyperliquidAgentKey.value = true
-  generatedHyperliquidAgentAddress.value = null
-  generatedHyperliquidAgentError.value = null
-  validationResult.value = null
-  validationError.value = null
-  formError.value = null
-  try {
-    const generated = await accounts.generateHyperliquidAgentKey()
-    lastGeneratedHyperliquidAgentSecret.value = generated.private_key
-    secretKey.value = generated.private_key
-    generatedHyperliquidAgentAddress.value = generated.agent_address
-  } catch (err) {
-    generatedHyperliquidAgentError.value = err instanceof Error ? err.message : String(err)
-  } finally {
-    isGeneratingHyperliquidAgentKey.value = false
-  }
-}
-
 async function submit() {
   if (isSubmitDisabled.value || isSubmitting.value) return
   if (requiresValidation.value && validationResult.value?.valid !== true) {
     formError.value = isHyperliquid.value
-      ? 'Check Hyperliquid wallet and agent key before creating this account.'
+      ? 'Check the Hyperliquid wallet and agent setup before creating this account.'
       : 'Check Bybit key permissions before creating this account.'
     return
   }
@@ -223,6 +205,9 @@ async function submit() {
         network: network.value,
         exchange: exchange.value,
         exchange_metadata: buildExchangeMetadata(),
+        ...(isHyperliquid.value
+          ? { generate_hyperliquid_agent_key: hyperliquidAgentMode.value === 'generated' }
+          : {}),
       }),
     )
     if (isBybit.value && createdAccount) {
@@ -316,34 +301,49 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
             :placeholder="keyPlaceholder"
           />
         </label>
-        <label class="field">
-          <span>{{ secretLabel }}</span>
-          <div class="input-action-row">
-            <input
-              v-model.trim="secretKey"
-              class="input"
-              :class="keyInputClass"
-              type="password"
-              autocomplete="new-password"
-              :placeholder="secretPlaceholder"
-            />
+        <div v-if="isHyperliquid" class="field col-span-2">
+          <span>Agent Key Source</span>
+          <div class="input-action-row" role="group" aria-label="Agent Key Source">
             <button
-              v-if="isHyperliquid"
               type="button"
-              class="btn btn-secondary compact-action"
-              :disabled="isGeneratingHyperliquidAgentKey"
-              @click="generateHyperliquidAgentKey"
+              class="btn flex-1"
+              :class="hyperliquidAgentMode === 'generated' ? 'btn-primary' : 'btn-secondary'"
+              :aria-pressed="hyperliquidAgentMode === 'generated'"
+              @click="hyperliquidAgentMode = 'generated'"
             >
-              {{ isGeneratingHyperliquidAgentKey ? 'generating' : 'generate' }}
+              Generate securely
+            </button>
+            <button
+              type="button"
+              class="btn flex-1"
+              :class="hyperliquidAgentMode === 'existing' ? 'btn-primary' : 'btn-secondary'"
+              :aria-pressed="hyperliquidAgentMode === 'existing'"
+              @click="hyperliquidAgentMode = 'existing'"
+            >
+              Use existing
             </button>
           </div>
-          <small v-if="generatedHyperliquidAgentAddress" class="field-hint">
-            Generated agent {{ generatedHyperliquidAgentAddress }}. Its private key is masked;
-            validate, save, then approve this agent with your wallet.
+          <small class="field-hint">
+            <template v-if="hyperliquidAgentMode === 'generated'">
+              Trad generates the private key while saving and stores it encrypted. It is never sent
+              to this browser.
+            </template>
+            <template v-else>
+              Use a dedicated Hyperliquid API wallet key. The key is sent once over the
+              authenticated connection and stored encrypted.
+            </template>
           </small>
-          <small v-else-if="generatedHyperliquidAgentError" class="field-error">
-            {{ generatedHyperliquidAgentError }}
-          </small>
+        </div>
+        <label v-if="requiresSecret" class="field">
+          <span>{{ secretLabel }}</span>
+          <input
+            v-model.trim="secretKey"
+            class="input"
+            :class="keyInputClass"
+            type="password"
+            autocomplete="new-password"
+            :placeholder="secretPlaceholder"
+          />
         </label>
         <template v-if="isHyperliquid">
           <label class="field">
@@ -423,7 +423,7 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
           <div class="permission-note-title">Required Hyperliquid setup</div>
           <div class="permission-note-grid">
             <span>User wallet address</span>
-            <span>Agent private key</span>
+            <span>Dedicated agent wallet</span>
             <span>USDC perpetual trading</span>
             <span>Builder approval via wallet signature</span>
           </div>
@@ -446,7 +446,7 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
             <button
               type="button"
               class="btn btn-secondary"
-              :disabled="isValidating || !apiKey.trim() || !secretKey.trim()"
+              :disabled="isValidating || !apiKey.trim() || (requiresSecret && !secretKey.trim())"
               @click="validatePermissions"
             >
               <span v-if="isValidating">Checking...</span>

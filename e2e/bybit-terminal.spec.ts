@@ -880,17 +880,6 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
   await page.route('**/api/accounts**', async (route) => {
     const request = route.request()
     const url = request.url()
-    if (request.method() === 'POST' && url.includes('/api/accounts/hyperliquid/agent-key')) {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          private_key: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-          agent_address: '0x2222222222222222222222222222222222222222',
-        }),
-      })
-      return
-    }
     if (request.method() === 'POST' && url.includes('/api/accounts/validate')) {
       validationPayload = request.postDataJSON() as Record<string, unknown>
       await route.fulfill({
@@ -903,7 +892,7 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
           network: 'testnet',
           present_permissions: [
             'User wallet address valid',
-            'Agent private key valid',
+            'Agent private key will be generated and encrypted by Trad when saved',
             'Read-only account state reachable',
           ],
           missing_requirements: [],
@@ -941,6 +930,7 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
                   product: 'usdc_perp',
                   hedge_mode_only: false,
                   vault_address: '0x4444444444444444444444444444444444444444',
+                  agent_address: '0x2222222222222222222222222222222222222222',
                   builder_address: '0x3333333333333333333333333333333333333333',
                   builder_fee_tenths_bps: 15,
                   builder_approved: false,
@@ -999,17 +989,12 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
 
   await dialog.getByPlaceholder('Account alias').fill('  Hyperliquid Live QA  ')
   await dialog.getByPlaceholder('0x...').fill('  0x1111111111111111111111111111111111111111  ')
-  await dialog.getByRole('button', { name: 'generate' }).click()
-  await expect(
-    dialog.getByText('Generated agent 0x2222222222222222222222222222222222222222'),
-  ).toBeVisible()
-  await expect(dialog.getByPlaceholder('32-byte hex private key')).toHaveValue(
-    '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  await expect(dialog.getByRole('button', { name: 'Generate securely' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
   )
-  await expect(dialog.getByPlaceholder('32-byte hex private key')).toHaveAttribute(
-    'type',
-    'password',
-  )
+  await expect(dialog.getByText('It is never sent to this browser.')).toBeVisible()
+  await expect(dialog.getByPlaceholder('32-byte hex private key')).toHaveCount(0)
   await dialog
     .getByPlaceholder('Optional 0x vault address')
     .fill('0x4444444444444444444444444444444444444444')
@@ -1022,7 +1007,7 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
   await dialog.getByRole('button', { name: 'Check permissions' }).click()
   await expect(
     dialog.getByText(
-      'Wallet, agent key, and read-only Hyperliquid account-state access are valid.',
+      'Wallet and read-only account access are valid. The agent key will be generated securely when saved.',
     ),
   ).toBeVisible()
   await expect(
@@ -1047,20 +1032,22 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
   await expect.poll(() => validationPayload?.exchange).toBe('hyperliquid')
   expect(validationPayload).toEqual({
     key: '0x1111111111111111111111111111111111111111',
-    secret: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    secret: '',
     network: 'testnet',
     exchange: 'hyperliquid',
     exchange_metadata: expectedMetadata,
+    generate_hyperliquid_agent_key: true,
   })
   await expect.poll(() => putPayload?.exchange).toBe('hyperliquid')
   expect(putUrl).toContain('/api/accounts/Hyperliquid%20Live%20QA')
   expect(putPayload).toEqual({
     label: 'Hyperliquid Live QA',
     key: '0x1111111111111111111111111111111111111111',
-    secret: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    secret: '',
     network: 'testnet',
     exchange: 'hyperliquid',
     exchange_metadata: expectedMetadata,
+    generate_hyperliquid_agent_key: true,
   })
   await expect(dialog).toBeHidden()
   await expect(accountPanel.getByText('(vault/subaccount)', { exact: true })).toBeVisible()
@@ -1140,6 +1127,7 @@ test('Hyperliquid account creation accepts a pasted existing agent key', async (
   const dialog = page.getByRole('dialog')
   await dialog.locator('select').nth(0).selectOption('testnet')
   await dialog.locator('select').nth(1).selectOption('hyperliquid')
+  await dialog.getByRole('button', { name: 'Use existing' }).click()
   await dialog.getByPlaceholder('Account alias').fill('Existing Agent QA')
   await dialog.getByPlaceholder('0x...').fill('0x1111111111111111111111111111111111111111')
   await dialog.getByPlaceholder('32-byte hex private key').fill(existingSecret)
@@ -1149,7 +1137,9 @@ test('Hyperliquid account creation accepts a pasted existing agent key', async (
   await dialog.getByRole('button', { name: 'Create' }).click()
 
   await expect.poll(() => validationPayload?.secret).toBe(existingSecret)
+  await expect.poll(() => validationPayload?.generate_hyperliquid_agent_key).toBe(false)
   await expect.poll(() => createPayload?.secret).toBe(existingSecret)
+  await expect.poll(() => createPayload?.generate_hyperliquid_agent_key).toBe(false)
   await expect(dialog).toBeHidden()
   await expect(accountPanel.getByRole('button', { name: /Existing Agent QA/ })).toHaveAttribute(
     'aria-pressed',

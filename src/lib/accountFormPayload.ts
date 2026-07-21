@@ -8,6 +8,7 @@ export interface AccountFormInput {
   network: NetworkType
   exchange: ExchangeType
   exchange_metadata?: ExchangeAccountMetadata | null
+  generate_hyperliquid_agent_key?: boolean
 }
 
 export function buildAccountFormPayload(input: AccountFormInput): AccountFormPayload {
@@ -18,5 +19,8 @@ export function buildAccountFormPayload(input: AccountFormInput): AccountFormPay
     network: input.network.toLowerCase() as NetworkType,
     exchange: input.exchange.toLowerCase() as ExchangeType,
     exchange_metadata: input.exchange_metadata ?? null,
+    ...(input.generate_hyperliquid_agent_key !== undefined
+      ? { generate_hyperliquid_agent_key: input.generate_hyperliquid_agent_key }
+      : {}),
   }
 }
