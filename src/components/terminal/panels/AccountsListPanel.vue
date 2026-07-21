@@ -11,7 +11,11 @@ import { useWsStore } from '@/stores/ws'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 import { X } from 'lucide-vue-next'
 import { getWebSocketToken } from '@/lib/auth'
-import { isValidBybitUsdtSymbol, normalizeBybitUsdtSymbol } from '@/lib/bybitOrderValidation'
+import {
+  isValidBybitUsdtSymbol,
+  normalizeBybitUsdtSymbol,
+  normalizeHyperliquidPerpSymbol,
+} from '@/lib/bybitOrderValidation'
 import { signHyperliquidBuilderApproval } from '@/lib/hyperliquidBuilderApproval'
 import { createLogger } from '@/lib/utils'
 import {
@@ -35,7 +39,9 @@ const savingBuilderAccountIds = ref<Set<string>>(new Set())
 const refreshError = ref<string | null>(null)
 const controlError = ref<string | null>(null)
 const controlMessage = ref<string | null>(null)
-const leverageForms = reactive<Record<string, { symbols: string; leverage: number }>>({})
+const leverageForms = reactive<
+  Record<string, { symbols: string; leverage: number; defaultLeverage: number }>
+>({})
 const builderForms = reactive<Record<string, { address: string; feeBps: string }>>({})
 let throttleRefreshTimer: number | null = null
 
@@ -99,9 +105,19 @@ async function refreshAccountKeys(account: AccountRecord) {
 
 function ensureLeverageForm(account: AccountRecord) {
   if (leverageForms[account.id]) return
+  const overrides = account.exchange_metadata?.symbol_leverage_overrides ?? {}
+  const overrideSymbols = Object.keys(overrides)
+  const defaultLeverage = account.exchange_metadata?.default_leverage ?? 1
   leverageForms[account.id] = {
-    symbols: accounts.getDefaultSymbolForAccount(account.id),
-    leverage: 1,
+    symbols:
+      account.exchange === ExchangeType.Hyperliquid && overrideSymbols.length > 0
+        ? overrideSymbols.join(', ')
+        : accounts.getDefaultSymbolForAccount(account.id),
+    leverage:
+      account.exchange === ExchangeType.Hyperliquid && overrideSymbols.length > 0
+        ? (overrides[overrideSymbols[0]] ?? defaultLeverage)
+        : defaultLeverage,
+    defaultLeverage,
   }
 }
 
@@ -177,6 +193,15 @@ function validateLeverage(account: AccountRecord): boolean {
   if (symbols.length === 0) return false
   if (!Number.isFinite(form.leverage) || form.leverage <= 0) return false
   return ws.status === 'ready'
+}
+
+function canSaveHyperliquidLeveragePrefs(account: AccountRecord): boolean {
+  if (account.exchange !== ExchangeType.Hyperliquid) return false
+  const form = leverageForms[account.id]
+  if (!form) return false
+  if (!Number.isInteger(form.defaultLeverage) || form.defaultLeverage < 1) return false
+  if (!Number.isInteger(form.leverage) || form.leverage < 1) return false
+  return true
 }
 
 function canCheckLeverage(account: AccountRecord): boolean {
@@ -350,11 +375,45 @@ function parseLeverageSymbols(account: AccountRecord, raw: string): string[] {
       if (account.exchange === ExchangeType.Bybit) {
         return isValidBybitUsdtSymbol(token) ? normalizeBybitUsdtSymbol(token) : ''
       }
+      if (account.exchange === ExchangeType.Hyperliquid) {
+        return normalizeHyperliquidPerpSymbol(token)
+      }
       return token.toUpperCase()
     })
     .filter(Boolean)
 
   return [...new Set(symbols)]
+}
+
+async function saveHyperliquidLeveragePrefs(account: AccountRecord) {
+  controlError.value = null
+  controlMessage.value = null
+  if (!canSaveHyperliquidLeveragePrefs(account)) {
+    controlError.value = 'Hyperliquid leverage preferences are invalid.'
+    return
+  }
+  const form = leverageForms[account.id]
+  const symbols = parseLeverageSymbols(account, form.symbols)
+  const overrides = symbols.reduce<Record<string, number>>((map, symbol) => {
+    map[symbol] = form.leverage
+    return map
+  }, {})
+  try {
+    await accounts.updateAccountMetadata(account.id, {
+      ...account.exchange_metadata,
+      product: 'usdc_perp',
+      hedge_mode_only: false,
+      default_leverage: form.defaultLeverage,
+      symbol_leverage_overrides: overrides,
+    })
+    await accounts.fetchAccounts()
+    controlMessage.value =
+      symbols.length > 0
+        ? `Saved Hyperliquid ${form.defaultLeverage}x default and ${symbols.length} symbol override${symbols.length === 1 ? '' : 's'}.`
+        : `Saved Hyperliquid ${form.defaultLeverage}x default and cleared symbol overrides.`
+  } catch (err) {
+    controlError.value = err instanceof Error ? err.message : String(err)
+  }
 }
 
 function summarizeSymbols(symbols: string[]): string {
@@ -594,11 +653,31 @@ watch(
                   >
                     Comma or space separated; applied per symbol.
                   </span>
+                  <span
+                    v-else-if="account.exchange === ExchangeType.Hyperliquid"
+                    class="normal-case tracking-normal text-[var(--color-text-dim)]"
+                  >
+                    Optional persisted overrides; blank clears overrides.
+                  </span>
                 </label>
                 <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
                   <span>Lev</span>
                   <input
                     v-model.number="leverageForms[account.id].leverage"
+                    class="input h-7 text-xs"
+                    type="number"
+                    min="1"
+                    step="1"
+                    @focus="ensureLeverageForm(account)"
+                  />
+                </label>
+                <label
+                  v-if="account.exchange === ExchangeType.Hyperliquid"
+                  class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim"
+                >
+                  <span>Default</span>
+                  <input
+                    v-model.number="leverageForms[account.id].defaultLeverage"
                     class="input h-7 text-xs"
                     type="number"
                     min="1"
@@ -613,6 +692,15 @@ watch(
                   @click="setLeverage(account)"
                 >
                   Set Leverage
+                </button>
+                <button
+                  v-if="account.exchange === ExchangeType.Hyperliquid"
+                  class="btn btn-secondary btn-xs self-end"
+                  type="button"
+                  :disabled="!canSaveHyperliquidLeveragePrefs(account)"
+                  @click="saveHyperliquidLeveragePrefs(account)"
+                >
+                  Save Prefs
                 </button>
                 <button
                   v-if="account.exchange === ExchangeType.Bybit"
@@ -632,6 +720,14 @@ watch(
                   Enable Hedge
                 </button>
               </div>
+              <p
+                v-if="accounts.selectedAccountId === account.id && account.exchange === ExchangeType.Hyperliquid"
+                class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)]"
+              >
+                Hyperliquid leverage is one-way per-symbol exchange state. Save prefs records the
+                account default and symbol overrides in Trad; Set Leverage applies the current value
+                to the exchange for the symbols entered above.
+              </p>
               <p
                 v-if="accounts.selectedAccountId === account.id && account.exchange === ExchangeType.Bybit"
                 class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)]"

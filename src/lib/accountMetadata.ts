@@ -14,6 +14,7 @@ export interface ExchangeAccountMetadataLike {
   builder_approved?: boolean | null
   agent_approved?: boolean | null
   default_leverage?: number | null
+  symbol_leverage_overrides?: Record<string, number> | null
 }
 
 export interface AccountMetadataLike {
@@ -77,6 +78,8 @@ export function accountMetadataChips(account: AccountMetadataLike): string[] {
     else chips.push('Builder unvalidated')
     if (meta?.vault_address) chips.push('Vault/subaccount')
     if (meta?.default_leverage) chips.push(`${meta.default_leverage}x default`)
+    const overrideCount = Object.keys(meta?.symbol_leverage_overrides ?? {}).length
+    if (overrideCount) chips.push(`${overrideCount} lev override${overrideCount === 1 ? '' : 's'}`)
   }
   return chips
 }

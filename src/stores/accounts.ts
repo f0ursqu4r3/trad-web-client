@@ -85,6 +85,7 @@ export interface ExchangeAccountMetadata {
   builder_approved?: boolean | null
   agent_approved?: boolean | null
   default_leverage?: number | null
+  symbol_leverage_overrides?: Record<string, number> | null
 }
 
 export interface AccountRecord {
