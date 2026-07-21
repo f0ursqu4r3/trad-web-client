@@ -236,6 +236,12 @@ function builderFeeEquivalent(account: AccountRecord): string {
   return `${(fee / 10).toFixed(1)} bps = ${(fee / 1000).toFixed(3)}%`
 }
 
+function approvedBuilderMaxLabel(account: AccountRecord): string {
+  const meta = account.exchange_metadata
+  if (meta?.builder_approved !== true) return 'not verified'
+  return `${((meta.max_builder_fee_tenths_bps ?? 0) / 10).toFixed(1)} bps`
+}
+
 function canSaveHyperliquidBuilder(account: AccountRecord): boolean {
   if (account.exchange !== ExchangeType.Hyperliquid) return false
   const fee = builderFeeTenthsBps(account)
@@ -942,7 +948,7 @@ watch(
                 <p class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)] md:col-span-5">
                   Approved max:
                   <span class="font-mono text-primary">
-                    {{ ((account.exchange_metadata?.max_builder_fee_tenths_bps ?? 0) / 10).toFixed(1) }} bps
+                    {{ approvedBuilderMaxLabel(account) }}
                   </span>
                   · Status:
                   <span class="font-mono text-primary">

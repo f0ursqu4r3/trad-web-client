@@ -206,7 +206,6 @@ function buildExchangeMetadata() {
     vault_address: hyperliquidVaultAddress.value.trim() || null,
     builder_address: hyperliquidBuilderAddress.value.trim() || null,
     builder_fee_tenths_bps: builderFeeTenthsBps.value,
-    max_builder_fee_tenths_bps: 100,
     builder_approved: false,
     agent_approved: false,
     default_leverage: defaultLeverage.value,
