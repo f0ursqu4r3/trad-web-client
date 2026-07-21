@@ -37,6 +37,7 @@ const hyperliquidVaultAddress = ref('')
 const hyperliquidBuilderAddress = ref('')
 const hyperliquidBuilderFeeBps = ref('1')
 const hyperliquidDefaultLeverage = ref('1')
+const hyperliquidMarginMode = ref<'cross' | 'isolated'>('cross')
 const formError = ref<string | null>(null)
 const isSubmitting = ref(false)
 const isRefreshingAfterCreate = ref(false)
@@ -128,6 +129,7 @@ function reset() {
   hyperliquidBuilderAddress.value = ''
   hyperliquidBuilderFeeBps.value = '1'
   hyperliquidDefaultLeverage.value = '1'
+  hyperliquidMarginMode.value = 'cross'
   formError.value = null
   isSubmitting.value = false
   isRefreshingAfterCreate.value = false
@@ -250,6 +252,7 @@ function buildExchangeMetadata() {
     builder_approved: false,
     agent_approved: false,
     default_leverage: defaultLeverage.value,
+    margin_mode: hyperliquidMarginMode.value,
   }
 }
 
@@ -359,6 +362,13 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
               step="1"
               placeholder="1"
             />
+          </label>
+          <label class="field">
+            <span>Margin Mode</span>
+            <select v-model="hyperliquidMarginMode" class="input">
+              <option value="cross">Cross</option>
+              <option value="isolated">Isolated</option>
+            </select>
           </label>
           <label class="field">
             <span>Builder Address</span>

@@ -46,7 +46,15 @@ const refreshError = ref<string | null>(null)
 const controlError = ref<string | null>(null)
 const controlMessage = ref<string | null>(null)
 const leverageForms = reactive<
-  Record<string, { symbols: string; leverage: number; defaultLeverage: number }>
+  Record<
+    string,
+    {
+      symbols: string
+      leverage: number
+      defaultLeverage: number
+      marginMode: 'cross' | 'isolated'
+    }
+  >
 >({})
 const builderForms = reactive<Record<string, { address: string; feeBps: string }>>({})
 let throttleRefreshTimer: number | null = null
@@ -114,6 +122,7 @@ function ensureLeverageForm(account: AccountRecord) {
   const overrides = account.exchange_metadata?.symbol_leverage_overrides ?? {}
   const overrideSymbols = Object.keys(overrides)
   const defaultLeverage = account.exchange_metadata?.default_leverage ?? 1
+  const marginMode = normalizeHyperliquidMarginMode(account.exchange_metadata?.margin_mode)
   leverageForms[account.id] = {
     symbols:
       account.exchange === ExchangeType.Hyperliquid && overrideSymbols.length > 0
@@ -124,7 +133,12 @@ function ensureLeverageForm(account: AccountRecord) {
         ? (overrides[overrideSymbols[0]] ?? defaultLeverage)
         : defaultLeverage,
     defaultLeverage,
+    marginMode,
   }
+}
+
+function normalizeHyperliquidMarginMode(value: string | null | undefined): 'cross' | 'isolated' {
+  return value?.trim().toLowerCase() === 'isolated' ? 'isolated' : 'cross'
 }
 
 function ensureBuilderForm(account: AccountRecord) {
@@ -207,6 +221,7 @@ function canSaveHyperliquidLeveragePrefs(account: AccountRecord): boolean {
   if (!form) return false
   if (!Number.isInteger(form.defaultLeverage) || form.defaultLeverage < 1) return false
   if (!Number.isInteger(form.leverage) || form.leverage < 1) return false
+  if (form.marginMode !== 'cross' && form.marginMode !== 'isolated') return false
   return true
 }
 
@@ -442,6 +457,7 @@ function setLeverage(account: AccountRecord) {
         symbol,
         leverage: form.leverage,
         market_context: marketContext,
+        margin_mode: account.exchange === ExchangeType.Hyperliquid ? form.marginMode : null,
       },
     }
     ws.sendUserCommand(payload)
@@ -516,6 +532,7 @@ async function saveHyperliquidLeveragePrefs(account: AccountRecord) {
       product: 'usdc_perp',
       hedge_mode_only: false,
       default_leverage: form.defaultLeverage,
+      margin_mode: form.marginMode,
       symbol_leverage_overrides: overrides,
     })
     await accounts.fetchAccounts()
@@ -797,6 +814,20 @@ watch(
                     @focus="ensureLeverageForm(account)"
                   />
                 </label>
+                <label
+                  v-if="account.exchange === ExchangeType.Hyperliquid"
+                  class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim"
+                >
+                  <span>Mode</span>
+                  <select
+                    v-model="leverageForms[account.id].marginMode"
+                    class="input h-7 text-xs"
+                    @focus="ensureLeverageForm(account)"
+                  >
+                    <option value="cross">Cross</option>
+                    <option value="isolated">Isolated</option>
+                  </select>
+                </label>
                 <button
                   class="btn btn-secondary btn-xs self-end"
                   type="button"
@@ -837,8 +868,8 @@ watch(
                 class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)]"
               >
                 Hyperliquid leverage is one-way per-symbol exchange state. Save prefs records the
-                account default and symbol overrides in Trad; Set Leverage applies the current value
-                to the exchange for the symbols entered above.
+                account default, margin mode, and symbol overrides in Trad; Set Leverage applies
+                the current leverage and margin mode to the exchange for the symbols entered above.
               </p>
               <p
                 v-if="accounts.selectedAccountId === account.id && account.exchange === ExchangeType.Bybit"

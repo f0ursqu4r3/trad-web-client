@@ -327,6 +327,7 @@ export type SetLeverageCommand = {
   symbol: string
   leverage: number
   market_context: MarketContext
+  margin_mode?: string | null
 }
 export type AttachedExitPlan = {
   take_profit?: number | null

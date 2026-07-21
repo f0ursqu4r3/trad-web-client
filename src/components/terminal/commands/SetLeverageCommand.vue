@@ -24,7 +24,14 @@ const accountsStore = useAccountsStore()
       <dd class="m-0 text-[12px]">{{ props.command.leverage }}x</dd>
     </div>
 
-    <div class="sm:col-span-2">
+    <div v-if="props.command.margin_mode">
+      <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+        Margin Mode
+      </dt>
+      <dd class="m-0 text-[12px] capitalize">{{ props.command.margin_mode }}</dd>
+    </div>
+
+    <div :class="props.command.margin_mode ? '' : 'sm:col-span-2'">
       <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
         Context
       </dt>
