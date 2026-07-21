@@ -514,6 +514,8 @@ export type MarketCapabilitiesData = {
   hedge_mode_only: boolean
   supports_attached_take_profit_stop_loss: boolean
   supports_position_trading_stop: boolean
+  new_open_orders_enabled: boolean
+  runtime_mode?: string | null
   protection_strategy: ProtectionStrategyCapability
   product?: MarketProduct | null
   notes: string[]

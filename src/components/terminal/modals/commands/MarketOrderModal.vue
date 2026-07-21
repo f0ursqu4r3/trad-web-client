@@ -65,7 +65,12 @@ const isHyperliquidAccount = computed(
 const blocksOpeningOrder = computed(() => {
   if (action.value !== MarketAction.Open) return false
   if (isBybitAccount.value) return !isBybitMetadataVerified(selectedAccount.value)
-  if (isHyperliquidAccount.value) return !isHyperliquidMetadataReady(selectedAccount.value)
+  if (isHyperliquidAccount.value) {
+    return (
+      !isHyperliquidMetadataReady(selectedAccount.value) ||
+      selectedCapabilities.value?.new_open_orders_enabled === false
+    )
+  }
   return false
 })
 const supportsAttachedExit = computed(
@@ -84,11 +89,18 @@ const exitLevelError = computed(() => {
     stop_loss.value,
   )
 })
-const readinessWarning = computed(() =>
-  isHyperliquidAccount.value
-    ? 'Hyperliquid account setup is incomplete. Complete wallet/agent setup and builder approval before opening live orders.'
-    : 'Bybit metadata is unvalidated. Refresh credentials before opening live Bybit orders.',
-)
+const readinessWarning = computed(() => {
+  if (isHyperliquidAccount.value) {
+    if (selectedCapabilities.value?.new_open_orders_enabled === false) {
+      const mode = selectedCapabilities.value.runtime_mode ?? 'disabled'
+      return mode === 'disabled'
+        ? "Hyperliquid signed trading is disabled by the server. An operator must select 'close_only' for recovery actions or enable trading."
+        : `Hyperliquid new opens are disabled by server runtime mode '${mode}'. Reduce-only closes remain available.`
+    }
+    return 'Hyperliquid account setup is incomplete. Complete wallet/agent setup and builder approval before opening live orders.'
+  }
+  return 'Bybit metadata is unvalidated. Refresh credentials before opening live Bybit orders.'
+})
 
 function requestSelectedCapabilities() {
   if (selectedMarketContext.value) {

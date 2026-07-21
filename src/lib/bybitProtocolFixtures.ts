@@ -92,6 +92,8 @@ const bybitCapabilities = {
   hedge_mode_only: true,
   supports_attached_take_profit_stop_loss: true,
   supports_position_trading_stop: false,
+  new_open_orders_enabled: true,
+  runtime_mode: null,
   protection_strategy: 'native_attached_tpsl',
   product: 'usdt_perp',
   notes: [
