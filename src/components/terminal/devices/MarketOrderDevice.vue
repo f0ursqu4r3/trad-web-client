@@ -40,6 +40,8 @@ function getStatusClass(status: MarketOrderStatus): string {
       return 'pill pill-info'
     case MarketOrderStatus.AlreadySentAndAwaitingFilling:
       return 'pill pill-info'
+    case MarketOrderStatus.ReconciliationRequired:
+      return 'pill pill-warn'
     case MarketOrderStatus.NotYetSent:
       return 'pill'
     case MarketOrderStatus.Canceled:

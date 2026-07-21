@@ -673,6 +673,15 @@ export const useDeviceStore = defineStore('device', () => {
           }
         }
         break
+      case 'ReconciliationRequired':
+        {
+          mo.status = MarketOrderStatus.ReconciliationRequired
+          device.failure_reason = delta.data.reason
+          if (eventTime) {
+            mo.last_status_check_at = eventTime
+          }
+        }
+        break
     }
   }
 

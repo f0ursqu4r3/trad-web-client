@@ -145,6 +145,7 @@ export enum MarketOrderStatus {
   NotYetSent = 'Not Yet Sent',
   AlreadySentAndAwaitingFilling = 'Already Sent And Awaiting Filling',
   PartiallyFilled = 'Partially Filled',
+  ReconciliationRequired = 'Reconciliation Required',
   Filled = 'Filled',
   Canceled = 'Canceled',
   Rejected = 'Rejected',
@@ -941,6 +942,10 @@ export type DeviceMoDelta =
   | { kind: 'Filled'; data: { cum_qty?: number | null; price?: number | null } }
   | { kind: 'Canceled' }
   | { kind: 'Rejected'; data: { order_id?: string | null; reason?: string | null } }
+  | {
+      kind: 'ReconciliationRequired'
+      data: { order_id?: string | null; reason: string }
+    }
 
 export type DeviceMoDeltaEvent = {
   device_id: Uuid
