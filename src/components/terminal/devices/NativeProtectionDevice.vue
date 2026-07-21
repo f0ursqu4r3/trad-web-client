@@ -51,6 +51,7 @@ function getStatusClass(status: NativeProtectionStatus): string {
       return 'pill pill-warn'
     case NativeProtectionStatus.Canceled:
       return 'pill pill-warn'
+    case NativeProtectionStatus.ReconciliationRequired:
     case NativeProtectionStatus.Rejected:
       return 'pill pill-err'
     default:

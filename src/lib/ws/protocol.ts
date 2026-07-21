@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 15
+export const PROTOCOL_VERSION = 16
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -167,6 +167,7 @@ export enum NativeProtectionStatus {
   Triggered = 'Triggered',
   Flat = 'Flat',
   Canceled = 'Canceled',
+  ReconciliationRequired = 'ReconciliationRequired',
   Rejected = 'Rejected',
 }
 
