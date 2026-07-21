@@ -228,6 +228,9 @@ async function submit() {
     if (isBybit.value && createdAccount) {
       await refreshCreatedBybitAccount(createdAccount)
     }
+    if (createdAccount) {
+      accounts.selectedAccountId = createdAccount.id
+    }
     close()
   } catch (err) {
     formError.value = err instanceof Error ? err.message : String(err)
@@ -320,6 +323,8 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
               v-model.trim="secretKey"
               class="input"
               :class="keyInputClass"
+              type="password"
+              autocomplete="new-password"
               :placeholder="secretPlaceholder"
             />
             <button
@@ -333,8 +338,8 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
             </button>
           </div>
           <small v-if="generatedHyperliquidAgentAddress" class="field-hint">
-            Generated agent {{ generatedHyperliquidAgentAddress }}. Validate, save, then approve
-            this agent with your wallet.
+            Generated agent {{ generatedHyperliquidAgentAddress }}. Its private key is masked;
+            validate, save, then approve this agent with your wallet.
           </small>
           <small v-else-if="generatedHyperliquidAgentError" class="field-error">
             {{ generatedHyperliquidAgentError }}

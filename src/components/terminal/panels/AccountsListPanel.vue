@@ -4,6 +4,7 @@ import {
   accountMetadataChips,
   accountMetadataStatus,
   isBybitMetadataVerified,
+  isHyperliquidMetadataReady,
   useAccountsStore,
   type AccountRecord,
 } from '@/stores/accounts'
@@ -75,6 +76,20 @@ const sortedAccounts = computed(() => {
   accounts.accounts.forEach(ensureGuardForm)
   return accounts.accounts.slice().sort((a, b) => a.label.localeCompare(b.label))
 })
+
+function accountStatusClass(account: AccountRecord): string {
+  const ready =
+    account.exchange === ExchangeType.Hyperliquid
+      ? isHyperliquidMetadataReady(account)
+      : isBybitMetadataVerified(account)
+  return ready ? 'text-[var(--color-success)]' : 'text-warning'
+}
+
+function hyperliquidTradingTarget(account: AccountRecord): string {
+  return (
+    account.exchange_metadata?.vault_address || account.exchange_metadata?.user_address || 'missing'
+  )
+}
 
 function openCreateModal() {
   isCreateModalOpen.value = true
@@ -842,11 +857,7 @@ watch(
                 <span
                   v-if="accountMetadataStatus(account)"
                   class="text-[11px]"
-                  :class="
-                    isBybitMetadataVerified(account)
-                      ? 'text-[var(--color-success)]'
-                      : 'text-warning'
-                  "
+                  :class="accountStatusClass(account)"
                 >
                   {{ accountMetadataStatus(account) }}
                 </span>
@@ -967,6 +978,18 @@ watch(
                 "
                 class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)]"
               >
+                Wallet:
+                <span class="break-all font-mono text-primary">
+                  {{ account.exchange_metadata?.user_address || 'missing' }}
+                </span>
+                <br />
+                Trading target:
+                <span class="break-all font-mono text-primary">
+                  {{ hyperliquidTradingTarget(account) }}
+                </span>
+                <span v-if="account.exchange_metadata?.vault_address"> (vault/subaccount)</span>
+                <span v-else> (main account)</span>
+                <br />
                 Hyperliquid leverage is one-way per-symbol exchange state. Save prefs records the
                 account default, margin mode, and symbol overrides in Trad; Set Leverage applies the
                 current leverage and margin mode to the exchange for the symbols entered above.

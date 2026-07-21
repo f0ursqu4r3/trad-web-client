@@ -132,6 +132,10 @@ test('Hyperliquid account panel shows and saves builder fee bps clearly', async 
   await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
 
   await expect(accountPanel.getByText('Agent Wallet', { exact: true })).toBeVisible()
+  await expect(
+    accountPanel.getByText('0x1111111111111111111111111111111111111111', { exact: true }).first(),
+  ).toBeVisible()
+  await expect(accountPanel.getByText('(main account)', { exact: true })).toBeVisible()
   await expect(accountPanel.getByRole('button', { name: 'Approve Agent' })).toBeEnabled()
   await expect(accountPanel.getByRole('button', { name: 'Refresh Agent' })).toBeEnabled()
   await expect(accountPanel.getByText('Builder Address')).toBeVisible()
@@ -478,6 +482,87 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
       nonce: 1780000000123,
     },
   })
+})
+
+test('Hyperliquid wallet approval errors are recoverable without reloading', async ({ page }) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  await page.addInitScript(() => {
+    Object.defineProperty(window, '__tradWalletMode', {
+      value: 'wrong',
+      writable: true,
+      configurable: true,
+    })
+    window.ethereum = {
+      request: async (args: { method: string; params?: unknown[] }) => {
+        const mode = (window as any).__tradWalletMode
+        if (args.method === 'eth_requestAccounts') {
+          return [
+            mode === 'wrong'
+              ? '0x9999999999999999999999999999999999999999'
+              : '0x1111111111111111111111111111111111111111',
+          ]
+        }
+        if (args.method === 'eth_signTypedData_v4') {
+          if (mode === 'reject') throw new Error('User rejected the request.')
+          return `0x${'1'.repeat(64)}${'2'.repeat(64)}1b`
+        }
+        throw new Error(`unexpected wallet request ${args.method}`)
+      },
+    }
+  })
+
+  await page.route('**/api/accounts/**/hyperliquid/agent-approval', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        account: {
+          id: '17171717-1717-4717-8717-171717171717',
+          label: 'Hyperliquid QA',
+          key: 'redacted',
+          network: 'testnet',
+          exchange: 'hyperliquid',
+          exchange_metadata: {
+            product: 'usdc_perp',
+            user_address: '0x1111111111111111111111111111111111111111',
+            agent_address: '0x2222222222222222222222222222222222222222',
+            agent_approved: true,
+            agent_approval_verified_at_ms: 1780000000000,
+            builder_address: '0x3333333333333333333333333333333333333333',
+            builder_fee_tenths_bps: 10,
+          },
+        },
+        agent_approved: true,
+      }),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+  const accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
+  const approveAgent = accountPanel.getByRole('button', { name: 'Approve Agent' })
+
+  await approveAgent.click()
+  await expect(accountPanel.getByText(/Connected wallet must match/)).toBeVisible()
+  await expect(approveAgent).toBeEnabled()
+
+  await page.evaluate(() => ((window as any).__tradWalletMode = 'reject'))
+  await approveAgent.click()
+  await expect(accountPanel.getByText('User rejected the request.')).toBeVisible()
+  await expect(approveAgent).toBeEnabled()
+
+  await page.evaluate(() => ((window as any).__tradWalletMode = 'success'))
+  await approveAgent.click()
+  await expect(
+    accountPanel.getByText('Hyperliquid agent wallet approved for Hyperliquid QA.'),
+  ).toBeVisible()
 })
 
 test('Bybit terminal remains inspectable with many active TE rows', async ({ page }) => {
@@ -921,6 +1006,10 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
   await expect(dialog.getByPlaceholder('32-byte hex private key')).toHaveValue(
     '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
   )
+  await expect(dialog.getByPlaceholder('32-byte hex private key')).toHaveAttribute(
+    'type',
+    'password',
+  )
   await dialog
     .getByPlaceholder('Optional 0x vault address')
     .fill('0x4444444444444444444444444444444444444444')
@@ -974,6 +1063,98 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
     exchange_metadata: expectedMetadata,
   })
   await expect(dialog).toBeHidden()
+  await expect(accountPanel.getByText('(vault/subaccount)', { exact: true })).toBeVisible()
+  await expect(
+    accountPanel.getByText('0x4444444444444444444444444444444444444444', { exact: true }),
+  ).toBeVisible()
+})
+
+test('Hyperliquid account creation accepts a pasted existing agent key', async ({ page }) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  const existingSecret = `0x${'b'.repeat(64)}`
+  let validationPayload: Record<string, unknown> | null = null
+  let createPayload: Record<string, unknown> | null = null
+  let created = false
+  await page.route('**/api/accounts**', async (route) => {
+    const request = route.request()
+    if (request.method() === 'POST' && request.url().includes('/api/accounts/validate')) {
+      validationPayload = request.postDataJSON() as Record<string, unknown>
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          valid: true,
+          skipped: false,
+          exchange: 'hyperliquid',
+          network: 'testnet',
+          present_permissions: ['Existing agent key valid'],
+          missing_requirements: [],
+          warnings: [],
+        }),
+      })
+      return
+    }
+    if (request.method() === 'PUT') {
+      createPayload = request.postDataJSON() as Record<string, unknown>
+      created = true
+      await route.fulfill({ status: 204, body: '' })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        created
+          ? [
+              {
+                id: '19191919-1919-4919-8919-191919191919',
+                label: 'Existing Agent QA',
+                key: 'redacted',
+                network: 'testnet',
+                exchange: 'hyperliquid',
+                exchange_metadata: {
+                  product: 'usdc_perp',
+                  user_address: '0x1111111111111111111111111111111111111111',
+                  agent_address: '0x5555555555555555555555555555555555555555',
+                  agent_approved: true,
+                  agent_approval_verified_at_ms: 1780000000000,
+                  builder_fee_tenths_bps: 0,
+                },
+              },
+            ]
+          : [],
+      ),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+  const accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: 'New' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.locator('select').nth(0).selectOption('testnet')
+  await dialog.locator('select').nth(1).selectOption('hyperliquid')
+  await dialog.getByPlaceholder('Account alias').fill('Existing Agent QA')
+  await dialog.getByPlaceholder('0x...').fill('0x1111111111111111111111111111111111111111')
+  await dialog.getByPlaceholder('32-byte hex private key').fill(existingSecret)
+  await dialog.getByLabel('Builder Fee').fill('0')
+  await dialog.getByRole('button', { name: 'Check permissions' }).click()
+  await expect(dialog.getByText('Existing agent key valid')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Create' }).click()
+
+  await expect.poll(() => validationPayload?.secret).toBe(existingSecret)
+  await expect.poll(() => createPayload?.secret).toBe(existingSecret)
+  await expect(dialog).toBeHidden()
+  await expect(accountPanel.getByRole('button', { name: /Existing Agent QA/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
 })
 
 test('Missed Bybit trailing entry exposes Continue Anyway action', async ({ page }) => {
