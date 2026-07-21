@@ -13,8 +13,27 @@ type HyperliquidBuilderApprovalAction = {
   nonce: number
 }
 
+type HyperliquidAgentApprovalAction = {
+  type: 'approveAgent'
+  hyperliquidChain: 'Mainnet' | 'Testnet'
+  signatureChainId: '0xa4b1' | '0x66eee'
+  agentAddress: string
+  agentName: string
+  nonce: number
+}
+
 export type SignedHyperliquidBuilderApproval = {
   action: HyperliquidBuilderApprovalAction
+  nonce: number
+  signature: {
+    r: string
+    s: string
+    v: number
+  }
+}
+
+export type SignedHyperliquidAgentApproval = {
+  action: HyperliquidAgentApprovalAction
   nonce: number
   signature: {
     r: string
@@ -84,6 +103,82 @@ export async function signHyperliquidBuilderApproval(params: {
       hyperliquidChain: action.hyperliquidChain,
       maxFeeRate: action.maxFeeRate,
       builder: action.builder,
+      nonce: action.nonce,
+    },
+  }
+
+  const signatureHex = (await provider.request({
+    method: 'eth_signTypedData_v4',
+    params: [selected, JSON.stringify(typedData)],
+  })) as string
+
+  return {
+    action,
+    nonce,
+    signature: splitSignature(signatureHex),
+  }
+}
+
+export async function signHyperliquidAgentApproval(params: {
+  network: NetworkType
+  userAddress: string
+  agentAddress: string
+  agentName?: string
+}): Promise<SignedHyperliquidAgentApproval> {
+  const provider = window.ethereum
+  if (!provider) {
+    throw new Error('No browser wallet found. Open MetaMask or Rabby and try again.')
+  }
+
+  const accounts = (await provider.request({ method: 'eth_requestAccounts' })) as string[]
+  const selected = normalizeAddress(accounts?.[0] || '')
+  const user = normalizeAddress(params.userAddress)
+  if (!selected || selected !== user) {
+    throw new Error(`Connected wallet must match ${params.userAddress}. Current wallet: ${accounts?.[0] || 'none'}.`)
+  }
+
+  const agentName = (params.agentName ?? '').trim()
+  if (agentName.length > 16) {
+    throw new Error('Hyperliquid agent name must be 16 characters or fewer.')
+  }
+
+  const chain = hyperliquidChain(params.network)
+  const nonce = Date.now()
+  const action: HyperliquidAgentApprovalAction = {
+    type: 'approveAgent',
+    hyperliquidChain: chain.hyperliquidChain,
+    signatureChainId: chain.signatureChainId,
+    agentAddress: normalizeAddress(params.agentAddress),
+    agentName,
+    nonce,
+  }
+
+  const typedData = {
+    domain: {
+      name: 'HyperliquidSignTransaction',
+      version: '1',
+      chainId: chain.chainId,
+      verifyingContract: '0x0000000000000000000000000000000000000000',
+    },
+    types: {
+      EIP712Domain: [
+        { name: 'name', type: 'string' },
+        { name: 'version', type: 'string' },
+        { name: 'chainId', type: 'uint256' },
+        { name: 'verifyingContract', type: 'address' },
+      ],
+      'HyperliquidTransaction:ApproveAgent': [
+        { name: 'hyperliquidChain', type: 'string' },
+        { name: 'agentAddress', type: 'address' },
+        { name: 'agentName', type: 'string' },
+        { name: 'nonce', type: 'uint64' },
+      ],
+    },
+    primaryType: 'HyperliquidTransaction:ApproveAgent',
+    message: {
+      hyperliquidChain: action.hyperliquidChain,
+      agentAddress: action.agentAddress,
+      agentName: action.agentName,
       nonce: action.nonce,
     },
   }

@@ -57,12 +57,12 @@ const validationTitle = computed(() =>
 )
 const validationCopy = computed(() =>
   isHyperliquid.value
-    ? 'Validate the wallet address and derived agent wallet before saving. Builder approval is handled separately with a wallet signature.'
+    ? 'Validate the wallet address, derived agent wallet, and read-only Hyperliquid account-state access before saving. Agent and builder approvals are handled separately with wallet signatures.'
     : 'Validate this key before saving. If permissions are changed on Bybit, run the check again.',
 )
 const validationSuccess = computed(() =>
   isHyperliquid.value
-    ? 'Wallet and agent key format are valid for Hyperliquid account setup.'
+    ? 'Wallet, agent key, and read-only Hyperliquid account-state access are valid.'
     : 'Key permissions are valid for Bybit USDT perpetual trading.',
 )
 const builderFeeTenthsBps = computed(() => {

@@ -16,7 +16,10 @@ import {
   normalizeBybitUsdtSymbol,
   normalizeHyperliquidPerpSymbol,
 } from '@/lib/bybitOrderValidation'
-import { signHyperliquidBuilderApproval } from '@/lib/hyperliquidBuilderApproval'
+import {
+  signHyperliquidAgentApproval,
+  signHyperliquidBuilderApproval,
+} from '@/lib/hyperliquidBuilderApproval'
 import { createLogger } from '@/lib/utils'
 import {
   ExchangeType,
@@ -37,6 +40,8 @@ const requestedCapabilityAccountIds = ref<Set<string>>(new Set())
 const approvingBuilderAccountIds = ref<Set<string>>(new Set())
 const savingBuilderAccountIds = ref<Set<string>>(new Set())
 const refreshingBuilderAccountIds = ref<Set<string>>(new Set())
+const approvingAgentAccountIds = ref<Set<string>>(new Set())
+const refreshingAgentAccountIds = ref<Set<string>>(new Set())
 const refreshError = ref<string | null>(null)
 const controlError = ref<string | null>(null)
 const controlMessage = ref<string | null>(null)
@@ -255,6 +260,18 @@ function canRefreshHyperliquidBuilder(account: AccountRecord): boolean {
   return Boolean(account.exchange_metadata?.builder_address)
 }
 
+function canApproveHyperliquidAgent(account: AccountRecord): boolean {
+  if (account.exchange !== ExchangeType.Hyperliquid) return false
+  if (approvingAgentAccountIds.value.has(account.id)) return false
+  return Boolean(account.exchange_metadata?.user_address && account.exchange_metadata?.agent_address)
+}
+
+function canRefreshHyperliquidAgent(account: AccountRecord): boolean {
+  if (account.exchange !== ExchangeType.Hyperliquid) return false
+  if (refreshingAgentAccountIds.value.has(account.id)) return false
+  return Boolean(account.exchange_metadata?.user_address && account.exchange_metadata?.agent_address)
+}
+
 async function saveHyperliquidBuilder(account: AccountRecord) {
   controlError.value = null
   controlMessage.value = null
@@ -287,6 +304,63 @@ async function saveHyperliquidBuilder(account: AccountRecord) {
     const next = new Set(savingBuilderAccountIds.value)
     next.delete(account.id)
     savingBuilderAccountIds.value = next
+  }
+}
+
+async function approveHyperliquidAgent(account: AccountRecord) {
+  controlError.value = null
+  controlMessage.value = null
+  if (!canApproveHyperliquidAgent(account)) {
+    controlError.value = 'Hyperliquid agent approval requires a saved user wallet and agent address.'
+    return
+  }
+  const userAddress = account.exchange_metadata?.user_address
+  const agentAddress = account.exchange_metadata?.agent_address
+  if (!userAddress || !agentAddress) return
+  approvingAgentAccountIds.value = new Set([...approvingAgentAccountIds.value, account.id])
+  try {
+    const signed = await signHyperliquidAgentApproval({
+      network: account.network,
+      userAddress,
+      agentAddress,
+      agentName: 'trad',
+    })
+    const response = await accounts.approveHyperliquidAgent(account.id, {
+      ...signed,
+      agent_address: agentAddress,
+      agent_name: signed.action.agentName,
+    })
+    controlMessage.value = response.agent_approved
+      ? `Hyperliquid agent wallet approved for ${account.label}.`
+      : `Hyperliquid accepted the approval, but the agent was not visible in extraAgents yet. Refresh again shortly.`
+  } catch (err) {
+    controlError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    const next = new Set(approvingAgentAccountIds.value)
+    next.delete(account.id)
+    approvingAgentAccountIds.value = next
+  }
+}
+
+async function refreshHyperliquidAgent(account: AccountRecord) {
+  controlError.value = null
+  controlMessage.value = null
+  if (!canRefreshHyperliquidAgent(account)) {
+    controlError.value = 'Hyperliquid agent refresh requires a saved user wallet and agent address.'
+    return
+  }
+  refreshingAgentAccountIds.value = new Set([...refreshingAgentAccountIds.value, account.id])
+  try {
+    const response = await accounts.refreshHyperliquidAgentApproval(account.id)
+    controlMessage.value = response.agent_approved
+      ? `Hyperliquid agent wallet is approved for ${account.label}.`
+      : `Hyperliquid agent wallet is not approved for ${account.label}.`
+  } catch (err) {
+    controlError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    const next = new Set(refreshingAgentAccountIds.value)
+    next.delete(account.id)
+    refreshingAgentAccountIds.value = next
   }
 }
 
@@ -771,6 +845,41 @@ watch(
                 exchange-managed after acceptance, but fills remain subject to liquidity, gaps, and
                 liquidation risk.
               </p>
+              <div
+                v-if="accounts.selectedAccountId === account.id && account.exchange === ExchangeType.Hyperliquid"
+                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(190px,1fr)_auto_auto]"
+              >
+                <div class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
+                  <span>Agent Wallet</span>
+                  <span class="break-all font-mono text-primary normal-case tracking-normal">
+                    {{ account.exchange_metadata?.agent_address || 'missing' }}
+                  </span>
+                  <span class="normal-case tracking-normal text-[var(--color-text-dim)]">
+                    Status:
+                    <span class="font-mono text-primary">
+                      {{ account.exchange_metadata?.agent_approved ? 'approved' : 'unvalidated' }}
+                    </span>
+                  </span>
+                </div>
+                <button
+                  class="btn btn-primary btn-xs self-end"
+                  type="button"
+                  :disabled="!canApproveHyperliquidAgent(account)"
+                  @click="approveHyperliquidAgent(account)"
+                >
+                  <span v-if="approvingAgentAccountIds.has(account.id)">Approving</span>
+                  <span v-else>Approve Agent</span>
+                </button>
+                <button
+                  class="btn btn-secondary btn-xs self-end"
+                  type="button"
+                  :disabled="!canRefreshHyperliquidAgent(account)"
+                  @click="refreshHyperliquidAgent(account)"
+                >
+                  <span v-if="refreshingAgentAccountIds.has(account.id)">Refreshing</span>
+                  <span v-else>Refresh Agent</span>
+                </button>
+              </div>
               <div
                 v-if="accounts.selectedAccountId === account.id && account.exchange === ExchangeType.Hyperliquid"
                 class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(190px,1fr)_96px_auto_auto_auto]"

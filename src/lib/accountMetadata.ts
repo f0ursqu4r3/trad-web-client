@@ -73,6 +73,8 @@ export function accountMetadataChips(account: AccountMetadataLike): string[] {
   if (account.exchange === ExchangeType.Hyperliquid) {
     if (normalizeMetadataLabel(meta?.agent_address)) chips.push('Agent set')
     else chips.push('Agent missing')
+    if (meta?.agent_approved === true) chips.push('Agent approved')
+    else chips.push('Agent unvalidated')
     if (hyperliquidBuilderFeeTenthsBps(meta) === 0) chips.push('No builder fee')
     else if (meta?.builder_approved === true) chips.push('Builder approved')
     else chips.push('Builder unvalidated')
@@ -98,7 +100,7 @@ export function isBybitMetadataVerified(account: AccountMetadataLike | null | un
 export function accountMetadataStatus(account: AccountMetadataLike): string | null {
   if (account.exchange === ExchangeType.Hyperliquid) {
     if (isHyperliquidMetadataReady(account)) return 'Hyperliquid account metadata is ready.'
-    return 'Hyperliquid account is not ready for live trading; complete builder approval or set fee to 0.'
+    return 'Hyperliquid account is not ready for live trading; approve the agent wallet and complete builder approval or set builder fee to 0.'
   }
   if (account.exchange !== ExchangeType.Bybit) return null
   if (isBybitMetadataVerified(account)) {
@@ -122,6 +124,7 @@ export function isHyperliquidMetadataReady(account: AccountMetadataLike | null |
     meta?.product === 'usdc_perp' &&
       normalizeMetadataLabel(meta?.user_address) &&
       normalizeMetadataLabel(meta?.agent_address) &&
+      meta?.agent_approved === true &&
       hasBuilderReadiness,
   )
 }

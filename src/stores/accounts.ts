@@ -42,10 +42,28 @@ export interface HyperliquidBuilderApprovalPayload {
   builder_fee_tenths_bps: number
 }
 
+export interface HyperliquidAgentApprovalPayload {
+  action: Record<string, unknown>
+  nonce: number
+  signature: {
+    r: string
+    s: string
+    v: number
+  }
+  agent_address: string
+  agent_name?: string | null
+}
+
 interface HyperliquidBuilderApprovalResponse {
   account: AccountRecord
   max_builder_fee_tenths_bps: number
   exchange_response: unknown
+}
+
+interface HyperliquidAgentApprovalResponse {
+  account: AccountRecord
+  agent_approved: boolean
+  exchange_response?: unknown
 }
 
 interface HyperliquidBuilderApprovalRefreshResponse {
@@ -258,6 +276,34 @@ export const useAccountsStore = defineStore('accounts', () => {
     return response
   }
 
+  async function approveHyperliquidAgent(
+    accountId: string,
+    payload: HyperliquidAgentApprovalPayload,
+  ): Promise<HyperliquidAgentApprovalResponse> {
+    const response = await apiPost<
+      HyperliquidAgentApprovalResponse,
+      HyperliquidAgentApprovalPayload
+    >(
+      `/accounts/${encodeURIComponent(accountId)}/hyperliquid/agent-approval`,
+      payload,
+      { throwOnHTTPError: true },
+    )
+    replaceAccount(response.account)
+    return response
+  }
+
+  async function refreshHyperliquidAgentApproval(
+    accountId: string,
+  ): Promise<HyperliquidAgentApprovalResponse> {
+    const response = await apiPost<HyperliquidAgentApprovalResponse>(
+      `/accounts/${encodeURIComponent(accountId)}/hyperliquid/agent-approval/refresh`,
+      undefined,
+      { throwOnHTTPError: true },
+    )
+    replaceAccount(response.account)
+    return response
+  }
+
   async function removeAccount(label: string): Promise<void> {
     const encodedLabel = encodeURIComponent(label)
     await apiDelete(`/accounts/${encodedLabel}`)
@@ -423,6 +469,8 @@ export const useAccountsStore = defineStore('accounts', () => {
     updateAccountMetadata,
     approveHyperliquidBuilderFee,
     refreshHyperliquidBuilderApproval,
+    approveHyperliquidAgent,
+    refreshHyperliquidAgentApproval,
     removeAccount,
     reorderAccounts,
     getMarketContextForAccount,
