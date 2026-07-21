@@ -457,6 +457,194 @@ test('Bybit account creation submits exchange credentials through account API', 
   await expect(accountPanel.getByText('Bybit Remain')).toBeVisible()
 })
 
+test('Hyperliquid account creation submits wallet agent and exchange metadata', async ({ page }) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  let validationPayload: Record<string, unknown> | null = null
+  let putUrl = ''
+  let putPayload: Record<string, unknown> | null = null
+  let accountCreated = false
+
+  await page.route('**/api/accounts**', async (route) => {
+    const request = route.request()
+    const url = request.url()
+    if (request.method() === 'POST' && url.includes('/api/accounts/hyperliquid/agent-key')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          private_key: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          agent_address: '0x2222222222222222222222222222222222222222',
+        }),
+      })
+      return
+    }
+    if (request.method() === 'POST' && url.includes('/api/accounts/validate')) {
+      validationPayload = request.postDataJSON() as Record<string, unknown>
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          valid: true,
+          skipped: false,
+          exchange: 'hyperliquid',
+          network: 'testnet',
+          present_permissions: [
+            'User wallet address valid',
+            'Agent private key valid',
+            'Read-only account state reachable',
+          ],
+          missing_requirements: [],
+          warnings: ['Approve the generated agent wallet before live trading.'],
+          read_only: false,
+          exchange_message: 'fixture Hyperliquid account check ok',
+        }),
+      })
+      return
+    }
+    if (request.method() === 'PUT') {
+      putUrl = url
+      putPayload = request.postDataJSON() as Record<string, unknown>
+      accountCreated = true
+      await route.fulfill({
+        status: 204,
+        body: '',
+      })
+      return
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        accountCreated
+          ? [
+              {
+                id: 'abababab-abab-4bab-8bab-abababababab',
+                label: 'Hyperliquid Live QA',
+                key: '0x1111111111111111111111111111111111111111',
+                network: 'testnet',
+                exchange: 'hyperliquid',
+                exchange_metadata: {
+                  product: 'usdc_perp',
+                  hedge_mode_only: false,
+                  vault_address: '0x4444444444444444444444444444444444444444',
+                  builder_address: '0x3333333333333333333333333333333333333333',
+                  builder_fee_tenths_bps: 15,
+                  builder_approved: false,
+                  agent_approved: false,
+                  default_leverage: 3,
+                  margin_mode: 'isolated',
+                },
+              },
+            ]
+          : [],
+      ),
+    })
+  })
+
+  await page.route('**/api/order-throttle**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total_queued: 0,
+        total_in_flight: 0,
+        enqueued_total: 0,
+        started_total: 0,
+        completed_total: 0,
+        canceled_total: 0,
+        errored_total: 0,
+        stale_rejected_total: 0,
+        rate_limit_rejected_total: 0,
+        delayed_by_limiter_total: 0,
+        min_interval_ms: 200,
+        max_in_flight_per_account: 3,
+        accounts: [],
+      }),
+    })
+  })
+
+  await page.route('**/api/ws-ticket', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ticket: 'fixture-ticket' }),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+
+  const accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: 'New' }).click()
+
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByText('Create Account')).toBeVisible()
+  await dialog.locator('select').nth(0).selectOption('testnet')
+  await dialog.locator('select').nth(1).selectOption('hyperliquid')
+  await expect(dialog.getByText('USDC Perpetuals')).toBeVisible()
+  await expect(dialog.getByText('Required Hyperliquid setup')).toBeVisible()
+
+  await dialog.getByPlaceholder('Account alias').fill('  Hyperliquid Live QA  ')
+  await dialog.getByPlaceholder('0x...').fill('  0x1111111111111111111111111111111111111111  ')
+  await dialog.getByRole('button', { name: 'generate' }).click()
+  await expect(dialog.getByText('Generated agent 0x2222222222222222222222222222222222222222')).toBeVisible()
+  await expect(dialog.getByPlaceholder('32-byte hex private key')).toHaveValue(
+    '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  )
+  await dialog
+    .getByPlaceholder('Optional 0x vault address')
+    .fill('0x4444444444444444444444444444444444444444')
+  await dialog.getByLabel('Default Leverage').fill('3')
+  await dialog.getByLabel('Margin Mode').selectOption('isolated')
+  await dialog.getByPlaceholder('0x builder wallet').fill('0x3333333333333333333333333333333333333333')
+  await dialog.getByLabel('Builder Fee').fill('1.5')
+  await expect(dialog.getByText('1.5 bps = 0.015%')).toBeVisible()
+
+  await dialog.getByRole('button', { name: 'Check permissions' }).click()
+  await expect(dialog.getByText('Wallet, agent key, and read-only Hyperliquid account-state access are valid.')).toBeVisible()
+  await expect(dialog.getByText('Approve the generated agent wallet before live trading.')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Create' }).click()
+
+  const expectedMetadata = {
+    product: 'usdc_perp',
+    hedge_mode_only: false,
+    vault_address: '0x4444444444444444444444444444444444444444',
+    builder_address: '0x3333333333333333333333333333333333333333',
+    builder_fee_tenths_bps: 15,
+    builder_approved: false,
+    agent_approved: false,
+    default_leverage: 3,
+    margin_mode: 'isolated',
+  }
+
+  await expect.poll(() => validationPayload?.exchange).toBe('hyperliquid')
+  expect(validationPayload).toEqual({
+    key: '0x1111111111111111111111111111111111111111',
+    secret: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    network: 'testnet',
+    exchange: 'hyperliquid',
+    exchange_metadata: expectedMetadata,
+  })
+  await expect.poll(() => putPayload?.exchange).toBe('hyperliquid')
+  expect(putUrl).toContain('/api/accounts/Hyperliquid%20Live%20QA')
+  expect(putPayload).toEqual({
+    label: 'Hyperliquid Live QA',
+    key: '0x1111111111111111111111111111111111111111',
+    secret: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    network: 'testnet',
+    exchange: 'hyperliquid',
+    exchange_metadata: expectedMetadata,
+  })
+  await expect(dialog).toBeHidden()
+})
+
 test('Missed Bybit trailing entry exposes Continue Anyway action', async ({ page }) => {
   await page.route('**/auth/session', async (route) => {
     await route.fulfill({
