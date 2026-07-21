@@ -21,7 +21,12 @@ const accounts = useAccountsStore()
 
 const networkLabel = computed(() => {
   const ctx = props.device.market_context
-  if (ctx.type === 'binance' || ctx.type === 'bifake' || ctx.type === 'bybit') {
+  if (
+    ctx.type === 'binance' ||
+    ctx.type === 'bifake' ||
+    ctx.type === 'bybit' ||
+    ctx.type === 'hyperliquid'
+  ) {
     const account = accounts.accounts.find((item) => item.id === ctx.account_id)
     return account?.network ?? '-'
   }
@@ -30,6 +35,14 @@ const networkLabel = computed(() => {
 
 const actionLabel = computed(() => {
   return props.device.market_action === MarketAction.Close ? 'Close' : 'Open'
+})
+const isLimitOrder = computed(() => props.device.execution.kind === 'limit')
+const deviceTitle = computed(() =>
+  isLimitOrder.value ? 'Limit Order Device' : 'Market Order Device',
+)
+const timeInForceLabel = computed(() => {
+  if (props.device.execution.kind !== 'limit') return null
+  return props.device.execution.time_in_force === 'alo' ? 'Post Only (ALO)' : 'Good Till Canceled'
 })
 
 function getStatusClass(status: MarketOrderStatus): string {
@@ -92,7 +105,7 @@ const throttleDelayLabel = computed(() => {
     <!-- Header -->
     <div class="space-y-2">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-mono text-primary m-0">Market Order Device</h3>
+        <h3 class="text-sm font-mono text-primary m-0">{{ deviceTitle }}</h3>
         <div class="flex items-center gap-2">
           <span class="pill pill-xs">{{ actionLabel }}</span>
           <span v-if="device.throttle" class="pill pill-xs pill-warn">Throttled</span>
@@ -118,8 +131,19 @@ const throttleDelayLabel = computed(() => {
           <dd class="m-0 font-mono text-primary">{{ formatQty(device.quantity) }}</dd>
         </div>
         <div>
-          <dt class="dt-label">Price</dt>
+          <dt class="dt-label">{{ isLimitOrder ? 'Limit Price' : 'Decision Price' }}</dt>
           <dd class="m-0 font-mono text-primary">${{ formatPrice(device.price) }}</dd>
+        </div>
+        <div v-if="timeInForceLabel">
+          <dt class="dt-label">Time in Force</dt>
+          <dd class="m-0 font-mono text-primary">{{ timeInForceLabel }}</dd>
+        </div>
+        <div v-if="device.execution.kind === 'limit'">
+          <dt class="dt-label">Requested Amount</dt>
+          <dd class="m-0 font-mono text-primary">
+            {{ device.execution.input_value }}
+            {{ device.execution.input_mode === 'notional' ? 'USDC' : device.symbol }}
+          </dd>
         </div>
       </div>
     </div>

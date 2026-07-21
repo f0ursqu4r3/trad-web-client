@@ -191,7 +191,11 @@ const treeData = computed<TreeItem[]>(() => {
     nodes.set(device.id, {
       id: device.id,
       children: [],
-      label: formatName(device.kind),
+      label:
+        device.kind === 'MarketOrder' &&
+        (device.state as MarketOrderState).execution?.kind === 'limit'
+          ? 'Limit Order'
+          : formatName(device.kind),
       symbol: device.state.symbol,
       market: deviceMarketFacetMap.value.get(device.id)?.labels ?? null,
       protection: protectionDisplay(device.protection_state) as ProtectionDisplay | null,

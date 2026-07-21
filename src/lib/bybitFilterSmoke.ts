@@ -175,6 +175,7 @@ function binanceMarketOrderDevice(): Device {
     quantity: 0.1,
     position_side: PositionSide.Short,
     price: 3500,
+    execution: { kind: 'market' },
     throttle: false,
     status: MarketOrderStatus.AlreadySentAndAwaitingFilling,
     filled_qty: null,
@@ -331,9 +332,7 @@ export function runBybitFilterSmoke(): void {
     'Bybit long market order should allow TP above SL',
   )
   assertSmoke(
-    bybitMarketOrderExitLevelError(PositionSide.Long, 62_000, 68_000)?.includes(
-      'above stop loss',
-    ),
+    bybitMarketOrderExitLevelError(PositionSide.Long, 62_000, 68_000)?.includes('above stop loss'),
     'Bybit long market order should reject TP below SL',
   )
   assertSmoke(
@@ -341,9 +340,7 @@ export function runBybitFilterSmoke(): void {
     'Bybit short market order should allow TP below SL',
   )
   assertSmoke(
-    bybitMarketOrderExitLevelError(PositionSide.Short, 68_000, 62_000)?.includes(
-      'below stop loss',
-    ),
+    bybitMarketOrderExitLevelError(PositionSide.Short, 68_000, 62_000)?.includes('below stop loss'),
     'Bybit short market order should reject TP above SL',
   )
   assertSmoke(
@@ -482,7 +479,10 @@ export function runBybitFilterSmoke(): void {
   } satisfies DeviceSnapshotLiteData
   store.handleDeviceSnapshotLite(snapshotMessage)
   const hydrated = store.devices.find((device) => device.id === snapshotMessage.device_id)
-  assertSmoke(hydrated?.kind === 'NativeProtection', 'Bybit NativeProtection snapshot should hydrate')
+  assertSmoke(
+    hydrated?.kind === 'NativeProtection',
+    'Bybit NativeProtection snapshot should hydrate',
+  )
   const hydratedState = hydrated.state as NativeProtectionState
   assertSmoke(
     hydratedState.observed_entry_order_ids.includes('mo-parent-1'),

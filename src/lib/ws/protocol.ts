@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 14
+export const PROTOCOL_VERSION = 15
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -334,6 +334,16 @@ export type AttachedExitPlan = {
   take_profit?: number | null
   stop_loss?: number | null
 }
+export type LimitTimeInForce = 'gtc' | 'alo'
+export type OrderQuantityMode = 'base' | 'notional'
+export type OrderExecution =
+  | { kind: 'market' }
+  | {
+      kind: 'limit'
+      time_in_force: LimitTimeInForce
+      input_mode: OrderQuantityMode
+      input_value: number
+    }
 export type MarketOrderCommand = {
   action: MarketAction
   symbol: string
@@ -351,12 +361,16 @@ export type SplitMarketOrderCommand = {
   market_context: MarketContext
 }
 export type LimitOrderCommand = {
+  action: MarketAction
   side: OrderSide
   symbol: string
   quantity: number
+  quantity_mode: OrderQuantityMode
   price: number
+  time_in_force: LimitTimeInForce
   position_side: PositionSide
   market_context: MarketContext
+  attached_exit_plan?: AttachedExitPlan | null
 }
 export type TrailingEntryOrderCommand = {
   position_side: PositionSide
@@ -769,6 +783,7 @@ export type MarketOrderSnapshot = {
   quantity: number
   position_side: PositionSide
   price: number
+  execution?: OrderExecution
   throttle?: boolean | null
   status: MarketOrderStatus
   filled_qty?: number | null
@@ -916,6 +931,7 @@ export type DeviceMoDelta =
         position_side: PositionSide
         quantity: number
         price: number
+        execution?: OrderExecution
         throttle?: boolean | null
         status: MarketOrderStatus
         filled_qty?: number | null
@@ -940,7 +956,7 @@ export type DeviceMoDelta =
       data: { cum_qty?: number | null; last_qty?: number | null; price?: number | null }
     }
   | { kind: 'Filled'; data: { cum_qty?: number | null; price?: number | null } }
-  | { kind: 'Canceled' }
+  | { kind: 'Canceled'; data: { cum_qty?: number | null } }
   | { kind: 'Rejected'; data: { order_id?: string | null; reason?: string | null } }
   | {
       kind: 'ReconciliationRequired'

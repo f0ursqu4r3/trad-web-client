@@ -24,6 +24,7 @@ import {
   type DeviceTeDeltaEvent,
   type DeviceLifecycleEvent,
   type MarketContext,
+  type OrderExecution,
   type MarketRef,
   type ProtectionState,
 } from '@/lib/ws/protocol'
@@ -68,7 +69,9 @@ export const useDeviceStore = defineStore('device', () => {
     return normalized.length > 0 ? normalized : null
   }
 
-  function findMarketOrderByExchangeOrderId(orderId: string | number | null | undefined): Device | null {
+  function findMarketOrderByExchangeOrderId(
+    orderId: string | number | null | undefined,
+  ): Device | null {
     const normalizedOrderId = normalizeOrderIdentifier(orderId)
     if (!normalizedOrderId) return null
 
@@ -280,6 +283,7 @@ export const useDeviceStore = defineStore('device', () => {
         mo.quantity = s.quantity
         mo.position_side = s.position_side
         mo.price = s.price
+        mo.execution = s.execution ?? { kind: 'market' }
         mo.throttle = s.throttle ?? false
         mo.status = s.status
         mo.filled_qty = s.filled_qty ?? null
@@ -573,6 +577,7 @@ export const useDeviceStore = defineStore('device', () => {
             position_side,
             quantity,
             price,
+            execution,
             throttle,
             status,
             filled_qty,
@@ -587,6 +592,7 @@ export const useDeviceStore = defineStore('device', () => {
           mo.position_side = position_side
           mo.quantity = quantity
           mo.price = price
+          mo.execution = execution ?? { kind: 'market' }
           mo.throttle = throttle ?? false
           mo.status = status
           mo.filled_qty = filled_qty ?? null
@@ -655,6 +661,9 @@ export const useDeviceStore = defineStore('device', () => {
       case 'Canceled':
         {
           mo.status = MarketOrderStatus.Canceled
+          if (delta.data?.cum_qty !== undefined && delta.data.cum_qty !== null) {
+            mo.filled_qty = delta.data.cum_qty
+          }
           device.failure_reason = null
           if (eventTime) {
             mo.last_update_seen_at = eventTime
@@ -1083,6 +1092,7 @@ export interface MarketOrderState {
   quantity: number
   position_side: PositionSide
   price: number
+  execution: OrderExecution
   throttle: boolean
 
   status: MarketOrderStatus
@@ -1253,6 +1263,7 @@ function newMarketOrderState(): MarketOrderState {
     quantity: 0,
     position_side: PositionSide.Long,
     price: 0,
+    execution: { kind: 'market' },
     throttle: false,
     status: MarketOrderStatus.NotYetSent,
     filled_qty: null,
