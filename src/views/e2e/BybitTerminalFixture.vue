@@ -60,8 +60,12 @@ const bybitMissedCommandId = '12121212-1212-4212-8212-121212121212'
 const bybitMissedTeDeviceId = '13131313-1313-4313-8313-131313131313'
 const bybitMissedMoDeviceId = '14141414-1414-4414-8414-141414141414'
 const bybitMissingProtectionDeviceId = '16161616-1616-4616-8616-161616161616'
+const hyperliquidAccountId = '17171717-1717-4717-8717-171717171717'
 const binanceContext = {
   binance: { account_id: binanceAccountId },
+} satisfies MarketContext
+const hyperliquidContext = {
+  hyperliquid: { account_id: hyperliquidAccountId },
 } satisfies MarketContext
 const binanceMarketRef = {
   exchange: ExchangeType.Binance,
@@ -93,6 +97,25 @@ const accounts = [
     key: 'redacted',
     network: NetworkType.Testnet,
     exchange: ExchangeType.Binance,
+  },
+  {
+    id: hyperliquidAccountId,
+    label: 'Hyperliquid QA',
+    key: 'redacted',
+    network: NetworkType.Testnet,
+    exchange: ExchangeType.Hyperliquid,
+    exchange_metadata: {
+      product: 'usdc_perp',
+      hedge_mode_only: false,
+      user_address: '0x1111111111111111111111111111111111111111',
+      agent_address: '0x2222222222222222222222222222222222222222',
+      agent_approved: true,
+      builder_address: '0x3333333333333333333333333333333333333333',
+      builder_fee_tenths_bps: 10,
+      max_builder_fee_tenths_bps: 10,
+      builder_approved: true,
+      default_leverage: 1,
+    },
   },
 ] satisfies AccountRecord[]
 
@@ -151,6 +174,32 @@ wsStore.applySymbolLeverageSnapshot({
     },
   ],
   unavailable_symbols: ['MISSINGUSDT'],
+})
+wsStore.applyOrderThrottleSnapshot({
+  request_uuid: '18181818-1818-4818-8818-181818181818',
+  market_context: hyperliquidContext,
+  total_queued: 7,
+  total_in_flight: 2,
+  enqueued_total: 11,
+  started_total: 4,
+  completed_total: 3,
+  canceled_total: 1,
+  errored_total: 5,
+  stale_rejected_total: 6,
+  rate_limit_rejected_total: 8,
+  delayed_by_limiter_total: 9,
+  bybit_rate_limit: null,
+  min_interval_ms: 200,
+  max_in_flight_per_account: 5,
+  accounts: [
+    {
+      account_id: hyperliquidAccountId,
+      queued: 7,
+      in_flight: 2,
+      oldest_queued_age_ms: 12_000,
+      estimated_drain_ms: 6_000,
+    },
+  ],
 })
 
 const binanceCommand = {

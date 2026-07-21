@@ -65,6 +65,31 @@ test('Bybit account panel renders order queue telemetry', async ({ page }) => {
   await expect(accountPanel.getByText('hold 2.5s')).toBeVisible()
 })
 
+test('Hyperliquid account panel renders exchange-keyed queue telemetry', async ({ page }) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+
+  const accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
+
+  await expect(accountPanel.getByText('Hyperliquid QA')).toBeVisible()
+  await expect(accountPanel.getByText('USDC perp')).toBeVisible()
+  await expect(accountPanel.getByText('7 queued / 2 live')).toBeVisible()
+  await expect(accountPanel.getByText('12s')).toBeVisible()
+  await expect(accountPanel.getByText('6.0s')).toBeVisible()
+  await expect(accountPanel.getByText('5 err / 1 cancel')).toBeVisible()
+  await expect(accountPanel.getByText('6', { exact: true })).toBeVisible()
+  await expect(accountPanel.getByText('8', { exact: true })).toBeVisible()
+  await expect(accountPanel.getByText('9', { exact: true })).toBeVisible()
+})
+
 test('Bybit terminal remains inspectable with many active TE rows', async ({ page }) => {
   await page.route('**/auth/session', async (route) => {
     await route.fulfill({
@@ -170,6 +195,29 @@ test('Bybit account creation submits exchange credentials through account API', 
   let accountCreated = false
   await page.route('**/api/accounts**', async (route) => {
     const request = route.request()
+    if (request.method() === 'POST' && request.url().includes('/api/accounts/validate')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          valid: true,
+          skipped: false,
+          exchange: 'bybit',
+          network: 'testnet',
+          present_permissions: [
+            'Read account data',
+            'Read orders and positions',
+            'Create/cancel contract orders',
+            'Withdrawals disabled',
+          ],
+          missing_requirements: [],
+          warnings: [],
+          read_only: false,
+          exchange_message: 'fixture permissions ok',
+        }),
+      })
+      return
+    }
     if (request.method() === 'PUT') {
       putUrl = request.url()
       putPayload = request.postDataJSON() as Record<string, unknown>
@@ -311,6 +359,8 @@ test('Bybit account creation submits exchange credentials through account API', 
   await dialog.getByPlaceholder('Exchange key label').fill('  Bybit Live QA  ')
   await dialog.getByPlaceholder('API key').fill('  bybit-api-key  ')
   await dialog.getByPlaceholder('Secret key').fill('  bybit-secret  ')
+  await dialog.getByRole('button', { name: 'Check permissions' }).click()
+  await expect(dialog.getByText('Key permissions are valid')).toBeVisible()
   await dialog.getByRole('button', { name: 'Create' }).click()
 
   await expect.poll(() => putPayload?.exchange).toBe('bybit')
@@ -321,6 +371,7 @@ test('Bybit account creation submits exchange credentials through account API', 
     secret: 'bybit-secret',
     network: 'testnet',
     exchange: 'bybit',
+    exchange_metadata: null,
   })
 
   await expect(dialog).toBeHidden()

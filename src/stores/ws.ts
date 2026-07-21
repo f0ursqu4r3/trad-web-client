@@ -303,6 +303,7 @@ export const useWsStore = defineStore('ws', () => {
       case 'binance':
       case 'bifake':
       case 'bybit':
+      case 'hyperliquid':
         return `${normalized.type}:${normalized.account_id}`
       case 'sim':
         return `${normalized.type}:${normalized.sim_market_id}`
