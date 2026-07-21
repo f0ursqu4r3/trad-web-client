@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 17
+export const PROTOCOL_VERSION = 18
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -784,6 +784,26 @@ export type OneWayPositionEffect = {
   opened_quantity: number
 }
 
+export type OneWayTransitionPhase =
+  | 'reducing'
+  | 'opening_residual'
+  | 'residual_working'
+  | 'complete'
+  | 'canceled'
+  | 'rejected'
+  | 'reconciliation_required'
+
+export type OneWayOrderTransition = {
+  baseline_signed_quantity: number
+  reduce_quantity: number
+  residual_open_quantity: number
+  reduced_filled_quantity: number
+  opened_filled_quantity: number
+  flatten_client_order_id: string
+  working_client_order_id: string
+  phase: OneWayTransitionPhase
+}
+
 export type MarketOrderSnapshot = {
   market_context: MarketContext
   market_action: MarketAction
@@ -795,6 +815,7 @@ export type MarketOrderSnapshot = {
   execution?: OrderExecution
   throttle?: boolean | null
   one_way_position_effect?: OneWayPositionEffect | null
+  one_way_transition?: OneWayOrderTransition | null
   status: MarketOrderStatus
   filled_qty?: number | null
   remote_id?: number | null
@@ -945,6 +966,7 @@ export type DeviceMoDelta =
         execution?: OrderExecution
         throttle?: boolean | null
         one_way_position_effect?: OneWayPositionEffect | null
+        one_way_transition?: OneWayOrderTransition | null
         status: MarketOrderStatus
         filled_qty?: number | null
         client_order_id?: string | null
@@ -964,6 +986,7 @@ export type DeviceMoDelta =
       }
     }
   | { kind: 'OneWayPositionEffect'; data: { effect: OneWayPositionEffect } }
+  | { kind: 'OneWayTransition'; data: { transition: OneWayOrderTransition } }
   | {
       kind: 'PartiallyFilled'
       data: { cum_qty?: number | null; last_qty?: number | null; price?: number | null }

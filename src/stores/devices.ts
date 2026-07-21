@@ -286,6 +286,7 @@ export const useDeviceStore = defineStore('device', () => {
         mo.execution = s.execution ?? { kind: 'market' }
         mo.throttle = s.throttle ?? false
         mo.one_way_position_effect = s.one_way_position_effect ?? null
+        mo.one_way_transition = s.one_way_transition ?? null
         mo.status = s.status
         mo.filled_qty = s.filled_qty ?? null
         mo.remote_id = s.remote_id ?? null
@@ -582,6 +583,7 @@ export const useDeviceStore = defineStore('device', () => {
             execution,
             throttle,
             one_way_position_effect,
+            one_way_transition,
             status,
             filled_qty,
             client_order_id,
@@ -598,6 +600,7 @@ export const useDeviceStore = defineStore('device', () => {
           mo.execution = execution ?? { kind: 'market' }
           mo.throttle = throttle ?? false
           mo.one_way_position_effect = one_way_position_effect ?? null
+          mo.one_way_transition = one_way_transition ?? null
           mo.status = status
           mo.filled_qty = filled_qty ?? null
           mo.client_order_id = client_order_id || null
@@ -609,6 +612,9 @@ export const useDeviceStore = defineStore('device', () => {
         break
       case 'OneWayPositionEffect':
         mo.one_way_position_effect = delta.data.effect
+        break
+      case 'OneWayTransition':
+        mo.one_way_transition = delta.data.transition
         break
       case 'Submitted':
         {
@@ -1104,6 +1110,7 @@ export interface MarketOrderState {
   execution: OrderExecution
   throttle: boolean
   one_way_position_effect: import('@/lib/ws/protocol').OneWayPositionEffect | null
+  one_way_transition: import('@/lib/ws/protocol').OneWayOrderTransition | null
 
   status: MarketOrderStatus
   filled_qty: number | null
@@ -1277,6 +1284,7 @@ function newMarketOrderState(): MarketOrderState {
     execution: { kind: 'market' },
     throttle: false,
     one_way_position_effect: null,
+    one_way_transition: null,
     status: MarketOrderStatus.NotYetSent,
     filled_qty: null,
     remote_id: null,

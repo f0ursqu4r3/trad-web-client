@@ -111,6 +111,12 @@ const baselineSideLabel = computed(() => {
   if (quantity < 0) return 'Short'
   return 'Flat'
 })
+
+const transitionPhaseLabel = computed(() => {
+  const phase = props.device.one_way_transition?.phase
+  if (!phase) return null
+  return phase.replace(/_/g, ' ')
+})
 </script>
 
 <template>
@@ -185,6 +191,18 @@ const baselineSideLabel = computed(() => {
           <dt class="dt-label">Opened Residual</dt>
           <dd class="m-0 font-mono text-primary">
             {{ formatQty(device.one_way_position_effect.opened_quantity) }}
+          </dd>
+        </div>
+      </div>
+      <div v-if="device.one_way_transition" class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
+        <div>
+          <dt class="dt-label">Transition Phase</dt>
+          <dd class="m-0 font-mono text-primary capitalize">{{ transitionPhaseLabel }}</dd>
+        </div>
+        <div>
+          <dt class="dt-label">Working Client ID</dt>
+          <dd class="m-0 font-mono text-primary text-[10px] break-all">
+            {{ device.one_way_transition.working_client_order_id }}
           </dd>
         </div>
       </div>

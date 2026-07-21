@@ -178,6 +178,7 @@ function binanceMarketOrderDevice(): Device {
     execution: { kind: 'market' },
     throttle: false,
     one_way_position_effect: null,
+    one_way_transition: null,
     status: MarketOrderStatus.AlreadySentAndAwaitingFilling,
     filled_qty: null,
     remote_id: null,
