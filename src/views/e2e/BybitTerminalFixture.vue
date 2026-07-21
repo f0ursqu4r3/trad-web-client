@@ -87,6 +87,8 @@ const bybitMissedTeDeviceId = '13131313-1313-4313-8313-131313131313'
 const bybitMissedMoDeviceId = '14141414-1414-4414-8414-141414141414'
 const bybitMissingProtectionDeviceId = '16161616-1616-4616-8616-161616161616'
 const hyperliquidAccountId = '17171717-1717-4717-8717-171717171717'
+const hyperliquidLimitCommandId = '21212121-2121-4121-8121-212121212121'
+const hyperliquidLimitDeviceId = '23232323-2323-4323-8323-232323232323'
 const binanceContext = {
   binance: { account_id: binanceAccountId },
 } satisfies MarketContext
@@ -100,6 +102,14 @@ const binanceMarketRef = {
   trading_account_id: binanceAccountId,
   trading_account_label: 'Binance QA',
   symbol: 'ETHUSDT',
+} satisfies MarketRef
+const hyperliquidMarketRef = {
+  exchange: ExchangeType.Hyperliquid,
+  network: NetworkType.Testnet,
+  product: 'usdc_perp' satisfies MarketProduct,
+  trading_account_id: hyperliquidAccountId,
+  trading_account_label: 'Hyperliquid QA',
+  symbol: 'BTC',
 } satisfies MarketRef
 
 const accounts = [
@@ -342,6 +352,29 @@ const bybitMissedCommand = {
   created_at: '2026-06-19T00:03:00.000Z',
 } satisfies CommandHistoryItem
 
+const hyperliquidLimitCommand = {
+  command_id: hyperliquidLimitCommandId,
+  command: {
+    kind: 'LimitOrder',
+    data: {
+      action: MarketAction.Open,
+      side: OrderSide.Buy,
+      symbol: 'BTC',
+      quantity: 25,
+      quantity_mode: 'notional',
+      price: 50_000,
+      time_in_force: 'gtc',
+      position_side: PositionSide.Long,
+      market_context: hyperliquidContext,
+      attached_exit_plan: null,
+      execution_guard_overrides: null,
+    },
+  },
+  market_ref: hyperliquidMarketRef,
+  status: CommandStatus.Running,
+  created_at: '2026-06-19T00:05:00.000Z',
+} satisfies CommandHistoryItem
+
 const binanceMarketOrderDevice = {
   device_id: binanceDeviceId,
   owner_user_id: '44444444-4444-4444-8444-444444444444',
@@ -572,6 +605,49 @@ const bybitMissingProtectionDevice = {
   },
 } satisfies DeviceSnapshotLiteData
 
+const hyperliquidWorkingLimitDevice = {
+  device_id: hyperliquidLimitDeviceId,
+  owner_user_id: '24242424-2424-4424-8424-242424242424',
+  associated_command_id: hyperliquidLimitCommandId,
+  market_ref: hyperliquidMarketRef,
+  protection_state: null,
+  parent_device: null,
+  children_devices: null,
+  created_at: '2026-06-19T00:05:00.000Z',
+  complete: false,
+  failed: false,
+  canceled: false,
+  awaiting_children: false,
+  failure_reason: null,
+  snapshot: {
+    kind: 'MarketOrder',
+    data: {
+      market_context: hyperliquidContext,
+      market_action: MarketAction.Open,
+      symbol: 'BTC',
+      order_side: OrderSide.Buy,
+      quantity: 0.0005,
+      position_side: PositionSide.Long,
+      price: 50_000,
+      execution: {
+        kind: 'limit',
+        time_in_force: 'gtc',
+        input_mode: 'notional',
+        input_value: 25,
+      },
+      throttle: false,
+      status: MarketOrderStatus.AlreadySentAndAwaitingFilling,
+      filled_qty: 0,
+      remote_id: 987654321,
+      remote_order_id: '987654321',
+      client_order_id: 'hl-working-limit',
+      sent_at: '2026-06-19T00:05:00.000Z',
+      last_status_check_at: '2026-06-19T00:05:01.000Z',
+      last_update_seen_at: '2026-06-19T00:05:01.000Z',
+    },
+  },
+} satisfies DeviceSnapshotLiteData
+
 const highCountBybitSymbols = [
   'DOGEUSDT',
   'XRPUSDT',
@@ -733,6 +809,7 @@ onMounted(async () => {
     bybitProtocolFixtures.bybitCommandHistoryItem,
     bybitRejectedCommand,
     bybitMissedCommand,
+    hyperliquidLimitCommand,
   ]
   commandStore.commandFilters = {
     kind: [],
@@ -783,6 +860,7 @@ onMounted(async () => {
   deviceStore.handleDeviceSnapshotLite(bybitMissedTrailingEntryDevice)
   deviceStore.handleDeviceSnapshotLite(bybitMissedMarketOrderDevice)
   deviceStore.handleDeviceSnapshotLite(bybitMissingProtectionDevice)
+  deviceStore.handleDeviceSnapshotLite(hyperliquidWorkingLimitDevice)
   highCountBybitDevices.forEach((device) => deviceStore.handleDeviceSnapshotLite(device))
 
   await nextTick()

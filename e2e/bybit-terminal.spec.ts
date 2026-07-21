@@ -284,6 +284,29 @@ test('Hyperliquid order forms serialize explicit execution-guard overrides', asy
   })
 })
 
+test('working Hyperliquid limit order can be canceled from device details', async ({ page }) => {
+  await page.goto('/e2e/bybit-terminal')
+
+  const deviceTree = page.getByTestId('device-tree-panel')
+  await deviceTree.getByText('Limit Order', { exact: true }).click()
+
+  const details = page.getByTestId('device-details-panel')
+  await expect(details.getByText('Limit Order Device')).toBeVisible()
+  await details.getByRole('button', { name: 'Cancel limit order' }).click()
+
+  await expect
+    .poll(async () => {
+      return await page.evaluate(() =>
+        (window as any).__tradBybitTerminalFixture?.getCommandSends(),
+      )
+    })
+    .toContainEqual({
+      kind: 'CancelDevice',
+      data: { device_id: '23232323-2323-4323-8323-232323232323' },
+    })
+  await expect(details.getByRole('button', { name: 'Cancel requested' })).toBeDisabled()
+})
+
 test('Hyperliquid account panel submits wallet-signed agent and builder approvals', async ({
   page,
 }) => {

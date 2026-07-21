@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import type { MarketOrderState } from '@/stores/devices'
 import {
   MarketAction,
@@ -8,8 +8,10 @@ import {
   type ProtectionState,
 } from '@/lib/ws/protocol'
 import { useAccountsStore } from '@/stores/accounts'
+import { useWsStore } from '@/stores/ws'
 import { formatPrice, formatQty, getPositionSideClass, formatSide } from './utils'
 import { formatExecutionGuardPercent } from '@/lib/hyperliquidExecutionGuards'
+import { XCircle } from 'lucide-vue-next'
 
 const props = defineProps<{
   device: MarketOrderState
@@ -17,8 +19,13 @@ const props = defineProps<{
   protectionState?: ProtectionState | null
   failureReason?: string | null
   createdAt?: Date | null
+  deviceId?: string | null
 }>()
 const accounts = useAccountsStore()
+const ws = useWsStore()
+const cancelRequested = ref(false)
+const cancelError = ref<string | null>(null)
+let cancelResetTimer: number | null = null
 
 const networkLabel = computed(() => {
   const ctx = props.device.market_context
@@ -38,6 +45,17 @@ const actionLabel = computed(() => {
   return props.device.market_action === MarketAction.Close ? 'Close' : 'Open'
 })
 const isLimitOrder = computed(() => props.device.execution.kind === 'limit')
+const canCancelLimitOrder = computed(
+  () =>
+    isLimitOrder.value &&
+    !!props.deviceId &&
+    [
+      MarketOrderStatus.NotYetSent,
+      MarketOrderStatus.AlreadySentAndAwaitingFilling,
+      MarketOrderStatus.PartiallyFilled,
+      MarketOrderStatus.ReconciliationRequired,
+    ].includes(props.device.status),
+)
 const deviceTitle = computed(() =>
   isLimitOrder.value ? 'Limit Order Device' : 'Market Order Device',
 )
@@ -117,6 +135,30 @@ const transitionPhaseLabel = computed(() => {
   const phase = props.device.one_way_transition?.phase
   if (!phase) return null
   return phase.replace(/_/g, ' ')
+})
+
+function cancelLimitOrder() {
+  if (!canCancelLimitOrder.value || !props.deviceId || cancelRequested.value) return
+  cancelRequested.value = true
+  cancelError.value = null
+  try {
+    ws.sendUserCommand({
+      kind: 'CancelDevice',
+      data: { device_id: props.deviceId },
+    })
+  } catch (error) {
+    cancelRequested.value = false
+    cancelError.value = error instanceof Error ? error.message : String(error)
+    return
+  }
+  cancelResetTimer = window.setTimeout(() => {
+    cancelRequested.value = false
+    cancelResetTimer = null
+  }, 3_000)
+}
+
+onUnmounted(() => {
+  if (cancelResetTimer !== null) window.clearTimeout(cancelResetTimer)
 })
 </script>
 
@@ -277,6 +319,19 @@ const transitionPhaseLabel = computed(() => {
       <p class="m-0 text-[12px] font-mono text-primary break-words">
         {{ failureReason }}
       </p>
+    </div>
+
+    <div v-if="canCancelLimitOrder" class="space-y-2 border-t border-[var(--border-color)] pt-3">
+      <button
+        type="button"
+        class="btn btn-danger inline-flex items-center gap-2"
+        :disabled="cancelRequested"
+        @click="cancelLimitOrder"
+      >
+        <XCircle :size="14" />
+        {{ cancelRequested ? 'Cancel requested' : 'Cancel limit order' }}
+      </button>
+      <p v-if="cancelError" class="m-0 text-[11px] text-error">{{ cancelError }}</p>
     </div>
 
     <!-- Market Context -->
