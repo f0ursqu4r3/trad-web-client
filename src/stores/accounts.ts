@@ -48,6 +48,12 @@ interface HyperliquidBuilderApprovalResponse {
   exchange_response: unknown
 }
 
+interface HyperliquidBuilderApprovalRefreshResponse {
+  account: AccountRecord
+  max_builder_fee_tenths_bps: number
+  builder_approved: boolean
+}
+
 export interface AccountKeyValidationPayload {
   key: string
   secret: string
@@ -240,6 +246,18 @@ export const useAccountsStore = defineStore('accounts', () => {
     return response
   }
 
+  async function refreshHyperliquidBuilderApproval(
+    accountId: string,
+  ): Promise<HyperliquidBuilderApprovalRefreshResponse> {
+    const response = await apiPost<HyperliquidBuilderApprovalRefreshResponse>(
+      `/accounts/${encodeURIComponent(accountId)}/hyperliquid/builder-approval/refresh`,
+      undefined,
+      { throwOnHTTPError: true },
+    )
+    replaceAccount(response.account)
+    return response
+  }
+
   async function removeAccount(label: string): Promise<void> {
     const encodedLabel = encodeURIComponent(label)
     await apiDelete(`/accounts/${encodedLabel}`)
@@ -404,6 +422,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     validateAccountKey,
     updateAccountMetadata,
     approveHyperliquidBuilderFee,
+    refreshHyperliquidBuilderApproval,
     removeAccount,
     reorderAccounts,
     getMarketContextForAccount,

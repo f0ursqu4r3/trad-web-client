@@ -36,6 +36,7 @@ const refreshingLeverageAccountIds = ref<Set<string>>(new Set())
 const requestedCapabilityAccountIds = ref<Set<string>>(new Set())
 const approvingBuilderAccountIds = ref<Set<string>>(new Set())
 const savingBuilderAccountIds = ref<Set<string>>(new Set())
+const refreshingBuilderAccountIds = ref<Set<string>>(new Set())
 const refreshError = ref<string | null>(null)
 const controlError = ref<string | null>(null)
 const controlMessage = ref<string | null>(null)
@@ -245,6 +246,15 @@ function canApproveHyperliquidBuilder(account: AccountRecord): boolean {
   return Boolean(account.exchange_metadata?.user_address) && !approvingBuilderAccountIds.value.has(account.id)
 }
 
+function canRefreshHyperliquidBuilder(account: AccountRecord): boolean {
+  if (account.exchange !== ExchangeType.Hyperliquid) return false
+  if (refreshingBuilderAccountIds.value.has(account.id)) return false
+  if (!account.exchange_metadata?.user_address) return false
+  const fee = account.exchange_metadata?.builder_fee_tenths_bps ?? 0
+  if (fee <= 0) return true
+  return Boolean(account.exchange_metadata?.builder_address)
+}
+
 async function saveHyperliquidBuilder(account: AccountRecord) {
   controlError.value = null
   controlMessage.value = null
@@ -310,6 +320,28 @@ async function approveHyperliquidBuilder(account: AccountRecord) {
     const next = new Set(approvingBuilderAccountIds.value)
     next.delete(account.id)
     approvingBuilderAccountIds.value = next
+  }
+}
+
+async function refreshHyperliquidBuilder(account: AccountRecord) {
+  controlError.value = null
+  controlMessage.value = null
+  if (!canRefreshHyperliquidBuilder(account)) {
+    controlError.value = 'Hyperliquid builder refresh requires saved user and builder addresses.'
+    return
+  }
+  refreshingBuilderAccountIds.value = new Set([...refreshingBuilderAccountIds.value, account.id])
+  try {
+    const response = await accounts.refreshHyperliquidBuilderApproval(account.id)
+    controlMessage.value = response.builder_approved
+      ? `Hyperliquid builder approval covers ${(response.max_builder_fee_tenths_bps / 10).toFixed(1)} bps for ${account.label}.`
+      : `Hyperliquid builder approval is below the configured fee for ${account.label}.`
+  } catch (err) {
+    controlError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    const next = new Set(refreshingBuilderAccountIds.value)
+    next.delete(account.id)
+    refreshingBuilderAccountIds.value = next
   }
 }
 
@@ -741,7 +773,7 @@ watch(
               </p>
               <div
                 v-if="accounts.selectedAccountId === account.id && account.exchange === ExchangeType.Hyperliquid"
-                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(190px,1fr)_96px_auto_auto]"
+                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(190px,1fr)_96px_auto_auto_auto]"
               >
                 <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
                   <span>Builder Address</span>
@@ -789,7 +821,16 @@ watch(
                   <span v-if="approvingBuilderAccountIds.has(account.id)">Approving</span>
                   <span v-else>Approve</span>
                 </button>
-                <p class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)] md:col-span-4">
+                <button
+                  class="btn btn-secondary btn-xs self-end"
+                  type="button"
+                  :disabled="!canRefreshHyperliquidBuilder(account)"
+                  @click="refreshHyperliquidBuilder(account)"
+                >
+                  <span v-if="refreshingBuilderAccountIds.has(account.id)">Refreshing</span>
+                  <span v-else>Refresh</span>
+                </button>
+                <p class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)] md:col-span-5">
                   Approved max:
                   <span class="font-mono text-primary">
                     {{ ((account.exchange_metadata?.max_builder_fee_tenths_bps ?? 0) / 10).toFixed(1) }} bps
