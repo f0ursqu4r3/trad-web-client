@@ -156,6 +156,7 @@ async function validatePermissions() {
       secret: secretKey.value.trim(),
       network: network.value,
       exchange: exchange.value,
+      exchange_metadata: buildExchangeMetadata(),
     })
   } catch (err) {
     validationError.value = err instanceof Error ? err.message : String(err)

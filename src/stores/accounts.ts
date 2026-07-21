@@ -77,6 +77,7 @@ export interface AccountKeyValidationPayload {
   secret: string
   network: NetworkType
   exchange: ExchangeType
+  exchange_metadata?: ExchangeAccountMetadata | null
 }
 
 export interface AccountKeyValidationResponse {
