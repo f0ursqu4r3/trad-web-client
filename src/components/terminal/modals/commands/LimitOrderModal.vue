@@ -8,6 +8,7 @@ import {
   PositionSide,
   type LimitOrderCommand,
   type LimitTimeInForce,
+  type HyperliquidExecutionGuardOverrides,
   type MarketContext,
   type OrderQuantityMode,
   type UserCommandPayload,
@@ -23,6 +24,13 @@ import {
   isValidHyperliquidPerpSymbol,
   normalizeHyperliquidPerpSymbol,
 } from '@/lib/bybitOrderValidation'
+import {
+  executionGuardOverridesFromPercent,
+  formatExecutionGuardPercent,
+  isValidExecutionGuardPercent,
+  resolveHyperliquidExecutionGuards,
+  tenthsBpsToPercent,
+} from '@/lib/hyperliquidExecutionGuards'
 
 const logger = createLogger('commands')
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
@@ -41,6 +49,9 @@ const price = ref<number | null>(null)
 const timeInForce = ref<LimitTimeInForce>('gtc')
 const takeProfit = ref<number | null>(null)
 const stopLoss = ref<number | null>(null)
+const overrideProtectionGuards = ref(false)
+const takeProfitGuardPercent = ref(1)
+const stopLossGuardPercent = ref(10)
 
 const selectedMarketContext = computed<MarketContext | null>(() =>
   accounts.getMarketContextForAccount(selectedAccountId.value),
@@ -91,6 +102,23 @@ const exitLevelError = computed(() => {
   }
   return null
 })
+const accountExecutionGuards = computed(() =>
+  resolveHyperliquidExecutionGuards(selectedAccount.value?.exchange_metadata),
+)
+const accountProtectionGuardLabel = computed(() => {
+  const guards = accountExecutionGuards.value
+  return [
+    `TP ${formatExecutionGuardPercent(guards.take_profit_market_tenths_bps)}`,
+    `SL ${formatExecutionGuardPercent(guards.stop_loss_market_tenths_bps)}`,
+  ].join(' / ')
+})
+
+function resetProtectionGuards() {
+  const guards = accountExecutionGuards.value
+  overrideProtectionGuards.value = false
+  takeProfitGuardPercent.value = tenthsBpsToPercent(guards.take_profit_market_tenths_bps)
+  stopLossGuardPercent.value = tenthsBpsToPercent(guards.stop_loss_market_tenths_bps)
+}
 
 function requestCapabilities() {
   if (selectedMarketContext.value) ws.requestMarketCapabilities(selectedMarketContext.value)
@@ -108,6 +136,7 @@ function reset() {
   timeInForce.value = 'gtc'
   takeProfit.value = null
   stopLoss.value = null
+  resetProtectionGuards()
 }
 
 watch(
@@ -126,6 +155,7 @@ watch(selectedAccountId, (next, previous) => {
   if (!symbol.value || symbol.value === previousDefault) symbol.value = nextDefault
   lastAccountId.value = next
   quantityMode.value = isHyperliquid.value ? 'notional' : 'base'
+  resetProtectionGuards()
   requestCapabilities()
 })
 
@@ -145,6 +175,15 @@ function validate(): boolean {
     return false
   if (price.value === null || !Number.isFinite(price.value) || price.value <= 0) return false
   if (exitLevelError.value) return false
+  if (
+    isHyperliquid.value &&
+    supportsAttachedExit.value &&
+    overrideProtectionGuards.value &&
+    (!isValidExecutionGuardPercent(takeProfitGuardPercent.value) ||
+      !isValidExecutionGuardPercent(stopLossGuardPercent.value))
+  ) {
+    return false
+  }
   return true
 }
 
@@ -158,6 +197,13 @@ function submit() {
     supportsAttachedExit.value && (takeProfit.value !== null || stopLoss.value !== null)
       ? { take_profit: takeProfit.value, stop_loss: stopLoss.value }
       : null
+  const executionGuardOverrides: HyperliquidExecutionGuardOverrides | null =
+    isHyperliquid.value && supportsAttachedExit.value && overrideProtectionGuards.value
+      ? executionGuardOverridesFromPercent({
+          takeProfit: takeProfitGuardPercent.value,
+          stopLoss: stopLossGuardPercent.value,
+        })
+      : null
   const data: LimitOrderCommand = {
     action: action.value,
     side: derivedSide.value,
@@ -169,6 +215,7 @@ function submit() {
     position_side: positionSide.value,
     market_context: marketContext,
     attached_exit_plan: attachedExitPlan,
+    execution_guard_overrides: executionGuardOverrides,
   }
   const payload: Extract<UserCommandPayload, { kind: 'LimitOrder' }> = {
     kind: 'LimitOrder',
@@ -237,6 +284,41 @@ function submit() {
             <span>Stop Loss</span>
             <input v-model.number="stopLoss" type="number" step="any" class="input" />
           </label>
+          <label v-if="isHyperliquid" class="field col-span-2 flex-row items-center gap-2">
+            <input v-model="overrideProtectionGuards" type="checkbox" />
+            <span>Override account protection guards</span>
+          </label>
+          <template v-if="isHyperliquid && overrideProtectionGuards">
+            <label class="field">
+              <span>Market TP Guard (%)</span>
+              <input
+                v-model.number="takeProfitGuardPercent"
+                type="number"
+                min="0"
+                max="50"
+                step="0.001"
+                class="input"
+              />
+            </label>
+            <label class="field">
+              <span>Market SL Guard (%)</span>
+              <input
+                v-model.number="stopLossGuardPercent"
+                type="number"
+                min="0"
+                max="50"
+                step="0.001"
+                class="input"
+              />
+            </label>
+          </template>
+          <p v-if="isHyperliquid" class="col-span-2 m-0 text-[11px] text-[var(--color-text-dim)]">
+            {{
+              overrideProtectionGuards
+                ? 'These market TP/SL guards are recorded with this command.'
+                : `Account defaults: ${accountProtectionGuardLabel}.`
+            }}
+          </p>
         </template>
       </div>
       <p class="m-0 text-[11px] text-[var(--color-text-dim)]">

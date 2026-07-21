@@ -4,6 +4,8 @@ import AccountsListPanel from '@/components/terminal/panels/AccountsListPanel.vu
 import CommandPanel from '@/components/terminal/panels/CommandPanel.vue'
 import DeviceDetailsPanel from '@/components/terminal/panels/DeviceDetailsPanel.vue'
 import DeviceTreePanel from '@/components/terminal/panels/DeviceTreePanel.vue'
+import MarketOrderModal from '@/components/terminal/modals/commands/MarketOrderModal.vue'
+import LimitOrderModal from '@/components/terminal/modals/commands/LimitOrderModal.vue'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import { useCommandStore } from '@/stores/command'
 import { useDeviceStore } from '@/stores/devices'
@@ -33,22 +35,46 @@ const commandPanelRef = ref<InstanceType<typeof CommandPanel> | null>(null)
 const accountStore = useAccountsStore()
 const wsStore = useWsStore()
 const continueMissedEntrySends = ref<string[]>([])
+const commandSends = ref<unknown[]>([])
+const marketOrderOpen = ref(false)
+const limitOrderOpen = ref(false)
 
 wsStore.sendContinueMissedTrailingEntry = (commandId: string) => {
   continueMissedEntrySends.value = [...continueMissedEntrySends.value, commandId]
   return commandId
 }
+wsStore.sendUserCommand = ((payload: unknown) => {
+  commandSends.value = [...commandSends.value, payload]
+  return '19191919-1919-4919-8919-191919191919'
+}) as typeof wsStore.sendUserCommand
 
 declare global {
   interface Window {
     __tradBybitTerminalFixture?: {
       getContinueMissedEntrySends: () => string[]
+      getCommandSends: () => unknown[]
     }
   }
 }
 
 window.__tradBybitTerminalFixture = {
   getContinueMissedEntrySends: () => [...continueMissedEntrySends.value],
+  getCommandSends: () => [...commandSends.value],
+}
+
+function openHyperliquidMarketOrder() {
+  accountStore.selectedAccountId = hyperliquidAccountId
+  marketOrderOpen.value = true
+}
+
+function openHyperliquidLimitOrder() {
+  accountStore.selectedAccountId = hyperliquidAccountId
+  limitOrderOpen.value = true
+}
+
+function captureMarketOrder(payload: unknown) {
+  commandSends.value = [...commandSends.value, payload]
+  marketOrderOpen.value = false
 }
 
 const binanceAccountId = '11111111-1111-4111-8111-111111111111'
@@ -110,11 +136,19 @@ const accounts = [
       user_address: '0x1111111111111111111111111111111111111111',
       agent_address: '0x2222222222222222222222222222222222222222',
       agent_approved: true,
+      agent_approval_verified_at_ms: 1_780_000_000_000,
       builder_address: '0x3333333333333333333333333333333333333333',
+      builder_config_version: 'test-fixture',
       builder_fee_tenths_bps: 10,
       max_builder_fee_tenths_bps: 10,
       builder_approved: true,
+      builder_approval_network: NetworkType.Testnet,
+      builder_approval_user_address: '0x1111111111111111111111111111111111111111',
+      builder_approval_verified_at_ms: 1_780_000_000_000,
       default_leverage: 1,
+      entry_market_guard_tenths_bps: 700,
+      take_profit_market_guard_tenths_bps: 1_200,
+      stop_loss_market_guard_tenths_bps: 11_000,
     },
   },
 ] satisfies AccountRecord[]
@@ -158,6 +192,25 @@ wsStore.applyOrderThrottleSnapshot({
     },
   ],
 })
+wsStore.marketCapabilities[`hyperliquid:${hyperliquidAccountId}`] = {
+  request_uuid: '20202020-2020-4020-8020-202020202020',
+  market_context: hyperliquidContext,
+  supports_market_orders: true,
+  supports_limit_orders: true,
+  supports_trailing_entry: false,
+  supports_direct_close_market_orders: true,
+  supports_trailing_entry_close_command: false,
+  supports_leverage: true,
+  supports_hedge_mode: false,
+  hedge_mode_only: false,
+  supports_attached_take_profit_stop_loss: true,
+  supports_position_trading_stop: false,
+  new_open_orders_enabled: true,
+  runtime_mode: 'enabled',
+  protection_strategy: 'native_attached_tpsl',
+  product: 'usdc_perp',
+  notes: [],
+}
 wsStore.applySymbolLeverageSnapshot({
   request_uuid: '66666666-6666-4666-8666-666666666666',
   market_context: bybitProtocolFixtures.bybitContext,
@@ -719,6 +772,20 @@ onMounted(async () => {
 
 <template>
   <main class="e2e-shell">
+    <div class="fixed bottom-2 right-2 z-50 flex gap-2">
+      <button data-testid="open-hyperliquid-mo" type="button" @click="openHyperliquidMarketOrder">
+        Open Hyperliquid MO
+      </button>
+      <button data-testid="open-hyperliquid-limit" type="button" @click="openHyperliquidLimitOrder">
+        Open Hyperliquid Limit
+      </button>
+    </div>
+    <MarketOrderModal
+      :open="marketOrderOpen"
+      @submit="captureMarketOrder"
+      @close="marketOrderOpen = false"
+    />
+    <LimitOrderModal :open="limitOrderOpen" @close="limitOrderOpen = false" />
     <section class="e2e-panel" data-testid="accounts-panel" aria-label="Trading Accounts">
       <AccountsListPanel />
     </section>

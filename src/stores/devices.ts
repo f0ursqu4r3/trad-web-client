@@ -287,6 +287,7 @@ export const useDeviceStore = defineStore('device', () => {
         mo.throttle = s.throttle ?? false
         mo.one_way_position_effect = s.one_way_position_effect ?? null
         mo.one_way_transition = s.one_way_transition ?? null
+        mo.execution_guards = s.execution_guards ?? null
         mo.status = s.status
         mo.filled_qty = s.filled_qty ?? null
         mo.remote_id = s.remote_id ?? null
@@ -341,6 +342,7 @@ export const useDeviceStore = defineStore('device', () => {
         np.stop_loss = s.stop_loss ?? null
         np.expected_entries = s.expected_entries
         np.activation_policy = s.activation_policy ?? 'parent_attached'
+        np.execution_guards = s.execution_guards ?? null
         np.observed_entries = s.observed_entries
         np.observed_protection_orders = s.observed_protection_orders
         np.observed_entry_order_ids = s.observed_entry_order_ids ?? []
@@ -584,6 +586,7 @@ export const useDeviceStore = defineStore('device', () => {
             throttle,
             one_way_position_effect,
             one_way_transition,
+            execution_guards,
             status,
             filled_qty,
             client_order_id,
@@ -601,6 +604,7 @@ export const useDeviceStore = defineStore('device', () => {
           mo.throttle = throttle ?? false
           mo.one_way_position_effect = one_way_position_effect ?? null
           mo.one_way_transition = one_way_transition ?? null
+          mo.execution_guards = execution_guards ?? null
           mo.status = status
           mo.filled_qty = filled_qty ?? null
           mo.client_order_id = client_order_id || null
@@ -852,6 +856,7 @@ export const useDeviceStore = defineStore('device', () => {
           stop_loss,
           expected_entries,
           activation_policy,
+          execution_guards,
           observed_entries,
           observed_protection_orders,
           observed_entry_order_ids,
@@ -876,6 +881,7 @@ export const useDeviceStore = defineStore('device', () => {
         np.stop_loss = stop_loss ?? null
         np.expected_entries = expected_entries
         np.activation_policy = activation_policy ?? 'parent_attached'
+        np.execution_guards = execution_guards ?? null
         np.observed_entries = observed_entries
         np.observed_protection_orders = observed_protection_orders
         np.observed_entry_order_ids = observed_entry_order_ids ?? []
@@ -1111,6 +1117,7 @@ export interface MarketOrderState {
   throttle: boolean
   one_way_position_effect: import('@/lib/ws/protocol').OneWayPositionEffect | null
   one_way_transition: import('@/lib/ws/protocol').OneWayOrderTransition | null
+  execution_guards: import('@/lib/ws/protocol').HyperliquidExecutionGuards | null
 
   status: MarketOrderStatus
   filled_qty: number | null
@@ -1167,6 +1174,7 @@ export interface NativeProtectionState {
   stop_loss: number | null
   expected_entries: number
   activation_policy: import('@/lib/ws/protocol').ProtectionActivationPolicy
+  execution_guards: import('@/lib/ws/protocol').HyperliquidExecutionGuards | null
   observed_entries: number
   observed_protection_orders: number
   observed_entry_order_ids: string[]
@@ -1285,6 +1293,7 @@ function newMarketOrderState(): MarketOrderState {
     throttle: false,
     one_way_position_effect: null,
     one_way_transition: null,
+    execution_guards: null,
     status: MarketOrderStatus.NotYetSent,
     filled_qty: null,
     remote_id: null,
@@ -1341,6 +1350,7 @@ function newNativeProtectionState(): NativeProtectionState {
     stop_loss: null,
     expected_entries: 0,
     activation_policy: 'parent_attached',
+    execution_guards: null,
     observed_entries: 0,
     observed_protection_orders: 0,
     observed_entry_order_ids: [],

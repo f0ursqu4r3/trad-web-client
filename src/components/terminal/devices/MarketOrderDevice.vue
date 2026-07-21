@@ -9,6 +9,7 @@ import {
 } from '@/lib/ws/protocol'
 import { useAccountsStore } from '@/stores/accounts'
 import { formatPrice, formatQty, getPositionSideClass, formatSide } from './utils'
+import { formatExecutionGuardPercent } from '@/lib/hyperliquidExecutionGuards'
 
 const props = defineProps<{
   device: MarketOrderState
@@ -138,6 +139,26 @@ const transitionPhaseLabel = computed(() => {
         <span :class="getPositionSideClass(device.position_side)">{{
           formatSide(device.position_side)
         }}</span>
+      </div>
+      <div v-if="device.execution_guards" class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
+        <div v-if="!isLimitOrder">
+          <dt class="dt-label">Market Execution Guard</dt>
+          <dd class="m-0 font-mono text-primary">
+            {{ formatExecutionGuardPercent(device.execution_guards.entry_market_tenths_bps) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="dt-label">TP Market Guard</dt>
+          <dd class="m-0 font-mono text-primary">
+            {{ formatExecutionGuardPercent(device.execution_guards.take_profit_market_tenths_bps) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="dt-label">SL Market Guard</dt>
+          <dd class="m-0 font-mono text-primary">
+            {{ formatExecutionGuardPercent(device.execution_guards.stop_loss_market_tenths_bps) }}
+          </dd>
+        </div>
       </div>
     </div>
 

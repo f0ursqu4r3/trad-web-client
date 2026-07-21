@@ -7,6 +7,7 @@ import {
   PositionSide,
   type MarketContext,
   type MarketOrderCommand,
+  type HyperliquidExecutionGuardOverrides,
   type UserCommandPayload,
 } from '@/lib/ws/protocol'
 import {
@@ -27,6 +28,13 @@ import {
 
 import type { MarketOrderPrefill } from './types'
 import { createLogger } from '@/lib/utils'
+import {
+  executionGuardOverridesFromPercent,
+  formatExecutionGuardPercent,
+  isValidExecutionGuardPercent,
+  resolveHyperliquidExecutionGuards,
+  tenthsBpsToPercent,
+} from '@/lib/hyperliquidExecutionGuards'
 
 const logger = createLogger('commands')
 
@@ -48,6 +56,10 @@ const position_side = ref<PositionSide>(PositionSide.Long)
 const action = ref<MarketAction>(MarketAction.Open)
 const take_profit = ref<number | null | ''>(null)
 const stop_loss = ref<number | null | ''>(null)
+const overrideExecutionGuards = ref(false)
+const entryGuardPercent = ref(0.5)
+const takeProfitGuardPercent = ref(1)
+const stopLossGuardPercent = ref(10)
 
 const selectedMarketContext = computed<MarketContext | null>(() =>
   accounts.getMarketContextForAccount(selectedAccountId.value),
@@ -101,6 +113,25 @@ const readinessWarning = computed(() => {
   }
   return 'Bybit metadata is unvalidated. Refresh credentials before opening live Bybit orders.'
 })
+const accountExecutionGuards = computed(() =>
+  resolveHyperliquidExecutionGuards(selectedAccount.value?.exchange_metadata),
+)
+const accountExecutionGuardLabel = computed(() => {
+  const guards = accountExecutionGuards.value
+  return [
+    `entry ${formatExecutionGuardPercent(guards.entry_market_tenths_bps)}`,
+    `TP ${formatExecutionGuardPercent(guards.take_profit_market_tenths_bps)}`,
+    `SL ${formatExecutionGuardPercent(guards.stop_loss_market_tenths_bps)}`,
+  ].join(' / ')
+})
+
+function resetExecutionGuards() {
+  const guards = accountExecutionGuards.value
+  overrideExecutionGuards.value = false
+  entryGuardPercent.value = tenthsBpsToPercent(guards.entry_market_tenths_bps)
+  takeProfitGuardPercent.value = tenthsBpsToPercent(guards.take_profit_market_tenths_bps)
+  stopLossGuardPercent.value = tenthsBpsToPercent(guards.stop_loss_market_tenths_bps)
+}
 
 function requestSelectedCapabilities() {
   if (selectedMarketContext.value) {
@@ -118,6 +149,7 @@ function applyInitialValues() {
   action.value = preset.action ?? MarketAction.Open
   take_profit.value = preset.take_profit ?? null
   stop_loss.value = preset.stop_loss ?? null
+  resetExecutionGuards()
 }
 
 watch(
@@ -137,6 +169,7 @@ watch(selectedAccountId, (next, prev) => {
     symbol.value = nextDefault
   }
   lastAccountId.value = next
+  resetExecutionGuards()
   requestSelectedCapabilities()
 })
 
@@ -159,6 +192,16 @@ function validate(): boolean {
   const sl = optionalPositivePrice(stop_loss.value)
   if (take_profit.value !== null && take_profit.value !== '' && tp === null) return false
   if (stop_loss.value !== null && stop_loss.value !== '' && sl === null) return false
+  if (
+    isHyperliquidAccount.value &&
+    overrideExecutionGuards.value &&
+    (!isValidExecutionGuardPercent(entryGuardPercent.value) ||
+      (supportsAttachedExit.value &&
+        (!isValidExecutionGuardPercent(takeProfitGuardPercent.value) ||
+          !isValidExecutionGuardPercent(stopLossGuardPercent.value))))
+  ) {
+    return false
+  }
   return true
 }
 
@@ -189,6 +232,14 @@ function submit() {
           stop_loss: normalizedStopLoss,
         }
       : null
+  const executionGuardOverrides: HyperliquidExecutionGuardOverrides | null =
+    isHyperliquidAccount.value && overrideExecutionGuards.value
+      ? executionGuardOverridesFromPercent({
+          entry: entryGuardPercent.value,
+          takeProfit: supportsAttachedExit.value ? takeProfitGuardPercent.value : undefined,
+          stopLoss: supportsAttachedExit.value ? stopLossGuardPercent.value : undefined,
+        })
+      : null
 
   const data: MarketOrderCommand = {
     market_context: marketContext,
@@ -197,6 +248,7 @@ function submit() {
     position_side: position_side.value,
     action: action.value,
     attached_exit_plan: attachedExitPlan,
+    execution_guard_overrides: executionGuardOverrides,
   }
   const payload: Extract<UserCommandPayload, { kind: 'MarketOrder' }> = {
     kind: 'MarketOrder',
@@ -252,6 +304,54 @@ function normalizedSymbolForSubmit(): string {
             <span>Stop Loss</span>
             <input type="number" step="any" v-model.number="stop_loss" class="input" />
           </label>
+        </template>
+        <template v-if="isHyperliquidAccount">
+          <label class="field col-span-2 flex-row items-center gap-2">
+            <input v-model="overrideExecutionGuards" type="checkbox" />
+            <span>Override account execution guards</span>
+          </label>
+          <label v-if="overrideExecutionGuards" class="field">
+            <span>Market Entry Guard (%)</span>
+            <input
+              v-model.number="entryGuardPercent"
+              type="number"
+              min="0"
+              max="50"
+              step="0.001"
+              class="input"
+            />
+          </label>
+          <template v-if="overrideExecutionGuards && supportsAttachedExit">
+            <label class="field">
+              <span>Market TP Guard (%)</span>
+              <input
+                v-model.number="takeProfitGuardPercent"
+                type="number"
+                min="0"
+                max="50"
+                step="0.001"
+                class="input"
+              />
+            </label>
+            <label class="field">
+              <span>Market SL Guard (%)</span>
+              <input
+                v-model.number="stopLossGuardPercent"
+                type="number"
+                min="0"
+                max="50"
+                step="0.001"
+                class="input"
+              />
+            </label>
+          </template>
+          <p class="col-span-2 m-0 text-[11px] text-[var(--color-text-dim)]">
+            {{
+              overrideExecutionGuards
+                ? 'This command records the override values shown above.'
+                : `Account defaults: ${accountExecutionGuardLabel}.`
+            }}
+          </p>
         </template>
       </div>
       <div v-if="blocksOpeningOrder" class="text-xs text-error">

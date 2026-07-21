@@ -20,6 +20,9 @@ export interface ExchangeAccountMetadataLike {
   agent_approval_verified_at_ms?: number | null
   default_leverage?: number | null
   symbol_leverage_overrides?: Record<string, number> | null
+  entry_market_guard_tenths_bps?: number | null
+  take_profit_market_guard_tenths_bps?: number | null
+  stop_loss_market_guard_tenths_bps?: number | null
 }
 
 export interface AccountMetadataLike {

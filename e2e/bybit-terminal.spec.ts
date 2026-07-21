@@ -153,6 +153,129 @@ test('Hyperliquid account panel shows and saves builder fee bps clearly', async 
   ).toBeVisible()
 })
 
+test('Hyperliquid account panel shows and saves independent execution guards', async ({ page }) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  let metadataPayload: Record<string, unknown> | null = null
+  await page.route('**/api/accounts/**/exchange-metadata', async (route) => {
+    metadataPayload = route.request().postDataJSON() as Record<string, unknown>
+    const guards = metadataPayload.exchange_metadata as Record<string, unknown>
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: '17171717-1717-4717-8717-171717171717',
+        label: 'Hyperliquid QA',
+        key: 'redacted',
+        network: 'testnet',
+        exchange: 'hyperliquid',
+        exchange_metadata: {
+          product: 'usdc_perp',
+          hedge_mode_only: false,
+          user_address: '0x1111111111111111111111111111111111111111',
+          agent_address: '0x2222222222222222222222222222222222222222',
+          agent_approved: true,
+          builder_address: '0x3333333333333333333333333333333333333333',
+          builder_fee_tenths_bps: 10,
+          max_builder_fee_tenths_bps: 10,
+          builder_approved: true,
+          default_leverage: 1,
+          ...guards,
+        },
+      }),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+  const accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
+
+  await expect(accountPanel.getByRole('spinbutton', { name: /Market Entry Guard/ })).toHaveValue(
+    '0.7',
+  )
+  await expect(accountPanel.getByRole('spinbutton', { name: /Market TP Guard/ })).toHaveValue('1.2')
+  await expect(accountPanel.getByRole('spinbutton', { name: /Market SL Guard/ })).toHaveValue('11')
+
+  await accountPanel.getByRole('spinbutton', { name: /Market Entry Guard/ }).fill('0.875')
+  await accountPanel.getByRole('spinbutton', { name: /Market TP Guard/ }).fill('1.5')
+  await accountPanel.getByRole('spinbutton', { name: /Market SL Guard/ }).fill('12.5')
+  await accountPanel.getByRole('button', { name: 'Save Guards' }).click()
+
+  await expect.poll(() => metadataPayload).not.toBeNull()
+  expect(metadataPayload).toEqual({
+    exchange_metadata: {
+      entry_market_guard_tenths_bps: 875,
+      take_profit_market_guard_tenths_bps: 1500,
+      stop_loss_market_guard_tenths_bps: 12500,
+    },
+  })
+  await expect(
+    accountPanel.getByText('Saved Hyperliquid execution guards for Hyperliquid QA.'),
+  ).toBeVisible()
+})
+
+test('Hyperliquid order forms serialize explicit execution-guard overrides', async ({ page }) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+  await page.getByTestId('open-hyperliquid-mo').click()
+  const marketModal = page.getByRole('dialog')
+  await expect(
+    marketModal.getByText('Account defaults: entry 0.700% / TP 1.200% / SL 11.000%.'),
+  ).toBeVisible()
+  await marketModal.getByLabel('Override account execution guards').check()
+  await marketModal.getByRole('spinbutton', { name: /Market Entry Guard/ }).fill('0.875')
+  await marketModal.getByRole('spinbutton', { name: /Market TP Guard/ }).fill('1.5')
+  await marketModal.getByRole('spinbutton', { name: /Market SL Guard/ }).fill('12.5')
+  await marketModal.getByRole('button', { name: 'Submit' }).click()
+
+  await page.getByTestId('open-hyperliquid-limit').click()
+  const limitModal = page.getByRole('dialog')
+  await limitModal.getByRole('spinbutton', { name: 'Limit Price' }).fill('65000')
+  await limitModal.getByRole('spinbutton', { name: 'Take Profit' }).fill('70000')
+  await limitModal.getByRole('spinbutton', { name: 'Stop Loss' }).fill('60000')
+  await expect(limitModal.getByText('Account defaults: TP 1.200% / SL 11.000%.')).toBeVisible()
+  await limitModal.getByLabel('Override account protection guards').check()
+  await limitModal.getByRole('spinbutton', { name: /Market TP Guard/ }).fill('2')
+  await limitModal.getByRole('spinbutton', { name: /Market SL Guard/ }).fill('15')
+  await limitModal.getByRole('button', { name: 'Submit' }).click()
+
+  const sends = await page.evaluate(() => window.__tradBybitTerminalFixture?.getCommandSends())
+  expect(sends).toHaveLength(2)
+  expect(sends?.[0]).toMatchObject({
+    kind: 'MarketOrder',
+    data: {
+      execution_guard_overrides: {
+        entry_market_tenths_bps: 875,
+        take_profit_market_tenths_bps: 1500,
+        stop_loss_market_tenths_bps: 12500,
+      },
+    },
+  })
+  expect(sends?.[1]).toMatchObject({
+    kind: 'LimitOrder',
+    data: {
+      execution_guard_overrides: {
+        entry_market_tenths_bps: null,
+        take_profit_market_tenths_bps: 2000,
+        stop_loss_market_tenths_bps: 15000,
+      },
+    },
+  })
+})
+
 test('Hyperliquid account panel submits wallet-signed agent and builder approvals', async ({
   page,
 }) => {
@@ -823,6 +946,9 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
     agent_approved: false,
     default_leverage: 3,
     margin_mode: 'isolated',
+    entry_market_guard_tenths_bps: 500,
+    take_profit_market_guard_tenths_bps: 1000,
+    stop_loss_market_guard_tenths_bps: 10000,
   }
 
   await expect.poll(() => validationPayload?.exchange).toBe('hyperliquid')

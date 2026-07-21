@@ -247,6 +247,9 @@ function buildExchangeMetadata() {
     agent_approved: false,
     default_leverage: defaultLeverage.value,
     margin_mode: hyperliquidMarginMode.value,
+    entry_market_guard_tenths_bps: 500,
+    take_profit_market_guard_tenths_bps: 1000,
+    stop_loss_market_guard_tenths_bps: 10000,
   }
 }
 

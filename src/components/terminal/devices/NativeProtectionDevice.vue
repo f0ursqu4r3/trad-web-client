@@ -6,6 +6,7 @@ import { formatPrice, formatQty, getPositionSideClass, formatSide } from './util
 import { useAccountsStore } from '@/stores/accounts'
 import { formatMarketContext, formatMarketRef } from '@/lib/marketContext'
 import { protectionDisplay } from '@/lib/protectionState'
+import { formatExecutionGuardPercent } from '@/lib/hyperliquidExecutionGuards'
 
 const props = defineProps<{
   device: NativeProtectionState
@@ -99,6 +100,22 @@ function fmtDate(d?: Date | null): string {
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">
             {{ device.take_profit == null ? '-' : `$${formatPrice(device.take_profit)}` }}
+          </dd>
+        </div>
+        <div v-if="device.execution_guards">
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            TP Market Guard
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ formatExecutionGuardPercent(device.execution_guards.take_profit_market_tenths_bps) }}
+          </dd>
+        </div>
+        <div v-if="device.execution_guards">
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            SL Market Guard
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ formatExecutionGuardPercent(device.execution_guards.stop_loss_market_tenths_bps) }}
           </dd>
         </div>
         <div>

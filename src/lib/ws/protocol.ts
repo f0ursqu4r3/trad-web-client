@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 18
+export const PROTOCOL_VERSION = 19
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -337,6 +337,16 @@ export type AttachedExitPlan = {
   take_profit?: number | null
   stop_loss?: number | null
 }
+export type HyperliquidExecutionGuards = {
+  entry_market_tenths_bps: number
+  take_profit_market_tenths_bps: number
+  stop_loss_market_tenths_bps: number
+}
+export type HyperliquidExecutionGuardOverrides = {
+  entry_market_tenths_bps?: number | null
+  take_profit_market_tenths_bps?: number | null
+  stop_loss_market_tenths_bps?: number | null
+}
 export type LimitTimeInForce = 'gtc' | 'alo'
 export type OrderQuantityMode = 'base' | 'notional'
 export type OrderExecution =
@@ -354,6 +364,7 @@ export type MarketOrderCommand = {
   position_side: PositionSide
   market_context: MarketContext
   attached_exit_plan?: AttachedExitPlan | null
+  execution_guard_overrides?: HyperliquidExecutionGuardOverrides | null
 }
 export type SplitMarketOrderCommand = {
   num_splits: number
@@ -374,6 +385,7 @@ export type LimitOrderCommand = {
   position_side: PositionSide
   market_context: MarketContext
   attached_exit_plan?: AttachedExitPlan | null
+  execution_guard_overrides?: HyperliquidExecutionGuardOverrides | null
 }
 export type TrailingEntryOrderCommand = {
   position_side: PositionSide
@@ -816,6 +828,7 @@ export type MarketOrderSnapshot = {
   throttle?: boolean | null
   one_way_position_effect?: OneWayPositionEffect | null
   one_way_transition?: OneWayOrderTransition | null
+  execution_guards?: HyperliquidExecutionGuards | null
   status: MarketOrderStatus
   filled_qty?: number | null
   remote_id?: number | null
@@ -858,6 +871,7 @@ export type NativeProtectionSnapshot = {
   stop_loss?: number | null
   expected_entries: number
   activation_policy?: ProtectionActivationPolicy
+  execution_guards?: HyperliquidExecutionGuards | null
   observed_entries: number
   observed_protection_orders: number
   observed_entry_order_ids?: string[]
@@ -967,6 +981,7 @@ export type DeviceMoDelta =
         throttle?: boolean | null
         one_way_position_effect?: OneWayPositionEffect | null
         one_way_transition?: OneWayOrderTransition | null
+        execution_guards?: HyperliquidExecutionGuards | null
         status: MarketOrderStatus
         filled_qty?: number | null
         client_order_id?: string | null
@@ -1075,6 +1090,7 @@ export type DeviceNpDelta =
         stop_loss?: number | null
         expected_entries: number
         activation_policy?: ProtectionActivationPolicy
+        execution_guards?: HyperliquidExecutionGuards | null
         observed_entries: number
         observed_protection_orders: number
         observed_entry_order_ids?: string[]

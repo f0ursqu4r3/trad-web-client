@@ -22,6 +22,12 @@ import {
 } from '@/lib/hyperliquidBuilderApproval'
 import { createLogger } from '@/lib/utils'
 import {
+  isValidExecutionGuardPercent,
+  percentToTenthsBps,
+  resolveHyperliquidExecutionGuards,
+  tenthsBpsToPercent,
+} from '@/lib/hyperliquidExecutionGuards'
+import {
   ExchangeType,
   type MarketCapabilitiesData,
   type OrderThrottleSnapshotData,
@@ -39,6 +45,7 @@ const refreshingLeverageAccountIds = ref<Set<string>>(new Set())
 const requestedCapabilityAccountIds = ref<Set<string>>(new Set())
 const approvingBuilderAccountIds = ref<Set<string>>(new Set())
 const savingBuilderAccountIds = ref<Set<string>>(new Set())
+const savingGuardAccountIds = ref<Set<string>>(new Set())
 const refreshingBuilderAccountIds = ref<Set<string>>(new Set())
 const approvingAgentAccountIds = ref<Set<string>>(new Set())
 const refreshingAgentAccountIds = ref<Set<string>>(new Set())
@@ -57,11 +64,15 @@ const leverageForms = reactive<
   >
 >({})
 const builderForms = reactive<Record<string, { feeBps: string }>>({})
+const guardForms = reactive<
+  Record<string, { entryPercent: number; takeProfitPercent: number; stopLossPercent: number }>
+>({})
 let throttleRefreshTimer: number | null = null
 
 const sortedAccounts = computed(() => {
   accounts.accounts.forEach(ensureLeverageForm)
   accounts.accounts.forEach(ensureBuilderForm)
+  accounts.accounts.forEach(ensureGuardForm)
   return accounts.accounts.slice().sort((a, b) => a.label.localeCompare(b.label))
 })
 
@@ -82,6 +93,7 @@ function selectAccount(account: AccountRecord) {
   accounts.selectedAccountId = account.id
   ensureLeverageForm(account)
   ensureBuilderForm(account)
+  ensureGuardForm(account)
   requestAccountCapabilities(account)
   requestAccountThrottle(account)
   if (account.exchange === ExchangeType.Bybit) {
@@ -146,6 +158,52 @@ function ensureBuilderForm(account: AccountRecord) {
   const meta = account.exchange_metadata
   builderForms[account.id] = {
     feeBps: ((meta?.builder_fee_tenths_bps ?? 10) / 10).toString(),
+  }
+}
+
+function ensureGuardForm(account: AccountRecord) {
+  if (guardForms[account.id]) return
+  const guards = resolveHyperliquidExecutionGuards(account.exchange_metadata)
+  guardForms[account.id] = {
+    entryPercent: tenthsBpsToPercent(guards.entry_market_tenths_bps),
+    takeProfitPercent: tenthsBpsToPercent(guards.take_profit_market_tenths_bps),
+    stopLossPercent: tenthsBpsToPercent(guards.stop_loss_market_tenths_bps),
+  }
+}
+
+function canSaveHyperliquidGuards(account: AccountRecord): boolean {
+  if (account.exchange !== ExchangeType.Hyperliquid) return false
+  const form = guardForms[account.id]
+  if (!form || savingGuardAccountIds.value.has(account.id)) return false
+  return (
+    isValidExecutionGuardPercent(form.entryPercent) &&
+    isValidExecutionGuardPercent(form.takeProfitPercent) &&
+    isValidExecutionGuardPercent(form.stopLossPercent)
+  )
+}
+
+async function saveHyperliquidGuards(account: AccountRecord) {
+  controlError.value = null
+  controlMessage.value = null
+  if (!canSaveHyperliquidGuards(account)) {
+    controlError.value = 'Hyperliquid execution guards must be between 0% and 50%.'
+    return
+  }
+  const form = guardForms[account.id]
+  savingGuardAccountIds.value = new Set([...savingGuardAccountIds.value, account.id])
+  try {
+    await accounts.updateAccountMetadata(account.id, {
+      entry_market_guard_tenths_bps: percentToTenthsBps(form.entryPercent),
+      take_profit_market_guard_tenths_bps: percentToTenthsBps(form.takeProfitPercent),
+      stop_loss_market_guard_tenths_bps: percentToTenthsBps(form.stopLossPercent),
+    })
+    controlMessage.value = `Saved Hyperliquid execution guards for ${account.label}.`
+  } catch (err) {
+    controlError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    const next = new Set(savingGuardAccountIds.value)
+    next.delete(account.id)
+    savingGuardAccountIds.value = next
   }
 }
 
@@ -877,6 +935,74 @@ watch(
                 account default, margin mode, and symbol overrides in Trad; Set Leverage applies the
                 current leverage and margin mode to the exchange for the symbols entered above.
               </p>
+              <div
+                v-if="
+                  accounts.selectedAccountId === account.id &&
+                  account.exchange === ExchangeType.Hyperliquid
+                "
+                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[repeat(3,minmax(110px,1fr))_auto]"
+              >
+                <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
+                  <span>Market Entry Guard</span>
+                  <input
+                    v-model.number="guardForms[account.id].entryPercent"
+                    class="input h-7 text-xs"
+                    type="number"
+                    min="0"
+                    max="50"
+                    step="0.001"
+                    @focus="ensureGuardForm(account)"
+                  />
+                  <span class="normal-case tracking-normal text-[var(--color-text-dim)]"
+                    >Percent</span
+                  >
+                </label>
+                <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
+                  <span>Market TP Guard</span>
+                  <input
+                    v-model.number="guardForms[account.id].takeProfitPercent"
+                    class="input h-7 text-xs"
+                    type="number"
+                    min="0"
+                    max="50"
+                    step="0.001"
+                    @focus="ensureGuardForm(account)"
+                  />
+                  <span class="normal-case tracking-normal text-[var(--color-text-dim)]"
+                    >Percent</span
+                  >
+                </label>
+                <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
+                  <span>Market SL Guard</span>
+                  <input
+                    v-model.number="guardForms[account.id].stopLossPercent"
+                    class="input h-7 text-xs"
+                    type="number"
+                    min="0"
+                    max="50"
+                    step="0.001"
+                    @focus="ensureGuardForm(account)"
+                  />
+                  <span class="normal-case tracking-normal text-[var(--color-text-dim)]"
+                    >Percent</span
+                  >
+                </label>
+                <button
+                  class="btn btn-secondary btn-xs self-end"
+                  type="button"
+                  :disabled="!canSaveHyperliquidGuards(account)"
+                  @click="saveHyperliquidGuards(account)"
+                >
+                  <span v-if="savingGuardAccountIds.has(account.id)">Saving</span>
+                  <span v-else>Save Guards</span>
+                </button>
+                <p
+                  class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)] md:col-span-4"
+                >
+                  Account defaults bound the worst executable price for market entry, take profit,
+                  and stop loss orders. Each command records its effective values permanently.
+                </p>
+              </div>
               <p
                 v-if="
                   accounts.selectedAccountId === account.id &&
