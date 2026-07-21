@@ -196,6 +196,7 @@ function bybitNativeProtectionDevice(): Device {
     take_profit: 68_000,
     stop_loss: 62_000,
     expected_entries: 2,
+    activation_policy: 'parent_attached',
     observed_entries: 1,
     observed_protection_orders: 1,
     observed_entry_order_ids: ['bybit-entry-1'],

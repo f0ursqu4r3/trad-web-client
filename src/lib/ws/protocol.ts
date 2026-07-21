@@ -170,6 +170,8 @@ export enum NativeProtectionStatus {
   Rejected = 'Rejected',
 }
 
+export type ProtectionActivationPolicy = 'parent_attached' | 'first_fill_cancel_remainder'
+
 // ==============================================================================================
 // Protocol-specific enums (match Rust variant names)
 // ==============================================================================================
@@ -826,6 +828,7 @@ export type NativeProtectionSnapshot = {
   take_profit?: number | null
   stop_loss?: number | null
   expected_entries: number
+  activation_policy?: ProtectionActivationPolicy
   observed_entries: number
   observed_protection_orders: number
   observed_entry_order_ids?: string[]
@@ -1038,6 +1041,7 @@ export type DeviceNpDelta =
         take_profit?: number | null
         stop_loss?: number | null
         expected_entries: number
+        activation_policy?: ProtectionActivationPolicy
         observed_entries: number
         observed_protection_orders: number
         observed_entry_order_ids?: string[]

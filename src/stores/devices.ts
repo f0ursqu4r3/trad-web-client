@@ -338,6 +338,7 @@ export const useDeviceStore = defineStore('device', () => {
         np.take_profit = s.take_profit ?? null
         np.stop_loss = s.stop_loss ?? null
         np.expected_entries = s.expected_entries
+        np.activation_policy = s.activation_policy ?? 'parent_attached'
         np.observed_entries = s.observed_entries
         np.observed_protection_orders = s.observed_protection_orders
         np.observed_entry_order_ids = s.observed_entry_order_ids ?? []
@@ -838,6 +839,7 @@ export const useDeviceStore = defineStore('device', () => {
           take_profit,
           stop_loss,
           expected_entries,
+          activation_policy,
           observed_entries,
           observed_protection_orders,
           observed_entry_order_ids,
@@ -861,6 +863,7 @@ export const useDeviceStore = defineStore('device', () => {
         np.take_profit = take_profit ?? null
         np.stop_loss = stop_loss ?? null
         np.expected_entries = expected_entries
+        np.activation_policy = activation_policy ?? 'parent_attached'
         np.observed_entries = observed_entries
         np.observed_protection_orders = observed_protection_orders
         np.observed_entry_order_ids = observed_entry_order_ids ?? []
@@ -1149,6 +1152,7 @@ export interface NativeProtectionState {
   take_profit: number | null
   stop_loss: number | null
   expected_entries: number
+  activation_policy: import('@/lib/ws/protocol').ProtectionActivationPolicy
   observed_entries: number
   observed_protection_orders: number
   observed_entry_order_ids: string[]
@@ -1320,6 +1324,7 @@ function newNativeProtectionState(): NativeProtectionState {
     take_profit: null,
     stop_loss: null,
     expected_entries: 0,
+    activation_policy: 'parent_attached',
     observed_entries: 0,
     observed_protection_orders: 0,
     observed_entry_order_ids: [],

@@ -35,6 +35,12 @@ function fmtIds(values: string[]): string {
   return values.length ? values.join(', ') : '-'
 }
 
+const activationPolicyLabel = computed(() =>
+  props.device.activation_policy === 'first_fill_cancel_remainder'
+    ? 'First fill, cancel remainder'
+    : 'Parent attached',
+)
+
 function getStatusClass(status: NativeProtectionStatus): string {
   switch (status) {
     case NativeProtectionStatus.Flat:
@@ -100,6 +106,14 @@ function fmtDate(d?: Date | null): string {
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">
             {{ device.stop_loss == null ? '-' : `$${formatPrice(device.stop_loss)}` }}
+          </dd>
+        </div>
+        <div class="col-span-2">
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Activation
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ activationPolicyLabel }}
           </dd>
         </div>
         <div>
