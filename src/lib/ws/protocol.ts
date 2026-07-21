@@ -33,9 +33,10 @@ export enum ExchangeType {
   Binance = 'binance',
   Bifake = 'bifake',
   Bybit = 'bybit',
+  Hyperliquid = 'hyperliquid',
 }
 
-export type MarketProduct = 'usdt_perp'
+export type MarketProduct = 'usdt_perp' | 'usdc_perp'
 
 export type ProtectionStrategyCapability = 'managed_stop_guard' | 'native_attached_tpsl' | 'none'
 
@@ -54,10 +55,12 @@ export type MarketContext =
   | { type: 'binance'; account_id: string } // UUID as string
   | { type: 'bifake'; account_id: string } // UUID as string
   | { type: 'bybit'; account_id: string } // UUID as string
+  | { type: 'hyperliquid'; account_id: string } // UUID as string
   | { type: 'sim'; sim_market_id: string } // UUID as string
   | { binance: { account_id: string }; type?: never }
   | { bifake: { account_id: string }; type?: never }
   | { bybit: { account_id: string }; type?: never }
+  | { hyperliquid: { account_id: string }; type?: never }
   | { sim: { sim_market_id: string }; type?: never }
 
 export type MarketRef = {

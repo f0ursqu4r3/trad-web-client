@@ -7,12 +7,14 @@ import {
   bifakeMarketContext,
   binanceMarketContext,
   bybitMarketContext,
+  hyperliquidMarketContext,
 } from '@/lib/marketContext'
 import {
   accountMetadataChips,
   accountMetadataStatus,
   formatAccountProduct,
   isBybitMetadataVerified,
+  isHyperliquidMetadataReady,
 } from '@/lib/accountMetadata'
 import { accountsStoreKey, getSessionUserId } from '@/lib/userSession'
 import { createLogger } from '@/lib/utils'
@@ -25,6 +27,7 @@ export interface AccountFormPayload {
   secret: string
   network: NetworkType
   exchange: ExchangeType
+  exchange_metadata?: ExchangeAccountMetadata | null
 }
 
 export interface AccountKeyValidationPayload {
@@ -55,6 +58,15 @@ export interface ExchangeAccountMetadata {
   unified_margin_status?: number | null
   exchange_account_id?: string | null
   key_permissions?: string[] | null
+  user_address?: string | null
+  agent_address?: string | null
+  vault_address?: string | null
+  builder_address?: string | null
+  builder_fee_tenths_bps?: number | null
+  max_builder_fee_tenths_bps?: number | null
+  builder_approved?: boolean | null
+  agent_approved?: boolean | null
+  default_leverage?: number | null
 }
 
 export interface AccountRecord {
@@ -66,7 +78,13 @@ export interface AccountRecord {
   exchange_metadata?: ExchangeAccountMetadata | null
 }
 
-export { accountMetadataChips, accountMetadataStatus, formatAccountProduct, isBybitMetadataVerified }
+export {
+  accountMetadataChips,
+  accountMetadataStatus,
+  formatAccountProduct,
+  isBybitMetadataVerified,
+  isHyperliquidMetadataReady,
+}
 
 export const useAccountsStore = defineStore('accounts', () => {
   const { isAuthenticated } = useAuth()
@@ -223,6 +241,8 @@ export const useAccountsStore = defineStore('accounts', () => {
         return bifakeMarketContext(account.id)
       case ExchangeType.Bybit:
         return bybitMarketContext(account.id)
+      case ExchangeType.Hyperliquid:
+        return hyperliquidMarketContext(account.id)
       default:
         return null
     }
@@ -232,6 +252,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     const account = accounts.value.find((a) => a.id === accountId)
     if (!account) return 'BTCUSDT'
     if (account.exchange.toLowerCase() === 'bifake') return 'APPLE'
+    if (account.exchange === ExchangeType.Hyperliquid) return 'BTC'
     return 'BTCUSDT'
   }
 

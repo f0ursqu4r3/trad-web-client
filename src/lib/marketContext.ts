@@ -20,6 +20,10 @@ export function bybitMarketContext(accountId: string): MarketContext {
   return { bybit: { account_id: accountId } }
 }
 
+export function hyperliquidMarketContext(accountId: string): MarketContext {
+  return { hyperliquid: { account_id: accountId } }
+}
+
 export function simMarketContext(simMarketId: string): MarketContext {
   return { sim: { sim_market_id: simMarketId } }
 }
@@ -45,6 +49,11 @@ export function normalizeMarketContext(raw: MarketContext | Record<string, unkno
     const ctx = bybit as { account_id?: string } | undefined
     return { type: 'bybit', account_id: ctx?.account_id || '' }
   }
+  const hyperliquid = maybe.hyperliquid ?? maybe.Hyperliquid
+  if (hyperliquid) {
+    const ctx = hyperliquid as { account_id?: string } | undefined
+    return { type: 'hyperliquid', account_id: ctx?.account_id || '' }
+  }
   const sim = maybe.sim ?? maybe.Sim
   if (sim) {
     const ctx = sim as { sim_market_id?: string } | undefined
@@ -58,7 +67,8 @@ export function marketContextAccountId(ctx: MarketContext): string | null {
   if (
     normalized.type === 'binance' ||
     normalized.type === 'bifake' ||
-    normalized.type === 'bybit'
+    normalized.type === 'bybit' ||
+    normalized.type === 'hyperliquid'
   ) {
     return normalized.account_id || null
   }
@@ -75,6 +85,8 @@ export function marketContextExchangeLabel(ctx: MarketContext): string {
       return 'Bifake'
     case 'bybit':
       return 'Bybit'
+    case 'hyperliquid':
+      return 'Hyperliquid'
     case 'sim':
       return 'Sim'
     default:
@@ -89,6 +101,8 @@ export function marketContextProductKey(ctx: MarketContext): string {
       return 'usd_m_futures'
     case 'bybit':
       return 'usdt_perp'
+    case 'hyperliquid':
+      return 'usdc_perp'
     case 'bifake':
       return 'fake'
     case 'sim':
@@ -104,6 +118,8 @@ export function marketProductLabel(product: string): string {
       return 'USD-M Futures'
     case 'usdt_perp':
       return 'USDT Perp'
+    case 'usdc_perp':
+      return 'USDC Perp'
     case 'fake':
       return 'Fake'
     case 'sim':
@@ -121,6 +137,8 @@ export function marketRefExchangeLabel(exchange: ExchangeType): string {
       return 'Bifake'
     case ExchangeType.Bybit:
       return 'Bybit'
+    case ExchangeType.Hyperliquid:
+      return 'Hyperliquid'
     default:
       return String(exchange)
   }

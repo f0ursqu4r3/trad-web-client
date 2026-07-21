@@ -21,6 +21,7 @@ const EXCHANGE_OPTIONS: ExchangeType[] = [
   ExchangeType.Binance,
   ExchangeType.Bifake,
   ExchangeType.Bybit,
+  ExchangeType.Hyperliquid,
 ]
 
 const network = ref<NetworkType>(DEFAULT_NETWORK)
@@ -28,6 +29,9 @@ const exchange = ref<ExchangeType>(DEFAULT_EXCHANGE)
 const name = ref('')
 const apiKey = ref('')
 const secretKey = ref('')
+const hyperliquidVaultAddress = ref('')
+const hyperliquidBuilderFeeBps = ref('1')
+const hyperliquidDefaultLeverage = ref('1')
 const formError = ref<string | null>(null)
 const isSubmitting = ref(false)
 const isRefreshingAfterCreate = ref(false)
@@ -35,8 +39,44 @@ const isValidating = ref(false)
 const validationResult = ref<AccountKeyValidationResponse | null>(null)
 const validationError = ref<string | null>(null)
 const isBybit = computed(() => exchange.value === ExchangeType.Bybit)
-const hasBybitValidationPass = computed(() => {
-  return !isBybit.value || validationResult.value?.valid === true
+const isHyperliquid = computed(() => exchange.value === ExchangeType.Hyperliquid)
+const requiresValidation = computed(() => isBybit.value || isHyperliquid.value)
+const hasKeyValidationPass = computed(() => {
+  return !requiresValidation.value || validationResult.value?.valid === true
+})
+const keyLabel = computed(() => (isHyperliquid.value ? 'User Wallet Address' : 'API Key'))
+const secretLabel = computed(() => (isHyperliquid.value ? 'Agent Private Key' : 'Secret Key'))
+const keyPlaceholder = computed(() => (isHyperliquid.value ? '0x...' : 'API key'))
+const secretPlaceholder = computed(() =>
+  isHyperliquid.value ? '32-byte hex private key' : 'Secret key',
+)
+const productLabel = computed(() => (isHyperliquid.value ? 'USDC Perpetuals' : 'USDT Perpetuals'))
+const validationTitle = computed(() =>
+  isHyperliquid.value ? 'Hyperliquid key check' : 'Bybit permission check',
+)
+const validationCopy = computed(() =>
+  isHyperliquid.value
+    ? 'Validate the wallet address and derived agent wallet before saving. Builder approval is handled separately with a wallet signature.'
+    : 'Validate this key before saving. If permissions are changed on Bybit, run the check again.',
+)
+const validationSuccess = computed(() =>
+  isHyperliquid.value
+    ? 'Wallet and agent key format are valid for Hyperliquid account setup.'
+    : 'Key permissions are valid for Bybit USDT perpetual trading.',
+)
+const builderFeeTenthsBps = computed(() => {
+  const parsed = Number(hyperliquidBuilderFeeBps.value)
+  if (!Number.isFinite(parsed) || parsed < 0) return null
+  return Math.round(parsed * 10)
+})
+const defaultLeverage = computed(() => {
+  const parsed = Number(hyperliquidDefaultLeverage.value)
+  if (!Number.isInteger(parsed) || parsed < 1) return null
+  return parsed
+})
+const isHyperliquidMetadataValid = computed(() => {
+  if (!isHyperliquid.value) return true
+  return builderFeeTenthsBps.value !== null && builderFeeTenthsBps.value <= 100 && defaultLeverage.value !== null
 })
 
 const isSubmitDisabled = computed(() => {
@@ -46,17 +86,18 @@ const isSubmitDisabled = computed(() => {
     !apiKey.value.trim() ||
     !secretKey.value.trim() ||
     isValidating.value ||
-    !hasBybitValidationPass.value
+    !hasKeyValidationPass.value ||
+    !isHyperliquidMetadataValid.value
   )
 })
 
 const hasValidationFailure = computed(() => {
-  return isBybit.value && validationResult.value !== null && !validationResult.value.valid
+  return requiresValidation.value && validationResult.value !== null && !validationResult.value.valid
 })
 
 const keyInputClass = computed(() => ({
   'input-invalid': hasValidationFailure.value || Boolean(validationError.value),
-  'input-valid': isBybit.value && validationResult.value?.valid === true,
+  'input-valid': requiresValidation.value && validationResult.value?.valid === true,
 }))
 
 function reset() {
@@ -65,6 +106,9 @@ function reset() {
   name.value = ''
   apiKey.value = ''
   secretKey.value = ''
+  hyperliquidVaultAddress.value = ''
+  hyperliquidBuilderFeeBps.value = '1'
+  hyperliquidDefaultLeverage.value = '1'
   formError.value = null
   isSubmitting.value = false
   isRefreshingAfterCreate.value = false
@@ -113,8 +157,10 @@ async function validatePermissions() {
 
 async function submit() {
   if (isSubmitDisabled.value || isSubmitting.value) return
-  if (isBybit.value && validationResult.value?.valid !== true) {
-    formError.value = 'Check Bybit key permissions before creating this account.'
+  if (requiresValidation.value && validationResult.value?.valid !== true) {
+    formError.value = isHyperliquid.value
+      ? 'Check Hyperliquid wallet and agent key before creating this account.'
+      : 'Check Bybit key permissions before creating this account.'
     return
   }
   isSubmitting.value = true
@@ -128,6 +174,7 @@ async function submit() {
         secret: secretKey.value,
         network: network.value,
         exchange: exchange.value,
+        exchange_metadata: buildExchangeMetadata(),
       }),
     )
     if (isBybit.value && createdAccount) {
@@ -138,6 +185,20 @@ async function submit() {
     formError.value = err instanceof Error ? err.message : String(err)
   } finally {
     isSubmitting.value = false
+  }
+}
+
+function buildExchangeMetadata() {
+  if (!isHyperliquid.value) return null
+  return {
+    product: 'usdc_perp',
+    hedge_mode_only: false,
+    vault_address: hyperliquidVaultAddress.value.trim() || null,
+    builder_fee_tenths_bps: builderFeeTenthsBps.value,
+    max_builder_fee_tenths_bps: 100,
+    builder_approved: false,
+    agent_approved: false,
+    default_leverage: defaultLeverage.value,
   }
 }
 
@@ -188,19 +249,68 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
           <span>Product</span>
           <div class="readonly-value">USDT Perpetuals</div>
         </div>
+        <div v-else-if="isHyperliquid" class="field">
+          <span>Product</span>
+          <div class="readonly-value">{{ productLabel }}</div>
+        </div>
         <label class="field">
-          <span>API Key</span>
-          <input v-model.trim="apiKey" class="input" :class="keyInputClass" placeholder="API key" />
+          <span>{{ keyLabel }}</span>
+          <input
+            v-model.trim="apiKey"
+            class="input"
+            :class="keyInputClass"
+            :placeholder="keyPlaceholder"
+          />
         </label>
         <label class="field">
-          <span>Secret Key</span>
+          <span>{{ secretLabel }}</span>
           <input
             v-model.trim="secretKey"
             class="input"
             :class="keyInputClass"
-            placeholder="Secret key"
+            :placeholder="secretPlaceholder"
           />
         </label>
+        <template v-if="isHyperliquid">
+          <label class="field">
+            <span>Vault/Subaccount</span>
+            <input
+              v-model.trim="hyperliquidVaultAddress"
+              class="input"
+              placeholder="Optional 0x vault address"
+            />
+          </label>
+          <label class="field">
+            <span>Default Leverage</span>
+            <input
+              v-model.trim="hyperliquidDefaultLeverage"
+              class="input"
+              type="number"
+              min="1"
+              step="1"
+              placeholder="1"
+            />
+          </label>
+          <label class="field">
+            <span>Builder Fee</span>
+            <input
+              v-model.trim="hyperliquidBuilderFeeBps"
+              class="input"
+              :class="{ 'input-invalid': builderFeeTenthsBps === null || builderFeeTenthsBps > 100 }"
+              type="number"
+              min="0"
+              max="10"
+              step="0.1"
+              placeholder="1.0"
+            />
+          </label>
+          <div class="field">
+            <span>Fee Equivalent</span>
+            <div class="readonly-value">
+              {{ builderFeeTenthsBps === null ? 'Invalid' : `${(builderFeeTenthsBps / 10).toFixed(1)} bps = ${(builderFeeTenthsBps / 1000).toFixed(3)}%` }}
+            </div>
+          </div>
+        </template>
         <p class="col-span-2 text-[11px] text-[var(--color-text-dim)] leading-relaxed">
           Your keys are stored securely and are only accessible by the trading backend. Double-check
           the network matches the exchange the keys belong to.
@@ -214,16 +324,24 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
             <span>Withdrawals disabled</span>
           </div>
         </div>
-        <div v-if="isBybit" class="col-span-2 validation-panel" :class="{
+        <div v-if="isHyperliquid" class="col-span-2 permission-note">
+          <div class="permission-note-title">Required Hyperliquid setup</div>
+          <div class="permission-note-grid">
+            <span>User wallet address</span>
+            <span>Agent private key</span>
+            <span>USDC perpetual trading</span>
+            <span>Builder approval via wallet signature</span>
+          </div>
+        </div>
+        <div v-if="requiresValidation" class="col-span-2 validation-panel" :class="{
           'validation-panel-valid': validationResult?.valid,
           'validation-panel-invalid': hasValidationFailure || validationError,
         }">
           <div class="validation-header">
             <div>
-              <div class="validation-title">Bybit permission check</div>
+              <div class="validation-title">{{ validationTitle }}</div>
               <div class="validation-copy">
-                Validate this key before saving. If permissions are changed on Bybit, run the check
-                again.
+                {{ validationCopy }}
               </div>
             </div>
             <button
@@ -237,12 +355,12 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
             </button>
           </div>
           <div v-if="validationResult?.valid" class="validation-success">
-            Key permissions are valid for Bybit USDT perpetual trading.
+            {{ validationSuccess }}
           </div>
           <div v-if="validationError" class="validation-error">
             {{ validationError }}
           </div>
-          <div v-if="hasValidationFailure && validationResult" class="validation-details">
+          <div v-if="validationResult" class="validation-details">
             <div v-if="validationResult.missing_requirements.length">
               <div class="validation-section-title">Missing</div>
               <ul>
@@ -250,7 +368,9 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
               </ul>
             </div>
             <div v-if="validationResult.warnings.length">
-              <div class="validation-section-title">Change on Bybit</div>
+              <div class="validation-section-title">
+                {{ isHyperliquid ? 'Next setup step' : 'Change on Bybit' }}
+              </div>
               <ul>
                 <li v-for="item in validationResult.warnings" :key="item">{{ item }}</li>
               </ul>
@@ -268,7 +388,7 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
               </div>
             </div>
             <div v-if="validationResult.exchange_message" class="validation-copy">
-              Bybit: {{ validationResult.exchange_message }}
+              {{ isHyperliquid ? 'Hyperliquid' : 'Bybit' }}: {{ validationResult.exchange_message }}
             </div>
           </div>
         </div>

@@ -5,6 +5,14 @@ export interface ExchangeAccountMetadataLike {
   hedge_mode_only?: boolean | null
   account_mode?: string | null
   margin_mode?: string | null
+  user_address?: string | null
+  agent_address?: string | null
+  vault_address?: string | null
+  builder_fee_tenths_bps?: number | null
+  max_builder_fee_tenths_bps?: number | null
+  builder_approved?: boolean | null
+  agent_approved?: boolean | null
+  default_leverage?: number | null
 }
 
 export interface AccountMetadataLike {
@@ -19,6 +27,8 @@ export function formatAccountProduct(product?: string | null): string | null {
   switch (product) {
     case 'usdt_perp':
       return 'USDT perp'
+    case 'usdc_perp':
+      return 'USDC perp'
     default:
       return normalizeMetadataLabel(product)
   }
@@ -46,6 +56,7 @@ export function accountMetadataChips(account: AccountMetadataLike): string[] {
   const product = formatAccountProduct(meta?.product)
   if (product) chips.push(product)
   if (meta?.hedge_mode_only) chips.push('Hedge only')
+  if (account.exchange === ExchangeType.Hyperliquid) chips.push('One-way')
   const marginMode = normalizeMetadataLabel(meta?.margin_mode)
   const accountMode = normalizeMetadataLabel(meta?.account_mode)
   if (account.exchange !== ExchangeType.Bybit || isVerifiedBybitMetadataLabel(marginMode)) {
@@ -56,6 +67,14 @@ export function accountMetadataChips(account: AccountMetadataLike): string[] {
   }
   if (account.exchange === ExchangeType.Bybit && !isBybitMetadataVerified(account)) {
     chips.push('Mode unvalidated')
+  }
+  if (account.exchange === ExchangeType.Hyperliquid) {
+    if (meta?.agent_approved === true) chips.push('Agent approved')
+    else chips.push('Agent unvalidated')
+    if (meta?.builder_approved === true) chips.push('Builder approved')
+    else chips.push('Builder unvalidated')
+    if (meta?.vault_address) chips.push('Vault/subaccount')
+    if (meta?.default_leverage) chips.push(`${meta.default_leverage}x default`)
   }
   return chips
 }
@@ -72,9 +91,25 @@ export function isBybitMetadataVerified(account: AccountMetadataLike | null | un
 }
 
 export function accountMetadataStatus(account: AccountMetadataLike): string | null {
+  if (account.exchange === ExchangeType.Hyperliquid) {
+    if (isHyperliquidMetadataReady(account)) return 'Hyperliquid account metadata is ready.'
+    return 'Hyperliquid agent/builder approvals unvalidated; complete wallet approval before live trading.'
+  }
   if (account.exchange !== ExchangeType.Bybit) return null
   if (isBybitMetadataVerified(account)) {
     return `Exchange metadata verified: ${account.exchange_metadata?.account_mode} / ${account.exchange_metadata?.margin_mode}`
   }
   return 'Bybit exchange metadata unvalidated; refresh credentials before live trading.'
+}
+
+export function isHyperliquidMetadataReady(account: AccountMetadataLike | null | undefined): boolean {
+  if (!account || account.exchange !== ExchangeType.Hyperliquid) return true
+  const meta = account.exchange_metadata
+  return Boolean(
+    meta?.product === 'usdc_perp' &&
+      normalizeMetadataLabel(meta?.user_address) &&
+      normalizeMetadataLabel(meta?.agent_address) &&
+      meta?.agent_approved === true &&
+      meta?.builder_approved === true,
+  )
 }
