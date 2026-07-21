@@ -72,6 +72,11 @@ interface HyperliquidBuilderApprovalRefreshResponse {
   builder_approved: boolean
 }
 
+export interface HyperliquidGeneratedAgentKey {
+  private_key: string
+  agent_address: string
+}
+
 export interface AccountKeyValidationPayload {
   key: string
   secret: string
@@ -236,11 +241,22 @@ export const useAccountsStore = defineStore('accounts', () => {
     return response as AccountKeyValidationResponse
   }
 
+  async function generateHyperliquidAgentKey(): Promise<HyperliquidGeneratedAgentKey> {
+    return await apiPost<HyperliquidGeneratedAgentKey>(
+      '/accounts/hyperliquid/agent-key',
+      undefined,
+      { throwOnHTTPError: true },
+    )
+  }
+
   async function updateAccountMetadata(
     accountId: string,
     exchangeMetadata: ExchangeAccountMetadata | null,
   ): Promise<AccountRecord> {
-    const response = await apiPut<AccountRecord, { exchange_metadata: ExchangeAccountMetadata | null }>(
+    const response = await apiPut<
+      AccountRecord,
+      { exchange_metadata: ExchangeAccountMetadata | null }
+    >(
       `/accounts/${encodeURIComponent(accountId)}/exchange-metadata`,
       { exchange_metadata: exchangeMetadata },
       { throwOnHTTPError: true },
@@ -256,11 +272,9 @@ export const useAccountsStore = defineStore('accounts', () => {
     const response = await apiPost<
       HyperliquidBuilderApprovalResponse,
       HyperliquidBuilderApprovalPayload
-    >(
-      `/accounts/${encodeURIComponent(accountId)}/hyperliquid/builder-approval`,
-      payload,
-      { throwOnHTTPError: true },
-    )
+    >(`/accounts/${encodeURIComponent(accountId)}/hyperliquid/builder-approval`, payload, {
+      throwOnHTTPError: true,
+    })
     replaceAccount(response.account)
     return response
   }
@@ -284,11 +298,9 @@ export const useAccountsStore = defineStore('accounts', () => {
     const response = await apiPost<
       HyperliquidAgentApprovalResponse,
       HyperliquidAgentApprovalPayload
-    >(
-      `/accounts/${encodeURIComponent(accountId)}/hyperliquid/agent-approval`,
-      payload,
-      { throwOnHTTPError: true },
-    )
+    >(`/accounts/${encodeURIComponent(accountId)}/hyperliquid/agent-approval`, payload, {
+      throwOnHTTPError: true,
+    })
     replaceAccount(response.account)
     return response
   }
@@ -472,6 +484,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     refreshHyperliquidBuilderApproval,
     approveHyperliquidAgent,
     refreshHyperliquidAgentApproval,
+    generateHyperliquidAgentKey,
     removeAccount,
     reorderAccounts,
     getMarketContextForAccount,

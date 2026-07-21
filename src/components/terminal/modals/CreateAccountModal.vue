@@ -5,7 +5,11 @@ import { buildAccountFormPayload } from '@/lib/accountFormPayload'
 import { enumKeyName } from '@/lib/utils'
 import { getWebSocketToken } from '@/lib/auth'
 import { NetworkType, ExchangeType } from '@/lib/ws/protocol'
-import { useAccountsStore, type AccountKeyValidationResponse, type AccountRecord } from '@/stores/accounts'
+import {
+  useAccountsStore,
+  type AccountKeyValidationResponse,
+  type AccountRecord,
+} from '@/stores/accounts'
 import { useWsStore } from '@/stores/ws'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
@@ -37,6 +41,10 @@ const formError = ref<string | null>(null)
 const isSubmitting = ref(false)
 const isRefreshingAfterCreate = ref(false)
 const isValidating = ref(false)
+const isGeneratingHyperliquidAgentKey = ref(false)
+const generatedHyperliquidAgentAddress = ref<string | null>(null)
+const generatedHyperliquidAgentError = ref<string | null>(null)
+const lastGeneratedHyperliquidAgentSecret = ref<string | null>(null)
 const validationResult = ref<AccountKeyValidationResponse | null>(null)
 const validationError = ref<string | null>(null)
 const isBybit = computed(() => exchange.value === ExchangeType.Bybit)
@@ -100,7 +108,9 @@ const isSubmitDisabled = computed(() => {
 })
 
 const hasValidationFailure = computed(() => {
-  return requiresValidation.value && validationResult.value !== null && !validationResult.value.valid
+  return (
+    requiresValidation.value && validationResult.value !== null && !validationResult.value.valid
+  )
 })
 
 const keyInputClass = computed(() => ({
@@ -122,6 +132,10 @@ function reset() {
   isSubmitting.value = false
   isRefreshingAfterCreate.value = false
   isValidating.value = false
+  isGeneratingHyperliquidAgentKey.value = false
+  generatedHyperliquidAgentAddress.value = null
+  generatedHyperliquidAgentError.value = null
+  lastGeneratedHyperliquidAgentSecret.value = null
   validationResult.value = null
   validationError.value = null
 }
@@ -138,6 +152,13 @@ watch(
 watch([apiKey, secretKey, network, exchange], () => {
   validationResult.value = null
   validationError.value = null
+})
+
+watch(secretKey, (next) => {
+  if (next && next === lastGeneratedHyperliquidAgentSecret.value) return
+  lastGeneratedHyperliquidAgentSecret.value = null
+  generatedHyperliquidAgentAddress.value = null
+  generatedHyperliquidAgentError.value = null
 })
 
 function close() {
@@ -162,6 +183,26 @@ async function validatePermissions() {
     validationError.value = err instanceof Error ? err.message : String(err)
   } finally {
     isValidating.value = false
+  }
+}
+
+async function generateHyperliquidAgentKey() {
+  if (!isHyperliquid.value || isGeneratingHyperliquidAgentKey.value) return
+  isGeneratingHyperliquidAgentKey.value = true
+  generatedHyperliquidAgentAddress.value = null
+  generatedHyperliquidAgentError.value = null
+  validationResult.value = null
+  validationError.value = null
+  formError.value = null
+  try {
+    const generated = await accounts.generateHyperliquidAgentKey()
+    lastGeneratedHyperliquidAgentSecret.value = generated.private_key
+    secretKey.value = generated.private_key
+    generatedHyperliquidAgentAddress.value = generated.agent_address
+  } catch (err) {
+    generatedHyperliquidAgentError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    isGeneratingHyperliquidAgentKey.value = false
   }
 }
 
@@ -274,12 +315,30 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
         </label>
         <label class="field">
           <span>{{ secretLabel }}</span>
-          <input
-            v-model.trim="secretKey"
-            class="input"
-            :class="keyInputClass"
-            :placeholder="secretPlaceholder"
-          />
+          <div class="input-action-row">
+            <input
+              v-model.trim="secretKey"
+              class="input"
+              :class="keyInputClass"
+              :placeholder="secretPlaceholder"
+            />
+            <button
+              v-if="isHyperliquid"
+              type="button"
+              class="btn btn-secondary compact-action"
+              :disabled="isGeneratingHyperliquidAgentKey"
+              @click="generateHyperliquidAgentKey"
+            >
+              {{ isGeneratingHyperliquidAgentKey ? 'generating' : 'generate' }}
+            </button>
+          </div>
+          <small v-if="generatedHyperliquidAgentAddress" class="field-hint">
+            Generated agent {{ generatedHyperliquidAgentAddress }}. Validate, save, then approve
+            this agent with your wallet.
+          </small>
+          <small v-else-if="generatedHyperliquidAgentError" class="field-error">
+            {{ generatedHyperliquidAgentError }}
+          </small>
         </label>
         <template v-if="isHyperliquid">
           <label class="field">
@@ -306,7 +365,9 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
             <input
               v-model.trim="hyperliquidBuilderAddress"
               class="input"
-              :class="{ 'input-invalid': builderFeeTenthsBps !== 0 && !hyperliquidBuilderAddress.trim() }"
+              :class="{
+                'input-invalid': builderFeeTenthsBps !== 0 && !hyperliquidBuilderAddress.trim(),
+              }"
               placeholder="0x builder wallet"
             />
           </label>
@@ -315,7 +376,9 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
             <input
               v-model.trim="hyperliquidBuilderFeeBps"
               class="input"
-              :class="{ 'input-invalid': builderFeeTenthsBps === null || builderFeeTenthsBps > 100 }"
+              :class="{
+                'input-invalid': builderFeeTenthsBps === null || builderFeeTenthsBps > 100,
+              }"
               type="number"
               min="0"
               max="10"
@@ -326,7 +389,11 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
           <div class="field">
             <span>Fee Equivalent</span>
             <div class="readonly-value">
-              {{ builderFeeTenthsBps === null ? 'Invalid' : `${(builderFeeTenthsBps / 10).toFixed(1)} bps = ${(builderFeeTenthsBps / 1000).toFixed(3)}%` }}
+              {{
+                builderFeeTenthsBps === null
+                  ? 'Invalid'
+                  : `${(builderFeeTenthsBps / 10).toFixed(1)} bps = ${(builderFeeTenthsBps / 1000).toFixed(3)}%`
+              }}
             </div>
           </div>
           <p
@@ -358,10 +425,14 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
             <span>Builder approval via wallet signature</span>
           </div>
         </div>
-        <div v-if="requiresValidation" class="col-span-2 validation-panel" :class="{
-          'validation-panel-valid': validationResult?.valid,
-          'validation-panel-invalid': hasValidationFailure || validationError,
-        }">
+        <div
+          v-if="requiresValidation"
+          class="col-span-2 validation-panel"
+          :class="{
+            'validation-panel-valid': validationResult?.valid,
+            'validation-panel-invalid': hasValidationFailure || validationError,
+          }"
+        >
           <div class="validation-header">
             <div>
               <div class="validation-title">{{ validationTitle }}</div>
@@ -389,7 +460,9 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
             <div v-if="validationResult.missing_requirements.length">
               <div class="validation-section-title">Missing</div>
               <ul>
-                <li v-for="item in validationResult.missing_requirements" :key="item">{{ item }}</li>
+                <li v-for="item in validationResult.missing_requirements" :key="item">
+                  {{ item }}
+                </li>
               </ul>
             </div>
             <div v-if="validationResult.warnings.length">
@@ -461,6 +534,37 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
   font: inherit;
   font-size: 12px;
   color: var(--color-text);
+}
+
+.input-action-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+}
+
+.input-action-row .input {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.compact-action {
+  flex: 0 0 auto;
+  padding-inline: 0.55rem;
+  white-space: nowrap;
+}
+
+.field-hint,
+.field-error {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.field-hint {
+  color: var(--color-text-dim);
+}
+
+.field-error {
+  color: var(--color-danger);
 }
 
 .input:focus {
