@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import {
   ExchangeType,
+  NetworkType,
   type MarketContext,
   type SplitMode,
   type TrailingEntryOrderCommand,
@@ -64,13 +65,23 @@ const bybitTickerFetchedAt = ref<number | null>(null)
 const bybitTickerNow = ref(Date.now())
 const bybitTickerError = ref<string | null>(null)
 const bybitTickerLoading = ref(false)
+const hyperliquidTickerPrice = ref<number | null>(null)
+const hyperliquidTickerFetchedAt = ref<number | null>(null)
+const hyperliquidTickerNow = ref(Date.now())
+const hyperliquidTickerError = ref<string | null>(null)
+const hyperliquidTickerLoading = ref(false)
 let previewTimer: number | null = null
 let bybitTickerTimer: number | null = null
 let bybitTickerClockTimer: number | null = null
 let bybitTickerAbort: AbortController | null = null
 let bybitTickerRequestSeq = 0
+let hyperliquidTickerTimer: number | null = null
+let hyperliquidTickerClockTimer: number | null = null
+let hyperliquidTickerAbort: AbortController | null = null
+let hyperliquidTickerRequestSeq = 0
 
 const BYBIT_TICKER_POLL_MS = 5000
+const HYPERLIQUID_TICKER_POLL_MS = 5000
 
 const preview = computed(() => {
   if (!previewRequestId.value) return null
@@ -91,6 +102,11 @@ const bybitTickerSymbol = computed(() => {
   if (!props.open || !isBybitAccount.value) return null
   if (!isValidBybitUsdtSymbol(symbol.value)) return null
   return normalizeBybitUsdtSymbol(symbol.value)
+})
+const hyperliquidTickerSymbol = computed(() => {
+  if (!props.open || !isHyperliquidAccount.value) return null
+  if (!isValidHyperliquidPerpSymbol(symbol.value)) return null
+  return normalizeHyperliquidPerpSymbol(symbol.value)
 })
 const blocksOpeningOrder = computed(() => {
   if (isBybitAccount.value) return !isBybitMetadataVerified(selectedAccount.value)
@@ -154,7 +170,24 @@ const bybitTickerStatusLabel = computed(() => {
   if (bybitTickerLoading.value) return 'Loading Bybit price'
   return 'Bybit public last'
 })
-const readinessLabel = computed(() => (isHyperliquidAccount.value ? 'Hyperliquid setup' : 'Bybit metadata'))
+const hyperliquidTickerAgeSeconds = computed(() => {
+  if (!hyperliquidTickerFetchedAt.value) return null
+  return Math.max(
+    0,
+    Math.round((hyperliquidTickerNow.value - hyperliquidTickerFetchedAt.value) / 1000),
+  )
+})
+const hyperliquidTickerStatusLabel = computed(() => {
+  if (!isHyperliquidAccount.value) return null
+  if (!hyperliquidTickerSymbol.value) return 'Enter a valid Hyperliquid symbol'
+  if (hyperliquidTickerError.value) return 'Price unavailable'
+  if (hyperliquidTickerPrice.value !== null) return 'Hyperliquid public mid'
+  if (hyperliquidTickerLoading.value) return 'Loading Hyperliquid price'
+  return 'Hyperliquid public mid'
+})
+const readinessLabel = computed(() =>
+  isHyperliquidAccount.value ? 'Hyperliquid setup' : 'Bybit metadata',
+)
 const readinessWarning = computed(() =>
   isHyperliquidAccount.value
     ? 'Complete Hyperliquid wallet/agent setup and builder approval before opening live orders.'
@@ -336,6 +369,13 @@ function resetBybitTickerState() {
   bybitTickerLoading.value = false
 }
 
+function resetHyperliquidTickerState() {
+  hyperliquidTickerPrice.value = null
+  hyperliquidTickerFetchedAt.value = null
+  hyperliquidTickerError.value = null
+  hyperliquidTickerLoading.value = false
+}
+
 function normalizedSymbolForSubmit(): string {
   if (isBybitAccount.value) return normalizeBybitUsdtSymbol(symbol.value)
   if (isHyperliquidAccount.value) return normalizeHyperliquidPerpSymbol(symbol.value)
@@ -434,6 +474,99 @@ function startBybitTickerPoll(symbolToFetch: string) {
   })
 }
 
+function stopHyperliquidTickerPoll(reset = false) {
+  if (hyperliquidTickerTimer !== null) {
+    window.clearTimeout(hyperliquidTickerTimer)
+    hyperliquidTickerTimer = null
+  }
+  if (hyperliquidTickerClockTimer !== null) {
+    window.clearInterval(hyperliquidTickerClockTimer)
+    hyperliquidTickerClockTimer = null
+  }
+  if (hyperliquidTickerAbort) {
+    hyperliquidTickerAbort.abort()
+    hyperliquidTickerAbort = null
+  }
+  hyperliquidTickerRequestSeq += 1
+  if (reset) {
+    resetHyperliquidTickerState()
+  }
+}
+
+function hyperliquidInfoEndpoint(): string {
+  return selectedAccount.value?.network === NetworkType.Testnet
+    ? 'https://api.hyperliquid-testnet.xyz/info'
+    : 'https://api.hyperliquid.xyz/info'
+}
+
+async function fetchHyperliquidTicker(symbolToFetch: string, seq: number) {
+  hyperliquidTickerAbort?.abort()
+  const controller = new AbortController()
+  hyperliquidTickerAbort = controller
+  hyperliquidTickerLoading.value = true
+
+  try {
+    const response = await fetch(hyperliquidInfoEndpoint(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'allMids' }),
+      signal: controller.signal,
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+    const body = (await response.json()) as Record<string, string | number | undefined>
+    const rawPrice = body[symbolToFetch]
+    const price = rawPrice !== undefined ? Number(rawPrice) : NaN
+    if (!Number.isFinite(price) || price <= 0) {
+      throw new Error('missing mid price')
+    }
+    if (seq !== hyperliquidTickerRequestSeq) return
+    hyperliquidTickerPrice.value = price
+    hyperliquidTickerFetchedAt.value = Date.now()
+    hyperliquidTickerError.value = null
+  } catch (err) {
+    if (controller.signal.aborted || seq !== hyperliquidTickerRequestSeq) return
+    hyperliquidTickerPrice.value = null
+    hyperliquidTickerFetchedAt.value = null
+    hyperliquidTickerError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    if (seq === hyperliquidTickerRequestSeq) {
+      hyperliquidTickerLoading.value = false
+      hyperliquidTickerAbort = null
+    }
+  }
+}
+
+function scheduleHyperliquidTickerPoll(symbolToFetch: string, seq: number) {
+  if (hyperliquidTickerTimer !== null) {
+    window.clearTimeout(hyperliquidTickerTimer)
+  }
+  hyperliquidTickerTimer = window.setTimeout(async () => {
+    if (seq !== hyperliquidTickerRequestSeq || hyperliquidTickerSymbol.value !== symbolToFetch) {
+      return
+    }
+    await fetchHyperliquidTicker(symbolToFetch, seq)
+    if (seq === hyperliquidTickerRequestSeq && hyperliquidTickerSymbol.value === symbolToFetch) {
+      scheduleHyperliquidTickerPoll(symbolToFetch, seq)
+    }
+  }, HYPERLIQUID_TICKER_POLL_MS)
+}
+
+function startHyperliquidTickerPoll(symbolToFetch: string) {
+  stopHyperliquidTickerPoll(true)
+  const seq = hyperliquidTickerRequestSeq
+  hyperliquidTickerNow.value = Date.now()
+  hyperliquidTickerClockTimer = window.setInterval(() => {
+    hyperliquidTickerNow.value = Date.now()
+  }, 1000)
+  void fetchHyperliquidTicker(symbolToFetch, seq).then(() => {
+    if (seq === hyperliquidTickerRequestSeq && hyperliquidTickerSymbol.value === symbolToFetch) {
+      scheduleHyperliquidTickerPoll(symbolToFetch, seq)
+    }
+  })
+}
+
 watch(
   [
     selectedAccountId,
@@ -471,8 +604,21 @@ watch(
   { immediate: true },
 )
 
+watch(
+  hyperliquidTickerSymbol,
+  (next) => {
+    if (!next) {
+      stopHyperliquidTickerPoll(true)
+      return
+    }
+    startHyperliquidTickerPoll(next)
+  },
+  { immediate: true },
+)
+
 onBeforeUnmount(() => {
   stopBybitTickerPoll()
+  stopHyperliquidTickerPoll()
   if (previewTimer) {
     window.clearTimeout(previewTimer)
     previewTimer = null
@@ -517,6 +663,19 @@ function formatNumber(value: number, digits: number) {
             <template v-else-if="bybitTickerLoading">Bybit public last loading</template>
             <template v-else-if="bybitTickerError">Bybit public last unavailable</template>
             <template v-else>{{ bybitTickerStatusLabel }}</template>
+          </small>
+          <small v-else-if="isHyperliquidAccount" class="form-hint">
+            <template v-if="hyperliquidTickerPrice !== null">
+              Hyperliquid public mid ${{ formatNumber(hyperliquidTickerPrice, 2) }} ·
+              {{ hyperliquidTickerAgeSeconds }}s ago
+            </template>
+            <template v-else-if="hyperliquidTickerLoading">
+              Hyperliquid public mid loading
+            </template>
+            <template v-else-if="hyperliquidTickerError">
+              Hyperliquid public mid unavailable
+            </template>
+            <template v-else>{{ hyperliquidTickerStatusLabel }}</template>
           </small>
         </label>
         <label class="field">
