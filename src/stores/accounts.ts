@@ -30,6 +30,24 @@ export interface AccountFormPayload {
   exchange_metadata?: ExchangeAccountMetadata | null
 }
 
+export interface HyperliquidBuilderApprovalPayload {
+  action: Record<string, unknown>
+  nonce: number
+  signature: {
+    r: string
+    s: string
+    v: number
+  }
+  builder_address: string
+  builder_fee_tenths_bps: number
+}
+
+interface HyperliquidBuilderApprovalResponse {
+  account: AccountRecord
+  max_builder_fee_tenths_bps: number
+  exchange_response: unknown
+}
+
 export interface AccountKeyValidationPayload {
   key: string
   secret: string
@@ -192,6 +210,35 @@ export const useAccountsStore = defineStore('accounts', () => {
     return response as AccountKeyValidationResponse
   }
 
+  async function updateAccountMetadata(
+    accountId: string,
+    exchangeMetadata: ExchangeAccountMetadata | null,
+  ): Promise<AccountRecord> {
+    const response = await apiPut<AccountRecord, { exchange_metadata: ExchangeAccountMetadata | null }>(
+      `/accounts/${encodeURIComponent(accountId)}/exchange-metadata`,
+      { exchange_metadata: exchangeMetadata },
+      { throwOnHTTPError: true },
+    )
+    replaceAccount(response)
+    return response
+  }
+
+  async function approveHyperliquidBuilderFee(
+    accountId: string,
+    payload: HyperliquidBuilderApprovalPayload,
+  ): Promise<HyperliquidBuilderApprovalResponse> {
+    const response = await apiPost<
+      HyperliquidBuilderApprovalResponse,
+      HyperliquidBuilderApprovalPayload
+    >(
+      `/accounts/${encodeURIComponent(accountId)}/hyperliquid/builder-approval`,
+      payload,
+      { throwOnHTTPError: true },
+    )
+    replaceAccount(response.account)
+    return response
+  }
+
   async function removeAccount(label: string): Promise<void> {
     const encodedLabel = encodeURIComponent(label)
     await apiDelete(`/accounts/${encodedLabel}`)
@@ -228,6 +275,18 @@ export const useAccountsStore = defineStore('accounts', () => {
       }
     } else if (accounts.value.length > 0) {
       selectedAccountId.value = accounts.value[0].id
+    }
+  }
+
+  function replaceAccount(account: AccountRecord): void {
+    const index = accountsRaw.value.findIndex((item) => item.id === account.id)
+    if (index >= 0) {
+      accountsRaw.value.splice(index, 1, account)
+    } else {
+      accountsRaw.value.push(account)
+    }
+    if (!accountOrder.value.includes(account.id)) {
+      accountOrder.value.push(account.id)
     }
   }
 
@@ -342,6 +401,8 @@ export const useAccountsStore = defineStore('accounts', () => {
     fetchAccounts,
     addAccount,
     validateAccountKey,
+    updateAccountMetadata,
+    approveHyperliquidBuilderFee,
     removeAccount,
     reorderAccounts,
     getMarketContextForAccount,

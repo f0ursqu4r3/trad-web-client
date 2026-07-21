@@ -12,6 +12,7 @@ import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.
 import { X } from 'lucide-vue-next'
 import { getWebSocketToken } from '@/lib/auth'
 import { isValidBybitUsdtSymbol, normalizeBybitUsdtSymbol } from '@/lib/bybitOrderValidation'
+import { signHyperliquidBuilderApproval } from '@/lib/hyperliquidBuilderApproval'
 import { createLogger } from '@/lib/utils'
 import {
   ExchangeType,
@@ -29,14 +30,18 @@ const isCreateModalOpen = ref(false)
 const refreshingAccountIds = ref<Set<string>>(new Set())
 const refreshingLeverageAccountIds = ref<Set<string>>(new Set())
 const requestedCapabilityAccountIds = ref<Set<string>>(new Set())
+const approvingBuilderAccountIds = ref<Set<string>>(new Set())
+const savingBuilderAccountIds = ref<Set<string>>(new Set())
 const refreshError = ref<string | null>(null)
 const controlError = ref<string | null>(null)
 const controlMessage = ref<string | null>(null)
 const leverageForms = reactive<Record<string, { symbols: string; leverage: number }>>({})
+const builderForms = reactive<Record<string, { address: string; feeBps: string }>>({})
 let throttleRefreshTimer: number | null = null
 
 const sortedAccounts = computed(() => {
   accounts.accounts.forEach(ensureLeverageForm)
+  accounts.accounts.forEach(ensureBuilderForm)
   return accounts.accounts.slice().sort((a, b) => a.label.localeCompare(b.label))
 })
 
@@ -56,6 +61,7 @@ async function deleteAccount(account: AccountRecord) {
 function selectAccount(account: AccountRecord) {
   accounts.selectedAccountId = account.id
   ensureLeverageForm(account)
+  ensureBuilderForm(account)
   requestAccountCapabilities(account)
   requestAccountThrottle(account)
   if (account.exchange === ExchangeType.Bybit) {
@@ -96,6 +102,15 @@ function ensureLeverageForm(account: AccountRecord) {
   leverageForms[account.id] = {
     symbols: accounts.getDefaultSymbolForAccount(account.id),
     leverage: 1,
+  }
+}
+
+function ensureBuilderForm(account: AccountRecord) {
+  if (builderForms[account.id]) return
+  const meta = account.exchange_metadata
+  builderForms[account.id] = {
+    address: meta?.builder_address || '',
+    feeBps: ((meta?.builder_fee_tenths_bps ?? 10) / 10).toString(),
   }
 }
 
@@ -176,6 +191,101 @@ function canCheckLeverage(account: AccountRecord): boolean {
 function canSetHedgeMode(account: AccountRecord): boolean {
   const capabilities = capabilitiesForAccount(account)
   return ws.status === 'ready' && !!capabilities?.supports_hedge_mode
+}
+
+function builderFeeTenthsBps(account: AccountRecord): number | null {
+  const parsed = Number(builderForms[account.id]?.feeBps)
+  if (!Number.isFinite(parsed) || parsed < 0) return null
+  return Math.round(parsed * 10)
+}
+
+function builderFeeEquivalent(account: AccountRecord): string {
+  const fee = builderFeeTenthsBps(account)
+  if (fee == null || fee > 100) return 'Invalid'
+  return `${(fee / 10).toFixed(1)} bps = ${(fee / 1000).toFixed(3)}%`
+}
+
+function canSaveHyperliquidBuilder(account: AccountRecord): boolean {
+  if (account.exchange !== ExchangeType.Hyperliquid) return false
+  const fee = builderFeeTenthsBps(account)
+  if (fee == null || fee > 100) return false
+  if (fee > 0 && !builderForms[account.id]?.address.trim()) return false
+  return !savingBuilderAccountIds.value.has(account.id)
+}
+
+function canApproveHyperliquidBuilder(account: AccountRecord): boolean {
+  if (!canSaveHyperliquidBuilder(account)) return false
+  const fee = builderFeeTenthsBps(account)
+  if (!fee || fee <= 0) return false
+  return Boolean(account.exchange_metadata?.user_address) && !approvingBuilderAccountIds.value.has(account.id)
+}
+
+async function saveHyperliquidBuilder(account: AccountRecord) {
+  controlError.value = null
+  controlMessage.value = null
+  if (!canSaveHyperliquidBuilder(account)) {
+    controlError.value = 'Hyperliquid builder settings are invalid.'
+    return
+  }
+  const fee = builderFeeTenthsBps(account)
+  if (fee == null) return
+  savingBuilderAccountIds.value = new Set([...savingBuilderAccountIds.value, account.id])
+  try {
+    await accounts.updateAccountMetadata(account.id, {
+      ...account.exchange_metadata,
+      product: 'usdc_perp',
+      hedge_mode_only: false,
+      builder_address: builderForms[account.id].address.trim() || null,
+      builder_fee_tenths_bps: fee,
+      builder_approved:
+        fee === 0
+          ? true
+          : account.exchange_metadata?.builder_address === builderForms[account.id].address.trim() &&
+              (account.exchange_metadata?.max_builder_fee_tenths_bps ?? 0) >= fee
+            ? account.exchange_metadata?.builder_approved ?? false
+            : false,
+    })
+    controlMessage.value = `Saved Hyperliquid builder settings for ${account.label}.`
+  } catch (err) {
+    controlError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    const next = new Set(savingBuilderAccountIds.value)
+    next.delete(account.id)
+    savingBuilderAccountIds.value = next
+  }
+}
+
+async function approveHyperliquidBuilder(account: AccountRecord) {
+  controlError.value = null
+  controlMessage.value = null
+  if (!canApproveHyperliquidBuilder(account)) {
+    controlError.value = 'Hyperliquid builder approval requires a user address, builder address, and fee above 0.'
+    return
+  }
+  const fee = builderFeeTenthsBps(account)
+  const userAddress = account.exchange_metadata?.user_address
+  if (fee == null || !userAddress) return
+  approvingBuilderAccountIds.value = new Set([...approvingBuilderAccountIds.value, account.id])
+  try {
+    const signed = await signHyperliquidBuilderApproval({
+      network: account.network,
+      userAddress,
+      builderAddress: builderForms[account.id].address.trim(),
+      builderFeeTenthsBps: fee,
+    })
+    const response = await accounts.approveHyperliquidBuilderFee(account.id, {
+      ...signed,
+      builder_address: builderForms[account.id].address.trim(),
+      builder_fee_tenths_bps: fee,
+    })
+    controlMessage.value = `Hyperliquid builder fee approved up to ${(response.max_builder_fee_tenths_bps / 10).toFixed(1)} bps for ${account.label}.`
+  } catch (err) {
+    controlError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    const next = new Set(approvingBuilderAccountIds.value)
+    next.delete(account.id)
+    approvingBuilderAccountIds.value = next
+  }
 }
 
 function setLeverage(account: AccountRecord) {
@@ -531,6 +641,67 @@ watch(
                 exchange-managed after acceptance, but fills remain subject to liquidity, gaps, and
                 liquidation risk.
               </p>
+              <div
+                v-if="accounts.selectedAccountId === account.id && account.exchange === ExchangeType.Hyperliquid"
+                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(190px,1fr)_96px_auto_auto]"
+              >
+                <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
+                  <span>Builder Address</span>
+                  <input
+                    v-model.trim="builderForms[account.id].address"
+                    class="input h-7 text-xs"
+                    spellcheck="false"
+                    placeholder="0x builder wallet"
+                    @focus="ensureBuilderForm(account)"
+                  />
+                  <span class="normal-case tracking-normal text-[var(--color-text-dim)]">
+                    Wallet approval is required when fee is above 0 bps.
+                  </span>
+                </label>
+                <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
+                  <span>Fee</span>
+                  <input
+                    v-model.trim="builderForms[account.id].feeBps"
+                    class="input h-7 text-xs"
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="0.1"
+                    @focus="ensureBuilderForm(account)"
+                  />
+                  <span class="normal-case tracking-normal text-[var(--color-text-dim)]">
+                    {{ builderFeeEquivalent(account) }}
+                  </span>
+                </label>
+                <button
+                  class="btn btn-secondary btn-xs self-end"
+                  type="button"
+                  :disabled="!canSaveHyperliquidBuilder(account)"
+                  @click="saveHyperliquidBuilder(account)"
+                >
+                  <span v-if="savingBuilderAccountIds.has(account.id)">Saving</span>
+                  <span v-else>Save</span>
+                </button>
+                <button
+                  class="btn btn-primary btn-xs self-end"
+                  type="button"
+                  :disabled="!canApproveHyperliquidBuilder(account)"
+                  @click="approveHyperliquidBuilder(account)"
+                >
+                  <span v-if="approvingBuilderAccountIds.has(account.id)">Approving</span>
+                  <span v-else>Approve</span>
+                </button>
+                <p class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)] md:col-span-4">
+                  Approved max:
+                  <span class="font-mono text-primary">
+                    {{ ((account.exchange_metadata?.max_builder_fee_tenths_bps ?? 0) / 10).toFixed(1) }} bps
+                  </span>
+                  · Status:
+                  <span class="font-mono text-primary">
+                    {{ account.exchange_metadata?.builder_approved ? 'approved' : 'unvalidated' }}
+                  </span>
+                </p>
+              </div>
               <div
                 v-if="accounts.selectedAccountId === account.id"
                 class="grid gap-2 text-[10px] uppercase tracking-[0.06em] dim sm:grid-cols-4 xl:grid-cols-8"

@@ -8,6 +8,7 @@ export interface ExchangeAccountMetadataLike {
   user_address?: string | null
   agent_address?: string | null
   vault_address?: string | null
+  builder_address?: string | null
   builder_fee_tenths_bps?: number | null
   max_builder_fee_tenths_bps?: number | null
   builder_approved?: boolean | null
@@ -69,9 +70,10 @@ export function accountMetadataChips(account: AccountMetadataLike): string[] {
     chips.push('Mode unvalidated')
   }
   if (account.exchange === ExchangeType.Hyperliquid) {
-    if (meta?.agent_approved === true) chips.push('Agent approved')
-    else chips.push('Agent unvalidated')
-    if (meta?.builder_approved === true) chips.push('Builder approved')
+    if (normalizeMetadataLabel(meta?.agent_address)) chips.push('Agent set')
+    else chips.push('Agent missing')
+    if (hyperliquidBuilderFeeTenthsBps(meta) === 0) chips.push('No builder fee')
+    else if (meta?.builder_approved === true) chips.push('Builder approved')
     else chips.push('Builder unvalidated')
     if (meta?.vault_address) chips.push('Vault/subaccount')
     if (meta?.default_leverage) chips.push(`${meta.default_leverage}x default`)
@@ -93,7 +95,7 @@ export function isBybitMetadataVerified(account: AccountMetadataLike | null | un
 export function accountMetadataStatus(account: AccountMetadataLike): string | null {
   if (account.exchange === ExchangeType.Hyperliquid) {
     if (isHyperliquidMetadataReady(account)) return 'Hyperliquid account metadata is ready.'
-    return 'Hyperliquid agent/builder approvals unvalidated; complete wallet approval before live trading.'
+    return 'Hyperliquid account is not ready for live trading; complete builder approval or set fee to 0.'
   }
   if (account.exchange !== ExchangeType.Bybit) return null
   if (isBybitMetadataVerified(account)) {
@@ -105,11 +107,24 @@ export function accountMetadataStatus(account: AccountMetadataLike): string | nu
 export function isHyperliquidMetadataReady(account: AccountMetadataLike | null | undefined): boolean {
   if (!account || account.exchange !== ExchangeType.Hyperliquid) return true
   const meta = account.exchange_metadata
+  const builderFee = hyperliquidBuilderFeeTenthsBps(meta)
+  const hasBuilderReadiness =
+    builderFee === 0 ||
+    Boolean(
+      normalizeMetadataLabel(meta?.builder_address) &&
+        meta?.builder_approved === true &&
+        (meta?.max_builder_fee_tenths_bps ?? 0) >= builderFee,
+    )
   return Boolean(
     meta?.product === 'usdc_perp' &&
       normalizeMetadataLabel(meta?.user_address) &&
       normalizeMetadataLabel(meta?.agent_address) &&
-      meta?.agent_approved === true &&
-      meta?.builder_approved === true,
+      hasBuilderReadiness,
   )
+}
+
+function hyperliquidBuilderFeeTenthsBps(
+  meta: ExchangeAccountMetadataLike | null | undefined,
+): number {
+  return meta?.builder_fee_tenths_bps ?? 0
 }

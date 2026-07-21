@@ -30,6 +30,7 @@ const name = ref('')
 const apiKey = ref('')
 const secretKey = ref('')
 const hyperliquidVaultAddress = ref('')
+const hyperliquidBuilderAddress = ref('')
 const hyperliquidBuilderFeeBps = ref('1')
 const hyperliquidDefaultLeverage = ref('1')
 const formError = ref<string | null>(null)
@@ -76,7 +77,14 @@ const defaultLeverage = computed(() => {
 })
 const isHyperliquidMetadataValid = computed(() => {
   if (!isHyperliquid.value) return true
-  return builderFeeTenthsBps.value !== null && builderFeeTenthsBps.value <= 100 && defaultLeverage.value !== null
+  const hasRequiredBuilderAddress =
+    builderFeeTenthsBps.value === 0 || Boolean(hyperliquidBuilderAddress.value.trim())
+  return (
+    builderFeeTenthsBps.value !== null &&
+    builderFeeTenthsBps.value <= 100 &&
+    defaultLeverage.value !== null &&
+    hasRequiredBuilderAddress
+  )
 })
 
 const isSubmitDisabled = computed(() => {
@@ -107,6 +115,7 @@ function reset() {
   apiKey.value = ''
   secretKey.value = ''
   hyperliquidVaultAddress.value = ''
+  hyperliquidBuilderAddress.value = ''
   hyperliquidBuilderFeeBps.value = '1'
   hyperliquidDefaultLeverage.value = '1'
   formError.value = null
@@ -194,6 +203,7 @@ function buildExchangeMetadata() {
     product: 'usdc_perp',
     hedge_mode_only: false,
     vault_address: hyperliquidVaultAddress.value.trim() || null,
+    builder_address: hyperliquidBuilderAddress.value.trim() || null,
     builder_fee_tenths_bps: builderFeeTenthsBps.value,
     max_builder_fee_tenths_bps: 100,
     builder_approved: false,
@@ -292,6 +302,15 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
             />
           </label>
           <label class="field">
+            <span>Builder Address</span>
+            <input
+              v-model.trim="hyperliquidBuilderAddress"
+              class="input"
+              :class="{ 'input-invalid': builderFeeTenthsBps !== 0 && !hyperliquidBuilderAddress.trim() }"
+              placeholder="0x builder wallet"
+            />
+          </label>
+          <label class="field">
             <span>Builder Fee</span>
             <input
               v-model.trim="hyperliquidBuilderFeeBps"
@@ -310,6 +329,12 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
               {{ builderFeeTenthsBps === null ? 'Invalid' : `${(builderFeeTenthsBps / 10).toFixed(1)} bps = ${(builderFeeTenthsBps / 1000).toFixed(3)}%` }}
             </div>
           </div>
+          <p
+            v-if="builderFeeTenthsBps !== 0 && !hyperliquidBuilderAddress.trim()"
+            class="col-span-2 text-[11px] text-warning"
+          >
+            Builder address is required when the account fee is above 0 bps.
+          </p>
         </template>
         <p class="col-span-2 text-[11px] text-[var(--color-text-dim)] leading-relaxed">
           Your keys are stored securely and are only accessible by the trading backend. Double-check
