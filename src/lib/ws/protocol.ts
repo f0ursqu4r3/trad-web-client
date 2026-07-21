@@ -567,6 +567,26 @@ export type BybitRateLimitSnapshotData = {
   exhausted: boolean
   observed_at_unix_ms: number
 }
+export type HyperliquidRestBudgetSnapshotData = {
+  used_weight: number
+  hard_limit: number
+  open_limit: number
+  background_limit: number
+  cooldown_remaining_ms?: number | null
+  admitted_total: number
+  rejected_total: number
+  observed_429_total: number
+}
+export type HyperliquidAddressBudgetSnapshotData = {
+  requests_used?: number | null
+  requests_cap?: number | null
+  requests_surplus?: number | null
+  local_actions_since_observation: number
+  observed_open_orders?: number | null
+  local_open_order_reservations: number
+  observation_age_ms?: number | null
+  stale: boolean
+}
 export type OrderThrottleSnapshotData = {
   request_uuid: Uuid
   market_context: MarketContext
@@ -581,6 +601,8 @@ export type OrderThrottleSnapshotData = {
   rate_limit_rejected_total: number
   delayed_by_limiter_total: number
   bybit_rate_limit?: BybitRateLimitSnapshotData | null
+  hyperliquid_rest_budget?: HyperliquidRestBudgetSnapshotData | null
+  hyperliquid_address_budget?: HyperliquidAddressBudgetSnapshotData | null
   min_interval_ms: number
   max_in_flight_per_account: number
   accounts: OrderThrottleAccountData[]

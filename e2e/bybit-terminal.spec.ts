@@ -88,6 +88,10 @@ test('Hyperliquid account panel renders exchange-keyed queue telemetry', async (
   await expect(accountPanel.getByText('6', { exact: true })).toBeVisible()
   await expect(accountPanel.getByText('8', { exact: true })).toBeVisible()
   await expect(accountPanel.getByText('9', { exact: true })).toBeVisible()
+  await expect(accountPanel.getByText('375/1000 open budget')).toBeVisible()
+  await expect(accountPanel.getByText('3 local reject / 1 HTTP 429')).toBeVisible()
+  await expect(accountPanel.getByText('120+5/500 actions')).toBeVisible()
+  await expect(accountPanel.getByText('15+3 open · fresh 2.0s')).toBeVisible()
 })
 
 test('Hyperliquid account panel shows and saves builder fee bps clearly', async ({ page }) => {

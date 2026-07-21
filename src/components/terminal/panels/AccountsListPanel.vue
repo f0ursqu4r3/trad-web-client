@@ -637,6 +637,37 @@ function formatBybitRateLimitReset(snapshot: OrderThrottleSnapshotData | null): 
   return ''
 }
 
+function formatHyperliquidRestBudget(snapshot: OrderThrottleSnapshotData | null): string {
+  const budget = snapshot?.hyperliquid_rest_budget
+  if (!budget) return 'Not observed'
+  return `${budget.used_weight}/${budget.open_limit} open budget`
+}
+
+function formatHyperliquidRestStatus(snapshot: OrderThrottleSnapshotData | null): string {
+  const budget = snapshot?.hyperliquid_rest_budget
+  if (!budget) return ''
+  if (budget.cooldown_remaining_ms != null && budget.cooldown_remaining_ms > 0) {
+    return `cooldown ${formatMs(budget.cooldown_remaining_ms)}`
+  }
+  return `${budget.rejected_total} local reject / ${budget.observed_429_total} HTTP 429`
+}
+
+function formatHyperliquidAddressBudget(snapshot: OrderThrottleSnapshotData | null): string {
+  const budget = snapshot?.hyperliquid_address_budget
+  if (!budget) return 'Not observed'
+  const used = budget.requests_used == null ? '?' : budget.requests_used
+  const cap = budget.requests_cap == null ? '?' : budget.requests_cap
+  return `${used}+${budget.local_actions_since_observation}/${cap} actions`
+}
+
+function formatHyperliquidAddressStatus(snapshot: OrderThrottleSnapshotData | null): string {
+  const budget = snapshot?.hyperliquid_address_budget
+  if (!budget) return ''
+  const open = budget.observed_open_orders == null ? '?' : budget.observed_open_orders
+  const freshness = budget.stale ? 'stale' : 'fresh'
+  return `${open}+${budget.local_open_order_reservations} open · ${freshness} ${formatMs(budget.observation_age_ms)}`
+}
+
 function formatLeverageValue(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return '?'
   return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2)}x`
@@ -1135,7 +1166,7 @@ watch(
               </div>
               <div
                 v-if="accounts.selectedAccountId === account.id"
-                class="grid gap-2 text-[10px] uppercase tracking-[0.06em] dim sm:grid-cols-4 xl:grid-cols-8"
+                class="grid gap-2 text-[10px] uppercase tracking-[0.06em] dim sm:grid-cols-4 xl:grid-cols-9"
               >
                 <div class="flex flex-col gap-1">
                   <span>Queue</span>
@@ -1181,13 +1212,37 @@ watch(
                     {{ throttleForAccount(account)?.delayed_by_limiter_total ?? 0 }}
                   </span>
                 </div>
-                <div class="flex flex-col gap-1">
+                <div v-if="account.exchange === ExchangeType.Bybit" class="flex flex-col gap-1">
                   <span>Bybit Remain</span>
                   <span class="font-mono text-primary">
                     {{ formatBybitRateLimit(throttleForAccount(account)) }}
                     <span class="dim normal-case">
                       {{ formatBybitRateLimitAge(throttleForAccount(account)) }}
                       {{ formatBybitRateLimitReset(throttleForAccount(account)) }}
+                    </span>
+                  </span>
+                </div>
+                <div
+                  v-if="account.exchange === ExchangeType.Hyperliquid"
+                  class="flex flex-col gap-1"
+                >
+                  <span>HL REST</span>
+                  <span class="font-mono text-primary">
+                    {{ formatHyperliquidRestBudget(throttleForAccount(account)) }}
+                    <span class="dim normal-case">
+                      {{ formatHyperliquidRestStatus(throttleForAccount(account)) }}
+                    </span>
+                  </span>
+                </div>
+                <div
+                  v-if="account.exchange === ExchangeType.Hyperliquid"
+                  class="flex flex-col gap-1"
+                >
+                  <span>HL Address</span>
+                  <span class="font-mono text-primary">
+                    {{ formatHyperliquidAddressBudget(throttleForAccount(account)) }}
+                    <span class="dim normal-case">
+                      {{ formatHyperliquidAddressStatus(throttleForAccount(account)) }}
                     </span>
                   </span>
                 </div>
