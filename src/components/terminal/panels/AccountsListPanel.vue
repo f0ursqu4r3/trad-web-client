@@ -582,6 +582,8 @@ watch(
                     :placeholder="
                       account.exchange === ExchangeType.Bybit
                         ? 'BTC, ETH, SOL'
+                        : account.exchange === ExchangeType.Hyperliquid
+                          ? 'BTC'
                         : 'BTCUSDT or ALL'
                     "
                     @focus="ensureLeverageForm(account)"
