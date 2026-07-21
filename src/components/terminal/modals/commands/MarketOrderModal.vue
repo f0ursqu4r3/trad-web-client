@@ -9,12 +9,19 @@ import {
   type MarketOrderCommand,
   type UserCommandPayload,
 } from '@/lib/ws/protocol'
-import { accountMetadataChips, isBybitMetadataVerified, useAccountsStore } from '@/stores/accounts'
+import {
+  accountMetadataChips,
+  isBybitMetadataVerified,
+  isHyperliquidMetadataReady,
+  useAccountsStore,
+} from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
 import { useWsStore } from '@/stores/ws'
 import {
-  bybitMarketOrderExitLevelError,
+  marketOrderExitLevelError,
+  isValidHyperliquidPerpSymbol,
   isValidBybitUsdtSymbol,
+  normalizeHyperliquidPerpSymbol,
   normalizeBybitUsdtSymbol,
 } from '@/lib/bybitOrderValidation'
 
@@ -51,19 +58,37 @@ const selectedAccount = computed(
 const selectedCapabilities = computed(() =>
   ws.capabilitiesForMarketContext(selectedMarketContext.value),
 )
-const blocksOpeningOrder = computed(
-  () => action.value === MarketAction.Open && !isBybitMetadataVerified(selectedAccount.value),
-)
 const isBybitAccount = computed(() => selectedAccount.value?.exchange === ExchangeType.Bybit)
+const isHyperliquidAccount = computed(
+  () => selectedAccount.value?.exchange === ExchangeType.Hyperliquid,
+)
+const blocksOpeningOrder = computed(() => {
+  if (action.value !== MarketAction.Open) return false
+  if (isBybitAccount.value) return !isBybitMetadataVerified(selectedAccount.value)
+  if (isHyperliquidAccount.value) return !isHyperliquidMetadataReady(selectedAccount.value)
+  return false
+})
 const supportsAttachedExit = computed(
   () =>
     action.value === MarketAction.Open &&
     selectedCapabilities.value?.supports_attached_take_profit_stop_loss === true,
 )
-const bybitExitLevelError = computed(() => {
-  if (!isBybitAccount.value || !supportsAttachedExit.value) return null
-  return bybitMarketOrderExitLevelError(position_side.value, take_profit.value, stop_loss.value)
+const exitLevelError = computed(() => {
+  if ((!isBybitAccount.value && !isHyperliquidAccount.value) || !supportsAttachedExit.value) {
+    return null
+  }
+  return marketOrderExitLevelError(
+    isHyperliquidAccount.value ? 'Hyperliquid' : 'Bybit',
+    position_side.value,
+    take_profit.value,
+    stop_loss.value,
+  )
 })
+const readinessWarning = computed(() =>
+  isHyperliquidAccount.value
+    ? 'Hyperliquid account setup is incomplete. Complete wallet/agent setup and builder approval before opening live orders.'
+    : 'Bybit metadata is unvalidated. Refresh credentials before opening live Bybit orders.',
+)
 
 function requestSelectedCapabilities() {
   if (selectedMarketContext.value) {
@@ -115,8 +140,9 @@ function validate(): boolean {
   if (blocksOpeningOrder.value) return false
   if (!symbol.value.trim()) return false
   if (isBybitAccount.value && !isValidBybitUsdtSymbol(symbol.value)) return false
+  if (isHyperliquidAccount.value && !isValidHyperliquidPerpSymbol(symbol.value)) return false
   if (quantity_usd.value === null || quantity_usd.value <= 0) return false
-  if (bybitExitLevelError.value) return false
+  if (exitLevelError.value) return false
   const tp = optionalPositivePrice(take_profit.value)
   const sl = optionalPositivePrice(stop_loss.value)
   if (take_profit.value !== null && take_profit.value !== '' && tp === null) return false
@@ -154,7 +180,7 @@ function submit() {
 
   const data: MarketOrderCommand = {
     market_context: marketContext,
-    symbol: isBybitAccount.value ? normalizeBybitUsdtSymbol(symbol.value) : symbol.value,
+    symbol: normalizedSymbolForSubmit(),
     quantity_usd: quantity_usd.value!,
     position_side: position_side.value,
     action: action.value,
@@ -165,6 +191,12 @@ function submit() {
     data,
   }
   emit('submit', payload)
+}
+
+function normalizedSymbolForSubmit(): string {
+  if (isBybitAccount.value) return normalizeBybitUsdtSymbol(symbol.value)
+  if (isHyperliquidAccount.value) return normalizeHyperliquidPerpSymbol(symbol.value)
+  return symbol.value
 }
 </script>
 
@@ -211,10 +243,10 @@ function submit() {
         </template>
       </div>
       <div v-if="blocksOpeningOrder" class="text-xs text-error">
-        Bybit metadata is unvalidated. Refresh credentials before opening live Bybit orders.
+        {{ readinessWarning }}
       </div>
-      <div v-else-if="bybitExitLevelError" class="text-xs text-error">
-        {{ bybitExitLevelError }}
+      <div v-else-if="exitLevelError" class="text-xs text-error">
+        {{ exitLevelError }}
       </div>
     </form>
     <template #footer>

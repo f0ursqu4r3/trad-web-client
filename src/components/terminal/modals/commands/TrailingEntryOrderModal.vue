@@ -10,7 +10,12 @@ import {
   type SplitPreviewCommand,
   PositionSide,
 } from '@/lib/ws/protocol'
-import { accountMetadataChips, isBybitMetadataVerified, useAccountsStore } from '@/stores/accounts'
+import {
+  accountMetadataChips,
+  isBybitMetadataVerified,
+  isHyperliquidMetadataReady,
+  useAccountsStore,
+} from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
 import { useSplitPreviewStore } from '@/stores/splitPreview'
 import { useWsStore } from '@/stores/ws'
@@ -19,8 +24,10 @@ import type { TrailingEntryPrefill } from './types'
 import { createLogger } from '@/lib/utils'
 import { formatNumberShort } from '@/lib/numberFormat'
 import {
-  bybitTrailingEntryExitLevelError,
+  trailingEntryExitLevelError,
+  isValidHyperliquidPerpSymbol,
   isValidBybitUsdtSymbol,
+  normalizeHyperliquidPerpSymbol,
   normalizeBybitUsdtSymbol,
 } from '@/lib/bybitOrderValidation'
 
@@ -77,12 +84,19 @@ const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
 )
 const isBybitAccount = computed(() => selectedAccount.value?.exchange === ExchangeType.Bybit)
+const isHyperliquidAccount = computed(
+  () => selectedAccount.value?.exchange === ExchangeType.Hyperliquid,
+)
 const bybitTickerSymbol = computed(() => {
   if (!props.open || !isBybitAccount.value) return null
   if (!isValidBybitUsdtSymbol(symbol.value)) return null
   return normalizeBybitUsdtSymbol(symbol.value)
 })
-const blocksOpeningOrder = computed(() => !isBybitMetadataVerified(selectedAccount.value))
+const blocksOpeningOrder = computed(() => {
+  if (isBybitAccount.value) return !isBybitMetadataVerified(selectedAccount.value)
+  if (isHyperliquidAccount.value) return !isHyperliquidMetadataReady(selectedAccount.value)
+  return false
+})
 const requiresSuccessfulPreview = computed(() => isBybitAccount.value && canPreview())
 const selectedMarketContext = computed<MarketContext | null>(() =>
   accounts.getMarketContextForAccount(selectedAccountId.value),
@@ -99,9 +113,10 @@ const supportsTeTakeProfit = computed(() => {
   }
   return false
 })
-const bybitExitLevelError = computed(() => {
-  if (!isBybitAccount.value) return null
-  return bybitTrailingEntryExitLevelError(
+const exitLevelError = computed(() => {
+  if (!isBybitAccount.value && !isHyperliquidAccount.value) return null
+  return trailingEntryExitLevelError(
+    isHyperliquidAccount.value ? 'Hyperliquid' : 'Bybit',
     position_side.value,
     activation_price.value,
     stop_loss.value,
@@ -139,6 +154,12 @@ const bybitTickerStatusLabel = computed(() => {
   if (bybitTickerLoading.value) return 'Loading Bybit price'
   return 'Bybit public last'
 })
+const readinessLabel = computed(() => (isHyperliquidAccount.value ? 'Hyperliquid setup' : 'Bybit metadata'))
+const readinessWarning = computed(() =>
+  isHyperliquidAccount.value
+    ? 'Complete Hyperliquid wallet/agent setup and builder approval before opening live orders.'
+    : 'Refresh credentials before opening live Bybit orders.',
+)
 
 function requestSelectedCapabilities() {
   if (selectedMarketContext.value) {
@@ -202,7 +223,8 @@ function validate(): boolean {
   if (blocksOpeningOrder.value) return false
   if (!symbol.value.trim()) return false
   if (isBybitAccount.value && !isValidBybitUsdtSymbol(symbol.value)) return false
-  if (bybitExitLevelError.value) return false
+  if (isHyperliquidAccount.value && !isValidHyperliquidPerpSymbol(symbol.value)) return false
+  if (exitLevelError.value) return false
   if (previewError.value) return false
   if (requiresSuccessfulPreview.value && !preview.value) return false
   if (activation_price.value === null) return false
@@ -246,7 +268,7 @@ function submit() {
     risk_amount: risk_amount.value as number,
     stop_loss: stop_loss.value as number,
     take_profit: normalizedTakeProfit,
-    symbol: isBybitAccount.value ? normalizeBybitUsdtSymbol(symbol.value) : symbol.value,
+    symbol: normalizedSymbolForSubmit(),
   }
   const split_settings = {
     target_child_notional: split_target_notional.value ?? undefined,
@@ -269,9 +291,10 @@ function canPreview(): boolean {
   if (!selectedAccountId.value) return false
   if (!symbol.value.trim()) return false
   if (isBybitAccount.value && !isValidBybitUsdtSymbol(symbol.value)) return false
+  if (isHyperliquidAccount.value && !isValidHyperliquidPerpSymbol(symbol.value)) return false
   if (activation_price.value === null) return false
   if (stop_loss.value === null) return false
-  if (bybitExitLevelError.value) return false
+  if (exitLevelError.value) return false
   if (risk_amount.value === null) return false
   return true
 }
@@ -290,7 +313,7 @@ function requestPreview() {
   }
 
   const data: SplitPreviewCommand = {
-    symbol: isBybitAccount.value ? normalizeBybitUsdtSymbol(symbol.value) : symbol.value,
+    symbol: normalizedSymbolForSubmit(),
     market_context: marketContext,
     position_side: position_side.value,
     activation_price: activation_price.value as number,
@@ -311,6 +334,12 @@ function resetBybitTickerState() {
   bybitTickerFetchedAt.value = null
   bybitTickerError.value = null
   bybitTickerLoading.value = false
+}
+
+function normalizedSymbolForSubmit(): string {
+  if (isBybitAccount.value) return normalizeBybitUsdtSymbol(symbol.value)
+  if (isHyperliquidAccount.value) return normalizeHyperliquidPerpSymbol(symbol.value)
+  return symbol.value
 }
 
 function stopBybitTickerPoll(reset = false) {
@@ -552,13 +581,13 @@ function formatNumber(value: number, digits: number) {
             {{ previewError }}
           </div>
         </div>
-        <div v-else-if="bybitExitLevelError" class="preview preview-error">
+        <div v-else-if="exitLevelError" class="preview preview-error">
           <div class="preview-row">
-            <span>Bybit exit levels</span>
+            <span>Exit levels</span>
             <span class="preview-value">Blocked</span>
           </div>
           <div class="preview-warn">
-            {{ bybitExitLevelError }}
+            {{ exitLevelError }}
           </div>
         </div>
         <div v-else-if="requiresSuccessfulPreview && !preview" class="preview">
@@ -572,10 +601,10 @@ function formatNumber(value: number, digits: number) {
         </div>
         <div v-if="blocksOpeningOrder" class="preview preview-error">
           <div class="preview-row">
-            <span>Bybit metadata</span>
+            <span>{{ readinessLabel }}</span>
             <span class="preview-value">Unvalidated</span>
           </div>
-          <div class="preview-warn">Refresh credentials before opening live Bybit orders.</div>
+          <div class="preview-warn">{{ readinessWarning }}</div>
         </div>
         <div v-else-if="preview" class="preview">
           <div class="preview-row">

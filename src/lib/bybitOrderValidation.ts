@@ -12,6 +12,18 @@ export function isValidBybitUsdtSymbol(symbol: string): boolean {
   return normalizeBybitUsdtSymbol(symbol) !== ''
 }
 
+export function normalizeHyperliquidPerpSymbol(symbol: string): string {
+  const upper = symbol.trim().toUpperCase()
+  if (!upper || upper === 'USDT' || upper === 'USDC') return ''
+  if (upper.endsWith('USDT')) return upper.slice(0, -4)
+  if (upper.endsWith('USDC')) return upper.slice(0, -4)
+  return upper
+}
+
+export function isValidHyperliquidPerpSymbol(symbol: string): boolean {
+  return normalizeHyperliquidPerpSymbol(symbol) !== ''
+}
+
 function positiveFinite(value: number | null): boolean {
   return value !== null && Number.isFinite(value) && value > 0
 }
@@ -27,28 +39,44 @@ export function bybitTrailingEntryExitLevelError(
   stopLoss: number | null,
   takeProfit: OptionalPrice,
 ): string | null {
+  return trailingEntryExitLevelError(
+    'Bybit',
+    positionSide,
+    activationPrice,
+    stopLoss,
+    takeProfit,
+  )
+}
+
+export function trailingEntryExitLevelError(
+  exchangeLabel: string,
+  positionSide: PositionSide,
+  activationPrice: number | null,
+  stopLoss: number | null,
+  takeProfit: OptionalPrice,
+): string | null {
   if (activationPrice === null || stopLoss === null) return null
-  if (!positiveFinite(activationPrice)) return 'Bybit TE activation price must be positive.'
-  if (!positiveFinite(stopLoss)) return 'Bybit TE stop loss must be positive.'
+  if (!positiveFinite(activationPrice)) return `${exchangeLabel} TE activation price must be positive.`
+  if (!positiveFinite(stopLoss)) return `${exchangeLabel} TE stop loss must be positive.`
 
   const normalizedTakeProfit = normalizeOptionalPrice(takeProfit)
   if (normalizedTakeProfit !== null && !positiveFinite(normalizedTakeProfit)) {
-    return 'Bybit TE take profit must be positive.'
+    return `${exchangeLabel} TE take profit must be positive.`
   }
 
   if (positionSide === PositionSide.Long) {
     if (activationPrice <= stopLoss) {
-      return 'Bybit long TE activation must be above stop loss.'
+      return `${exchangeLabel} long TE activation must be above stop loss.`
     }
     if (normalizedTakeProfit !== null && normalizedTakeProfit <= activationPrice) {
-      return 'Bybit long TE take profit must be above activation.'
+      return `${exchangeLabel} long TE take profit must be above activation.`
     }
   } else {
     if (activationPrice >= stopLoss) {
-      return 'Bybit short TE activation must be below stop loss.'
+      return `${exchangeLabel} short TE activation must be below stop loss.`
     }
     if (normalizedTakeProfit !== null && normalizedTakeProfit >= activationPrice) {
-      return 'Bybit short TE take profit must be below activation.'
+      return `${exchangeLabel} short TE take profit must be below activation.`
     }
   }
 
@@ -60,22 +88,31 @@ export function bybitMarketOrderExitLevelError(
   takeProfit: OptionalPrice,
   stopLoss: OptionalPrice,
 ): string | null {
+  return marketOrderExitLevelError('Bybit', positionSide, takeProfit, stopLoss)
+}
+
+export function marketOrderExitLevelError(
+  exchangeLabel: string,
+  positionSide: PositionSide,
+  takeProfit: OptionalPrice,
+  stopLoss: OptionalPrice,
+): string | null {
   const normalizedTakeProfit = normalizeOptionalPrice(takeProfit)
   const normalizedStopLoss = normalizeOptionalPrice(stopLoss)
 
   if (normalizedTakeProfit !== null && !positiveFinite(normalizedTakeProfit)) {
-    return 'Bybit market take profit must be positive.'
+    return `${exchangeLabel} market take profit must be positive.`
   }
   if (normalizedStopLoss !== null && !positiveFinite(normalizedStopLoss)) {
-    return 'Bybit market stop loss must be positive.'
+    return `${exchangeLabel} market stop loss must be positive.`
   }
   if (normalizedTakeProfit === null || normalizedStopLoss === null) return null
 
   if (positionSide === PositionSide.Long && normalizedTakeProfit <= normalizedStopLoss) {
-    return 'Bybit long market take profit must be above stop loss.'
+    return `${exchangeLabel} long market take profit must be above stop loss.`
   }
   if (positionSide === PositionSide.Short && normalizedTakeProfit >= normalizedStopLoss) {
-    return 'Bybit short market take profit must be below stop loss.'
+    return `${exchangeLabel} short market take profit must be below stop loss.`
   }
 
   return null
