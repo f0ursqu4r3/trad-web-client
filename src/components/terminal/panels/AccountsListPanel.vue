@@ -83,9 +83,14 @@ function openCreateModal() {
 async function deleteAccount(account: AccountRecord) {
   if (!window.confirm(`Delete account "${account.label}"? This cannot be undone.`)) return
   try {
-    await accounts.removeAccount(account.label)
+    if (account.exchange === ExchangeType.Hyperliquid) {
+      await ws.sendDeleteHyperliquidAccount(account.id)
+    } else {
+      await accounts.removeAccount(account.label)
+    }
   } catch (err) {
     logger.error('delete failed', err)
+    controlError.value = err instanceof Error ? err.message : String(err)
   }
 }
 

@@ -15,6 +15,7 @@ import { useBillingStore } from '@/stores/billing'
 // import { apiPut } from '@/lib/apiClient'
 import { getWebSocketToken, useAuth } from '@/lib/auth'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
+import { ExchangeType } from '@/lib/ws/protocol'
 
 import ThemeSwitcher from '@/components/general/ThemeSwitcher.vue'
 import OrderedList from '@/components/general/OrderedList.vue'
@@ -147,7 +148,11 @@ function openCreateAccount() {
 async function deleteAccount(account: AccountRecord) {
   if (!window.confirm(`Delete account "${account.label}"? This cannot be undone.`)) return
   try {
-    await accountsStore.removeAccount(account.label)
+    if (account.exchange === ExchangeType.Hyperliquid) {
+      await wsStore.sendDeleteHyperliquidAccount(account.id)
+    } else {
+      await accountsStore.removeAccount(account.label)
+    }
   } catch (err) {
     prefsError.value = err instanceof Error ? err.message : String(err)
   }
@@ -534,10 +539,7 @@ const returnToOrigin = window.location.origin
                   Ping
                 </button>
                 <button class="btn btn-secondary btn-sm" @click="reconnectWs">Reconnect WS</button>
-                <button
-                  class="btn btn-danger btn-sm"
-                  @click="logout({ returnTo: returnToOrigin })"
-                >
+                <button class="btn btn-danger btn-sm" @click="logout({ returnTo: returnToOrigin })">
                   Logout
                 </button>
               </div>

@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 19
+export const PROTOCOL_VERSION = 20
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -247,6 +247,7 @@ export type SystemMessagePayload =
   | { kind: 'ResyncDevice'; data: ResyncDeviceRequest }
   | { kind: 'CancelCommand'; data: CancelCommandRequest }
   | { kind: 'RefreshAccountKeys'; data: RefreshAccountKeysMessage }
+  | { kind: 'DeleteHyperliquidAccount'; data: DeleteHyperliquidAccountRequest }
   | { kind: 'GetMarketCapabilities'; data: GetMarketCapabilitiesRequest }
   | { kind: 'GetOrderThrottleSnapshot'; data: GetOrderThrottleSnapshotRequest }
   | { kind: 'GetSymbolLeverage'; data: GetSymbolLeverageRequest }
@@ -273,6 +274,7 @@ export type RefreshAccountKeysMessage = {
   user_token: string
   label?: string | null
 }
+export type DeleteHyperliquidAccountRequest = { account_id: Uuid }
 
 export type GetBalanceRequest = {
   market_context: MarketContext

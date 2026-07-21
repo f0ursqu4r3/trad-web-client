@@ -276,7 +276,11 @@ export const useWsStore = defineStore('ws', () => {
     })
   }
 
-  function sendRefreshAccountKeys(accountId: Uuid, label: string, userToken: string): Promise<void> {
+  function sendRefreshAccountKeys(
+    accountId: Uuid,
+    label: string,
+    userToken: string,
+  ): Promise<void> {
     const command = {
       kind: 'RefreshAccountKeys',
       data: {
@@ -293,6 +297,22 @@ export const useWsStore = defineStore('ws', () => {
         pendingAccountRefreshResolvers.delete(commandId)
         reject(new Error('Account refresh timed out. Refresh accounts manually to check status.'))
       }, 10000)
+      pendingAccountRefreshResolvers.set(commandId, { resolve, reject, timer })
+    })
+  }
+
+  function sendDeleteHyperliquidAccount(accountId: Uuid): Promise<void> {
+    const commandId = sendSystemCommand({
+      kind: 'DeleteHyperliquidAccount',
+      data: { account_id: accountId },
+    })
+    pendingAccountRefreshes.add(commandId)
+    return new Promise((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        pendingAccountRefreshes.delete(commandId)
+        pendingAccountRefreshResolvers.delete(commandId)
+        reject(new Error('Account deletion timed out. Refresh accounts before trying again.'))
+      }, 30000)
       pendingAccountRefreshResolvers.set(commandId, { resolve, reject, timer })
     })
   }
@@ -720,6 +740,7 @@ export const useWsStore = defineStore('ws', () => {
     sendCloseTrailingEntryPosition,
     sendContinueMissedTrailingEntry,
     sendRefreshAccountKeys,
+    sendDeleteHyperliquidAccount,
     requestMarketCapabilities,
     capabilitiesForMarketContext,
     requestOrderThrottleSnapshot,
