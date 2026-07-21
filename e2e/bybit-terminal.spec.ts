@@ -163,6 +163,208 @@ test('Hyperliquid account panel shows and saves builder fee bps clearly', async 
   ).toBeVisible()
 })
 
+test('Hyperliquid account panel submits wallet-signed agent and builder approvals', async ({
+  page,
+}) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  await page.addInitScript(() => {
+    const walletRequests: Array<{ method: string; params?: unknown[] }> = []
+    Object.defineProperty(window, '__tradHyperliquidWalletRequests', {
+      value: walletRequests,
+      configurable: true,
+    })
+    Date.now = () => 1780000000123
+    window.ethereum = {
+      request: async (args: { method: string; params?: unknown[] }) => {
+        walletRequests.push(args)
+        if (args.method === 'eth_requestAccounts') {
+          return ['0x1111111111111111111111111111111111111111']
+        }
+        if (args.method === 'eth_signTypedData_v4') {
+          return `0x${'1'.repeat(64)}${'2'.repeat(64)}1b`
+        }
+        throw new Error(`unexpected wallet request ${args.method}`)
+      },
+    }
+  })
+
+  let agentApprovalPayload: Record<string, unknown> | null = null
+  let builderApprovalPayload: Record<string, unknown> | null = null
+  await page.route('**/api/accounts/**/hyperliquid/agent-approval', async (route) => {
+    agentApprovalPayload = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        account: {
+          id: '17171717-1717-4717-8717-171717171717',
+          label: 'Hyperliquid QA',
+          key: 'redacted',
+          network: 'testnet',
+          exchange: 'hyperliquid',
+          exchange_metadata: {
+            product: 'usdc_perp',
+            hedge_mode_only: false,
+            user_address: '0x1111111111111111111111111111111111111111',
+            agent_address: '0x2222222222222222222222222222222222222222',
+            agent_approved: true,
+            builder_address: '0x3333333333333333333333333333333333333333',
+            builder_fee_tenths_bps: 10,
+            max_builder_fee_tenths_bps: 10,
+            builder_approved: true,
+            default_leverage: 1,
+          },
+        },
+        agent_approved: true,
+        exchange_response: { status: 'ok' },
+      }),
+    })
+  })
+  await page.route('**/api/accounts/**/hyperliquid/builder-approval', async (route) => {
+    builderApprovalPayload = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        account: {
+          id: '17171717-1717-4717-8717-171717171717',
+          label: 'Hyperliquid QA',
+          key: 'redacted',
+          network: 'testnet',
+          exchange: 'hyperliquid',
+          exchange_metadata: {
+            product: 'usdc_perp',
+            hedge_mode_only: false,
+            user_address: '0x1111111111111111111111111111111111111111',
+            agent_address: '0x2222222222222222222222222222222222222222',
+            agent_approved: true,
+            builder_address: '0x3333333333333333333333333333333333333333',
+            builder_fee_tenths_bps: 10,
+            max_builder_fee_tenths_bps: 10,
+            builder_approved: true,
+            default_leverage: 1,
+          },
+        },
+        max_builder_fee_tenths_bps: 10,
+        exchange_response: { status: 'ok' },
+      }),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+
+  let accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
+  await accountPanel.getByRole('button', { name: 'Approve', exact: true }).click()
+  await expect(
+    accountPanel.getByText('Hyperliquid builder fee approved up to 1.0 bps for Hyperliquid QA.'),
+  ).toBeVisible()
+
+  const builderTypedDataRequests = await page.evaluate(
+    () =>
+      (window as any).__tradHyperliquidWalletRequests.filter(
+        (request: { method: string }) => request.method === 'eth_signTypedData_v4',
+      ),
+  )
+
+  await page.goto('/e2e/bybit-terminal')
+
+  accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
+  await accountPanel.getByRole('button', { name: 'Approve Agent' }).click()
+  await expect(
+    accountPanel.getByText('Hyperliquid agent wallet approved for Hyperliquid QA.'),
+  ).toBeVisible()
+
+  await expect.poll(() => agentApprovalPayload).not.toBeNull()
+  await expect.poll(() => builderApprovalPayload).not.toBeNull()
+
+  expect(agentApprovalPayload).toMatchObject({
+    action: {
+      type: 'approveAgent',
+      hyperliquidChain: 'Testnet',
+      signatureChainId: '0x66eee',
+      agentAddress: '0x2222222222222222222222222222222222222222',
+      agentName: 'trad',
+      nonce: 1780000000123,
+    },
+    nonce: 1780000000123,
+    signature: {
+      r: `0x${'1'.repeat(64)}`,
+      s: `0x${'2'.repeat(64)}`,
+      v: 27,
+    },
+    agent_address: '0x2222222222222222222222222222222222222222',
+    agent_name: 'trad',
+  })
+  expect(builderApprovalPayload).toMatchObject({
+    action: {
+      type: 'approveBuilderFee',
+      hyperliquidChain: 'Testnet',
+      signatureChainId: '0x66eee',
+      maxFeeRate: '0.010%',
+      builder: '0x3333333333333333333333333333333333333333',
+      nonce: 1780000000123,
+    },
+    nonce: 1780000000123,
+    signature: {
+      r: `0x${'1'.repeat(64)}`,
+      s: `0x${'2'.repeat(64)}`,
+      v: 27,
+    },
+    builder_address: '0x3333333333333333333333333333333333333333',
+    builder_fee_tenths_bps: 10,
+  })
+
+  const agentTypedDataRequests = await page.evaluate(
+    () =>
+      (window as any).__tradHyperliquidWalletRequests.filter(
+        (request: { method: string }) => request.method === 'eth_signTypedData_v4',
+      ),
+  )
+  expect(builderTypedDataRequests).toHaveLength(1)
+  expect(agentTypedDataRequests).toHaveLength(1)
+  const builderTypedData = JSON.parse(builderTypedDataRequests[0].params[1])
+  const agentTypedData = JSON.parse(agentTypedDataRequests[0].params[1])
+  expect(agentTypedData).toMatchObject({
+    domain: {
+      name: 'HyperliquidSignTransaction',
+      version: '1',
+      chainId: 421614,
+      verifyingContract: '0x0000000000000000000000000000000000000000',
+    },
+    primaryType: 'HyperliquidTransaction:ApproveAgent',
+    message: {
+      hyperliquidChain: 'Testnet',
+      agentAddress: '0x2222222222222222222222222222222222222222',
+      agentName: 'trad',
+      nonce: 1780000000123,
+    },
+  })
+  expect(builderTypedData).toMatchObject({
+    domain: {
+      name: 'HyperliquidSignTransaction',
+      version: '1',
+      chainId: 421614,
+      verifyingContract: '0x0000000000000000000000000000000000000000',
+    },
+    primaryType: 'HyperliquidTransaction:ApproveBuilderFee',
+    message: {
+      hyperliquidChain: 'Testnet',
+      maxFeeRate: '0.010%',
+      builder: '0x3333333333333333333333333333333333333333',
+      nonce: 1780000000123,
+    },
+  })
+})
+
 test('Bybit terminal remains inspectable with many active TE rows', async ({ page }) => {
   await page.route('**/auth/session', async (route) => {
     await route.fulfill({
