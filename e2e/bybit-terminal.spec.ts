@@ -127,13 +127,12 @@ test('Hyperliquid account panel shows and saves builder fee bps clearly', async 
   const accountPanel = page.getByTestId('accounts-panel')
   await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
 
-  await expect(accountPanel.getByText('Agent Wallet')).toBeVisible()
+  await expect(accountPanel.getByText('Agent Wallet', { exact: true })).toBeVisible()
   await expect(accountPanel.getByRole('button', { name: 'Approve Agent' })).toBeEnabled()
   await expect(accountPanel.getByRole('button', { name: 'Refresh Agent' })).toBeEnabled()
   await expect(accountPanel.getByText('Builder Address')).toBeVisible()
-  await expect(accountPanel.getByPlaceholder('0x builder wallet')).toHaveValue(
-    '0x3333333333333333333333333333333333333333',
-  )
+  await expect(accountPanel.getByText('0x3333333333333333333333333333333333333333')).toBeVisible()
+  await expect(accountPanel.getByPlaceholder('0x builder wallet')).toHaveCount(0)
   await expect(accountPanel.getByText('1.0 bps = 0.010%')).toBeVisible()
   await expect(accountPanel.getByText('Approved max:')).toBeVisible()
   await expect(accountPanel.getByText('1.0 bps', { exact: true })).toBeVisible()
@@ -146,16 +145,7 @@ test('Hyperliquid account panel shows and saves builder fee bps clearly', async 
   await expect.poll(() => metadataPayload).not.toBeNull()
   expect(metadataPayload).toEqual({
     exchange_metadata: {
-      product: 'usdc_perp',
-      hedge_mode_only: false,
-      user_address: '0x1111111111111111111111111111111111111111',
-      agent_address: '0x2222222222222222222222222222222222222222',
-      agent_approved: true,
-      builder_address: '0x3333333333333333333333333333333333333333',
       builder_fee_tenths_bps: 25,
-      max_builder_fee_tenths_bps: 10,
-      builder_approved: false,
-      default_leverage: 1,
     },
   })
   await expect(
@@ -217,7 +207,7 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
             agent_approved: true,
             builder_address: '0x3333333333333333333333333333333333333333',
             builder_fee_tenths_bps: 10,
-            max_builder_fee_tenths_bps: 10,
+            max_builder_fee_tenths_bps: 100,
             builder_approved: true,
             default_leverage: 1,
           },
@@ -247,12 +237,12 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
             agent_approved: true,
             builder_address: '0x3333333333333333333333333333333333333333',
             builder_fee_tenths_bps: 10,
-            max_builder_fee_tenths_bps: 10,
+            max_builder_fee_tenths_bps: 100,
             builder_approved: true,
             default_leverage: 1,
           },
         },
-        max_builder_fee_tenths_bps: 10,
+        max_builder_fee_tenths_bps: 100,
         exchange_response: { status: 'ok' },
       }),
     })
@@ -264,14 +254,13 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
   await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
   await accountPanel.getByRole('button', { name: 'Approve', exact: true }).click()
   await expect(
-    accountPanel.getByText('Hyperliquid builder fee approved up to 1.0 bps for Hyperliquid QA.'),
+    accountPanel.getByText('Hyperliquid builder fee approved up to 10.0 bps for Hyperliquid QA.'),
   ).toBeVisible()
 
-  const builderTypedDataRequests = await page.evaluate(
-    () =>
-      (window as any).__tradHyperliquidWalletRequests.filter(
-        (request: { method: string }) => request.method === 'eth_signTypedData_v4',
-      ),
+  const builderTypedDataRequests = await page.evaluate(() =>
+    (window as any).__tradHyperliquidWalletRequests.filter(
+      (request: { method: string }) => request.method === 'eth_signTypedData_v4',
+    ),
   )
 
   await page.goto('/e2e/bybit-terminal')
@@ -309,7 +298,7 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
       type: 'approveBuilderFee',
       hyperliquidChain: 'Testnet',
       signatureChainId: '0x66eee',
-      maxFeeRate: '0.010%',
+      maxFeeRate: '0.100%',
       builder: '0x3333333333333333333333333333333333333333',
       nonce: 1780000000123,
     },
@@ -323,11 +312,10 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
     builder_fee_tenths_bps: 10,
   })
 
-  const agentTypedDataRequests = await page.evaluate(
-    () =>
-      (window as any).__tradHyperliquidWalletRequests.filter(
-        (request: { method: string }) => request.method === 'eth_signTypedData_v4',
-      ),
+  const agentTypedDataRequests = await page.evaluate(() =>
+    (window as any).__tradHyperliquidWalletRequests.filter(
+      (request: { method: string }) => request.method === 'eth_signTypedData_v4',
+    ),
   )
   expect(builderTypedDataRequests).toHaveLength(1)
   expect(agentTypedDataRequests).toHaveLength(1)
@@ -358,7 +346,7 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
     primaryType: 'HyperliquidTransaction:ApproveBuilderFee',
     message: {
       hyperliquidChain: 'Testnet',
-      maxFeeRate: '0.010%',
+      maxFeeRate: '0.100%',
       builder: '0x3333333333333333333333333333333333333333',
       nonce: 1780000000123,
     },
@@ -451,12 +439,12 @@ test('Bybit missing native protection is loud in device details', async ({ page 
   await expect(detailsPanel.getByText('Native TP/SL', { exact: true })).toBeVisible()
   await expect(detailsPanel.getByText('Native Bybit TP/SL protection missing')).toBeVisible()
   await expect(detailsPanel.getByText('native_protection_missing')).toBeVisible()
-  await expect(
-    detailsPanel.getByText('observed 1 linked TP/SL orders, expected 2'),
-  ).toBeVisible()
+  await expect(detailsPanel.getByText('observed 1 linked TP/SL orders, expected 2')).toBeVisible()
 })
 
-test('Bybit account creation submits exchange credentials through account API', async ({ page }) => {
+test('Bybit account creation submits exchange credentials through account API', async ({
+  page,
+}) => {
   await page.route('**/auth/session', async (route) => {
     await route.fulfill({
       status: 200,
@@ -653,13 +641,17 @@ test('Bybit account creation submits exchange credentials through account API', 
   await expect(accountPanel.getByText('Bybit Live QA')).toBeVisible()
   await expect(accountPanel.getByText('USDT perp')).toBeVisible()
   await expect(accountPanel.getByText('Hedge only')).toBeVisible()
-  await expect(accountPanel.getByText('Exchange metadata verified: UTA 1.0 Pro / REGULAR_MARGIN')).toBeVisible()
+  await expect(
+    accountPanel.getByText('Exchange metadata verified: UTA 1.0 Pro / REGULAR_MARGIN'),
+  ).toBeVisible()
   await expect(accountPanel.getByText('Queue', { exact: true })).toBeVisible()
   await expect(accountPanel.getByText(/queued\s*\/\s*\d+\s+live/)).toBeVisible()
   await expect(accountPanel.getByText('Bybit Remain')).toBeVisible()
 })
 
-test('Hyperliquid account creation submits wallet agent and exchange metadata', async ({ page }) => {
+test('Hyperliquid account creation submits wallet agent and exchange metadata', async ({
+  page,
+}) => {
   await page.route('**/auth/session', async (route) => {
     await route.fulfill({
       status: 200,
@@ -796,7 +788,9 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
   await dialog.getByPlaceholder('Account alias').fill('  Hyperliquid Live QA  ')
   await dialog.getByPlaceholder('0x...').fill('  0x1111111111111111111111111111111111111111  ')
   await dialog.getByRole('button', { name: 'generate' }).click()
-  await expect(dialog.getByText('Generated agent 0x2222222222222222222222222222222222222222')).toBeVisible()
+  await expect(
+    dialog.getByText('Generated agent 0x2222222222222222222222222222222222222222'),
+  ).toBeVisible()
   await expect(dialog.getByPlaceholder('32-byte hex private key')).toHaveValue(
     '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
   )
@@ -805,20 +799,25 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
     .fill('0x4444444444444444444444444444444444444444')
   await dialog.getByLabel('Default Leverage').fill('3')
   await dialog.getByLabel('Margin Mode').selectOption('isolated')
-  await dialog.getByPlaceholder('0x builder wallet').fill('0x3333333333333333333333333333333333333333')
+  await expect(dialog.getByText('Trad configured')).toBeVisible()
   await dialog.getByLabel('Builder Fee').fill('1.5')
   await expect(dialog.getByText('1.5 bps = 0.015%')).toBeVisible()
 
   await dialog.getByRole('button', { name: 'Check permissions' }).click()
-  await expect(dialog.getByText('Wallet, agent key, and read-only Hyperliquid account-state access are valid.')).toBeVisible()
-  await expect(dialog.getByText('Approve the generated agent wallet before live trading.')).toBeVisible()
+  await expect(
+    dialog.getByText(
+      'Wallet, agent key, and read-only Hyperliquid account-state access are valid.',
+    ),
+  ).toBeVisible()
+  await expect(
+    dialog.getByText('Approve the generated agent wallet before live trading.'),
+  ).toBeVisible()
   await dialog.getByRole('button', { name: 'Create' }).click()
 
   const expectedMetadata = {
     product: 'usdc_perp',
     hedge_mode_only: false,
     vault_address: '0x4444444444444444444444444444444444444444',
-    builder_address: '0x3333333333333333333333333333333333333333',
     builder_fee_tenths_bps: 15,
     builder_approved: false,
     agent_approved: false,

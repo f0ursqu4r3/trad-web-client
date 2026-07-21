@@ -9,10 +9,15 @@ export interface ExchangeAccountMetadataLike {
   agent_address?: string | null
   vault_address?: string | null
   builder_address?: string | null
+  builder_config_version?: string | null
   builder_fee_tenths_bps?: number | null
   max_builder_fee_tenths_bps?: number | null
   builder_approved?: boolean | null
+  builder_approval_network?: NetworkType | null
+  builder_approval_user_address?: string | null
+  builder_approval_verified_at_ms?: number | null
   agent_approved?: boolean | null
+  agent_approval_verified_at_ms?: number | null
   default_leverage?: number | null
   symbol_leverage_overrides?: Record<string, number> | null
 }
@@ -109,7 +114,9 @@ export function accountMetadataStatus(account: AccountMetadataLike): string | nu
   return 'Bybit exchange metadata unvalidated; refresh credentials before live trading.'
 }
 
-export function isHyperliquidMetadataReady(account: AccountMetadataLike | null | undefined): boolean {
+export function isHyperliquidMetadataReady(
+  account: AccountMetadataLike | null | undefined,
+): boolean {
   if (!account || account.exchange !== ExchangeType.Hyperliquid) return true
   const meta = account.exchange_metadata
   const builderFee = hyperliquidBuilderFeeTenthsBps(meta)
@@ -117,7 +124,12 @@ export function isHyperliquidMetadataReady(account: AccountMetadataLike | null |
     builderFee === 0 ||
     Boolean(
       normalizeMetadataLabel(meta?.builder_address) &&
+        normalizeMetadataLabel(meta?.builder_config_version) &&
         meta?.builder_approved === true &&
+        meta?.builder_approval_network === account.network &&
+        normalizeAddress(meta?.builder_approval_user_address) ===
+          normalizeAddress(meta?.user_address) &&
+        meta?.builder_approval_verified_at_ms &&
         (meta?.max_builder_fee_tenths_bps ?? 0) >= builderFee,
     )
   return Boolean(
@@ -125,8 +137,14 @@ export function isHyperliquidMetadataReady(account: AccountMetadataLike | null |
       normalizeMetadataLabel(meta?.user_address) &&
       normalizeMetadataLabel(meta?.agent_address) &&
       meta?.agent_approved === true &&
+      meta?.agent_approval_verified_at_ms &&
       hasBuilderReadiness,
   )
+}
+
+function normalizeAddress(value?: string | null): string | null {
+  const normalized = value?.trim().toLowerCase()
+  return normalized || null
 }
 
 function hyperliquidBuilderFeeTenthsBps(

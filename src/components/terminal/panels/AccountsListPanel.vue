@@ -56,7 +56,7 @@ const leverageForms = reactive<
     }
   >
 >({})
-const builderForms = reactive<Record<string, { address: string; feeBps: string }>>({})
+const builderForms = reactive<Record<string, { feeBps: string }>>({})
 let throttleRefreshTimer: number | null = null
 
 const sortedAccounts = computed(() => {
@@ -145,7 +145,6 @@ function ensureBuilderForm(account: AccountRecord) {
   if (builderForms[account.id]) return
   const meta = account.exchange_metadata
   builderForms[account.id] = {
-    address: meta?.builder_address || '',
     feeBps: ((meta?.builder_fee_tenths_bps ?? 10) / 10).toString(),
   }
 }
@@ -261,7 +260,6 @@ function canSaveHyperliquidBuilder(account: AccountRecord): boolean {
   if (account.exchange !== ExchangeType.Hyperliquid) return false
   const fee = builderFeeTenthsBps(account)
   if (fee == null || fee > 100) return false
-  if (fee > 0 && !builderForms[account.id]?.address.trim()) return false
   return !savingBuilderAccountIds.value.has(account.id)
 }
 
@@ -269,7 +267,11 @@ function canApproveHyperliquidBuilder(account: AccountRecord): boolean {
   if (!canSaveHyperliquidBuilder(account)) return false
   const fee = builderFeeTenthsBps(account)
   if (!fee || fee <= 0) return false
-  return Boolean(account.exchange_metadata?.user_address) && !approvingBuilderAccountIds.value.has(account.id)
+  return (
+    Boolean(
+      account.exchange_metadata?.user_address && account.exchange_metadata?.builder_address,
+    ) && !approvingBuilderAccountIds.value.has(account.id)
+  )
 }
 
 function canRefreshHyperliquidBuilder(account: AccountRecord): boolean {
@@ -284,13 +286,17 @@ function canRefreshHyperliquidBuilder(account: AccountRecord): boolean {
 function canApproveHyperliquidAgent(account: AccountRecord): boolean {
   if (account.exchange !== ExchangeType.Hyperliquid) return false
   if (approvingAgentAccountIds.value.has(account.id)) return false
-  return Boolean(account.exchange_metadata?.user_address && account.exchange_metadata?.agent_address)
+  return Boolean(
+    account.exchange_metadata?.user_address && account.exchange_metadata?.agent_address,
+  )
 }
 
 function canRefreshHyperliquidAgent(account: AccountRecord): boolean {
   if (account.exchange !== ExchangeType.Hyperliquid) return false
   if (refreshingAgentAccountIds.value.has(account.id)) return false
-  return Boolean(account.exchange_metadata?.user_address && account.exchange_metadata?.agent_address)
+  return Boolean(
+    account.exchange_metadata?.user_address && account.exchange_metadata?.agent_address,
+  )
 }
 
 async function saveHyperliquidBuilder(account: AccountRecord) {
@@ -305,18 +311,7 @@ async function saveHyperliquidBuilder(account: AccountRecord) {
   savingBuilderAccountIds.value = new Set([...savingBuilderAccountIds.value, account.id])
   try {
     await accounts.updateAccountMetadata(account.id, {
-      ...account.exchange_metadata,
-      product: 'usdc_perp',
-      hedge_mode_only: false,
-      builder_address: builderForms[account.id].address.trim() || null,
       builder_fee_tenths_bps: fee,
-      builder_approved:
-        fee === 0
-          ? true
-          : account.exchange_metadata?.builder_address === builderForms[account.id].address.trim() &&
-              (account.exchange_metadata?.max_builder_fee_tenths_bps ?? 0) >= fee
-            ? account.exchange_metadata?.builder_approved ?? false
-            : false,
     })
     controlMessage.value = `Saved Hyperliquid builder settings for ${account.label}.`
   } catch (err) {
@@ -332,7 +327,8 @@ async function approveHyperliquidAgent(account: AccountRecord) {
   controlError.value = null
   controlMessage.value = null
   if (!canApproveHyperliquidAgent(account)) {
-    controlError.value = 'Hyperliquid agent approval requires a saved user wallet and agent address.'
+    controlError.value =
+      'Hyperliquid agent approval requires a saved user wallet and agent address.'
     return
   }
   const userAddress = account.exchange_metadata?.user_address
@@ -389,23 +385,24 @@ async function approveHyperliquidBuilder(account: AccountRecord) {
   controlError.value = null
   controlMessage.value = null
   if (!canApproveHyperliquidBuilder(account)) {
-    controlError.value = 'Hyperliquid builder approval requires a user address, builder address, and fee above 0.'
+    controlError.value =
+      'Hyperliquid builder approval requires a user address, builder address, and fee above 0.'
     return
   }
   const fee = builderFeeTenthsBps(account)
   const userAddress = account.exchange_metadata?.user_address
-  if (fee == null || !userAddress) return
+  const builderAddress = account.exchange_metadata?.builder_address
+  if (fee == null || !userAddress || !builderAddress) return
   approvingBuilderAccountIds.value = new Set([...approvingBuilderAccountIds.value, account.id])
   try {
     const signed = await signHyperliquidBuilderApproval({
       network: account.network,
       userAddress,
-      builderAddress: builderForms[account.id].address.trim(),
-      builderFeeTenthsBps: fee,
+      builderAddress,
     })
     const response = await accounts.approveHyperliquidBuilderFee(account.id, {
       ...signed,
-      builder_address: builderForms[account.id].address.trim(),
+      builder_address: builderAddress,
       builder_fee_tenths_bps: fee,
     })
     controlMessage.value = `Hyperliquid builder fee approved up to ${(response.max_builder_fee_tenths_bps / 10).toFixed(1)} bps for ${account.label}.`
@@ -751,7 +748,11 @@ watch(
                 <span
                   v-if="accountMetadataStatus(account)"
                   class="text-[11px]"
-                  :class="isBybitMetadataVerified(account) ? 'text-[var(--color-success)]' : 'text-warning'"
+                  :class="
+                    isBybitMetadataVerified(account)
+                      ? 'text-[var(--color-success)]'
+                      : 'text-warning'
+                  "
                 >
                   {{ accountMetadataStatus(account) }}
                 </span>
@@ -772,7 +773,7 @@ watch(
                         ? 'BTC, ETH, SOL'
                         : account.exchange === ExchangeType.Hyperliquid
                           ? 'BTC'
-                        : 'BTCUSDT or ALL'
+                          : 'BTCUSDT or ALL'
                     "
                     @focus="ensureLeverageForm(account)"
                   />
@@ -849,7 +850,9 @@ watch(
                   v-if="account.exchange === ExchangeType.Bybit"
                   class="btn btn-secondary btn-xs self-end"
                   type="button"
-                  :disabled="!canCheckLeverage(account) || refreshingLeverageAccountIds.has(account.id)"
+                  :disabled="
+                    !canCheckLeverage(account) || refreshingLeverageAccountIds.has(account.id)
+                  "
                   @click="requestAccountLeverage(account)"
                 >
                   Check Lev
@@ -864,15 +867,21 @@ watch(
                 </button>
               </div>
               <p
-                v-if="accounts.selectedAccountId === account.id && account.exchange === ExchangeType.Hyperliquid"
+                v-if="
+                  accounts.selectedAccountId === account.id &&
+                  account.exchange === ExchangeType.Hyperliquid
+                "
                 class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)]"
               >
                 Hyperliquid leverage is one-way per-symbol exchange state. Save prefs records the
-                account default, margin mode, and symbol overrides in Trad; Set Leverage applies
-                the current leverage and margin mode to the exchange for the symbols entered above.
+                account default, margin mode, and symbol overrides in Trad; Set Leverage applies the
+                current leverage and margin mode to the exchange for the symbols entered above.
               </p>
               <p
-                v-if="accounts.selectedAccountId === account.id && account.exchange === ExchangeType.Bybit"
+                v-if="
+                  accounts.selectedAccountId === account.id &&
+                  account.exchange === ExchangeType.Bybit
+                "
                 class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)]"
               >
                 Current Lev:
@@ -883,7 +892,10 @@ watch(
                 liquidation risk.
               </p>
               <div
-                v-if="accounts.selectedAccountId === account.id && account.exchange === ExchangeType.Hyperliquid"
+                v-if="
+                  accounts.selectedAccountId === account.id &&
+                  account.exchange === ExchangeType.Hyperliquid
+                "
                 class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(190px,1fr)_auto_auto]"
               >
                 <div class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
@@ -918,22 +930,28 @@ watch(
                 </button>
               </div>
               <div
-                v-if="accounts.selectedAccountId === account.id && account.exchange === ExchangeType.Hyperliquid"
+                v-if="
+                  accounts.selectedAccountId === account.id &&
+                  account.exchange === ExchangeType.Hyperliquid
+                "
                 class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(190px,1fr)_96px_auto_auto_auto]"
               >
-                <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
+                <div
+                  class="flex min-w-0 flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim"
+                >
                   <span>Builder Address</span>
-                  <input
-                    v-model.trim="builderForms[account.id].address"
-                    class="input h-7 text-xs"
-                    spellcheck="false"
-                    placeholder="0x builder wallet"
-                    @focus="ensureBuilderForm(account)"
-                  />
-                  <span class="normal-case tracking-normal text-[var(--color-text-dim)]">
-                    Wallet approval is required when fee is above 0 bps.
+                  <span
+                    class="break-all font-mono text-xs text-primary normal-case tracking-normal"
+                  >
+                    {{
+                      account.exchange_metadata?.builder_address ||
+                      'not configured for this network'
+                    }}
                   </span>
-                </label>
+                  <span class="normal-case tracking-normal text-[var(--color-text-dim)]">
+                    Trad-controlled recipient. Wallet approval requests the 10 bps / 0.1% maximum.
+                  </span>
+                </div>
                 <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
                   <span>Fee</span>
                   <input
@@ -976,7 +994,9 @@ watch(
                   <span v-if="refreshingBuilderAccountIds.has(account.id)">Refreshing</span>
                   <span v-else>Refresh</span>
                 </button>
-                <p class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)] md:col-span-5">
+                <p
+                  class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)] md:col-span-5"
+                >
                   Approved max:
                   <span class="font-mono text-primary">
                     {{ approvedBuilderMaxLabel(account) }}

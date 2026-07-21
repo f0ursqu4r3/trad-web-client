@@ -48,11 +48,12 @@ declare global {
   }
 }
 
+export const HYPERLIQUID_MAX_BUILDER_FEE_TENTHS_BPS = 100
+
 export async function signHyperliquidBuilderApproval(params: {
   network: NetworkType
   userAddress: string
   builderAddress: string
-  builderFeeTenthsBps: number
 }): Promise<SignedHyperliquidBuilderApproval> {
   const provider = window.ethereum
   if (!provider) {
@@ -63,7 +64,9 @@ export async function signHyperliquidBuilderApproval(params: {
   const selected = normalizeAddress(accounts?.[0] || '')
   const user = normalizeAddress(params.userAddress)
   if (!selected || selected !== user) {
-    throw new Error(`Connected wallet must match ${params.userAddress}. Current wallet: ${accounts?.[0] || 'none'}.`)
+    throw new Error(
+      `Connected wallet must match ${params.userAddress}. Current wallet: ${accounts?.[0] || 'none'}.`,
+    )
   }
 
   const chain = hyperliquidChain(params.network)
@@ -72,7 +75,7 @@ export async function signHyperliquidBuilderApproval(params: {
     type: 'approveBuilderFee',
     hyperliquidChain: chain.hyperliquidChain,
     signatureChainId: chain.signatureChainId,
-    maxFeeRate: formatHyperliquidBuilderFeePercent(params.builderFeeTenthsBps),
+    maxFeeRate: formatHyperliquidBuilderFeePercent(HYPERLIQUID_MAX_BUILDER_FEE_TENTHS_BPS),
     builder: normalizeAddress(params.builderAddress),
     nonce,
   }
@@ -134,7 +137,9 @@ export async function signHyperliquidAgentApproval(params: {
   const selected = normalizeAddress(accounts?.[0] || '')
   const user = normalizeAddress(params.userAddress)
   if (!selected || selected !== user) {
-    throw new Error(`Connected wallet must match ${params.userAddress}. Current wallet: ${accounts?.[0] || 'none'}.`)
+    throw new Error(
+      `Connected wallet must match ${params.userAddress}. Current wallet: ${accounts?.[0] || 'none'}.`,
+    )
   }
 
   const agentName = (params.agentName ?? '').trim()

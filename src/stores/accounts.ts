@@ -110,10 +110,15 @@ export interface ExchangeAccountMetadata {
   agent_address?: string | null
   vault_address?: string | null
   builder_address?: string | null
+  builder_config_version?: string | null
   builder_fee_tenths_bps?: number | null
   max_builder_fee_tenths_bps?: number | null
   builder_approved?: boolean | null
+  builder_approval_network?: NetworkType | null
+  builder_approval_user_address?: string | null
+  builder_approval_verified_at_ms?: number | null
   agent_approved?: boolean | null
+  agent_approval_verified_at_ms?: number | null
   default_leverage?: number | null
   symbol_leverage_overrides?: Record<string, number> | null
 }
