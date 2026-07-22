@@ -18,14 +18,20 @@ type QualificationResult = {
   plainCloseCommandId?: string
   protectedOpenCommandId?: string
   protectedCloseCommandId?: string
-  limitCommandId?: string
+  aloRestCommandId?: string
+  aloRejectCommandId?: string
+  gtcRestCommandId?: string
+  gtcOpenCommandId?: string
+  gtcCloseCommandId?: string
+  protectedGtcOpenCommandId?: string
+  protectedGtcCloseCommandId?: string
   cleanupCommandIds: string[]
 }
 
 test.describe.serial('Hyperliquid signed testnet through the production terminal', () => {
   test.skip(!enabled, 'signed Hyperliquid testnet orders are explicitly gated')
 
-  test('market, protected market, and resting limit cancellation', async ({ page, request }) => {
+  test('market and limit lifecycle qualification', async ({ page, request }) => {
     test.setTimeout(8 * 60_000)
     validateConfiguration()
 
@@ -84,10 +90,12 @@ test.describe.serial('Hyperliquid signed testnet through the production terminal
       const limitMid = await hyperliquidMid(request, symbol)
       exposurePossible = true
       restingLimitCommandId = await submitLimit(page, {
+        action: 'Open',
         amount: notional,
         price: limitMid * 0.9,
+        timeInForce: 'alo',
       })
-      result.limitCommandId = restingLimitCommandId
+      result.aloRestCommandId = restingLimitCommandId
       await expectOrderDeviceStatus(
         page,
         restingLimitCommandId,
@@ -96,6 +104,86 @@ test.describe.serial('Hyperliquid signed testnet through the production terminal
       await cancelLimitDevice(page, restingLimitCommandId)
       await expectOrderDeviceStatus(page, restingLimitCommandId, 'Canceled')
       restingLimitCommandId = null
+      exposurePossible = false
+
+      result.aloRejectCommandId = await submitLimit(page, {
+        action: 'Open',
+        amount: notional,
+        price: (await hyperliquidMid(request, symbol)) * 1.02,
+        timeInForce: 'alo',
+      })
+      await expectCommandStatus(page, result.aloRejectCommandId, 'FAILED')
+      await expectOrderDeviceStatus(page, result.aloRejectCommandId, 'Rejected')
+
+      exposurePossible = true
+      restingLimitCommandId = await submitLimit(page, {
+        action: 'Open',
+        amount: notional,
+        price: (await hyperliquidMid(request, symbol)) * 0.9,
+        timeInForce: 'gtc',
+      })
+      result.gtcRestCommandId = restingLimitCommandId
+      await expectOrderDeviceStatus(
+        page,
+        restingLimitCommandId,
+        'Already Sent And Awaiting Filling',
+      )
+      await cancelLimitDevice(page, restingLimitCommandId)
+      await expectOrderDeviceStatus(page, restingLimitCommandId, 'Canceled')
+      restingLimitCommandId = null
+      exposurePossible = false
+
+      exposurePossible = true
+      result.gtcOpenCommandId = await submitLimit(page, {
+        action: 'Open',
+        amount: notional,
+        price: (await hyperliquidMid(request, symbol)) * 1.02,
+        timeInForce: 'gtc',
+      })
+      await expectCommandStatus(page, result.gtcOpenCommandId, 'SUCCEEDED')
+      await expectOrderDeviceStatus(page, result.gtcOpenCommandId, 'Filled')
+      await expectExecutionEconomics(page)
+
+      result.gtcCloseCommandId = await submitLimit(page, {
+        action: 'Close',
+        amount: notional * 4,
+        price: (await hyperliquidMid(request, symbol)) * 0.98,
+        timeInForce: 'gtc',
+      })
+      await expectCommandStatus(page, result.gtcCloseCommandId, 'SUCCEEDED')
+      await expectOrderDeviceStatus(page, result.gtcCloseCommandId, 'Filled')
+      await expectExecutionEconomics(page)
+      exposurePossible = false
+
+      const protectedLimitMid = await hyperliquidMid(request, symbol)
+      exposurePossible = true
+      result.protectedGtcOpenCommandId = await submitLimit(page, {
+        action: 'Open',
+        amount: notional,
+        price: protectedLimitMid * 1.02,
+        timeInForce: 'gtc',
+        takeProfit: protectedLimitMid * 1.1,
+        stopLoss: protectedLimitMid * 0.9,
+      })
+      await expectCommandStatus(page, result.protectedGtcOpenCommandId, 'SUCCEEDED')
+      await expectOrderDeviceStatus(page, result.protectedGtcOpenCommandId, 'Filled')
+      await expectExecutionEconomics(page)
+      await expectNativeProtectionStatus(page, result.protectedGtcOpenCommandId, 'Tracking')
+
+      result.protectedGtcCloseCommandId = await submitLimit(page, {
+        action: 'Close',
+        amount: notional * 4,
+        price: (await hyperliquidMid(request, symbol)) * 0.98,
+        timeInForce: 'gtc',
+      })
+      await expectCommandStatus(page, result.protectedGtcCloseCommandId, 'SUCCEEDED')
+      await expectOrderDeviceStatus(page, result.protectedGtcCloseCommandId, 'Filled')
+      await expectExecutionEconomics(page)
+      await expectNativeProtectionStatus(
+        page,
+        result.protectedGtcOpenCommandId,
+        /^(Canceled|Flat)$/,
+      )
       exposurePossible = false
 
       await page.screenshot({ path: 'test-results/hyperliquid-signed-testnet.png', fullPage: true })
@@ -191,18 +279,34 @@ async function submitMarket(
   return await waitForNewCommandId(page, before)
 }
 
-async function submitLimit(page: Page, order: { amount: number; price: number }): Promise<string> {
+async function submitLimit(
+  page: Page,
+  order: {
+    action: 'Open' | 'Close'
+    amount: number
+    price: number
+    timeInForce: 'alo' | 'gtc'
+    takeProfit?: number
+    stopLoss?: number
+  },
+): Promise<string> {
   const before = await commandIds(page)
   await openCommandModal(page, 'Limit Order', 'Limit Order')
   const dialog = page.getByRole('dialog')
   await expectSelectedTestnetAccount(dialog)
   await dialog.getByLabel('Symbol').fill(symbol)
-  await dialog.getByLabel('Action').selectOption('Open')
+  await dialog.getByLabel('Action').selectOption(order.action)
   await dialog.getByLabel('Position Side').selectOption('Long')
   await dialog.getByLabel('Amount Type').selectOption('notional')
   await dialog.getByLabel('USDC Amount').fill(order.amount.toFixed(2))
   await dialog.getByLabel('Limit Price').fill(order.price.toFixed(8))
-  await dialog.getByLabel('Time in Force').selectOption('alo')
+  await dialog.getByLabel('Time in Force').selectOption(order.timeInForce)
+  if (order.takeProfit !== undefined) {
+    await dialog.getByLabel('Take Profit').fill(order.takeProfit.toFixed(8))
+  }
+  if (order.stopLoss !== undefined) {
+    await dialog.getByLabel('Stop Loss').fill(order.stopLoss.toFixed(8))
+  }
   await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled({ timeout: 15_000 })
   await dialog.getByRole('button', { name: 'Submit' }).click()
   return await waitForNewCommandId(page, before)
