@@ -146,16 +146,22 @@ async function loginAndSelectTestnetAccount(page: Page) {
 }
 
 async function hyperliquidMid(request: APIRequestContext, coin: string): Promise<number> {
-  const response = await request.post('https://api.hyperliquid-testnet.xyz/info', {
-    data: { type: 'allMids' },
-  })
-  expect(response.ok(), `allMids failed with HTTP ${response.status()}`).toBeTruthy()
-  const mids = (await response.json()) as Record<string, string>
-  const mid = Number(mids[coin])
-  if (!Number.isFinite(mid) || mid <= 0) {
-    throw new Error(`Hyperliquid testnet did not return a valid ${coin} mid`)
+  let lastFailure = 'no response'
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    const response = await request.post('https://api.hyperliquid-testnet.xyz/info', {
+      data: { type: 'allMids' },
+    })
+    if (response.ok()) {
+      const mids = (await response.json()) as Record<string, string>
+      const mid = Number(mids[coin])
+      if (Number.isFinite(mid) && mid > 0) return mid
+      lastFailure = `response did not contain a valid ${coin} mid`
+    } else {
+      lastFailure = `HTTP ${response.status()}`
+    }
+    if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, attempt * 500))
   }
-  return mid
+  throw new Error(`Hyperliquid testnet allMids failed after 4 attempts: ${lastFailure}`)
 }
 
 async function submitMarket(
@@ -252,7 +258,7 @@ function commandRow(page: Page, commandId: string): Locator {
 async function expectCommandStatus(page: Page, commandId: string, status: string) {
   const row = commandRow(page, commandId)
   await expect(row).toBeVisible({ timeout: commandTimeoutMs })
-  await expect(row).toContainText(status, { timeout: commandTimeoutMs })
+  await expect(row).toContainText(new RegExp(status, 'i'), { timeout: commandTimeoutMs })
 }
 
 async function inspectCommand(page: Page, commandId: string) {

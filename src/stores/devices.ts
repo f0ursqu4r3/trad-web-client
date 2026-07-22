@@ -112,6 +112,29 @@ export const useDeviceStore = defineStore('device', () => {
     }
   }
 
+  function normalizeMarketOrderStatus(status: MarketOrderStatus | string): MarketOrderStatus {
+    const compact = status.replace(/[\s_-]/g, '').toLowerCase()
+    switch (compact) {
+      case 'notyetsent':
+        return MarketOrderStatus.NotYetSent
+      case 'alreadysentandawaitingfilling':
+        return MarketOrderStatus.AlreadySentAndAwaitingFilling
+      case 'partiallyfilled':
+        return MarketOrderStatus.PartiallyFilled
+      case 'reconciliationrequired':
+        return MarketOrderStatus.ReconciliationRequired
+      case 'filled':
+        return MarketOrderStatus.Filled
+      case 'canceled':
+      case 'cancelled':
+        return MarketOrderStatus.Canceled
+      case 'rejected':
+        return MarketOrderStatus.Rejected
+      default:
+        return status as MarketOrderStatus
+    }
+  }
+
   function applyTrailingEntryOrderUpdate(delta: DeviceTeDelta, eventTime: Date | null) {
     if (delta.kind !== 'OrderUpdate') return
     const orderDevice = findMarketOrderByExchangeOrderId(delta.data.order_id)
@@ -288,7 +311,7 @@ export const useDeviceStore = defineStore('device', () => {
         mo.one_way_position_effect = s.one_way_position_effect ?? null
         mo.one_way_transition = s.one_way_transition ?? null
         mo.execution_guards = s.execution_guards ?? null
-        mo.status = s.status
+        mo.status = normalizeMarketOrderStatus(s.status)
         mo.filled_qty = s.filled_qty ?? null
         mo.remote_id = s.remote_id ?? null
         mo.remote_order_id = s.remote_order_id ?? null
@@ -605,7 +628,7 @@ export const useDeviceStore = defineStore('device', () => {
           mo.one_way_position_effect = one_way_position_effect ?? null
           mo.one_way_transition = one_way_transition ?? null
           mo.execution_guards = execution_guards ?? null
-          mo.status = status
+          mo.status = normalizeMarketOrderStatus(status)
           mo.filled_qty = filled_qty ?? null
           mo.client_order_id = client_order_id || null
           mo.remote_order_id = remote_order_id || null
