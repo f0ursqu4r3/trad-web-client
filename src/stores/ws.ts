@@ -1,4 +1,5 @@
 import {
+  CommandStatus,
   type E2eBybitPublicTradeTick,
   type E2eHyperliquidPublicTradeTick,
   type MarketContext,
@@ -551,6 +552,9 @@ export const useWsStore = defineStore('ws', () => {
     const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'ServerError' }>)
       .data
     if (data.request_uuid) {
+      if (commandStore.verifyPendingCommand(data.request_uuid) !== undefined) {
+        commandStore.setCommandStatus(data.request_uuid, CommandStatus.Failed)
+      }
       const previewStore = useSplitPreviewStore()
       previewStore.setError(data.request_uuid, data.error)
       const accountRefreshResolver = pendingAccountRefreshResolvers.get(data.request_uuid)
