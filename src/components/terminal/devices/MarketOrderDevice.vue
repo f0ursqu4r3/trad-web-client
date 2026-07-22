@@ -66,6 +66,13 @@ const timeInForceLabel = computed(() => {
   if (props.device.execution.kind !== 'limit') return null
   return props.device.execution.time_in_force === 'alo' ? 'Post Only (ALO)' : 'Good Till Canceled'
 })
+const filledQuantity = computed(() => Math.max(props.device.filled_qty ?? 0, 0))
+const remainingQuantity = computed(() => Math.max(props.device.quantity - filledQuantity.value, 0))
+const fillProgressLabel = computed(() => {
+  if (props.device.quantity <= 0) return '-'
+  const percent = Math.min((filledQuantity.value / props.device.quantity) * 100, 100)
+  return `${percent.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`
+})
 
 function getStatusClass(status: MarketOrderStatus): string {
   switch (status) {
@@ -215,9 +222,17 @@ onUnmounted(() => {
           <dt class="dt-label">Quantity</dt>
           <dd class="m-0 font-mono text-primary">{{ formatQty(device.quantity) }}</dd>
         </div>
-        <div v-if="device.filled_qty != null">
+        <div v-if="isLimitOrder || device.filled_qty != null">
           <dt class="dt-label">Filled Quantity</dt>
-          <dd class="m-0 font-mono text-primary">{{ formatQty(device.filled_qty) }}</dd>
+          <dd class="m-0 font-mono text-primary">{{ formatQty(filledQuantity) }}</dd>
+        </div>
+        <div v-if="isLimitOrder">
+          <dt class="dt-label">Remaining Quantity</dt>
+          <dd class="m-0 font-mono text-primary">{{ formatQty(remainingQuantity) }}</dd>
+        </div>
+        <div v-if="isLimitOrder">
+          <dt class="dt-label">Fill Progress</dt>
+          <dd class="m-0 font-mono text-primary">{{ fillProgressLabel }}</dd>
         </div>
         <div>
           <dt class="dt-label">{{ isLimitOrder ? 'Limit Price' : 'Decision Price' }}</dt>

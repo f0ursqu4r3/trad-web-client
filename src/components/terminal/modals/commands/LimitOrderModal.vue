@@ -14,6 +14,7 @@ import {
   type UserCommandPayload,
 } from '@/lib/ws/protocol'
 import { useWsStore } from '@/stores/ws'
+import { useModalStore } from '@/stores/modals'
 import {
   accountMetadataChips,
   isHyperliquidMetadataReady,
@@ -31,6 +32,7 @@ import {
   resolveHyperliquidExecutionGuards,
   tenthsBpsToPercent,
 } from '@/lib/hyperliquidExecutionGuards'
+import type { LimitOrderPrefill } from './types'
 
 const logger = createLogger('commands')
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
@@ -38,6 +40,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 
 const ws = useWsStore()
 const accounts = useAccountsStore()
+const modals = useModalStore()
 const selectedAccountId = ref('')
 const lastAccountId = ref('')
 const symbol = ref('BTC')
@@ -124,18 +127,23 @@ function requestCapabilities() {
   if (selectedMarketContext.value) ws.requestMarketCapabilities(selectedMarketContext.value)
 }
 
-function reset() {
-  selectedAccountId.value = accounts.selectedAccount?.id ?? ''
-  symbol.value = accounts.getDefaultSymbolForAccount(selectedAccountId.value)
+function applyInitialValues() {
+  const preset = (modals.modalValues['LimitOrder'] as LimitOrderPrefill | undefined) ?? null
+  const presetAccountId = preset?.account_id
+  selectedAccountId.value =
+    (presetAccountId && accounts.accounts.some((account) => account.id === presetAccountId)
+      ? presetAccountId
+      : accounts.selectedAccount?.id) ?? ''
+  symbol.value = preset?.symbol ?? accounts.getDefaultSymbolForAccount(selectedAccountId.value)
   lastAccountId.value = selectedAccountId.value
-  action.value = MarketAction.Open
-  positionSide.value = PositionSide.Long
-  quantityMode.value = isHyperliquid.value ? 'notional' : 'base'
-  quantity.value = isHyperliquid.value ? 50 : 0.001
-  price.value = null
-  timeInForce.value = 'gtc'
-  takeProfit.value = null
-  stopLoss.value = null
+  action.value = preset?.action ?? MarketAction.Open
+  positionSide.value = preset?.position_side ?? PositionSide.Long
+  quantityMode.value = preset?.quantity_mode ?? (isHyperliquid.value ? 'notional' : 'base')
+  quantity.value = preset?.quantity ?? (isHyperliquid.value ? 50 : 0.001)
+  price.value = preset?.price ?? null
+  timeInForce.value = preset?.time_in_force ?? 'gtc'
+  takeProfit.value = preset?.take_profit ?? null
+  stopLoss.value = preset?.stop_loss ?? null
   resetProtectionGuards()
 }
 
@@ -143,7 +151,7 @@ watch(
   () => props.open,
   (open) => {
     if (open) {
-      reset()
+      applyInitialValues()
       requestCapabilities()
     }
   },

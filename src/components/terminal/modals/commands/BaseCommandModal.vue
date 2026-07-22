@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { X } from 'lucide-vue-next'
-withDefaults(
+const props = withDefaults(
   defineProps<{
     title: string
     open: boolean
   }>(),
   { open: false },
 )
+const titleId = `command-modal-title-${props.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
 const emit = defineEmits<{ (e: 'close'): void }>()
 function close() {
   emit('close')
@@ -24,12 +25,13 @@ function close() {
         class="bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-[10px] w-full max-w-[640px] max-h-[80vh] flex flex-col text-[var(--color-text)] shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
         role="dialog"
         aria-modal="true"
+        :aria-labelledby="titleId"
       >
         <header
           class="flex items-center px-4 py-3 border-b border-[var(--border-color)] uppercase tracking-[0.5px] text-[var(--accent-color)] text-[13px] font-semibold"
         >
           <div class="flex items-center justify-between w-full">
-            <span>{{ title }}</span>
+            <span :id="titleId">{{ title }}</span>
             <button class="btn btn-ghost" @click="close">
               <X :size="12" />
             </button>

@@ -6,6 +6,7 @@ import DeviceDetailsPanel from '@/components/terminal/panels/DeviceDetailsPanel.
 import DeviceTreePanel from '@/components/terminal/panels/DeviceTreePanel.vue'
 import MarketOrderModal from '@/components/terminal/modals/commands/MarketOrderModal.vue'
 import LimitOrderModal from '@/components/terminal/modals/commands/LimitOrderModal.vue'
+import CommandModalContainer from '@/components/terminal/modals/commands/CommandModalContainer.vue'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import { useCommandStore } from '@/stores/command'
 import { useDeviceStore } from '@/stores/devices'
@@ -922,6 +923,7 @@ onMounted(async () => {
       @close="marketOrderOpen = false"
     />
     <LimitOrderModal :open="limitOrderOpen" @close="limitOrderOpen = false" />
+    <CommandModalContainer />
     <section class="e2e-panel" data-testid="accounts-panel" aria-label="Trading Accounts">
       <AccountsListPanel />
     </section>

@@ -10,7 +10,11 @@ import { useUiStore } from '@/stores/ui'
 import { formatName } from '@/lib/utils'
 import { marketProductLabel } from '@/lib/marketContext'
 
-import type { MarketOrderPrefill, TrailingEntryPrefill } from '../modals/commands/types'
+import type {
+  LimitOrderPrefill,
+  MarketOrderPrefill,
+  TrailingEntryPrefill,
+} from '../modals/commands/types'
 import type { UserCommandPayload } from '@/lib/ws/protocol'
 import { interestingCommandKinds } from '@/stores/command'
 
@@ -18,8 +22,10 @@ import CommandHistoryItem from '@/components/terminal/commands/CommandHistoryIte
 import CommandBase from '../commands/CommandBase.vue'
 import TELongCommand from '@/components/terminal/commands/TELongCommand.vue'
 import MarketOrderCommand from '@/components/terminal/commands/MarketOrderCommand.vue'
+import LimitOrderCommand from '@/components/terminal/commands/LimitOrderCommand.vue'
 import SetHedgeModeCommand from '@/components/terminal/commands/SetHedgeModeCommand.vue'
 import SetLeverageCommand from '@/components/terminal/commands/SetLeverageCommand.vue'
+import { marketContextAccountId } from '@/lib/marketContext'
 
 defineOptions({
   inheritAttrs: false,
@@ -161,6 +167,8 @@ function setTimeRange(value: string) {
 
 function getCommandComponent(command: UserCommandPayload): Component | string {
   switch (command.kind) {
+    case 'LimitOrder':
+      return LimitOrderCommand
     case 'MarketOrder':
       return MarketOrderCommand
     case 'SetHedgeMode':
@@ -175,6 +183,7 @@ function getCommandComponent(command: UserCommandPayload): Component | string {
 }
 
 function getCommandLabel(command: UserCommandPayload): string {
+  if (command.kind === 'LimitOrder') return 'Limit Order'
   if (command.kind === 'TrailingEntryOrder') return 'Trailing Entry'
   if (command.kind === 'SetHedgeMode') return 'Set Hedge Mode'
   if (command.kind === 'SetLeverage') return 'Set Leverage'
@@ -203,6 +212,20 @@ function getAccountLabel(accountId: string): string {
 
 function handleDuplicate(command: UserCommandPayload): void {
   switch (command.kind) {
+    case 'LimitOrder':
+      modalStore.openModalWithValues('LimitOrder', {
+        account_id: marketContextAccountId(command.data.market_context),
+        symbol: command.data.symbol,
+        action: command.data.action,
+        position_side: command.data.position_side,
+        quantity: command.data.quantity,
+        quantity_mode: command.data.quantity_mode,
+        price: command.data.price,
+        time_in_force: command.data.time_in_force,
+        take_profit: command.data.attached_exit_plan?.take_profit ?? null,
+        stop_loss: command.data.attached_exit_plan?.stop_loss ?? null,
+      } as LimitOrderPrefill)
+      break
     case 'TrailingEntryOrder':
       modalStore.openModalWithValues('TrailingEntryOrder', {
         activation_price: command.data.activation_price,

@@ -1,4 +1,9 @@
-import type { MarketAction, PositionSide } from '@/lib/ws/protocol'
+import type {
+  LimitTimeInForce,
+  MarketAction,
+  OrderQuantityMode,
+  PositionSide,
+} from '@/lib/ws/protocol'
 
 export type TrailingEntryPrefill = {
   activation_price?: number
@@ -15,6 +20,19 @@ export type MarketOrderPrefill = {
   quantity_usd: number
   position_side: PositionSide
   action: MarketAction
+  take_profit?: number | null
+  stop_loss?: number | null
+}
+
+export type LimitOrderPrefill = {
+  account_id?: string | null
+  symbol: string
+  action: MarketAction
+  position_side: PositionSide
+  quantity: number
+  quantity_mode: OrderQuantityMode
+  price: number
+  time_in_force: LimitTimeInForce
   take_profit?: number | null
   stop_loss?: number | null
 }

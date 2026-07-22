@@ -294,6 +294,10 @@ test('working Hyperliquid limit order can be canceled from device details', asyn
   await expect(details.getByText('Limit Order Device')).toBeVisible()
   await expect(details.getByText('Filled Quantity')).toBeVisible()
   await expect(details.getByText('0.000200', { exact: true })).toBeVisible()
+  await expect(details.getByText('Remaining Quantity')).toBeVisible()
+  await expect(details.getByText('0.000300', { exact: true })).toBeVisible()
+  await expect(details.getByText('Fill Progress')).toBeVisible()
+  await expect(details.getByText('40%', { exact: true })).toBeVisible()
   await expect(details.getByText('Account ID')).toBeVisible()
   await expect(details.getByText('17171717...', { exact: true })).toBeVisible()
   const executionSummary = details.getByTestId('execution-fill-summary')
@@ -326,6 +330,36 @@ test('working Hyperliquid limit order can be canceled from device details', asyn
       data: { device_id: '23232323-2323-4323-8323-232323232323' },
     })
   await expect(details.getByRole('button', { name: 'Cancel requested' })).toBeDisabled()
+})
+
+test('Hyperliquid limit command exposes its intent and duplicates into the limit form', async ({
+  page,
+}) => {
+  await page.goto('/e2e/bybit-terminal')
+
+  const row = page
+    .getByTestId('command-panel')
+    .locator('.command-row')
+    .filter({ hasText: '#21212121' })
+  await expect(row.getByText('Limit Order', { exact: true })).toBeVisible()
+  await row.getByRole('button', { name: 'Toggle details' }).click()
+  await expect(row.getByText('Requested Amount', { exact: true })).toBeVisible()
+  await expect(row.getByText('25 USDC', { exact: true })).toBeVisible()
+  await expect(row.getByText('$50,000', { exact: true })).toBeVisible()
+  await expect(row.getByText('Good Till Canceled', { exact: true })).toBeVisible()
+
+  await row.getByTitle('Menu').click()
+  await page.getByRole('menuitem', { name: 'Duplicate' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'Limit Order' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.locator('select').first()).toHaveValue('17171717-1717-4717-8717-171717171717')
+  await expect(dialog.getByLabel('Symbol', { exact: true })).toHaveValue('BTC')
+  await expect(dialog.getByLabel('USDC Amount', { exact: true })).toHaveValue('25')
+  await expect(dialog.getByLabel('Limit Price', { exact: true })).toHaveValue('50000')
+  await expect(
+    dialog.locator('label').filter({ hasText: 'Time in Force' }).locator('select'),
+  ).toHaveValue('gtc')
 })
 
 test('Hyperliquid account panel submits wallet-signed agent and builder approvals', async ({
