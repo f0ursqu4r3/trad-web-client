@@ -9,7 +9,7 @@ import {
   CommandStatus,
   ExchangeType,
   MarketAction,
-  MarketOrderStatus,
+  OrderStatus,
   NetworkType,
   PositionSide,
   type UserCommandPayload,
@@ -125,9 +125,9 @@ function seedAccount(accountId: string) {
 function findMarketOrder(commandId: string, action: MarketAction) {
   return devices.devices.find((device) => {
     if (device.associated_command_id !== commandId) return false
-    if (device.kind !== 'MarketOrder') return false
-    const state = device.state as { market_action?: MarketAction; status?: MarketOrderStatus }
-    return state.market_action === action && state.status === MarketOrderStatus.Filled
+    if (device.kind !== 'Order') return false
+    const state = device.state as { market_action?: MarketAction; status?: OrderStatus }
+    return state.market_action === action && state.status === OrderStatus.Filled
   })
 }
 
@@ -239,9 +239,9 @@ async function startSmoke() {
     throwIfCommandFailed(state.teCommandId)
     const open = findMarketOrder(state.teCommandId, MarketAction.Open)
     if (open) {
-      const mo = open.state as { client_order_id?: string | null }
+      const order = open.state as { client_order_id?: string | null }
       state.openDeviceId = open.id
-      state.parentOrderLinkId = mo.client_order_id ?? null
+      state.parentOrderLinkId = order.client_order_id ?? null
       record(`frontend observed open device=${open.id} parent=${state.parentOrderLinkId || '-'}`)
     } else {
       throw new Error('frontend did not observe open MarketOrder before close request')

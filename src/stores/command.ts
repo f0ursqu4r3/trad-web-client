@@ -1,7 +1,7 @@
 import {
   CommandStatus,
   MarketAction,
-  MarketOrderStatus,
+  OrderStatus,
   TrailingEntryLifecycle,
   type CommandDevicesListData,
   type CommandHistoryItem,
@@ -16,7 +16,7 @@ import {
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useWsStore } from '@/stores/ws'
-import { useDeviceStore, type MarketOrderState, type TrailingEntryState } from '@/stores/devices'
+import { useDeviceStore, type OrderState, type TrailingEntryState } from '@/stores/devices'
 import { useUiStore } from '@/stores/ui'
 import { createLogger } from '@/lib/utils'
 import {
@@ -173,11 +173,11 @@ export const useCommandStore = defineStore(
       if (!pausedTeExists) return false
 
       return deviceStore.devices.some((device) => {
-        if (device.kind !== 'MarketOrder') return false
+        if (device.kind !== 'Order') return false
         if (device.associated_command_id !== commandId) return false
-        const mo = device.state as MarketOrderState
-        if (mo.market_action !== MarketAction.Open) return false
-        if (mo.status !== MarketOrderStatus.Rejected) return false
+        const order = device.state as OrderState
+        if (order.market_action !== MarketAction.Open) return false
+        if (order.status !== OrderStatus.Rejected) return false
         return (device.failure_reason ?? '').includes('stale before submit')
       })
     }

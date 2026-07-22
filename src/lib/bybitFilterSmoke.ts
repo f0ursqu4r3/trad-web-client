@@ -2,7 +2,7 @@ import {
   CommandStatus,
   ExchangeType,
   MarketAction,
-  MarketOrderStatus,
+  OrderStatus,
   NativeProtectionStatus,
   NetworkType,
   OrderSide,
@@ -12,7 +12,7 @@ import {
   TrailingEntryLifecycle,
   TrailingEntryPhase,
   type CommandHistoryItem,
-  type DeviceMoDeltaEvent,
+  type DeviceOrderDeltaEvent,
   type DeviceSnapshotLiteData,
   type DeviceTeDeltaEvent,
   type ProtectionState,
@@ -53,7 +53,7 @@ import { buildAccountFormPayload } from '@/lib/accountFormPayload'
 import {
   useDeviceStore,
   type Device,
-  type MarketOrderState,
+  type OrderState,
   type NativeProtectionState,
   type SplitState,
 } from '@/stores/devices'
@@ -167,8 +167,8 @@ function baseDevice(
   }
 }
 
-function binanceMarketOrderDevice(): Device {
-  return baseDevice('device-binance-mo', 'MarketOrder', binanceCommand.command_id, {
+function binanceOrderDevice(): Device {
+  return baseDevice('device-binance-mo', 'Order', binanceCommand.command_id, {
     market_context: binanceContext,
     market_action: MarketAction.Open,
     symbol: 'ETHUSDT',
@@ -181,7 +181,7 @@ function binanceMarketOrderDevice(): Device {
     one_way_position_effect: null,
     one_way_transition: null,
     execution_guards: null,
-    status: MarketOrderStatus.AlreadySentAndAwaitingFilling,
+    status: OrderStatus.AlreadySentAndAwaitingFilling,
     filled_qty: null,
     remote_id: null,
     remote_order_id: null,
@@ -189,7 +189,7 @@ function binanceMarketOrderDevice(): Device {
     sent_at: null,
     last_status_check_at: null,
     last_update_seen_at: null,
-  } satisfies MarketOrderState)
+  } satisfies OrderState)
 }
 
 function bybitNativeProtectionDevice(): Device {
@@ -430,7 +430,7 @@ export function runBybitFilterSmoke(): void {
   const bybitProtection = bybitNativeProtectionDevice()
   const bybitParent = bybitSplitParent(bybitProtection.id)
   bybitProtection.parent_device = bybitParent.id
-  const devices = [binanceMarketOrderDevice(), bybitParent, bybitProtection]
+  const devices = [binanceOrderDevice(), bybitParent, bybitProtection]
   const deviceFacets = deviceMarketFacets(devices, accounts)
 
   assertSmoke(
@@ -499,7 +499,7 @@ export function runBybitFilterSmoke(): void {
     'Bybit NativeProtection snapshot should preserve observed protection order ids',
   )
 
-  const moSnapshot = {
+  const orderSnapshot = {
     device_id: 'device-bybit-mo',
     owner_user_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     associated_command_id: bybitProtocolFixtures.bybitCommandHistoryItem.command_id,
@@ -509,7 +509,7 @@ export function runBybitFilterSmoke(): void {
     canceled: false,
     awaiting_children: false,
     snapshot: {
-      kind: 'MarketOrder',
+      kind: 'Order',
       data: {
         market_context: bybitProtocolFixtures.bybitContext,
         market_action: MarketAction.Open,
@@ -519,7 +519,7 @@ export function runBybitFilterSmoke(): void {
         position_side: PositionSide.Long,
         price: 65_000,
         throttle: false,
-        status: MarketOrderStatus.NotYetSent,
+        status: OrderStatus.NotYetSent,
         filled_qty: null,
         remote_id: null,
         remote_order_id: null,
@@ -530,11 +530,11 @@ export function runBybitFilterSmoke(): void {
       },
     },
   } satisfies DeviceSnapshotLiteData
-  store.handleDeviceSnapshotLite(moSnapshot)
-  const moDevice = store.devices.find((device) => device.id === moSnapshot.device_id)
-  assertSmoke(moDevice?.kind === 'MarketOrder', 'Bybit MarketOrder snapshot should hydrate')
-  store.handleDeviceUpdate('DeviceMoDelta', {
-    device_id: moDevice.id,
+  store.handleDeviceSnapshotLite(orderSnapshot)
+  const orderDevice = store.devices.find((device) => device.id === orderSnapshot.device_id)
+  assertSmoke(orderDevice?.kind === 'Order', 'Bybit Order snapshot should hydrate')
+  store.handleDeviceUpdate('DeviceOrderDelta', {
+    device_id: orderDevice.id,
     ts: '2026-06-19T00:00:01.000Z',
     seq: 1,
     delta: {
@@ -545,14 +545,14 @@ export function runBybitFilterSmoke(): void {
         sent_at: '2026-06-19T00:00:01.000Z',
       },
     },
-  } satisfies DeviceMoDeltaEvent)
-  const moState = moDevice.state as MarketOrderState
+  } satisfies DeviceOrderDeltaEvent)
+  const orderState = orderDevice.state as OrderState
   assertSmoke(
-    moState.client_order_id === 'bybit-entry-live-1',
+    orderState.client_order_id === 'bybit-entry-live-1',
     'Bybit MarketOrder Submitted delta should preserve client order id',
   )
   assertSmoke(
-    moState.remote_order_id === 'remote-bybit-entry-live-1',
+    orderState.remote_order_id === 'remote-bybit-entry-live-1',
     'Bybit MarketOrder Submitted delta should preserve remote order id',
   )
 
@@ -609,11 +609,11 @@ export function runBybitFilterSmoke(): void {
     },
   } satisfies DeviceTeDeltaEvent)
   assertSmoke(
-    moState.status === MarketOrderStatus.PartiallyFilled,
+    orderState.status === OrderStatus.PartiallyFilled,
     'Bybit TE OrderUpdate should apply matched MarketOrder status',
   )
   assertSmoke(
-    moState.filled_qty === 0.0005 && moState.price === 65_001.5,
+    orderState.filled_qty === 0.0005 && orderState.price === 65_001.5,
     'Bybit TE OrderUpdate should apply matched MarketOrder fill details',
   )
 }

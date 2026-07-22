@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
   MarketAction,
-  MarketOrderStatus,
+  OrderStatus,
   NativeProtectionStatus,
   OrderSide,
   PositionSide,
@@ -11,8 +11,8 @@ import {
   TrailingEntryLifecycle,
   TrailingEntryPhase,
   type TrailingEntryStats,
-  type DeviceMoDelta,
-  type DeviceMoDeltaEvent,
+  type DeviceOrderDelta,
+  type DeviceOrderDeltaEvent,
   type DeviceNpDelta,
   type DeviceNpDeltaEvent,
   type DeviceSgDelta,
@@ -70,7 +70,7 @@ export const useDeviceStore = defineStore('device', () => {
     return normalized.length > 0 ? normalized : null
   }
 
-  function findMarketOrderByExchangeOrderId(
+  function findOrderByExchangeOrderId(
     orderId: string | number | null | undefined,
   ): Device | null {
     const normalizedOrderId = normalizeOrderIdentifier(orderId)
@@ -78,83 +78,83 @@ export const useDeviceStore = defineStore('device', () => {
 
     return (
       devices.value.find((candidate) => {
-        if (candidate.kind !== 'MarketOrder') return false
-        const mo = candidate.state as MarketOrderState
+        if (candidate.kind !== 'Order') return false
+        const order = candidate.state as OrderState
         return [
-          mo.client_order_id,
-          mo.remote_order_id,
-          mo.remote_id === null ? null : String(mo.remote_id),
+          order.client_order_id,
+          order.remote_order_id,
+          order.remote_id === null ? null : String(order.remote_id),
         ].some((id) => normalizeOrderIdentifier(id) === normalizedOrderId)
       }) ?? null
     )
   }
 
-  function marketOrderStatusFromExchangeStatus(status: string): MarketOrderStatus | null {
+  function orderStatusFromExchangeStatus(status: string): OrderStatus | null {
     const normalized = status.trim().toUpperCase().replace(/[\s-]/g, '_')
     switch (normalized) {
       case 'NEW':
       case 'CREATED':
       case 'UNTRIGGERED':
-        return MarketOrderStatus.AlreadySentAndAwaitingFilling
+        return OrderStatus.AlreadySentAndAwaitingFilling
       case 'PARTIALLY_FILLED':
       case 'PARTIALLYFILLED':
-        return MarketOrderStatus.PartiallyFilled
+        return OrderStatus.PartiallyFilled
       case 'FILLED':
-        return MarketOrderStatus.Filled
+        return OrderStatus.Filled
       case 'CANCELED':
       case 'CANCELLED':
       case 'DEACTIVATED':
       case 'EXPIRED':
-        return MarketOrderStatus.Canceled
+        return OrderStatus.Canceled
       case 'REJECTED':
-        return MarketOrderStatus.Rejected
+        return OrderStatus.Rejected
       default:
         return null
     }
   }
 
-  function normalizeMarketOrderStatus(status: MarketOrderStatus | string): MarketOrderStatus {
+  function normalizeOrderStatus(status: OrderStatus | string): OrderStatus {
     const compact = status.replace(/[\s_-]/g, '').toLowerCase()
     switch (compact) {
       case 'notyetsent':
-        return MarketOrderStatus.NotYetSent
+        return OrderStatus.NotYetSent
       case 'alreadysentandawaitingfilling':
-        return MarketOrderStatus.AlreadySentAndAwaitingFilling
+        return OrderStatus.AlreadySentAndAwaitingFilling
       case 'partiallyfilled':
-        return MarketOrderStatus.PartiallyFilled
+        return OrderStatus.PartiallyFilled
       case 'reconciliationrequired':
-        return MarketOrderStatus.ReconciliationRequired
+        return OrderStatus.ReconciliationRequired
       case 'filled':
-        return MarketOrderStatus.Filled
+        return OrderStatus.Filled
       case 'canceled':
       case 'cancelled':
-        return MarketOrderStatus.Canceled
+        return OrderStatus.Canceled
       case 'rejected':
-        return MarketOrderStatus.Rejected
+        return OrderStatus.Rejected
       default:
-        return status as MarketOrderStatus
+        return status as OrderStatus
     }
   }
 
   function applyTrailingEntryOrderUpdate(delta: DeviceTeDelta, eventTime: Date | null) {
     if (delta.kind !== 'OrderUpdate') return
-    const orderDevice = findMarketOrderByExchangeOrderId(delta.data.order_id)
+    const orderDevice = findOrderByExchangeOrderId(delta.data.order_id)
     if (!orderDevice) return
 
-    const mo = orderDevice.state as MarketOrderState
-    const status = marketOrderStatusFromExchangeStatus(delta.data.status)
+    const order = orderDevice.state as OrderState
+    const status = orderStatusFromExchangeStatus(delta.data.status)
     if (status) {
-      mo.status = status
+      order.status = status
     }
     if (delta.data.cum_qty !== undefined && delta.data.cum_qty !== null) {
-      mo.filled_qty = delta.data.cum_qty
+      order.filled_qty = delta.data.cum_qty
     }
     if (delta.data.price !== undefined && delta.data.price !== null) {
-      mo.price = delta.data.price
+      order.price = delta.data.price
     }
     if (eventTime) {
-      mo.last_update_seen_at = eventTime
-      mo.last_status_check_at = eventTime
+      order.last_update_seen_at = eventTime
+      order.last_status_check_at = eventTime
     }
   }
 
@@ -297,30 +297,30 @@ export const useDeviceStore = defineStore('device', () => {
         if (s.stats) te.stats = s.stats
         break
       }
-      case 'MarketOrder': {
-        const mo = device.state as MarketOrderState
+      case 'Order': {
+        const order = device.state as OrderState
         const s = snapshot.data
-        mo.market_context = normalizeMarketContext(s.market_context as MarketContext)
-        mo.market_action = s.market_action
-        mo.symbol = s.symbol
-        mo.order_side = s.order_side
-        mo.quantity = s.quantity
-        mo.position_side = s.position_side
-        mo.price = s.price
-        mo.execution = s.execution ?? { kind: 'market' }
-        mo.throttle = s.throttle ?? false
-        mo.one_way_position_effect = s.one_way_position_effect ?? null
-        mo.one_way_transition = s.one_way_transition ?? null
-        mo.execution_guards = s.execution_guards ?? null
-        mo.status = normalizeMarketOrderStatus(s.status)
-        mo.filled_qty = s.filled_qty ?? null
-        mo.execution_fills = s.execution_fills ?? []
-        mo.remote_id = s.remote_id ?? null
-        mo.remote_order_id = s.remote_order_id ?? null
-        mo.client_order_id = s.client_order_id ?? null
-        mo.sent_at = s.sent_at ? new Date(s.sent_at) : null
-        mo.last_update_seen_at = s.last_update_seen_at ? new Date(s.last_update_seen_at) : null
-        mo.last_status_check_at = s.last_status_check_at ? new Date(s.last_status_check_at) : null
+        order.market_context = normalizeMarketContext(s.market_context as MarketContext)
+        order.market_action = s.market_action
+        order.symbol = s.symbol
+        order.order_side = s.order_side
+        order.quantity = s.quantity
+        order.position_side = s.position_side
+        order.price = s.price
+        order.execution = s.execution ?? { kind: 'market' }
+        order.throttle = s.throttle ?? false
+        order.one_way_position_effect = s.one_way_position_effect ?? null
+        order.one_way_transition = s.one_way_transition ?? null
+        order.execution_guards = s.execution_guards ?? null
+        order.status = normalizeOrderStatus(s.status)
+        order.filled_qty = s.filled_qty ?? null
+        order.execution_fills = s.execution_fills ?? []
+        order.remote_id = s.remote_id ?? null
+        order.remote_order_id = s.remote_order_id ?? null
+        order.client_order_id = s.client_order_id ?? null
+        order.sent_at = s.sent_at ? new Date(s.sent_at) : null
+        order.last_update_seen_at = s.last_update_seen_at ? new Date(s.last_update_seen_at) : null
+        order.last_status_check_at = s.last_status_check_at ? new Date(s.last_status_check_at) : null
         break
       }
       case 'Split': {
@@ -444,8 +444,8 @@ export const useDeviceStore = defineStore('device', () => {
       case 'DeviceSplitDelta':
         applyDeviceSplitDeltaEvent(device, event as DeviceSplitDeltaEvent)
         break
-      case 'DeviceMoDelta':
-        applyDeviceMoDeltaEvent(device, event as DeviceMoDeltaEvent)
+      case 'DeviceOrderDelta':
+        applyDeviceOrderDeltaEvent(device, event as DeviceOrderDeltaEvent)
         break
       case 'DeviceSgDelta':
         applyDeviceSgDeltaEvent(device, event as DeviceSgDeltaEvent)
@@ -593,9 +593,9 @@ export const useDeviceStore = defineStore('device', () => {
     }
   }
 
-  function applyDeviceMoDeltaEvent(device: Device, event: DeviceMoDeltaEvent) {
-    const mo = device.state as MarketOrderState
-    const delta: DeviceMoDelta = event.delta
+  function applyDeviceOrderDeltaEvent(device: Device, event: DeviceOrderDeltaEvent) {
+    const order = device.state as OrderState
+    const delta: DeviceOrderDelta = event.delta
     const eventTime = event.ts ? new Date(event.ts) : null
     switch (delta.kind) {
       case 'Init':
@@ -620,141 +620,141 @@ export const useDeviceStore = defineStore('device', () => {
             remote_order_id,
             parent_device,
           } = delta.data
-          mo.market_context = normalizeMarketContext(market_context as MarketContext)
-          mo.market_action = market_action
-          mo.symbol = symbol
-          mo.order_side = order_side
-          mo.position_side = position_side
-          mo.quantity = quantity
-          mo.price = price
-          mo.execution = execution ?? { kind: 'market' }
-          mo.throttle = throttle ?? false
-          mo.one_way_position_effect = one_way_position_effect ?? null
-          mo.one_way_transition = one_way_transition ?? null
-          mo.execution_guards = execution_guards ?? null
-          mo.status = normalizeMarketOrderStatus(status)
-          mo.filled_qty = filled_qty ?? null
-          mo.execution_fills = execution_fills ?? []
-          mo.client_order_id = client_order_id || null
-          mo.remote_order_id = remote_order_id || null
+          order.market_context = normalizeMarketContext(market_context as MarketContext)
+          order.market_action = market_action
+          order.symbol = symbol
+          order.order_side = order_side
+          order.position_side = position_side
+          order.quantity = quantity
+          order.price = price
+          order.execution = execution ?? { kind: 'market' }
+          order.throttle = throttle ?? false
+          order.one_way_position_effect = one_way_position_effect ?? null
+          order.one_way_transition = one_way_transition ?? null
+          order.execution_guards = execution_guards ?? null
+          order.status = normalizeOrderStatus(status)
+          order.filled_qty = filled_qty ?? null
+          order.execution_fills = execution_fills ?? []
+          order.client_order_id = client_order_id || null
+          order.remote_order_id = remote_order_id || null
           if (parent_device) {
             bindParent(device, parent_device)
           }
         }
         break
       case 'OneWayPositionEffect':
-        mo.one_way_position_effect = delta.data.effect
+        order.one_way_position_effect = delta.data.effect
         break
       case 'OneWayTransition':
-        mo.one_way_transition = delta.data.transition
+        order.one_way_transition = delta.data.transition
         break
       case 'Submitted':
         {
-          mo.status = MarketOrderStatus.AlreadySentAndAwaitingFilling
+          order.status = OrderStatus.AlreadySentAndAwaitingFilling
           if (delta.data.client_order_id !== undefined && delta.data.client_order_id !== null) {
-            mo.client_order_id = delta.data.client_order_id
+            order.client_order_id = delta.data.client_order_id
           }
           if (delta.data.remote_id !== undefined && delta.data.remote_id !== null) {
-            mo.remote_id = delta.data.remote_id
+            order.remote_id = delta.data.remote_id
           }
           if (delta.data.remote_order_id !== undefined && delta.data.remote_order_id !== null) {
-            mo.remote_order_id = delta.data.remote_order_id
+            order.remote_order_id = delta.data.remote_order_id
           }
           if (delta.data.sent_at) {
-            mo.sent_at = new Date(delta.data.sent_at)
+            order.sent_at = new Date(delta.data.sent_at)
           } else if (eventTime) {
-            mo.sent_at = eventTime
+            order.sent_at = eventTime
           }
           if (eventTime) {
-            mo.last_update_seen_at = eventTime
-            mo.last_status_check_at = eventTime
+            order.last_update_seen_at = eventTime
+            order.last_status_check_at = eventTime
           }
         }
         break
       case 'SubmissionIdentityConfirmed':
         {
           if (delta.data.client_order_id !== undefined && delta.data.client_order_id !== null) {
-            mo.client_order_id = delta.data.client_order_id
+            order.client_order_id = delta.data.client_order_id
           }
           if (delta.data.remote_id !== undefined && delta.data.remote_id !== null) {
-            mo.remote_id = delta.data.remote_id
+            order.remote_id = delta.data.remote_id
           }
           if (delta.data.remote_order_id !== undefined && delta.data.remote_order_id !== null) {
-            mo.remote_order_id = delta.data.remote_order_id
+            order.remote_order_id = delta.data.remote_order_id
           }
           if (delta.data.sent_at) {
-            mo.sent_at = new Date(delta.data.sent_at)
+            order.sent_at = new Date(delta.data.sent_at)
           }
         }
         break
       case 'PartiallyFilled':
         {
           const { price, cum_qty } = delta.data
-          mo.status = MarketOrderStatus.PartiallyFilled
+          order.status = OrderStatus.PartiallyFilled
           if (price !== undefined && price !== null) {
-            mo.price = price
+            order.price = price
           }
           if (cum_qty !== undefined && cum_qty !== null) {
-            mo.filled_qty = cum_qty
+            order.filled_qty = cum_qty
           }
           if (eventTime) {
-            mo.last_update_seen_at = eventTime
-            mo.last_status_check_at = eventTime
+            order.last_update_seen_at = eventTime
+            order.last_status_check_at = eventTime
           }
         }
         break
       case 'Filled':
         {
           const { price, cum_qty } = delta.data
-          mo.status = MarketOrderStatus.Filled
+          order.status = OrderStatus.Filled
           if (price !== undefined && price !== null) {
-            mo.price = price
+            order.price = price
           }
           if (cum_qty !== undefined && cum_qty !== null) {
-            mo.filled_qty = cum_qty
+            order.filled_qty = cum_qty
           }
           if (eventTime) {
-            mo.last_update_seen_at = eventTime
-            mo.last_status_check_at = eventTime
+            order.last_update_seen_at = eventTime
+            order.last_status_check_at = eventTime
           }
         }
         break
       case 'Canceled':
         {
-          mo.status = MarketOrderStatus.Canceled
+          order.status = OrderStatus.Canceled
           if (delta.data?.cum_qty !== undefined && delta.data.cum_qty !== null) {
-            mo.filled_qty = delta.data.cum_qty
+            order.filled_qty = delta.data.cum_qty
           }
           device.failure_reason = null
           if (eventTime) {
-            mo.last_update_seen_at = eventTime
-            mo.last_status_check_at = eventTime
+            order.last_update_seen_at = eventTime
+            order.last_status_check_at = eventTime
           }
         }
         break
       case 'Rejected':
         {
           const { reason } = delta.data
-          mo.status = MarketOrderStatus.Rejected
+          order.status = OrderStatus.Rejected
           device.failure_reason = reason || null
           if (eventTime) {
-            mo.last_update_seen_at = eventTime
-            mo.last_status_check_at = eventTime
+            order.last_update_seen_at = eventTime
+            order.last_status_check_at = eventTime
           }
         }
         break
       case 'ReconciliationRequired':
         {
-          mo.status = MarketOrderStatus.ReconciliationRequired
+          order.status = OrderStatus.ReconciliationRequired
           device.failure_reason = delta.data.reason
           if (eventTime) {
-            mo.last_status_check_at = eventTime
+            order.last_status_check_at = eventTime
           }
         }
         break
       case 'ExecutionObserved':
-        mo.execution_fills = delta.data.fills
-        if (eventTime) mo.last_update_seen_at = eventTime
+        order.execution_fills = delta.data.fills
+        if (eventTime) order.last_update_seen_at = eventTime
         break
     }
   }
@@ -1096,13 +1096,13 @@ export interface Device {
 export type DeviceState =
   | TrailingEntryState
   | SplitState
-  | MarketOrderState
+  | OrderState
   | StopGuardState
   | NativeProtectionState
 
 export type DeviceDeltaEvent =
   | DeviceTeDeltaEvent
-  | DeviceMoDeltaEvent
+  | DeviceOrderDeltaEvent
   | DeviceNpDeltaEvent
   | DeviceSgDeltaEvent
   | DeviceSplitDeltaEvent
@@ -1110,7 +1110,7 @@ export type DeviceDeltaEvent =
 export type DeviceDelta =
   | DeviceTeDelta
   | DeviceSplitDelta
-  | DeviceMoDelta
+  | DeviceOrderDelta
   | DeviceSgDelta
   | DeviceNpDelta
 
@@ -1159,7 +1159,7 @@ export interface SplitState {
   price: number
 }
 
-export interface MarketOrderState {
+export interface OrderState {
   market_context: MarketContext
   market_action: MarketAction
   symbol: string
@@ -1173,7 +1173,7 @@ export interface MarketOrderState {
   one_way_transition: import('@/lib/ws/protocol').OneWayOrderTransition | null
   execution_guards: import('@/lib/ws/protocol').HyperliquidExecutionGuards | null
 
-  status: MarketOrderStatus
+  status: OrderStatus
   filled_qty: number | null
   execution_fills?: ExecutionFill[]
   remote_id: number | null
@@ -1259,7 +1259,7 @@ function newDevice(deviceId: string, kind: string, command_id: string | null): D
   const mappedKind =
     {
       DeviceTeDelta: 'TrailingEntry',
-      DeviceMoDelta: 'MarketOrder',
+      DeviceOrderDelta: 'Order',
       DeviceSgDelta: 'StopGuard',
       DeviceNpDelta: 'NativeProtection',
       DeviceSplitDelta: 'Split',
@@ -1270,8 +1270,8 @@ function newDevice(deviceId: string, kind: string, command_id: string | null): D
         return newTrailingEntryState()
       case 'Split':
         return newSplitSate()
-      case 'MarketOrder':
-        return newMarketOrderState()
+      case 'Order':
+        return newOrderState()
       case 'StopGuard':
         return newStopGuardState()
       case 'NativeProtection':
@@ -1336,7 +1336,7 @@ function newTrailingEntryState(): TrailingEntryState {
   }
 }
 
-function newMarketOrderState(): MarketOrderState {
+function newOrderState(): OrderState {
   return {
     market_context: { type: 'none' } as MarketContext,
     market_action: MarketAction.Open,
@@ -1350,7 +1350,7 @@ function newMarketOrderState(): MarketOrderState {
     one_way_position_effect: null,
     one_way_transition: null,
     execution_guards: null,
-    status: MarketOrderStatus.NotYetSent,
+    status: OrderStatus.NotYetSent,
     filled_qty: null,
     execution_fills: [],
     remote_id: null,

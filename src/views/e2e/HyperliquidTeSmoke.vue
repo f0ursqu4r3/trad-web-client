@@ -9,7 +9,7 @@ import {
   CommandStatus,
   ExchangeType,
   MarketAction,
-  MarketOrderStatus,
+  OrderStatus,
   NetworkType,
   PositionSide,
   type UserCommandPayload,
@@ -140,9 +140,9 @@ function seedAccount(accountId: string, network: NetworkType) {
 function findMarketOrder(commandId: string, action: MarketAction) {
   return devices.devices.find((device) => {
     if (device.associated_command_id !== commandId) return false
-    if (device.kind !== 'MarketOrder') return false
-    const deviceState = device.state as { market_action?: MarketAction; status?: MarketOrderStatus }
-    return deviceState.market_action === action && deviceState.status === MarketOrderStatus.Filled
+    if (device.kind !== 'Order') return false
+    const deviceState = device.state as { market_action?: MarketAction; status?: OrderStatus }
+    return deviceState.market_action === action && deviceState.status === OrderStatus.Filled
   })
 }
 

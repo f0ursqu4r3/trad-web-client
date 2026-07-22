@@ -8,7 +8,7 @@ import { Folder, FolderOpen, TrendingDown } from 'lucide-vue-next'
 import {
   useDeviceStore,
   type Device,
-  type MarketOrderState,
+  type OrderState,
   type TrailingEntryState,
 } from '@/stores/devices'
 import { useCommandStore } from '@/stores/command'
@@ -155,7 +155,7 @@ const treeData = computed<TreeItem[]>(() => {
     const actions = new Set<string>()
     device.children_devices.forEach((childId) => {
       const child = list.find((d) => d.id === childId)
-      if (child?.kind === 'MarketOrder') {
+      if (child?.kind === 'Order') {
         const action = (child.state as any).market_action
         if (action) actions.add(action)
       }
@@ -180,10 +180,9 @@ const treeData = computed<TreeItem[]>(() => {
   for (const device of list) {
     const teLifecycle =
       device.kind === 'TrailingEntry' ? (device.state as TrailingEntryState)?.lifecycle || '' : ''
-    const throttled =
-      device.kind === 'MarketOrder' ? (device.state as MarketOrderState)?.throttle : false
+    const throttled = device.kind === 'Order' ? (device.state as OrderState)?.throttle : false
     const intent =
-      device.kind === 'MarketOrder'
+      device.kind === 'Order'
         ? ((device.state as any).market_action as string)
         : device.kind === 'Split'
           ? splitIntent(device)
@@ -192,9 +191,10 @@ const treeData = computed<TreeItem[]>(() => {
       id: device.id,
       children: [],
       label:
-        device.kind === 'MarketOrder' &&
-        (device.state as MarketOrderState).execution?.kind === 'limit'
-          ? 'Limit Order'
+        device.kind === 'Order'
+          ? (device.state as OrderState).execution?.kind === 'limit'
+            ? 'Limit Order'
+            : 'Market Order'
           : formatName(device.kind),
       symbol: device.state.symbol,
       market: deviceMarketFacetMap.value.get(device.id)?.labels ?? null,

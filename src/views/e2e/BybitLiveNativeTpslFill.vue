@@ -7,7 +7,7 @@ import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import { useCommandStore } from '@/stores/command'
 import {
   type Device,
-  type MarketOrderState,
+  type OrderState,
   type NativeProtectionState,
   useDeviceStore,
 } from '@/stores/devices'
@@ -16,7 +16,7 @@ import {
   CommandStatus,
   ExchangeType,
   MarketAction,
-  MarketOrderStatus,
+  OrderStatus,
   NativeProtectionStatus,
   NetworkType,
   PositionSide,
@@ -191,9 +191,9 @@ function findMarketOrder(commandId: string | null, action: MarketAction): Device
   return (
     devices.devices.find((device) => {
       if (device.associated_command_id !== commandId) return false
-      if (device.kind !== 'MarketOrder') return false
-      const mo = device.state as MarketOrderState
-      return mo.market_action === action && mo.status === MarketOrderStatus.Filled
+      if (device.kind !== 'Order') return false
+      const order = device.state as OrderState
+      return order.market_action === action && order.status === OrderStatus.Filled
     }) ?? null
   )
 }
@@ -334,7 +334,7 @@ async function startSmoke() {
     )
     const open = findMarketOrder(state.commandId, MarketAction.Open)
     if (!open) throw new Error('open MarketOrder missing after fill wait')
-    const openState = open.state as MarketOrderState
+    const openState = open.state as OrderState
     state.openDeviceId = open.id
     state.parentOrderLinkId = openState.client_order_id
     record(`open filled device=${open.id} parent=${state.parentOrderLinkId || '-'}`)

@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useDeviceStore } from '@/stores/devices'
 import TrailingEntryDevice from '@/components/terminal/devices/TrailingEntryDevice.vue'
-import MarketOrderDevice from '@/components/terminal/devices/MarketOrderDevice.vue'
+import OrderDevice from '@/components/terminal/devices/OrderDevice.vue'
 import StopGuardDevice from '@/components/terminal/devices/StopGuardDevice.vue'
 import NativeProtectionDevice from '@/components/terminal/devices/NativeProtectionDevice.vue'
 import SplitDevice from '@/components/terminal/devices/SplitDevice.vue'
@@ -26,8 +26,8 @@ const deviceComp = computed(() => {
   switch (selectedDevice.value.kind) {
     case 'TrailingEntry':
       return TrailingEntryDevice
-    case 'MarketOrder':
-      return MarketOrderDevice
+    case 'Order':
+      return OrderDevice
     case 'StopGuard':
       return StopGuardDevice
     case 'NativeProtection':
@@ -49,9 +49,9 @@ const deviceStatusClass = computed(() => {
   return 'device-details-active'
 })
 
-const marketOrderCreatedAt = computed(() => {
+const orderCreatedAt = computed(() => {
   const device = selectedDevice.value
-  if (!device || device.kind !== 'MarketOrder') return null
+  if (!device || device.kind !== 'Order') return null
   return device.created_at
 })
 
@@ -114,7 +114,7 @@ function copyDeviceId(): void {
         :canceled="selectedDevice.canceled"
         :complete="selectedDevice.complete"
         :device-id="selectedDevice.id"
-        :created-at="marketOrderCreatedAt"
+        :created-at="orderCreatedAt"
         class="w-full h-full"
       />
     </div>

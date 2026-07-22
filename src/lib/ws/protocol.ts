@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 22
+export const PROTOCOL_VERSION = 23
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -161,7 +161,7 @@ export type SplitSettings = {
   mode?: SplitMode | null
   slippage_margin?: number | null
 }
-export enum MarketOrderStatus {
+export enum OrderStatus {
   NotYetSent = 'Not Yet Sent',
   AlreadySentAndAwaitingFilling = 'Already Sent And Awaiting Filling',
   PartiallyFilled = 'Partially Filled',
@@ -516,7 +516,7 @@ export type ServerToClientPayload =
   | { kind: 'CommandResponse'; data: CommandResponseData }
   | { kind: 'DeviceLifecycle'; data: DeviceLifecycleEvent }
   | { kind: 'DeviceMarketInfoResponse'; data: DeviceMarketInfoResponseData }
-  | { kind: 'DeviceMoDelta'; data: DeviceMoDeltaEvent }
+  | { kind: 'DeviceOrderDelta'; data: DeviceOrderDeltaEvent }
   | { kind: 'DeviceNpDelta'; data: DeviceNpDeltaEvent }
   | { kind: 'DeviceSgDelta'; data: DeviceSgDeltaEvent }
   | { kind: 'DevicesList'; data: DevicesListData }
@@ -789,7 +789,7 @@ export type DeviceSnapshotLiteData = {
 
 export type DeviceSnapshotLite =
   | { kind: 'TrailingEntry'; data: TrailingEntrySnapshot }
-  | { kind: 'MarketOrder'; data: MarketOrderSnapshot }
+  | { kind: 'Order'; data: OrderSnapshot }
   | { kind: 'Split'; data: SplitSnapshot }
   | { kind: 'StopGuard'; data: StopGuardSnapshot }
   | { kind: 'NativeProtection'; data: NativeProtectionSnapshot }
@@ -860,7 +860,7 @@ export type OneWayOrderTransition = {
   phase: OneWayTransitionPhase
 }
 
-export type MarketOrderSnapshot = {
+export type OrderSnapshot = {
   market_context: MarketContext
   market_action: MarketAction
   symbol: string
@@ -873,7 +873,7 @@ export type MarketOrderSnapshot = {
   one_way_position_effect?: OneWayPositionEffect | null
   one_way_transition?: OneWayOrderTransition | null
   execution_guards?: HyperliquidExecutionGuards | null
-  status: MarketOrderStatus
+  status: OrderStatus
   filled_qty?: number | null
   execution_fills?: ExecutionFill[]
   remote_id?: number | null
@@ -1010,7 +1010,7 @@ export type DeviceTeDeltaEvent = {
   delta: DeviceTeDelta
 }
 
-export type DeviceMoDelta =
+export type DeviceOrderDelta =
   | {
       kind: 'Init'
       data: {
@@ -1028,7 +1028,7 @@ export type DeviceMoDelta =
         one_way_position_effect?: OneWayPositionEffect | null
         one_way_transition?: OneWayOrderTransition | null
         execution_guards?: HyperliquidExecutionGuards | null
-        status: MarketOrderStatus
+        status: OrderStatus
         filled_qty?: number | null
         execution_fills?: ExecutionFill[]
         client_order_id?: string | null
@@ -1071,11 +1071,11 @@ export type DeviceMoDelta =
     }
   | { kind: 'ExecutionObserved'; data: { fill: ExecutionFill; fills: ExecutionFill[] } }
 
-export type DeviceMoDeltaEvent = {
+export type DeviceOrderDeltaEvent = {
   device_id: Uuid
   ts: string // ISO timestamp
   seq: number
-  delta: DeviceMoDelta
+  delta: DeviceOrderDelta
 }
 
 export type DeviceSgDelta =

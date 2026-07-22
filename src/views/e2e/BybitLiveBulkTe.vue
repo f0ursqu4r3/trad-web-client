@@ -13,7 +13,7 @@ import {
   CommandStatus,
   ExchangeType,
   MarketAction,
-  MarketOrderStatus,
+  OrderStatus,
   NetworkType,
   PositionSide,
   type OrderThrottleSnapshotData,
@@ -279,16 +279,16 @@ function observeFilledMarketOrders() {
       }
       continue
     }
-    if (device.kind !== 'MarketOrder' || !device.associated_command_id) continue
-    const mo = device.state as { market_action?: MarketAction; status?: MarketOrderStatus }
-    if (mo.market_action === MarketAction.Open && submittedCommandIds.includes(device.associated_command_id)) {
+    if (device.kind !== 'Order' || !device.associated_command_id) continue
+    const order = device.state as { market_action?: MarketAction; status?: OrderStatus }
+    if (order.market_action === MarketAction.Open && submittedCommandIds.includes(device.associated_command_id)) {
       observedOpenOrderTeCommandIds.add(device.associated_command_id)
-      if (mo.status === MarketOrderStatus.Filled) {
+      if (order.status === OrderStatus.Filled) {
         filledOpenTeCommandIds.add(device.associated_command_id)
       }
     }
-    if (mo.status !== MarketOrderStatus.Filled) continue
-    if (mo.market_action === MarketAction.Close) {
+    if (order.status !== OrderStatus.Filled) continue
+    if (order.market_action === MarketAction.Close) {
       const parentCommandId =
         closeCommandToTeCommandId.get(device.associated_command_id) ??
         (submittedCommandIds.includes(device.associated_command_id)

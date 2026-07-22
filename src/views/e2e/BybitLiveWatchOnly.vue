@@ -98,7 +98,7 @@ function snapshotState(): WatchOnlyState {
 }
 
 function refreshVisibleDeviceCounts() {
-  state.orderDeviceCount = devices.devices.filter((device) => device.kind === 'MarketOrder').length
+  state.orderDeviceCount = devices.devices.filter((device) => device.kind === 'Order').length
   state.nativeProtectionCount = devices.devices.filter(
     (device) => device.kind === 'NativeProtection',
   ).length
@@ -375,12 +375,30 @@ onMounted(() => {
     <aside class="watch-status">
       <h1>Bybit Live Watch Only</h1>
       <dl>
-        <div><dt>Phase</dt><dd data-testid="watch-phase">{{ state.phase }}</dd></div>
-        <div><dt>Requested</dt><dd>{{ state.requested }}</dd></div>
-        <div><dt>Accepted</dt><dd>{{ state.accepted }}</dd></div>
-        <div><dt>Inspect</dt><dd>{{ state.inspectedSymbol || '-' }}</dd></div>
-        <div><dt>Cleanup</dt><dd>{{ state.cleanupRequested }}</dd></div>
-        <div><dt>Error</dt><dd data-testid="watch-error">{{ state.error || '-' }}</dd></div>
+        <div>
+          <dt>Phase</dt>
+          <dd data-testid="watch-phase">{{ state.phase }}</dd>
+        </div>
+        <div>
+          <dt>Requested</dt>
+          <dd>{{ state.requested }}</dd>
+        </div>
+        <div>
+          <dt>Accepted</dt>
+          <dd>{{ state.accepted }}</dd>
+        </div>
+        <div>
+          <dt>Inspect</dt>
+          <dd>{{ state.inspectedSymbol || '-' }}</dd>
+        </div>
+        <div>
+          <dt>Cleanup</dt>
+          <dd>{{ state.cleanupRequested }}</dd>
+        </div>
+        <div>
+          <dt>Error</dt>
+          <dd data-testid="watch-error">{{ state.error || '-' }}</dd>
+        </div>
       </dl>
       <button type="button" @click="startSmoke">Run</button>
       <pre>{{ state.events.join('\n') }}</pre>

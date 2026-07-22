@@ -431,7 +431,7 @@ export const useWsStore = defineStore('ws', () => {
       DeviceSgDelta: handleDeviceSgDelta,
       DeviceNpDelta: handleDeviceNpDelta,
       DeviceSplitDelta: handleDeviceSplitDelta,
-      DeviceMoDelta: handleDeviceMoDelta,
+      DeviceOrderDelta: handleDeviceOrderDelta,
       SplitPreview: handleSplitPreview,
       MarketCapabilities: handleMarketCapabilities,
       OrderThrottleSnapshot: handleOrderThrottleSnapshot,
@@ -655,11 +655,11 @@ export const useWsStore = defineStore('ws', () => {
     })
   }
 
-  function handleDeviceMoDelta(payload: ServerToClientMessage['payload']): void {
+  function handleDeviceOrderDelta(payload: ServerToClientMessage['payload']): void {
     const start = performance.now()
-    const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceMoDelta' }>
+    const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceOrderDelta' }>
     deviceStore.handleDeviceUpdate(data.kind, data.data)
-    recordPerf('DeviceMoDelta', start, {
+    recordPerf('DeviceOrderDelta', start, {
       device_id: data.data.device_id,
       delta: data.data.delta.kind,
     })

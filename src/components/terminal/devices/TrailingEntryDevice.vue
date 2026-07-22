@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { TrailingEntryState, MarketOrderState } from '@/stores/devices'
+import type { TrailingEntryState, OrderState } from '@/stores/devices'
 import { useAccountsStore } from '@/stores/accounts'
 import { useDeviceStore } from '@/stores/devices'
 import { useCommandStore } from '@/stores/command'
 import {
   MarketAction,
-  MarketOrderStatus,
+  OrderStatus,
   type MarketRef,
   type ProtectionState,
 } from '@/lib/ws/protocol'
@@ -63,13 +63,13 @@ const closeInProgress = computed(() => {
   if (!props.commandId) return false
   return deviceStore.devices.some((device) => {
     if (device.associated_command_id !== props.commandId) return false
-    if (device.kind !== 'MarketOrder') return false
-    const state = device.state as MarketOrderState
+    if (device.kind !== 'Order') return false
+    const state = device.state as OrderState
     if (state.market_action !== MarketAction.Close) return false
     return ![
-      MarketOrderStatus.Filled,
-      MarketOrderStatus.Canceled,
-      MarketOrderStatus.Rejected,
+      OrderStatus.Filled,
+      OrderStatus.Canceled,
+      OrderStatus.Rejected,
     ].includes(state.status)
   })
 })

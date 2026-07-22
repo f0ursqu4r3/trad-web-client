@@ -25,7 +25,7 @@ const splitIntent = computed(() => {
   const actions = new Set<string>()
   record.children_devices.forEach((childId) => {
     const child = deviceStore.devices.find((d) => d.id === childId)
-    if (child?.kind === 'MarketOrder') {
+    if (child?.kind === 'Order') {
       const action = (child.state as any).market_action
       if (action) actions.add(action)
     }

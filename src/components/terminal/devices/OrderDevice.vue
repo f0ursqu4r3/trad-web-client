@@ -1,12 +1,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue'
-import type { MarketOrderState } from '@/stores/devices'
-import {
-  MarketAction,
-  MarketOrderStatus,
-  type MarketRef,
-  type ProtectionState,
-} from '@/lib/ws/protocol'
+import type { OrderState } from '@/stores/devices'
+import { MarketAction, OrderStatus, type MarketRef, type ProtectionState } from '@/lib/ws/protocol'
 import { useAccountsStore } from '@/stores/accounts'
 import { useWsStore } from '@/stores/ws'
 import { normalizeMarketContext } from '@/lib/marketContext'
@@ -16,7 +11,7 @@ import { XCircle } from 'lucide-vue-next'
 import ExecutionFillsPanel from './ExecutionFillsPanel.vue'
 
 const props = defineProps<{
-  device: MarketOrderState
+  device: OrderState
   marketRef?: MarketRef | null
   protectionState?: ProtectionState | null
   failureReason?: string | null
@@ -53,10 +48,10 @@ const canCancelLimitOrder = computed(
     isLimitOrder.value &&
     !!props.deviceId &&
     [
-      MarketOrderStatus.NotYetSent,
-      MarketOrderStatus.AlreadySentAndAwaitingFilling,
-      MarketOrderStatus.PartiallyFilled,
-      MarketOrderStatus.ReconciliationRequired,
+      OrderStatus.NotYetSent,
+      OrderStatus.AlreadySentAndAwaitingFilling,
+      OrderStatus.PartiallyFilled,
+      OrderStatus.ReconciliationRequired,
     ].includes(props.device.status),
 )
 const deviceTitle = computed(() =>
@@ -74,21 +69,21 @@ const fillProgressLabel = computed(() => {
   return `${percent.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`
 })
 
-function getStatusClass(status: MarketOrderStatus): string {
+function getStatusClass(status: OrderStatus): string {
   switch (status) {
-    case MarketOrderStatus.Filled:
+    case OrderStatus.Filled:
       return 'pill pill-ok'
-    case MarketOrderStatus.PartiallyFilled:
+    case OrderStatus.PartiallyFilled:
       return 'pill pill-info'
-    case MarketOrderStatus.AlreadySentAndAwaitingFilling:
+    case OrderStatus.AlreadySentAndAwaitingFilling:
       return 'pill pill-info'
-    case MarketOrderStatus.ReconciliationRequired:
+    case OrderStatus.ReconciliationRequired:
       return 'pill pill-warn'
-    case MarketOrderStatus.NotYetSent:
+    case OrderStatus.NotYetSent:
       return 'pill'
-    case MarketOrderStatus.Canceled:
+    case OrderStatus.Canceled:
       return 'pill pill-warn'
-    case MarketOrderStatus.Rejected:
+    case OrderStatus.Rejected:
       return 'pill pill-err'
     default:
       return 'pill'

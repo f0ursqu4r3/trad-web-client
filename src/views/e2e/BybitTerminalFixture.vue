@@ -16,7 +16,7 @@ import {
   CommandStatus,
   ExchangeType,
   MarketAction,
-  MarketOrderStatus,
+  OrderStatus,
   NativeProtectionStatus,
   NetworkType,
   OrderSide,
@@ -376,7 +376,7 @@ const hyperliquidLimitCommand = {
   created_at: '2026-06-19T00:05:00.000Z',
 } satisfies CommandHistoryItem
 
-const binanceMarketOrderDevice = {
+const binanceOrderDevice = {
   device_id: binanceDeviceId,
   owner_user_id: '44444444-4444-4444-8444-444444444444',
   associated_command_id: binanceCommandId,
@@ -391,7 +391,7 @@ const binanceMarketOrderDevice = {
   awaiting_children: false,
   failure_reason: null,
   snapshot: {
-    kind: 'MarketOrder',
+    kind: 'Order',
     data: {
       market_context: binanceContext,
       market_action: MarketAction.Open,
@@ -401,7 +401,7 @@ const binanceMarketOrderDevice = {
       position_side: PositionSide.Long,
       price: 3125,
       throttle: false,
-      status: MarketOrderStatus.Filled,
+      status: OrderStatus.Filled,
       filled_qty: 0.04,
       remote_id: 123456789,
       remote_order_id: null,
@@ -413,7 +413,7 @@ const binanceMarketOrderDevice = {
   },
 } satisfies DeviceSnapshotLiteData
 
-const bybitRejectedMarketOrderDevice = {
+const bybitRejectedOrderDevice = {
   device_id: bybitRejectedDeviceId,
   owner_user_id: '99999999-9999-4999-8999-999999999999',
   associated_command_id: bybitRejectedCommandId,
@@ -432,7 +432,7 @@ const bybitRejectedMarketOrderDevice = {
   failure_reason:
     'Bybit rejected market order before opening a position: retCode=110007 retMsg=ab not enough for new order symbol=ADAUSDT orderLinkId=mo-rejected. No position was established by this order.',
   snapshot: {
-    kind: 'MarketOrder',
+    kind: 'Order',
     data: {
       market_context: bybitProtocolFixtures.bybitContext,
       market_action: MarketAction.Open,
@@ -442,7 +442,7 @@ const bybitRejectedMarketOrderDevice = {
       position_side: PositionSide.Long,
       price: 0,
       throttle: false,
-      status: MarketOrderStatus.Rejected,
+      status: OrderStatus.Rejected,
       filled_qty: null,
       remote_id: null,
       remote_order_id: null,
@@ -511,7 +511,7 @@ const bybitMissedTrailingEntryDevice = {
   },
 } satisfies DeviceSnapshotLiteData
 
-const bybitMissedMarketOrderDevice = {
+const bybitMissedOrderDevice = {
   device_id: bybitMissedMoDeviceId,
   owner_user_id: '15151515-1515-4515-8515-151515151515',
   associated_command_id: bybitMissedCommandId,
@@ -527,7 +527,7 @@ const bybitMissedMarketOrderDevice = {
   failure_reason:
     'Bybit queued market order mo-missed for BTCUSDT is stale before submit: age=17000ms max=16000ms.',
   snapshot: {
-    kind: 'MarketOrder',
+    kind: 'Order',
     data: {
       market_context: bybitProtocolFixtures.bybitContext,
       market_action: MarketAction.Open,
@@ -537,7 +537,7 @@ const bybitMissedMarketOrderDevice = {
       position_side: PositionSide.Long,
       price: 65_000,
       throttle: true,
-      status: MarketOrderStatus.Rejected,
+      status: OrderStatus.Rejected,
       filled_qty: null,
       remote_id: null,
       remote_order_id: null,
@@ -621,7 +621,7 @@ const hyperliquidWorkingLimitDevice = {
   awaiting_children: false,
   failure_reason: null,
   snapshot: {
-    kind: 'MarketOrder',
+    kind: 'Order',
     data: {
       market_context: hyperliquidContext,
       market_action: MarketAction.Open,
@@ -637,7 +637,7 @@ const hyperliquidWorkingLimitDevice = {
         input_value: 25,
       },
       throttle: false,
-      status: MarketOrderStatus.PartiallyFilled,
+      status: OrderStatus.PartiallyFilled,
       filled_qty: 0.0002,
       execution_fills: [
         {
@@ -893,11 +893,11 @@ onMounted(async () => {
   }
 
   deviceStore.clearDevices()
-  deviceStore.handleDeviceSnapshotLite(binanceMarketOrderDevice)
+  deviceStore.handleDeviceSnapshotLite(binanceOrderDevice)
   deviceStore.handleDeviceSnapshotLite(bybitProtocolFixtures.bybitDeviceSnapshotLite)
-  deviceStore.handleDeviceSnapshotLite(bybitRejectedMarketOrderDevice)
+  deviceStore.handleDeviceSnapshotLite(bybitRejectedOrderDevice)
   deviceStore.handleDeviceSnapshotLite(bybitMissedTrailingEntryDevice)
-  deviceStore.handleDeviceSnapshotLite(bybitMissedMarketOrderDevice)
+  deviceStore.handleDeviceSnapshotLite(bybitMissedOrderDevice)
   deviceStore.handleDeviceSnapshotLite(bybitMissingProtectionDevice)
   deviceStore.handleDeviceSnapshotLite(hyperliquidWorkingLimitDevice)
   highCountBybitDevices.forEach((device) => deviceStore.handleDeviceSnapshotLite(device))
