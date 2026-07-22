@@ -34,3 +34,6 @@ test-results
 
 .env*
 !.env.example
+
+# Local exchange test credentials
+.hyperliquid-test-wallet.env
