@@ -37,6 +37,20 @@ import {
 
 const logger = createLogger('accounts')
 
+const props = withDefaults(
+  defineProps<{
+    mode?: 'full' | 'compact' | 'detail'
+    detailAccountId?: string | null
+  }>(),
+  {
+    mode: 'full',
+    detailAccountId: null,
+  },
+)
+const emit = defineEmits<{
+  (event: 'manage', accountId: string): void
+}>()
+
 const accounts = useAccountsStore()
 const ws = useWsStore()
 
@@ -74,8 +88,16 @@ const sortedAccounts = computed(() => {
   accounts.accounts.forEach(ensureLeverageForm)
   accounts.accounts.forEach(ensureBuilderForm)
   accounts.accounts.forEach(ensureGuardForm)
-  return accounts.accounts.slice().sort((a, b) => a.label.localeCompare(b.label))
+  const sorted = accounts.accounts.slice().sort((a, b) => a.label.localeCompare(b.label))
+  if (props.mode !== 'detail' || !props.detailAccountId) return sorted
+  return sorted.filter((account) => account.id === props.detailAccountId)
 })
+
+function accountReady(account: AccountRecord): boolean {
+  return account.exchange === ExchangeType.Hyperliquid
+    ? isHyperliquidMetadataReady(account)
+    : isBybitMetadataVerified(account)
+}
 
 function accountStatusClass(account: AccountRecord): string {
   const ready =
@@ -119,6 +141,15 @@ function selectAccount(account: AccountRecord) {
   if (account.exchange === ExchangeType.Bybit) {
     requestAccountLeverage(account)
   }
+}
+
+function manageAccount(account: AccountRecord) {
+  selectAccount(account)
+  emit('manage', account.id)
+}
+
+function showAccountDetails(account: AccountRecord): boolean {
+  return props.mode !== 'compact' && accounts.selectedAccountId === account.id
 }
 
 async function refreshAccounts() {
@@ -770,7 +801,7 @@ watch(
 
 <template>
   <section class="panel-card flex h-full flex-col">
-    <div class="panel-header-row">
+    <div v-if="props.mode !== 'detail'" class="panel-header-row">
       <div class="inline-flex items-center gap-2">
         <span class="font-semibold tracking-[0.04em] text-primary">Trading Accounts</span>
         <span v-if="accounts.loading" class="pill pill-info">loading</span>
@@ -813,6 +844,13 @@ watch(
         No accounts configured yet.
       </p>
 
+      <p
+        v-else-if="props.mode === 'detail' && sortedAccounts.length === 0"
+        class="text-center text-xs text-error"
+      >
+        This trading account is no longer available.
+      </p>
+
       <ul v-else class="flex flex-col gap-2">
         <li
           v-for="account in sortedAccounts"
@@ -826,7 +864,7 @@ watch(
           ]"
           :style="{ borderRadius: 'var(--radius-base)' }"
         >
-          <div class="flex flex-1 items-center justify-between gap-3 px-3 py-2">
+          <div class="flex flex-1 items-start justify-between gap-3 px-3 py-2">
             <div class="flex flex-1 flex-col gap-2">
               <button
                 class="flex flex-col items-start gap-2 text-left"
@@ -864,7 +902,7 @@ watch(
               </button>
 
               <div
-                v-if="accounts.selectedAccountId === account.id"
+                v-if="showAccountDetails(account)"
                 class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(132px,1fr)_96px_auto_auto_auto]"
               >
                 <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
@@ -972,10 +1010,7 @@ watch(
                 </button>
               </div>
               <p
-                v-if="
-                  accounts.selectedAccountId === account.id &&
-                  account.exchange === ExchangeType.Hyperliquid
-                "
+                v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
                 class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)]"
               >
                 Wallet:
@@ -995,10 +1030,7 @@ watch(
                 current leverage and margin mode to the exchange for the symbols entered above.
               </p>
               <div
-                v-if="
-                  accounts.selectedAccountId === account.id &&
-                  account.exchange === ExchangeType.Hyperliquid
-                "
+                v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
                 class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[repeat(3,minmax(110px,1fr))_auto]"
               >
                 <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
@@ -1063,10 +1095,7 @@ watch(
                 </p>
               </div>
               <p
-                v-if="
-                  accounts.selectedAccountId === account.id &&
-                  account.exchange === ExchangeType.Bybit
-                "
+                v-if="showAccountDetails(account) && account.exchange === ExchangeType.Bybit"
                 class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)]"
               >
                 Current Lev:
@@ -1077,10 +1106,7 @@ watch(
                 liquidation risk.
               </p>
               <div
-                v-if="
-                  accounts.selectedAccountId === account.id &&
-                  account.exchange === ExchangeType.Hyperliquid
-                "
+                v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
                 class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(190px,1fr)_auto_auto]"
               >
                 <div class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
@@ -1115,10 +1141,7 @@ watch(
                 </button>
               </div>
               <div
-                v-if="
-                  accounts.selectedAccountId === account.id &&
-                  account.exchange === ExchangeType.Hyperliquid
-                "
+                v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
                 class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(190px,1fr)_96px_auto_auto_auto]"
               >
                 <div
@@ -1193,7 +1216,7 @@ watch(
                 </p>
               </div>
               <div
-                v-if="accounts.selectedAccountId === account.id"
+                v-if="showAccountDetails(account)"
                 class="grid gap-2 text-[10px] uppercase tracking-[0.06em] dim sm:grid-cols-4 xl:grid-cols-9"
               >
                 <div class="flex flex-col gap-1">
@@ -1277,6 +1300,15 @@ watch(
               </div>
             </div>
 
+            <button
+              v-if="props.mode === 'compact'"
+              class="btn btn-xs"
+              :class="accountReady(account) ? 'btn-secondary' : 'btn-primary'"
+              type="button"
+              @click.stop="manageAccount(account)"
+            >
+              {{ accountReady(account) ? 'Manage' : 'Setup' }}
+            </button>
             <button
               class="btn btn-secondary btn-xs"
               type="button"

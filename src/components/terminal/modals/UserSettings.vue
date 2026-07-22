@@ -28,6 +28,7 @@ const { logout, isAuthenticated } = useAuth()
 const prefsEditor = ref('')
 const prefsDirty = ref(false)
 const prefsError = ref<string | null>(null)
+const managedAccountId = ref<string | null>(null)
 // const prefsSaving = ref(false)
 // const prefsSavedAt = ref<number | null>(null)
 
@@ -39,6 +40,19 @@ const newestCommandsFirst = computed({
   get: () => uiStore.newestCommandsFirst,
   set: (enabled: boolean) => uiStore.setNewestCommandsFirst(enabled),
 })
+const managedAccount = computed(
+  () => accountsStore.accounts.find((account) => account.id === managedAccountId.value) ?? null,
+)
+
+function openAccountSettings(accountId: string) {
+  if (!accountsStore.accounts.some((account) => account.id === accountId)) return
+  accountsStore.selectedAccountId = accountId
+  managedAccountId.value = accountId
+}
+
+function closeAccountSettings() {
+  managedAccountId.value = null
+}
 
 // Load editor content from store when (a) modal opens or (b) store.preferences changes
 watch(
@@ -105,6 +119,7 @@ function sendPing() {
 }
 
 function close() {
+  closeAccountSettings()
   emit('close')
 }
 
@@ -113,7 +128,8 @@ function onKey(e: KeyboardEvent) {
   if (!props.open) return
   if (e.key === 'Escape') {
     e.preventDefault()
-    close()
+    if (managedAccountId.value) closeAccountSettings()
+    else close()
   }
 }
 onMounted(() => window.addEventListener('keydown', onKey))
@@ -133,6 +149,10 @@ const accountError = computed(() => userStore.error)
 watch(
   () => props.open,
   (isOpen) => {
+    if (!isOpen) {
+      closeAccountSettings()
+      return
+    }
     if (isOpen && !userStore.profile && !userStore.loading && isAuthenticated.value) {
       userStore.fetchMe()
     }
@@ -144,6 +164,19 @@ watch(
     }
   },
   { immediate: true },
+)
+
+watch(
+  () => accountsStore.accounts.map((account) => account.id),
+  (accountIds) => {
+    if (
+      managedAccountId.value &&
+      accountsStore.lastFetchedAt &&
+      !accountIds.includes(managedAccountId.value)
+    ) {
+      closeAccountSettings()
+    }
+  },
 )
 
 // Billing helpers
@@ -195,13 +228,27 @@ const returnToOrigin = window.location.origin
             class="flex items-center justify-between px-3 py-2 text-[12px] uppercase tracking-wide bg-[linear-gradient(180deg,color-mix(in_srgb,var(--panel-header-bg)_85%,transparent),color-mix(in_srgb,var(--panel-header-bg)_100%,transparent))] border-b border-[var(--border-color)] text-[var(--color-text-dim)] backdrop-blur-sm"
           >
             <div class="flex items-center gap-2">
-              <span class="text-[var(--accent-color)]">User Settings</span>
-              <span class="text-[var(--color-text-dim)]/70" v-if="userStore.profile">
+              <span class="text-[var(--accent-color)]">
+                {{ managedAccount ? 'Account Settings' : 'User Settings' }}
+              </span>
+              <span v-if="managedAccount" class="text-[var(--color-text-dim)]/70">
+                ( {{ managedAccount.label }} )
+              </span>
+              <span v-else-if="userStore.profile" class="text-[var(--color-text-dim)]/70">
                 ( {{ userStore.displayName }} )
               </span>
             </div>
             <div class="flex items-center gap-2">
               <button
+                v-if="managedAccountId"
+                class="btn btn-secondary btn-sm"
+                type="button"
+                @click="closeAccountSettings"
+              >
+                Back
+              </button>
+              <button
+                v-else
                 class="btn btn-secondary btn-sm"
                 @click="refreshAccount"
                 :disabled="accountLoading"
@@ -214,224 +261,235 @@ const returnToOrigin = window.location.origin
 
           <!-- Body Scroll -->
           <div class="max-h-[75vh] overflow-auto p-4 space-y-8 text-[13px] leading-snug">
-            <!-- Account Section -->
-            <section>
-              <header
-                class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-[var(--accent-color)]"
-              >
-                <span>User Account</span>
-                <span class="pill pill-info" v-if="accountLoading">loading...</span>
-                <span class="pill pill-err" v-if="accountError">error</span>
-              </header>
-              <div v-if="!isAuthenticated">Not authenticated.</div>
-              <div
-                v-else-if="!userStore.profile && !accountLoading"
-                class="text-[var(--color-text-dim)]"
-              >
-                Profile not loaded.
-              </div>
-              <div v-else-if="userStore.profile" class="grid gap-2 sm:grid-cols-2">
-                <div>
-                  <div class="dim text-[11px]">User ID</div>
-                  <div>{{ userStore.userId || '—' }}</div>
+            <AccountsListPanel
+              v-if="managedAccountId"
+              mode="detail"
+              :detail-account-id="managedAccountId"
+            />
+            <template v-else>
+              <!-- Account Section -->
+              <section>
+                <header
+                  class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-[var(--accent-color)]"
+                >
+                  <span>User Account</span>
+                  <span class="pill pill-info" v-if="accountLoading">loading...</span>
+                  <span class="pill pill-err" v-if="accountError">error</span>
+                </header>
+                <div v-if="!isAuthenticated">Not authenticated.</div>
+                <div
+                  v-else-if="!userStore.profile && !accountLoading"
+                  class="text-[var(--color-text-dim)]"
+                >
+                  Profile not loaded.
                 </div>
-                <div>
-                  <div class="dim text-[11px]">Display Name</div>
-                  <div>{{ userStore.displayName || '—' }}</div>
-                </div>
-              </div>
-              <div v-if="isAuthenticated" class="mt-4 min-h-0">
-                <AccountsListPanel />
-              </div>
-              <div v-if="accountError" class="notice-err mt-2">{{ accountError }}</div>
-            </section>
-
-            <hr class="section-divider" />
-
-            <!-- Billing -->
-            <section v-if="isAuthenticated">
-              <header
-                class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-[var(--accent-color)]"
-              >
-                <span>Billing</span>
-              </header>
-              <div v-if="billing.billingInfo" class="space-y-3">
-                <!-- Plan name and price -->
-                <div class="grid gap-2 sm:grid-cols-2">
+                <div v-else-if="userStore.profile" class="grid gap-2 sm:grid-cols-2">
                   <div>
-                    <div class="dim text-[11px]">Plan</div>
-                    <div>
-                      {{
-                        billing.billingInfo.plan_details?.product_name ||
-                        billing.billingInfo.plan ||
-                        '—'
-                      }}
-                    </div>
+                    <div class="dim text-[11px]">User ID</div>
+                    <div>{{ userStore.userId || '—' }}</div>
                   </div>
-                  <div v-if="billing.billingInfo.plan_details?.unit_amount">
-                    <div class="dim text-[11px]">Price</div>
-                    <div>
-                      {{
-                        formatPrice(
-                          billing.billingInfo.plan_details.unit_amount,
-                          billing.billingInfo.plan_details.currency,
-                        )
-                      }}/{{ billing.billingInfo.plan_details.billing_interval || 'month' }}
-                    </div>
+                  <div>
+                    <div class="dim text-[11px]">Display Name</div>
+                    <div>{{ userStore.displayName || '—' }}</div>
                   </div>
                 </div>
+                <div v-if="isAuthenticated" class="mt-4 min-h-0">
+                  <AccountsListPanel mode="compact" @manage="openAccountSettings" />
+                </div>
+                <div v-if="accountError" class="notice-err mt-2">{{ accountError }}</div>
+              </section>
 
-                <!-- Status row -->
+              <hr class="section-divider" />
+
+              <!-- Billing -->
+              <section v-if="isAuthenticated">
+                <header
+                  class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-[var(--accent-color)]"
+                >
+                  <span>Billing</span>
+                </header>
+                <div v-if="billing.billingInfo" class="space-y-3">
+                  <!-- Plan name and price -->
+                  <div class="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <div class="dim text-[11px]">Plan</div>
+                      <div>
+                        {{
+                          billing.billingInfo.plan_details?.product_name ||
+                          billing.billingInfo.plan ||
+                          '—'
+                        }}
+                      </div>
+                    </div>
+                    <div v-if="billing.billingInfo.plan_details?.unit_amount">
+                      <div class="dim text-[11px]">Price</div>
+                      <div>
+                        {{
+                          formatPrice(
+                            billing.billingInfo.plan_details.unit_amount,
+                            billing.billingInfo.plan_details.currency,
+                          )
+                        }}/{{ billing.billingInfo.plan_details.billing_interval || 'month' }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Status row -->
+                  <div class="grid gap-2 sm:grid-cols-3">
+                    <div>
+                      <div class="dim text-[11px]">Status</div>
+                      <div>
+                        <span
+                          :class="{
+                            'pill-ok': billing.billingInfo.status === 'active',
+                            'pill-warn': billing.billingInfo.status === 'trialing',
+                            'pill-err': ['canceled', 'past_due', 'unpaid'].includes(
+                              billing.billingInfo.status,
+                            ),
+                          }"
+                          class="pill"
+                        >
+                          {{ billing.billingInfo.status }}
+                        </span>
+                      </div>
+                    </div>
+                    <div
+                      v-if="
+                        billing.billingInfo.status === 'trialing' && billing.billingInfo.trial_end
+                      "
+                    >
+                      <div class="dim text-[11px]">Trial Ends</div>
+                      <div>{{ formatBillingDate(billing.billingInfo.trial_end) }}</div>
+                    </div>
+                    <div
+                      v-else-if="
+                        billing.billingInfo.current_period_end && !billing.billingInfo.cancel_at
+                      "
+                    >
+                      <div class="dim text-[11px]">Renews</div>
+                      <div>{{ formatBillingDate(billing.billingInfo.current_period_end) }}</div>
+                    </div>
+                    <div v-if="billing.billingInfo.cancel_at">
+                      <div class="dim text-[11px]">Cancels On</div>
+                      <div class="text-red-400">
+                        {{ formatBillingDate(billing.billingInfo.cancel_at) }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Cancellation notice -->
+                  <p v-if="billing.billingInfo.cancel_at" class="notice-warn text-[12px]">
+                    Your subscription is set to cancel on
+                    {{ formatBillingDate(billing.billingInfo.cancel_at) }}. You'll retain access
+                    until then.
+                  </p>
+                  <p
+                    v-if="billing.billingInfo.canceled_at && !billing.billingInfo.cancel_at"
+                    class="notice-err text-[12px]"
+                  >
+                    Subscription was canceled on
+                    {{ formatBillingDate(billing.billingInfo.canceled_at) }}.
+                  </p>
+                </div>
+                <div v-else class="text-[var(--color-text-dim)]">No active subscription.</div>
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <button class="btn btn-secondary btn-sm" @click="goToSubscriptions">
+                    View Plans
+                  </button>
+                  <button
+                    v-if="billing.billingInfo"
+                    class="btn btn-secondary btn-sm"
+                    @click="billing.openCustomerPortal()"
+                  >
+                    Manage Billing
+                  </button>
+                </div>
+              </section>
+
+              <hr v-if="isAuthenticated" class="section-divider" />
+
+              <!-- Session / Connection -->
+              <section>
+                <header
+                  class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-[var(--accent-color)]"
+                >
+                  <span>Session</span>
+                </header>
                 <div class="grid gap-2 sm:grid-cols-3">
                   <div>
-                    <div class="dim text-[11px]">Status</div>
+                    <div class="dim text-[11px]">Auth Status</div>
+                    <div>{{ isAuthenticated ? 'authenticated' : 'anonymous' }}</div>
+                  </div>
+                  <div>
+                    <div class="dim text-[11px]">WS Status</div>
                     <div>
                       <span
                         :class="{
-                          'pill-ok': billing.billingInfo.status === 'active',
-                          'pill-warn': billing.billingInfo.status === 'trialing',
-                          'pill-err': ['canceled', 'past_due', 'unpaid'].includes(
-                            billing.billingInfo.status,
-                          ),
+                          'pill-info': wsStore.status === 'connecting',
+                          'pill-ok': wsStore.status === 'ready',
+                          'pill-warn': wsStore.status === 'reconnecting',
+                          'pill-err': wsStore.status === 'error',
                         }"
                         class="pill"
                       >
-                        {{ billing.billingInfo.status }}
+                        {{ wsStore.status }}
                       </span>
                     </div>
                   </div>
-                  <div
-                    v-if="
-                      billing.billingInfo.status === 'trialing' && billing.billingInfo.trial_end
-                    "
-                  >
-                    <div class="dim text-[11px]">Trial Ends</div>
-                    <div>{{ formatBillingDate(billing.billingInfo.trial_end) }}</div>
-                  </div>
-                  <div
-                    v-else-if="
-                      billing.billingInfo.current_period_end && !billing.billingInfo.cancel_at
-                    "
-                  >
-                    <div class="dim text-[11px]">Renews</div>
-                    <div>{{ formatBillingDate(billing.billingInfo.current_period_end) }}</div>
-                  </div>
-                  <div v-if="billing.billingInfo.cancel_at">
-                    <div class="dim text-[11px]">Cancels On</div>
-                    <div class="text-red-400">
-                      {{ formatBillingDate(billing.billingInfo.cancel_at) }}
+                  <div>
+                    <div class="dim text-[11px]">Latency</div>
+                    <div>
+                      {{ wsStore.latencyMs != null ? wsStore.latencyMs.toFixed(0) + ' ms' : '—' }}
                     </div>
                   </div>
                 </div>
-
-                <!-- Cancellation notice -->
-                <p v-if="billing.billingInfo.cancel_at" class="notice-warn text-[12px]">
-                  Your subscription is set to cancel on
-                  {{ formatBillingDate(billing.billingInfo.cancel_at) }}. You'll retain access until
-                  then.
-                </p>
-                <p
-                  v-if="billing.billingInfo.canceled_at && !billing.billingInfo.cancel_at"
-                  class="notice-err text-[12px]"
-                >
-                  Subscription was canceled on
-                  {{ formatBillingDate(billing.billingInfo.canceled_at) }}.
-                </p>
-              </div>
-              <div v-else class="text-[var(--color-text-dim)]">No active subscription.</div>
-              <div class="mt-3 flex flex-wrap gap-2">
-                <button class="btn btn-secondary btn-sm" @click="goToSubscriptions">
-                  View Plans
-                </button>
-                <button
-                  v-if="billing.billingInfo"
-                  class="btn btn-secondary btn-sm"
-                  @click="billing.openCustomerPortal()"
-                >
-                  Manage Billing
-                </button>
-              </div>
-            </section>
-
-            <hr v-if="isAuthenticated" class="section-divider" />
-
-            <!-- Session / Connection -->
-            <section>
-              <header
-                class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-[var(--accent-color)]"
-              >
-                <span>Session</span>
-              </header>
-              <div class="grid gap-2 sm:grid-cols-3">
-                <div>
-                  <div class="dim text-[11px]">Auth Status</div>
-                  <div>{{ isAuthenticated ? 'authenticated' : 'anonymous' }}</div>
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <button
+                    class="btn btn-secondary btn-sm"
+                    @click="sendPing"
+                    :disabled="wsStore.status !== 'ready'"
+                  >
+                    Ping
+                  </button>
+                  <button class="btn btn-secondary btn-sm" @click="reconnectWs">
+                    Reconnect WS
+                  </button>
+                  <button
+                    class="btn btn-danger btn-sm"
+                    @click="logout({ returnTo: returnToOrigin })"
+                  >
+                    Logout
+                  </button>
                 </div>
-                <div>
-                  <div class="dim text-[11px]">WS Status</div>
-                  <div>
-                    <span
-                      :class="{
-                        'pill-info': wsStore.status === 'connecting',
-                        'pill-ok': wsStore.status === 'ready',
-                        'pill-warn': wsStore.status === 'reconnecting',
-                        'pill-err': wsStore.status === 'error',
-                      }"
-                      class="pill"
-                    >
-                      {{ wsStore.status }}
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  <div class="dim text-[11px]">Latency</div>
-                  <div>
-                    {{ wsStore.latencyMs != null ? wsStore.latencyMs.toFixed(0) + ' ms' : '—' }}
-                  </div>
-                </div>
-              </div>
-              <div class="mt-3 flex flex-wrap gap-2">
-                <button
-                  class="btn btn-secondary btn-sm"
-                  @click="sendPing"
-                  :disabled="wsStore.status !== 'ready'"
+              </section>
+
+              <hr class="section-divider" />
+
+              <!-- Appearance -->
+              <section>
+                <header
+                  class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-[var(--accent-color)]"
                 >
-                  Ping
-                </button>
-                <button class="btn btn-secondary btn-sm" @click="reconnectWs">Reconnect WS</button>
-                <button class="btn btn-danger btn-sm" @click="logout({ returnTo: returnToOrigin })">
-                  Logout
-                </button>
-              </div>
-            </section>
+                  <span>Appearance</span>
+                </header>
+                <div class="flex items-center gap-3">
+                  <div class="dim text-[11px]">Theme Mode</div>
+                  <ThemeSwitcher />
+                </div>
+                <label class="mt-3 flex items-center gap-2 text-[12px]">
+                  <input v-model="showFullNumbers" type="checkbox" class="checkbox" />
+                  <span>Show full numbers</span>
+                </label>
+                <label class="mt-2 flex items-center gap-2 text-[12px]">
+                  <input v-model="newestCommandsFirst" type="checkbox" class="checkbox" />
+                  <span>Newest commands first</span>
+                </label>
+              </section>
 
-            <hr class="section-divider" />
+              <!-- <hr class="section-divider" /> -->
 
-            <!-- Appearance -->
-            <section>
-              <header
-                class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-[var(--accent-color)]"
-              >
-                <span>Appearance</span>
-              </header>
-              <div class="flex items-center gap-3">
-                <div class="dim text-[11px]">Theme Mode</div>
-                <ThemeSwitcher />
-              </div>
-              <label class="mt-3 flex items-center gap-2 text-[12px]">
-                <input v-model="showFullNumbers" type="checkbox" class="checkbox" />
-                <span>Show full numbers</span>
-              </label>
-              <label class="mt-2 flex items-center gap-2 text-[12px]">
-                <input v-model="newestCommandsFirst" type="checkbox" class="checkbox" />
-                <span>Newest commands first</span>
-              </label>
-            </section>
-
-            <!-- <hr class="section-divider" /> -->
-
-            <!-- Preferences JSON -->
-            <!-- <section>
+              <!-- Preferences JSON -->
+              <!-- <section>
               <header
                 class="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-[var(--accent-color)]"
               >
@@ -476,6 +534,7 @@ const returnToOrigin = window.location.origin
               <div v-if="prefsError" class="notice-err">{{ prefsError }}</div>
               <div v-else-if="prefsSavedRecently" class="notice-ok">Preferences saved.</div>
             </section> -->
+            </template>
           </div>
         </div>
       </div>
