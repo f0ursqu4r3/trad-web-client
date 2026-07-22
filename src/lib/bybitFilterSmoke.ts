@@ -25,6 +25,7 @@ import { bybitProtocolFixtures } from '@/lib/bybitProtocolFixtures'
 import {
   binanceMarketContext,
   formatMarketContext,
+  hyperliquidMarketContext,
   marketContextAccountId,
   type AccountDisplayRecord,
 } from '@/lib/marketContext'
@@ -730,6 +731,93 @@ export async function runBybitNativeProtectionRenderSmoke(): Promise<void> {
     assertSmoke(
       rejectedHtml.includes(label),
       `Rejected NativeProtection render should include "${label}"`,
+    )
+  }
+
+  const hyperliquidAccountId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+  const hyperliquidProtectionState = {
+    ...nativeProtectionState,
+    symbol: 'BTC',
+    market_context: hyperliquidMarketContext(hyperliquidAccountId),
+    expected_entries: 1,
+    observed_entries: 1,
+    observed_protection_orders: 2,
+    observed_entry_order_ids: ['0xhl-parent-cloid'],
+    observed_protection_order_ids: ['0xhl-sl-cloid', '0xhl-tp-cloid'],
+    tracked_parent_client_order_ids: ['trad-hl-open-1'],
+    tracked_parent_remote_order_ids: ['12345'],
+    last_client_order_id: '0xhl-tp-cloid',
+    last_parent_client_order_id: 'trad-hl-open-1',
+    last_remote_order_id: '12347',
+    last_order_status: 'open',
+    last_order_reason: null,
+    last_take_profit: null,
+    last_stop_loss: null,
+    last_tpsl_mode: null,
+  } satisfies NativeProtectionState
+  const hyperliquidMarketRef = {
+    exchange: ExchangeType.Hyperliquid,
+    network: NetworkType.Testnet,
+    product: 'usdc_perp' as const,
+    trading_account_id: hyperliquidAccountId,
+    trading_account_label: 'Hyperliquid Testnet',
+    symbol: 'BTC',
+  }
+  const hyperliquidApp = createSSRApp({
+    render: () =>
+      h(NativeProtectionDevice, {
+        device: hyperliquidProtectionState,
+        marketRef: hyperliquidMarketRef,
+        protectionState,
+      }),
+  })
+  hyperliquidApp.use(createPinia())
+  const hyperliquidHtml = await renderToString(hyperliquidApp)
+  for (const label of [
+    'Order Grouping',
+    'normalTpsl',
+    'Trigger Execution',
+    'Reduce only',
+    '0xhl-sl-cloid',
+    '0xhl-tp-cloid',
+    'Hyperliquid Testnet',
+  ]) {
+    assertSmoke(
+      hyperliquidHtml.includes(label),
+      `Hyperliquid NativeProtection render should include "${label}"`,
+    )
+  }
+  for (const bybitOnlyLabel of ['Exchange TP', 'Exchange SL', 'TP/SL Mode']) {
+    assertSmoke(
+      !hyperliquidHtml.includes(bybitOnlyLabel),
+      `Hyperliquid NativeProtection render should omit Bybit field "${bybitOnlyLabel}"`,
+    )
+  }
+
+  const hyperliquidFlatApp = createSSRApp({
+    render: () =>
+      h(NativeProtectionDevice, {
+        device: {
+          ...hyperliquidProtectionState,
+          status: NativeProtectionStatus.Flat,
+          protection_filled_qty: 0.001,
+          last_order_status: 'FILLED',
+          last_order_reason: 'Exchange SL filled',
+        },
+        marketRef: hyperliquidMarketRef,
+        protectionState: {
+          ...protectionState,
+          lifecycle: ProtectionLifecycle.Complete,
+          filled_qty: 0.001,
+        },
+      }),
+  })
+  hyperliquidFlatApp.use(createPinia())
+  const hyperliquidFlatHtml = await renderToString(hyperliquidFlatApp)
+  for (const label of ['Flat', 'Complete', 'Exchange SL filled', '0.001000']) {
+    assertSmoke(
+      hyperliquidFlatHtml.includes(label),
+      `completed Hyperliquid NativeProtection render should include "${label}"`,
     )
   }
 }

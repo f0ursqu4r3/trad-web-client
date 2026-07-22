@@ -9,6 +9,7 @@ import {
 } from '@/lib/ws/protocol'
 import { useAccountsStore } from '@/stores/accounts'
 import { useWsStore } from '@/stores/ws'
+import { normalizeMarketContext } from '@/lib/marketContext'
 import { formatPrice, formatQty, getPositionSideClass, formatSide } from './utils'
 import { formatExecutionGuardPercent } from '@/lib/hyperliquidExecutionGuards'
 import { XCircle } from 'lucide-vue-next'
@@ -26,9 +27,10 @@ const ws = useWsStore()
 const cancelRequested = ref(false)
 const cancelError = ref<string | null>(null)
 let cancelResetTimer: number | null = null
+const normalizedMarketContext = computed(() => normalizeMarketContext(props.device.market_context))
 
 const networkLabel = computed(() => {
-  const ctx = props.device.market_context
+  const ctx = normalizedMarketContext.value
   if (
     ctx.type === 'binance' ||
     ctx.type === 'bifake' ||
@@ -212,6 +214,10 @@ onUnmounted(() => {
           <dt class="dt-label">Quantity</dt>
           <dd class="m-0 font-mono text-primary">{{ formatQty(device.quantity) }}</dd>
         </div>
+        <div v-if="device.filled_qty != null">
+          <dt class="dt-label">Filled Quantity</dt>
+          <dd class="m-0 font-mono text-primary">{{ formatQty(device.filled_qty) }}</dd>
+        </div>
         <div>
           <dt class="dt-label">{{ isLimitOrder ? 'Limit Price' : 'Decision Price' }}</dt>
           <dd class="m-0 font-mono text-primary">${{ formatPrice(device.price) }}</dd>
@@ -341,7 +347,7 @@ onUnmounted(() => {
         <div class="grid grid-cols-2 gap-x-4 gap-y-2">
           <div>
             <dt class="dt-label">Type</dt>
-            <dd class="m-0 font-mono text-primary">{{ device.market_context.type }}</dd>
+            <dd class="m-0 font-mono text-primary">{{ normalizedMarketContext.type }}</dd>
           </div>
           <div>
             <dt class="dt-label">Network</dt>
@@ -350,24 +356,27 @@ onUnmounted(() => {
         </div>
         <div
           v-if="
-            (device.market_context.type === 'binance' ||
-              device.market_context.type === 'bifake' ||
-              device.market_context.type === 'bybit') &&
-            'account_id' in device.market_context
+            (normalizedMarketContext.type === 'binance' ||
+              normalizedMarketContext.type === 'bifake' ||
+              normalizedMarketContext.type === 'bybit' ||
+              normalizedMarketContext.type === 'hyperliquid') &&
+            'account_id' in normalizedMarketContext
           "
         >
           <dt class="dt-label">Account ID</dt>
           <dd class="m-0 font-mono text-[10px] dim">
-            {{ device.market_context.account_id.slice(0, 8) }}...
+            {{ normalizedMarketContext.account_id.slice(0, 8) }}...
           </dd>
         </div>
         <div
-          v-if="device.market_context.type === 'sim' && 'sim_market_id' in device.market_context"
+          v-if="
+            normalizedMarketContext.type === 'sim' && 'sim_market_id' in normalizedMarketContext
+          "
           class="mt-1"
         >
           <dt class="dt-label">Sim Market ID</dt>
           <dd class="m-0 font-mono text-[10px] dim">
-            {{ device.market_context.sim_market_id.slice(0, 8) }}...
+            {{ normalizedMarketContext.sim_market_id.slice(0, 8) }}...
           </dd>
         </div>
       </div>

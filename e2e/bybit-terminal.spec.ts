@@ -292,6 +292,10 @@ test('working Hyperliquid limit order can be canceled from device details', asyn
 
   const details = page.getByTestId('device-details-panel')
   await expect(details.getByText('Limit Order Device')).toBeVisible()
+  await expect(details.getByText('Filled Quantity')).toBeVisible()
+  await expect(details.getByText('0.000200', { exact: true })).toBeVisible()
+  await expect(details.getByText('Account ID')).toBeVisible()
+  await expect(details.getByText('17171717...', { exact: true })).toBeVisible()
   await details.getByRole('button', { name: 'Cancel limit order' }).click()
 
   await expect

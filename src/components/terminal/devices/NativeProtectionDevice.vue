@@ -4,7 +4,7 @@ import type { NativeProtectionState } from '@/stores/devices'
 import { NativeProtectionStatus, type MarketRef, type ProtectionState } from '@/lib/ws/protocol'
 import { formatPrice, formatQty, getPositionSideClass, formatSide } from './utils'
 import { useAccountsStore } from '@/stores/accounts'
-import { formatMarketContext, formatMarketRef } from '@/lib/marketContext'
+import { formatMarketContext, formatMarketRef, normalizeMarketContext } from '@/lib/marketContext'
 import { protectionDisplay } from '@/lib/protectionState'
 import { formatExecutionGuardPercent } from '@/lib/hyperliquidExecutionGuards'
 
@@ -23,6 +23,9 @@ const marketContextLabel = computed(() => {
 })
 
 const protectionSummary = computed(() => protectionDisplay(props.protectionState))
+const normalizedMarketContext = computed(() => normalizeMarketContext(props.device.market_context))
+const isBybit = computed(() => normalizedMarketContext.value.type === 'bybit')
+const isHyperliquid = computed(() => normalizedMarketContext.value.type === 'hyperliquid')
 
 function fmtOptionalPrice(value?: number | null): string {
   return value == null ? '-' : `$${formatPrice(value)}`
@@ -321,7 +324,7 @@ function fmtDate(d?: Date | null): string {
             {{ device.last_order_reason || '-' }}
           </dd>
         </div>
-        <div>
+        <div v-if="isBybit">
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
             Exchange TP
           </dt>
@@ -329,7 +332,7 @@ function fmtDate(d?: Date | null): string {
             {{ device.last_take_profit || '-' }}
           </dd>
         </div>
-        <div>
+        <div v-if="isBybit">
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
             Exchange SL
           </dt>
@@ -337,13 +340,25 @@ function fmtDate(d?: Date | null): string {
             {{ device.last_stop_loss || '-' }}
           </dd>
         </div>
-        <div>
+        <div v-if="isBybit">
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
             TP/SL Mode
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)] text-[10px] break-all">
             {{ device.last_tpsl_mode || '-' }}
           </dd>
+        </div>
+        <div v-if="isHyperliquid">
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Order Grouping
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">normalTpsl</dd>
+        </div>
+        <div v-if="isHyperliquid">
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Trigger Execution
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">Reduce only</dd>
         </div>
         <div>
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
