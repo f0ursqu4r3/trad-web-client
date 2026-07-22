@@ -13,6 +13,7 @@ import { normalizeMarketContext } from '@/lib/marketContext'
 import { formatPrice, formatQty, getPositionSideClass, formatSide } from './utils'
 import { formatExecutionGuardPercent } from '@/lib/hyperliquidExecutionGuards'
 import { XCircle } from 'lucide-vue-next'
+import ExecutionFillsPanel from './ExecutionFillsPanel.vue'
 
 const props = defineProps<{
   device: MarketOrderState
@@ -235,6 +236,8 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
+
+    <ExecutionFillsPanel :fills="device.execution_fills ?? []" />
 
     <div v-if="device.one_way_position_effect" class="space-y-3">
       <h4 class="section-title">One-Way Net Effect</h4>

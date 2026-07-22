@@ -7,6 +7,7 @@ import { useAccountsStore } from '@/stores/accounts'
 import { formatMarketContext, formatMarketRef, normalizeMarketContext } from '@/lib/marketContext'
 import { protectionDisplay } from '@/lib/protectionState'
 import { formatExecutionGuardPercent } from '@/lib/hyperliquidExecutionGuards'
+import ExecutionFillsPanel from './ExecutionFillsPanel.vue'
 
 const props = defineProps<{
   device: NativeProtectionState
@@ -171,6 +172,8 @@ function fmtDate(d?: Date | null): string {
         </div>
       </div>
     </div>
+
+    <ExecutionFillsPanel :fills="device.execution_fills ?? []" />
 
     <div
       v-if="device.observed_entry_order_ids.length || device.observed_protection_order_ids.length"

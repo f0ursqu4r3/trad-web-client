@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 20
+export const PROTOCOL_VERSION = 21
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -34,6 +34,26 @@ export enum ExchangeType {
   Bifake = 'bifake',
   Bybit = 'bybit',
   Hyperliquid = 'hyperliquid',
+}
+
+export type ExecutionFill = {
+  exchange: ExchangeType
+  symbol?: string | null
+  remote_order_id?: string | null
+  client_order_id?: string | null
+  execution_id?: string | null
+  side?: string | null
+  direction?: string | null
+  price?: string | null
+  quantity?: string | null
+  execution_time_ms?: number | null
+  is_maker?: boolean | null
+  fee?: string | null
+  fee_token?: string | null
+  builder_fee?: string | null
+  closed_pnl?: string | null
+  start_position?: string | null
+  transaction_hash?: string | null
 }
 
 export type MarketProduct = 'usdt_perp' | 'usdc_perp'
@@ -855,6 +875,7 @@ export type MarketOrderSnapshot = {
   execution_guards?: HyperliquidExecutionGuards | null
   status: MarketOrderStatus
   filled_qty?: number | null
+  execution_fills?: ExecutionFill[]
   remote_id?: number | null
   remote_order_id?: string | null
   client_order_id?: string | null
@@ -904,6 +925,7 @@ export type NativeProtectionSnapshot = {
   tracked_parent_remote_order_ids?: string[]
   entry_filled_qty: number
   protection_filled_qty: number
+  execution_fills?: ExecutionFill[]
   status: NativeProtectionStatus
   last_client_order_id?: string | null
   last_parent_client_order_id?: string | null
@@ -1008,6 +1030,7 @@ export type DeviceMoDelta =
         execution_guards?: HyperliquidExecutionGuards | null
         status: MarketOrderStatus
         filled_qty?: number | null
+        execution_fills?: ExecutionFill[]
         client_order_id?: string | null
         remote_order_id?: string | null
         created_at: string
@@ -1037,6 +1060,7 @@ export type DeviceMoDelta =
       kind: 'ReconciliationRequired'
       data: { order_id?: string | null; reason: string }
     }
+  | { kind: 'ExecutionObserved'; data: { fill: ExecutionFill; fills: ExecutionFill[] } }
 
 export type DeviceMoDeltaEvent = {
   device_id: Uuid
@@ -1123,6 +1147,7 @@ export type DeviceNpDelta =
         tracked_parent_remote_order_ids?: string[]
         entry_filled_qty: number
         protection_filled_qty: number
+        execution_fills?: ExecutionFill[]
         status: NativeProtectionStatus
         last_client_order_id?: string | null
         last_parent_client_order_id?: string | null
@@ -1171,6 +1196,7 @@ export type DeviceNpDelta =
         status: NativeProtectionStatus
       }
     }
+  | { kind: 'ExecutionObserved'; data: { fill: ExecutionFill; fills: ExecutionFill[] } }
 
 export type DeviceNpDeltaEvent = {
   device_id: Uuid

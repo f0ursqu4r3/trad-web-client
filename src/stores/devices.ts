@@ -27,6 +27,7 @@ import {
   type OrderExecution,
   type MarketRef,
   type ProtectionState,
+  type ExecutionFill,
 } from '@/lib/ws/protocol'
 import { createLogger } from '@/lib/utils'
 import { normalizeMarketContext } from '@/lib/marketContext'
@@ -313,6 +314,7 @@ export const useDeviceStore = defineStore('device', () => {
         mo.execution_guards = s.execution_guards ?? null
         mo.status = normalizeMarketOrderStatus(s.status)
         mo.filled_qty = s.filled_qty ?? null
+        mo.execution_fills = s.execution_fills ?? []
         mo.remote_id = s.remote_id ?? null
         mo.remote_order_id = s.remote_order_id ?? null
         mo.client_order_id = s.client_order_id ?? null
@@ -374,6 +376,7 @@ export const useDeviceStore = defineStore('device', () => {
         np.tracked_parent_remote_order_ids = s.tracked_parent_remote_order_ids ?? []
         np.entry_filled_qty = s.entry_filled_qty
         np.protection_filled_qty = s.protection_filled_qty
+        np.execution_fills = s.execution_fills ?? []
         np.status = s.status
         np.last_client_order_id = s.last_client_order_id ?? null
         np.last_parent_client_order_id = s.last_parent_client_order_id ?? null
@@ -612,6 +615,7 @@ export const useDeviceStore = defineStore('device', () => {
             execution_guards,
             status,
             filled_qty,
+            execution_fills,
             client_order_id,
             remote_order_id,
             parent_device,
@@ -630,6 +634,7 @@ export const useDeviceStore = defineStore('device', () => {
           mo.execution_guards = execution_guards ?? null
           mo.status = normalizeMarketOrderStatus(status)
           mo.filled_qty = filled_qty ?? null
+          mo.execution_fills = execution_fills ?? []
           mo.client_order_id = client_order_id || null
           mo.remote_order_id = remote_order_id || null
           if (parent_device) {
@@ -730,6 +735,10 @@ export const useDeviceStore = defineStore('device', () => {
             mo.last_status_check_at = eventTime
           }
         }
+        break
+      case 'ExecutionObserved':
+        mo.execution_fills = delta.data.fills
+        if (eventTime) mo.last_update_seen_at = eventTime
         break
     }
   }
@@ -888,6 +897,7 @@ export const useDeviceStore = defineStore('device', () => {
           tracked_parent_remote_order_ids,
           entry_filled_qty,
           protection_filled_qty,
+          execution_fills,
           status,
           last_client_order_id,
           last_parent_client_order_id,
@@ -913,6 +923,7 @@ export const useDeviceStore = defineStore('device', () => {
         np.tracked_parent_remote_order_ids = tracked_parent_remote_order_ids ?? []
         np.entry_filled_qty = entry_filled_qty
         np.protection_filled_qty = protection_filled_qty
+        np.execution_fills = execution_fills ?? []
         np.status = status
         np.last_client_order_id = last_client_order_id ?? null
         np.last_parent_client_order_id = last_parent_client_order_id ?? null
@@ -991,6 +1002,10 @@ export const useDeviceStore = defineStore('device', () => {
         np.last_update_seen_at = eventTime
         break
       }
+      case 'ExecutionObserved':
+        np.execution_fills = delta.data.fills
+        np.last_update_seen_at = eventTime
+        break
     }
   }
 
@@ -1144,6 +1159,7 @@ export interface MarketOrderState {
 
   status: MarketOrderStatus
   filled_qty: number | null
+  execution_fills?: ExecutionFill[]
   remote_id: number | null
   remote_order_id: string | null
   client_order_id: string | null
@@ -1206,6 +1222,7 @@ export interface NativeProtectionState {
   tracked_parent_remote_order_ids: string[]
   entry_filled_qty: number
   protection_filled_qty: number
+  execution_fills?: ExecutionFill[]
   status: NativeProtectionStatus
   last_client_order_id: string | null
   last_parent_client_order_id: string | null
@@ -1319,6 +1336,7 @@ function newMarketOrderState(): MarketOrderState {
     execution_guards: null,
     status: MarketOrderStatus.NotYetSent,
     filled_qty: null,
+    execution_fills: [],
     remote_id: null,
     remote_order_id: null,
     client_order_id: null,
@@ -1382,6 +1400,7 @@ function newNativeProtectionState(): NativeProtectionState {
     tracked_parent_remote_order_ids: [],
     entry_filled_qty: 0,
     protection_filled_qty: 0,
+    execution_fills: [],
     status: NativeProtectionStatus.Pending,
     last_client_order_id: null,
     last_parent_client_order_id: null,
