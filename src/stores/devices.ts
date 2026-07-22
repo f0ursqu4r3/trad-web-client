@@ -671,6 +671,22 @@ export const useDeviceStore = defineStore('device', () => {
           }
         }
         break
+      case 'SubmissionIdentityConfirmed':
+        {
+          if (delta.data.client_order_id !== undefined && delta.data.client_order_id !== null) {
+            mo.client_order_id = delta.data.client_order_id
+          }
+          if (delta.data.remote_id !== undefined && delta.data.remote_id !== null) {
+            mo.remote_id = delta.data.remote_id
+          }
+          if (delta.data.remote_order_id !== undefined && delta.data.remote_order_id !== null) {
+            mo.remote_order_id = delta.data.remote_order_id
+          }
+          if (delta.data.sent_at) {
+            mo.sent_at = new Date(delta.data.sent_at)
+          }
+        }
+        break
       case 'PartiallyFilled':
         {
           const { price, cum_qty } = delta.data

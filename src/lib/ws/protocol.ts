@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 21
+export const PROTOCOL_VERSION = 22
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -1041,6 +1041,15 @@ export type DeviceMoDelta =
       data: {
         qty?: number | null
         price?: number | null
+        client_order_id?: string | null
+        remote_id?: number | null
+        remote_order_id?: string | null
+        sent_at?: string | null
+      }
+    }
+  | {
+      kind: 'SubmissionIdentityConfirmed'
+      data: {
         client_order_id?: string | null
         remote_id?: number | null
         remote_order_id?: string | null

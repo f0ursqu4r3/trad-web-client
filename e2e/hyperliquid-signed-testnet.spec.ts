@@ -48,6 +48,7 @@ test.describe.serial('Hyperliquid signed testnet through the production terminal
       })
       await expectCommandStatus(page, result.plainOpenCommandId, 'SUCCEEDED')
       await expectOrderDeviceStatus(page, result.plainOpenCommandId, 'Filled')
+      await expectExecutionEconomics(page)
 
       result.plainCloseCommandId = await submitMarket(page, {
         action: 'Close',
@@ -55,6 +56,7 @@ test.describe.serial('Hyperliquid signed testnet through the production terminal
       })
       await expectCommandStatus(page, result.plainCloseCommandId, 'SUCCEEDED')
       await expectOrderDeviceStatus(page, result.plainCloseCommandId, 'Filled')
+      await expectExecutionEconomics(page)
       exposurePossible = false
 
       const protectedMid = await hyperliquidMid(request, symbol)
@@ -66,6 +68,7 @@ test.describe.serial('Hyperliquid signed testnet through the production terminal
         stopLoss: protectedMid * 0.9,
       })
       await expectOrderDeviceStatus(page, result.protectedOpenCommandId, 'Filled')
+      await expectExecutionEconomics(page)
       await expectNativeProtectionStatus(page, result.protectedOpenCommandId, 'Tracking')
 
       result.protectedCloseCommandId = await submitMarket(page, {
@@ -74,6 +77,7 @@ test.describe.serial('Hyperliquid signed testnet through the production terminal
       })
       await expectCommandStatus(page, result.protectedCloseCommandId, 'SUCCEEDED')
       await expectOrderDeviceStatus(page, result.protectedCloseCommandId, 'Filled')
+      await expectExecutionEconomics(page)
       await expectNativeProtectionStatus(page, result.protectedOpenCommandId, /^(Canceled|Flat)$/)
       exposurePossible = false
 
@@ -282,6 +286,30 @@ async function expectOrderDeviceStatus(page: Page, commandId: string, status: st
   await expect(page.getByText(status, { exact: true }).last()).toBeVisible({
     timeout: commandTimeoutMs,
   })
+}
+
+async function expectExecutionEconomics(page: Page) {
+  const summary = page.getByTestId('execution-fill-summary')
+  await expect(summary).toBeVisible({ timeout: commandTimeoutMs })
+  for (const label of [
+    'Total Fee',
+    'Builder Component',
+    'Exchange Component',
+    'Reported Closed PnL',
+  ]) {
+    const value = summary.locator('div').filter({ hasText: label }).locator('dd')
+    await expect(value).toContainText(/[-+]?\d[\d,.]*\s+USDC/i)
+  }
+
+  const details = summary.locator('..').locator('details')
+  await details.locator('summary').click()
+  const fills = page.getByTestId('execution-fill-list')
+  await expect(fills).toBeVisible()
+  await expect(fills.getByText('Taker', { exact: true }).first()).toBeVisible()
+  await expect(fills.locator('[title]').filter({ hasText: /.+/ }).first()).toBeVisible()
+  for (const label of ['Trade ID', 'Order ID', 'Transaction Hash']) {
+    await expect(fills.getByText(new RegExp(`^${label}$`, 'i')).first()).toBeVisible()
+  }
 }
 
 async function expectNativeProtectionStatus(
