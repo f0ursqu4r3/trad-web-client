@@ -4,21 +4,13 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useWsStore } from '@/stores/ws'
 import { useUiStore } from '@/stores/ui'
-import {
-  accountMetadataChips,
-  accountMetadataStatus,
-  isBybitMetadataVerified,
-  useAccountsStore,
-  type AccountRecord,
-} from '@/stores/accounts'
+import { useAccountsStore } from '@/stores/accounts'
 import { useBillingStore } from '@/stores/billing'
 // import { apiPut } from '@/lib/apiClient'
-import { getWebSocketToken, useAuth } from '@/lib/auth'
-import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
-import { ExchangeType } from '@/lib/ws/protocol'
+import { useAuth } from '@/lib/auth'
+import AccountsListPanel from '@/components/terminal/panels/AccountsListPanel.vue'
 
 import ThemeSwitcher from '@/components/general/ThemeSwitcher.vue'
-import OrderedList from '@/components/general/OrderedList.vue'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -39,8 +31,6 @@ const prefsError = ref<string | null>(null)
 // const prefsSaving = ref(false)
 // const prefsSavedAt = ref<number | null>(null)
 
-const isCreateAccountOpen = ref(false)
-const refreshingAccountIds = ref<Set<string>>(new Set())
 const showFullNumbers = computed({
   get: () => uiStore.numberDisplayMode === 'full',
   set: (enabled: boolean) => uiStore.setNumberDisplayMode(enabled ? 'full' : 'compact'),
@@ -105,29 +95,6 @@ async function refreshAccount() {
   await accountsStore.fetchAccounts()
 }
 
-async function refreshAccountKeys(account: AccountRecord) {
-  prefsError.value = null
-  if (wsStore.status !== 'ready') {
-    prefsError.value = 'Account refresh requires an active server connection.'
-    return
-  }
-  const token = await getWebSocketToken()
-  if (!token) {
-    prefsError.value = 'Unable to refresh account credentials: no auth token available.'
-    return
-  }
-  refreshingAccountIds.value = new Set([...refreshingAccountIds.value, account.id])
-  try {
-    await wsStore.sendRefreshAccountKeys(account.id, account.label, token)
-  } catch (err) {
-    prefsError.value = err instanceof Error ? err.message : String(err)
-  } finally {
-    const next = new Set(refreshingAccountIds.value)
-    next.delete(account.id)
-    refreshingAccountIds.value = next
-  }
-}
-
 // WS helpers
 function reconnectWs() {
   wsStore.disconnect()
@@ -139,28 +106,6 @@ function sendPing() {
 
 function close() {
   emit('close')
-}
-
-function openCreateAccount() {
-  isCreateAccountOpen.value = true
-}
-
-async function deleteAccount(account: AccountRecord) {
-  if (!window.confirm(`Delete account "${account.label}"? This cannot be undone.`)) return
-  try {
-    if (account.exchange === ExchangeType.Hyperliquid) {
-      await wsStore.sendDeleteHyperliquidAccount(account.id)
-    } else {
-      await accountsStore.removeAccount(account.label)
-    }
-  } catch (err) {
-    prefsError.value = err instanceof Error ? err.message : String(err)
-  }
-}
-
-function handleAccountsReorder(nextItems: unknown[]) {
-  if (!Array.isArray(nextItems)) return
-  accountsStore.reorderAccounts(nextItems as AccountRecord[])
 }
 
 // Global key handling (Esc to close)
@@ -295,93 +240,8 @@ const returnToOrigin = window.location.origin
                   <div>{{ userStore.displayName || '—' }}</div>
                 </div>
               </div>
-              <div v-if="isAuthenticated" class="mt-4 space-y-2">
-                <div
-                  class="flex items-center justify-between gap-2 text-[11px] uppercase tracking-wide text-[var(--color-text-dim)]"
-                >
-                  <span>Trading Accounts</span>
-                  <div class="flex items-center gap-2">
-                    <button
-                      class="btn btn-secondary btn-xs"
-                      :disabled="accountsStore.loading"
-                      @click="accountsStore.fetchAccounts()"
-                    >
-                      Refresh
-                    </button>
-                    <button class="btn btn-primary btn-xs" @click="openCreateAccount">New</button>
-                  </div>
-                </div>
-                <p v-if="accountsStore.error" class="notice-err">{{ accountsStore.error }}</p>
-                <p
-                  v-else-if="accountsStore.loading && !accountsStore.accounts.length"
-                  class="notice-info"
-                >
-                  Loading accounts...
-                </p>
-                <OrderedList
-                  v-else-if="accountsStore.accounts.length > 0"
-                  :items="accountsStore.accounts"
-                  item-key="id"
-                  @update:items="handleAccountsReorder"
-                >
-                  <template #default="{ item: account, index }">
-                    <div
-                      class="flex items-center justify-between gap-3 p-2 border bg-[var(--panel-bg-alt)] border-[var(--border-color)]"
-                      :style="{ borderRadius: 'var(--radius-base)' }"
-                    >
-                      <div class="flex items-center gap-3">
-                        <span v-if="index < 9" class="kbd">ctrl+{{ index + 1 }}</span>
-                        <div class="flex flex-col gap-1">
-                          <div class="font-medium text-sm text-[var(--color-text)]">
-                            {{ (account as AccountRecord).label }}
-                          </div>
-                          <div
-                            class="flex flex-wrap gap-1 text-[11px] text-[var(--color-text-dim)]"
-                          >
-                            <span
-                              v-for="chip in accountMetadataChips(account as AccountRecord)"
-                              :key="chip"
-                              class="chip"
-                            >
-                              {{ chip }}
-                            </span>
-                          </div>
-                          <p
-                            v-if="accountMetadataStatus(account as AccountRecord)"
-                            class="text-xs"
-                            :class="
-                              isBybitMetadataVerified(account as AccountRecord)
-                                ? 'text-[var(--color-success)]'
-                                : 'text-warning'
-                            "
-                          >
-                            {{ accountMetadataStatus(account as AccountRecord) }}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div class="flex items-center gap-2">
-                        <button
-                          class="btn btn-secondary btn-xs"
-                          :disabled="
-                            wsStore.status !== 'ready' ||
-                            refreshingAccountIds.has((account as AccountRecord).id)
-                          "
-                          @click="refreshAccountKeys(account as AccountRecord)"
-                        >
-                          Refresh
-                        </button>
-                        <button
-                          class="btn btn-ghost btn-xs text-red-400"
-                          @click="deleteAccount(account as AccountRecord)"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  </template>
-                </OrderedList>
-                <p v-else class="notice-info">No trading accounts configured.</p>
+              <div v-if="isAuthenticated" class="mt-4 min-h-0">
+                <AccountsListPanel />
               </div>
               <div v-if="accountError" class="notice-err mt-2">{{ accountError }}</div>
             </section>
@@ -617,7 +477,6 @@ const returnToOrigin = window.location.origin
               <div v-else-if="prefsSavedRecently" class="notice-ok">Preferences saved.</div>
             </section> -->
           </div>
-          <CreateAccountModal :open="isCreateAccountOpen" @close="isCreateAccountOpen = false" />
         </div>
       </div>
     </transition>
