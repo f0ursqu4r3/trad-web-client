@@ -590,7 +590,22 @@ test('Hyperliquid wallet approval errors are recoverable without reloading', asy
     }
   })
 
+  let rejectForMissingDeposit = false
   await page.route('**/api/accounts/**/hyperliquid/agent-approval', async (route) => {
+    if (rejectForMissingDeposit) {
+      await route.fulfill({
+        status: 502,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: 'Hyperliquid rejected agent approval',
+          exchange_response: {
+            status: 'err',
+            response: 'Must deposit before performing actions.',
+          },
+        }),
+      })
+      return
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -631,6 +646,16 @@ test('Hyperliquid wallet approval errors are recoverable without reloading', asy
   await expect(approveAgent).toBeEnabled()
 
   await page.evaluate(() => ((window as any).__tradWalletMode = 'success'))
+  rejectForMissingDeposit = true
+  await approveAgent.click()
+  await expect(
+    accountPanel.getByText(
+      'Hyperliquid requires this wallet to receive account funds before it will accept approval actions. Fund the wallet on this network, then try again.',
+    ),
+  ).toBeVisible()
+  await expect(approveAgent).toBeEnabled()
+
+  rejectForMissingDeposit = false
   await approveAgent.click()
   await expect(
     accountPanel.getByText('Hyperliquid agent wallet approved for Hyperliquid QA.'),

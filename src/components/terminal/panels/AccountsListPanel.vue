@@ -67,6 +67,9 @@ const refreshingAgentAccountIds = ref<Set<string>>(new Set())
 const refreshError = ref<string | null>(null)
 const controlError = ref<string | null>(null)
 const controlMessage = ref<string | null>(null)
+type ApprovalFeedback = { kind: 'info' | 'success' | 'error'; message: string }
+const agentApprovalFeedback = reactive<Record<string, ApprovalFeedback | undefined>>({})
+const builderApprovalFeedback = reactive<Record<string, ApprovalFeedback | undefined>>({})
 const leverageForms = reactive<
   Record<
     string,
@@ -435,9 +438,13 @@ async function saveHyperliquidBuilder(account: AccountRecord) {
 async function approveHyperliquidAgent(account: AccountRecord) {
   controlError.value = null
   controlMessage.value = null
+  agentApprovalFeedback[account.id] = {
+    kind: 'info',
+    message: 'Waiting for the wallet signature.',
+  }
   if (!canApproveHyperliquidAgent(account)) {
-    controlError.value =
-      'Hyperliquid agent approval requires a saved user wallet and agent address.'
+    const message = 'Hyperliquid agent approval requires a saved user wallet and agent address.'
+    agentApprovalFeedback[account.id] = { kind: 'error', message }
     return
   }
   const userAddress = account.exchange_metadata?.user_address
@@ -456,11 +463,16 @@ async function approveHyperliquidAgent(account: AccountRecord) {
       agent_address: agentAddress,
       agent_name: signed.action.agentName,
     })
-    controlMessage.value = response.agent_approved
+    const message = response.agent_approved
       ? `Hyperliquid agent wallet approved for ${account.label}.`
       : `Hyperliquid accepted the approval, but the agent was not visible in extraAgents yet. Refresh again shortly.`
+    agentApprovalFeedback[account.id] = {
+      kind: response.agent_approved ? 'success' : 'info',
+      message,
+    }
   } catch (err) {
-    controlError.value = err instanceof Error ? err.message : String(err)
+    const message = approvalErrorMessage(err)
+    agentApprovalFeedback[account.id] = { kind: 'error', message }
   } finally {
     const next = new Set(approvingAgentAccountIds.value)
     next.delete(account.id)
@@ -471,18 +483,28 @@ async function approveHyperliquidAgent(account: AccountRecord) {
 async function refreshHyperliquidAgent(account: AccountRecord) {
   controlError.value = null
   controlMessage.value = null
+  agentApprovalFeedback[account.id] = {
+    kind: 'info',
+    message: 'Checking agent approval with Hyperliquid.',
+  }
   if (!canRefreshHyperliquidAgent(account)) {
-    controlError.value = 'Hyperliquid agent refresh requires a saved user wallet and agent address.'
+    const message = 'Hyperliquid agent refresh requires a saved user wallet and agent address.'
+    agentApprovalFeedback[account.id] = { kind: 'error', message }
     return
   }
   refreshingAgentAccountIds.value = new Set([...refreshingAgentAccountIds.value, account.id])
   try {
     const response = await accounts.refreshHyperliquidAgentApproval(account.id)
-    controlMessage.value = response.agent_approved
+    const message = response.agent_approved
       ? `Hyperliquid agent wallet is approved for ${account.label}.`
       : `Hyperliquid agent wallet is not approved for ${account.label}.`
+    agentApprovalFeedback[account.id] = {
+      kind: response.agent_approved ? 'success' : 'error',
+      message,
+    }
   } catch (err) {
-    controlError.value = err instanceof Error ? err.message : String(err)
+    const message = approvalErrorMessage(err)
+    agentApprovalFeedback[account.id] = { kind: 'error', message }
   } finally {
     const next = new Set(refreshingAgentAccountIds.value)
     next.delete(account.id)
@@ -493,9 +515,14 @@ async function refreshHyperliquidAgent(account: AccountRecord) {
 async function approveHyperliquidBuilder(account: AccountRecord) {
   controlError.value = null
   controlMessage.value = null
+  builderApprovalFeedback[account.id] = {
+    kind: 'info',
+    message: 'Waiting for the wallet signature.',
+  }
   if (!canApproveHyperliquidBuilder(account)) {
-    controlError.value =
+    const message =
       'Hyperliquid builder approval requires a user address, builder address, and fee above 0.'
+    builderApprovalFeedback[account.id] = { kind: 'error', message }
     return
   }
   const fee = builderFeeTenthsBps(account)
@@ -514,9 +541,14 @@ async function approveHyperliquidBuilder(account: AccountRecord) {
       builder_address: builderAddress,
       builder_fee_tenths_bps: fee,
     })
-    controlMessage.value = `Hyperliquid builder fee approved up to ${(response.max_builder_fee_tenths_bps / 10).toFixed(1)} bps for ${account.label}.`
+    const message = `Hyperliquid builder fee approved up to ${(response.max_builder_fee_tenths_bps / 10).toFixed(1)} bps for ${account.label}.`
+    builderApprovalFeedback[account.id] = {
+      kind: 'success',
+      message,
+    }
   } catch (err) {
-    controlError.value = err instanceof Error ? err.message : String(err)
+    const message = approvalErrorMessage(err)
+    builderApprovalFeedback[account.id] = { kind: 'error', message }
   } finally {
     const next = new Set(approvingBuilderAccountIds.value)
     next.delete(account.id)
@@ -527,23 +559,47 @@ async function approveHyperliquidBuilder(account: AccountRecord) {
 async function refreshHyperliquidBuilder(account: AccountRecord) {
   controlError.value = null
   controlMessage.value = null
+  builderApprovalFeedback[account.id] = {
+    kind: 'info',
+    message: 'Checking builder approval with Hyperliquid.',
+  }
   if (!canRefreshHyperliquidBuilder(account)) {
-    controlError.value = 'Hyperliquid builder refresh requires saved user and builder addresses.'
+    const message = 'Hyperliquid builder refresh requires saved user and builder addresses.'
+    builderApprovalFeedback[account.id] = { kind: 'error', message }
     return
   }
   refreshingBuilderAccountIds.value = new Set([...refreshingBuilderAccountIds.value, account.id])
   try {
     const response = await accounts.refreshHyperliquidBuilderApproval(account.id)
-    controlMessage.value = response.builder_approved
+    const message = response.builder_approved
       ? `Hyperliquid builder approval covers ${(response.max_builder_fee_tenths_bps / 10).toFixed(1)} bps for ${account.label}.`
       : `Hyperliquid builder approval is below the configured fee for ${account.label}.`
+    builderApprovalFeedback[account.id] = {
+      kind: response.builder_approved ? 'success' : 'error',
+      message,
+    }
   } catch (err) {
-    controlError.value = err instanceof Error ? err.message : String(err)
+    const message = approvalErrorMessage(err)
+    builderApprovalFeedback[account.id] = { kind: 'error', message }
   } finally {
     const next = new Set(refreshingBuilderAccountIds.value)
     next.delete(account.id)
     refreshingBuilderAccountIds.value = next
   }
+}
+
+function approvalFeedbackClass(feedback: ApprovalFeedback): string {
+  if (feedback.kind === 'success') return 'text-[var(--color-success)]'
+  if (feedback.kind === 'error') return 'text-error'
+  return 'text-[var(--color-text-dim)]'
+}
+
+function approvalErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+  if (message.includes('Must deposit before performing actions')) {
+    return 'Hyperliquid requires this wallet to receive account funds before it will accept approval actions. Fund the wallet on this network, then try again.'
+  }
+  return message
 }
 
 function setLeverage(account: AccountRecord) {
@@ -1139,6 +1195,15 @@ watch(
                   <span v-if="refreshingAgentAccountIds.has(account.id)">Refreshing</span>
                   <span v-else>Refresh Agent</span>
                 </button>
+                <p
+                  v-if="agentApprovalFeedback[account.id]"
+                  class="m-0 break-words text-[11px] leading-relaxed normal-case tracking-normal md:col-span-3"
+                  :class="approvalFeedbackClass(agentApprovalFeedback[account.id]!)"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {{ agentApprovalFeedback[account.id]!.message }}
+                </p>
               </div>
               <div
                 v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
@@ -1213,6 +1278,15 @@ watch(
                   <span class="font-mono text-primary">
                     {{ account.exchange_metadata?.builder_approved ? 'approved' : 'unvalidated' }}
                   </span>
+                </p>
+                <p
+                  v-if="builderApprovalFeedback[account.id]"
+                  class="m-0 break-words text-[11px] leading-relaxed normal-case tracking-normal md:col-span-5"
+                  :class="approvalFeedbackClass(builderApprovalFeedback[account.id]!)"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {{ builderApprovalFeedback[account.id]!.message }}
                 </p>
               </div>
               <div
