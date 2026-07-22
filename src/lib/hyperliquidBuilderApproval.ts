@@ -4,6 +4,15 @@ type EthereumProvider = {
   request(args: { method: string; params?: unknown[] }): Promise<unknown>
 }
 
+type HyperliquidSigningChain = {
+  hyperliquidChain: 'Mainnet' | 'Testnet'
+  signatureChainId: '0xa4b1' | '0x66eee'
+  chainId: 42161 | 421614
+  chainName: string
+  rpcUrls: string[]
+  blockExplorerUrls: string[]
+}
+
 type HyperliquidBuilderApprovalAction = {
   type: 'approveBuilderFee'
   hyperliquidChain: 'Mainnet' | 'Testnet'
@@ -70,6 +79,7 @@ export async function signHyperliquidBuilderApproval(params: {
   }
 
   const chain = hyperliquidChain(params.network)
+  await ensureWalletChain(provider, chain)
   const nonce = Date.now()
   const action: HyperliquidBuilderApprovalAction = {
     type: 'approveBuilderFee',
@@ -148,6 +158,7 @@ export async function signHyperliquidAgentApproval(params: {
   }
 
   const chain = hyperliquidChain(params.network)
+  await ensureWalletChain(provider, chain)
   const nonce = Date.now()
   const action: HyperliquidAgentApprovalAction = {
     type: 'approveAgent',
@@ -207,19 +218,79 @@ export function formatHyperliquidBuilderFeePercent(tenthsBps: number): string {
   return `${(tenthsBps / 1000).toFixed(3)}%`
 }
 
-function hyperliquidChain(network: NetworkType) {
+function hyperliquidChain(network: NetworkType): HyperliquidSigningChain {
   if (network === NetworkType.Testnet) {
     return {
       hyperliquidChain: 'Testnet' as const,
       signatureChainId: '0x66eee' as const,
-      chainId: 421614,
+      chainId: 421614 as const,
+      chainName: 'Arbitrum Sepolia',
+      rpcUrls: ['https://sepolia-rollup.arbitrum.io/rpc'],
+      blockExplorerUrls: ['https://sepolia.arbiscan.io'],
     }
   }
   return {
     hyperliquidChain: 'Mainnet' as const,
     signatureChainId: '0xa4b1' as const,
-    chainId: 42161,
+    chainId: 42161 as const,
+    chainName: 'Arbitrum One',
+    rpcUrls: ['https://arb1.arbitrum.io/rpc'],
+    blockExplorerUrls: ['https://arbiscan.io'],
   }
+}
+
+async function ensureWalletChain(
+  provider: EthereumProvider,
+  chain: HyperliquidSigningChain,
+): Promise<void> {
+  const activeChainId = await provider.request({ method: 'eth_chainId' })
+  if (chainIdsMatch(activeChainId, chain.signatureChainId)) return
+
+  try {
+    await provider.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: chain.signatureChainId }],
+    })
+  } catch (error) {
+    if (providerErrorCode(error) !== 4902) throw error
+    await provider.request({
+      method: 'wallet_addEthereumChain',
+      params: [
+        {
+          chainId: chain.signatureChainId,
+          chainName: chain.chainName,
+          nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+          rpcUrls: chain.rpcUrls,
+          blockExplorerUrls: chain.blockExplorerUrls,
+        },
+      ],
+    })
+    await provider.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: chain.signatureChainId }],
+    })
+  }
+
+  const selectedChainId = await provider.request({ method: 'eth_chainId' })
+  if (!chainIdsMatch(selectedChainId, chain.signatureChainId)) {
+    throw new Error(
+      `Wallet must be connected to ${chain.chainName} (${chain.chainId}) to sign this approval.`,
+    )
+  }
+}
+
+function chainIdsMatch(left: unknown, right: string): boolean {
+  try {
+    return BigInt(String(left)) === BigInt(right)
+  } catch {
+    return false
+  }
+}
+
+function providerErrorCode(error: unknown): number | null {
+  if (!error || typeof error !== 'object' || !('code' in error)) return null
+  const code = Number((error as { code?: unknown }).code)
+  return Number.isInteger(code) ? code : null
 }
 
 function splitSignature(signature: string) {

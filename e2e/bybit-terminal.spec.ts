@@ -320,6 +320,8 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
 
   await page.addInitScript(() => {
     const walletRequests: Array<{ method: string; params?: unknown[] }> = []
+    let walletChainId = '0x1'
+    let hasArbitrumSepolia = false
     Object.defineProperty(window, '__tradHyperliquidWalletRequests', {
       value: walletRequests,
       configurable: true,
@@ -330,6 +332,21 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
         walletRequests.push(args)
         if (args.method === 'eth_requestAccounts') {
           return ['0x1111111111111111111111111111111111111111']
+        }
+        if (args.method === 'eth_chainId') {
+          return walletChainId
+        }
+        if (args.method === 'wallet_switchEthereumChain') {
+          if (!hasArbitrumSepolia) {
+            throw Object.assign(new Error('Unrecognized chain.'), { code: 4902 })
+          }
+          walletChainId = (args.params?.[0] as { chainId: string }).chainId
+          return null
+        }
+        if (args.method === 'wallet_addEthereumChain') {
+          hasArbitrumSepolia = true
+          walletChainId = (args.params?.[0] as { chainId: string }).chainId
+          return null
         }
         if (args.method === 'eth_signTypedData_v4') {
           return `0x${'1'.repeat(64)}${'2'.repeat(64)}1b`
@@ -473,6 +490,35 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
   )
   expect(builderTypedDataRequests).toHaveLength(1)
   expect(agentTypedDataRequests).toHaveLength(1)
+  const walletNetworkRequests = await page.evaluate(() =>
+    (window as any).__tradHyperliquidWalletRequests.filter(
+      (request: { method: string }) =>
+        request.method === 'wallet_switchEthereumChain' ||
+        request.method === 'wallet_addEthereumChain',
+    ),
+  )
+  expect(walletNetworkRequests).toEqual([
+    {
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: '0x66eee' }],
+    },
+    {
+      method: 'wallet_addEthereumChain',
+      params: [
+        {
+          chainId: '0x66eee',
+          chainName: 'Arbitrum Sepolia',
+          nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+          rpcUrls: ['https://sepolia-rollup.arbitrum.io/rpc'],
+          blockExplorerUrls: ['https://sepolia.arbiscan.io'],
+        },
+      ],
+    },
+    {
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: '0x66eee' }],
+    },
+  ])
   const builderTypedData = JSON.parse(builderTypedDataRequests[0].params[1])
   const agentTypedData = JSON.parse(agentTypedDataRequests[0].params[1])
   expect(agentTypedData).toMatchObject({
@@ -531,6 +577,9 @@ test('Hyperliquid wallet approval errors are recoverable without reloading', asy
               ? '0x9999999999999999999999999999999999999999'
               : '0x1111111111111111111111111111111111111111',
           ]
+        }
+        if (args.method === 'eth_chainId') {
+          return '0x66eee'
         }
         if (args.method === 'eth_signTypedData_v4') {
           if (mode === 'reject') throw new Error('User rejected the request.')
