@@ -4,7 +4,7 @@ import { dirname } from 'node:path'
 
 const enabled = process.env.HYPERLIQUID_SIGNED_TESTNET_E2E === '1'
 const terminalBaseUrl = process.env.HYPERLIQUID_TERMINAL_BASE_URL || 'http://localhost:5273'
-const testEmail = process.env.HYPERLIQUID_TEST_EMAIL || 'hyperliquid-test@trad.local'
+const testEmail = process.env.HYPERLIQUID_TEST_EMAIL || 'dev@trad.local'
 const accountLabel = process.env.HYPERLIQUID_TEST_ACCOUNT_LABEL || 'HL Signed Testnet'
 const symbol = process.env.HYPERLIQUID_TEST_SYMBOL || 'BTC'
 const notional = Number(process.env.HYPERLIQUID_TEST_NOTIONAL || '20')
