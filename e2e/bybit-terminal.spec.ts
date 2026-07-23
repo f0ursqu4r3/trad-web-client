@@ -627,6 +627,7 @@ test('Hyperliquid wallet approval errors are recoverable without reloading', asy
       request: async (args: { method: string; params?: unknown[] }) => {
         const mode = (window as any).__tradWalletMode
         if (args.method === 'eth_requestAccounts') {
+          if (mode === 'disconnected') return []
           return [
             mode === 'wrong'
               ? '0x9999999999999999999999999999999999999999'
@@ -691,6 +692,12 @@ test('Hyperliquid wallet approval errors are recoverable without reloading', asy
   await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
   const approveAgent = accountPanel.getByRole('button', { name: 'Approve Agent' })
 
+  await page.evaluate(() => ((window as any).__tradWalletMode = 'disconnected'))
+  await approveAgent.click()
+  await expect(accountPanel.getByText(/Current wallet: none/)).toBeVisible()
+  await expect(approveAgent).toBeEnabled()
+
+  await page.evaluate(() => ((window as any).__tradWalletMode = 'wrong'))
   await approveAgent.click()
   await expect(accountPanel.getByText(/Connected wallet must match/)).toBeVisible()
   await expect(approveAgent).toBeEnabled()
@@ -715,6 +722,51 @@ test('Hyperliquid wallet approval errors are recoverable without reloading', asy
   await expect(
     accountPanel.getByText('Hyperliquid agent wallet approved for Hyperliquid QA.'),
   ).toBeVisible()
+})
+
+test('Hyperliquid agent refresh surfaces exchange-side revocation', async ({ page }) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+  await page.route('**/api/accounts/**/hyperliquid/agent-approval/refresh', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        account: {
+          id: '17171717-1717-4717-8717-171717171717',
+          label: 'Hyperliquid QA',
+          key: 'redacted',
+          network: 'testnet',
+          exchange: 'hyperliquid',
+          exchange_metadata: {
+            product: 'usdc_perp',
+            user_address: '0x1111111111111111111111111111111111111111',
+            agent_address: '0x2222222222222222222222222222222222222222',
+            agent_approved: false,
+            agent_approval_verified_at_ms: null,
+            builder_address: '0x3333333333333333333333333333333333333333',
+            builder_fee_tenths_bps: 10,
+          },
+        },
+        agent_approved: false,
+      }),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+  const accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
+  await accountPanel.getByRole('button', { name: 'Refresh Agent' }).click()
+
+  await expect(
+    accountPanel.getByText('Hyperliquid agent wallet is not approved for Hyperliquid QA.'),
+  ).toBeVisible()
+  await expect(accountPanel.getByText('unvalidated', { exact: true }).first()).toBeVisible()
 })
 
 test('Bybit terminal remains inspectable with many active TE rows', async ({ page }) => {
