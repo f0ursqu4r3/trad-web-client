@@ -178,6 +178,7 @@ function binanceOrderDevice(): Device {
     price: 3500,
     execution: { kind: 'market' },
     throttle: false,
+    one_way_open_semantics: 'delta',
     one_way_position_effect: null,
     one_way_transition: null,
     execution_guards: null,

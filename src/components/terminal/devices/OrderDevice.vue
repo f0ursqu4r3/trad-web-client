@@ -128,6 +128,11 @@ const oneWayEffectLabel = computed(() => {
   if (!effect) return null
   return effect.opened_quantity > 1e-12 ? 'Reversal' : 'Reduction only'
 })
+const openSemanticsLabel = computed(() =>
+  props.device.one_way_open_semantics === 'target_side_exposure'
+    ? 'Target side exposure'
+    : 'Buy/sell delta',
+)
 
 const baselineSideLabel = computed(() => {
   const quantity = props.device.one_way_position_effect?.baseline_signed_quantity ?? 0
@@ -175,6 +180,12 @@ onUnmounted(() => {
         <h3 class="text-sm font-mono text-primary m-0">{{ deviceTitle }}</h3>
         <div class="flex items-center gap-2">
           <span class="pill pill-xs">{{ actionLabel }}</span>
+          <span
+            v-if="device.one_way_open_semantics === 'target_side_exposure'"
+            class="pill pill-xs pill-info"
+          >
+            TE exposure target
+          </span>
           <span v-if="device.throttle" class="pill pill-xs pill-warn">Throttled</span>
           <span :class="getStatusClass(device.status)" class="text-[10px] px-2 py-1">
             {{ device.status }}
@@ -255,6 +266,10 @@ onUnmounted(() => {
         <div>
           <dt class="dt-label">Outcome</dt>
           <dd class="m-0 font-mono text-primary">{{ oneWayEffectLabel }}</dd>
+        </div>
+        <div>
+          <dt class="dt-label">Open Semantics</dt>
+          <dd class="m-0 font-mono text-primary">{{ openSemanticsLabel }}</dd>
         </div>
         <div>
           <dt class="dt-label">Baseline</dt>

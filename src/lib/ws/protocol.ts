@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 24
+export const PROTOCOL_VERSION = 25
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -963,6 +963,8 @@ export type OneWayOrderTransition = {
   phase: OneWayTransitionPhase
 }
 
+export type OneWayOpenSemantics = 'delta' | 'target_side_exposure'
+
 export type OrderSnapshot = {
   market_context: MarketContext
   market_action: MarketAction
@@ -973,6 +975,7 @@ export type OrderSnapshot = {
   price: number
   execution?: OrderExecution
   throttle?: boolean | null
+  one_way_open_semantics?: OneWayOpenSemantics
   one_way_position_effect?: OneWayPositionEffect | null
   one_way_transition?: OneWayOrderTransition | null
   execution_guards?: HyperliquidExecutionGuards | null
@@ -1135,6 +1138,7 @@ export type DeviceOrderDelta =
         price: number
         execution?: OrderExecution
         throttle?: boolean | null
+        one_way_open_semantics?: OneWayOpenSemantics
         one_way_position_effect?: OneWayPositionEffect | null
         one_way_transition?: OneWayOrderTransition | null
         execution_guards?: HyperliquidExecutionGuards | null

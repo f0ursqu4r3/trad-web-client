@@ -313,6 +313,7 @@ export const useDeviceStore = defineStore('device', () => {
         order.price = s.price
         order.execution = s.execution ?? { kind: 'market' }
         order.throttle = s.throttle ?? false
+        order.one_way_open_semantics = s.one_way_open_semantics ?? 'delta'
         order.one_way_position_effect = s.one_way_position_effect ?? null
         order.one_way_transition = s.one_way_transition ?? null
         order.execution_guards = s.execution_guards ?? null
@@ -628,6 +629,7 @@ export const useDeviceStore = defineStore('device', () => {
             price,
             execution,
             throttle,
+            one_way_open_semantics,
             one_way_position_effect,
             one_way_transition,
             execution_guards,
@@ -647,6 +649,7 @@ export const useDeviceStore = defineStore('device', () => {
           order.price = price
           order.execution = execution ?? { kind: 'market' }
           order.throttle = throttle ?? false
+          order.one_way_open_semantics = one_way_open_semantics ?? 'delta'
           order.one_way_position_effect = one_way_position_effect ?? null
           order.one_way_transition = one_way_transition ?? null
           order.execution_guards = execution_guards ?? null
@@ -1216,6 +1219,7 @@ export interface OrderState {
   price: number
   execution: OrderExecution
   throttle: boolean
+  one_way_open_semantics: import('@/lib/ws/protocol').OneWayOpenSemantics
   one_way_position_effect: import('@/lib/ws/protocol').OneWayPositionEffect | null
   one_way_transition: import('@/lib/ws/protocol').OneWayOrderTransition | null
   execution_guards: import('@/lib/ws/protocol').HyperliquidExecutionGuards | null
@@ -1446,6 +1450,7 @@ function newOrderState(): OrderState {
     price: 0,
     execution: { kind: 'market' },
     throttle: false,
+    one_way_open_semantics: 'delta',
     one_way_position_effect: null,
     one_way_transition: null,
     execution_guards: null,

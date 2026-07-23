@@ -113,7 +113,9 @@ const blocksOpeningOrder = computed(() => {
   if (isHyperliquidAccount.value) return !isHyperliquidMetadataReady(selectedAccount.value)
   return false
 })
-const requiresSuccessfulPreview = computed(() => isBybitAccount.value && canPreview())
+const requiresSuccessfulPreview = computed(
+  () => (isBybitAccount.value || isHyperliquidAccount.value) && canPreview(),
+)
 const selectedMarketContext = computed<MarketContext | null>(() =>
   accounts.getMarketContextForAccount(selectedAccountId.value),
 )
@@ -755,7 +757,8 @@ function formatNumber(value: number, digits: number) {
             <span class="preview-value">Pending</span>
           </div>
           <div class="preview-note">
-            Bybit entries require a successful split preview before submission.
+            {{ isHyperliquidAccount ? 'Hyperliquid' : 'Bybit' }} entries require a successful split
+            preview before submission.
           </div>
         </div>
         <div v-if="blocksOpeningOrder" class="preview preview-error">
