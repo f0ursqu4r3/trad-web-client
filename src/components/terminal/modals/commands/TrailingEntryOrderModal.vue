@@ -122,6 +122,9 @@ const selectedMarketContext = computed<MarketContext | null>(() =>
 const selectedCapabilities = computed(() =>
   ws.capabilitiesForMarketContext(selectedMarketContext.value),
 )
+const teCapabilityBlocked = computed(
+  () => selectedCapabilities.value !== null && !selectedCapabilities.value.supports_trailing_entry,
+)
 const supportsTeTakeProfit = computed(() => {
   const capabilities = selectedCapabilities.value
   if (capabilities) {
@@ -255,6 +258,7 @@ watch(supportsTeTakeProfit, (supported) => {
 
 function validate(): boolean {
   if (!selectedAccountId.value) return false
+  if (teCapabilityBlocked.value) return false
   if (blocksOpeningOrder.value) return false
   if (!symbol.value.trim()) return false
   if (isBybitAccount.value && !isValidBybitUsdtSymbol(symbol.value)) return false
@@ -767,6 +771,16 @@ function formatNumber(value: number, digits: number) {
             <span class="preview-value">Unvalidated</span>
           </div>
           <div class="preview-warn">{{ readinessWarning }}</div>
+        </div>
+        <div v-else-if="teCapabilityBlocked" class="preview preview-error">
+          <div class="preview-row">
+            <span>Trailing Entry</span>
+            <span class="preview-value">Unavailable</span>
+          </div>
+          <div class="preview-warn">
+            This server does not currently permit Hyperliquid Trailing Entry for the selected
+            account.
+          </div>
         </div>
         <div v-else-if="preview" class="preview">
           <div class="preview-row">

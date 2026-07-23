@@ -7,11 +7,13 @@ import DeviceTreePanel from '@/components/terminal/panels/DeviceTreePanel.vue'
 import MarketOrderModal from '@/components/terminal/modals/commands/MarketOrderModal.vue'
 import LimitOrderModal from '@/components/terminal/modals/commands/LimitOrderModal.vue'
 import ChaseOrderModal from '@/components/terminal/modals/commands/ChaseOrderModal.vue'
+import TrailingEntryOrderModal from '@/components/terminal/modals/commands/TrailingEntryOrderModal.vue'
 import CommandModalContainer from '@/components/terminal/modals/commands/CommandModalContainer.vue'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import { useCommandStore } from '@/stores/command'
 import { useDeviceStore } from '@/stores/devices'
 import { useWsStore } from '@/stores/ws'
+import { useSplitPreviewStore } from '@/stores/splitPreview'
 import { bybitProtocolFixtures } from '@/lib/bybitProtocolFixtures'
 import {
   CommandStatus,
@@ -32,32 +34,75 @@ import {
   type MarketContext,
   type MarketProduct,
   type MarketRef,
+  type UserCommandPayload,
 } from '@/lib/ws/protocol'
 
 const commandPanelRef = ref<InstanceType<typeof CommandPanel> | null>(null)
 const accountStore = useAccountsStore()
+const commandStore = useCommandStore()
 const wsStore = useWsStore()
 const continueMissedEntrySends = ref<string[]>([])
 const commandSends = ref<unknown[]>([])
+const inspectCommandSends = ref<string[]>([])
 const marketOrderOpen = ref(false)
 const limitOrderOpen = ref(false)
 const chaseOrderOpen = ref(false)
+const trailingEntryOpen = ref(false)
 
 wsStore.sendContinueMissedTrailingEntry = (commandId: string) => {
   continueMissedEntrySends.value = [...continueMissedEntrySends.value, commandId]
   return commandId
 }
 wsStore.sendUserCommand = ((payload: unknown) => {
+  const commandId = '19191919-1919-4919-8919-191919191919'
   commandSends.value = [...commandSends.value, payload]
-  return '19191919-1919-4919-8919-191919191919'
+  commandStore.addPendingCommand(commandId, payload)
+  window.setTimeout(() => commandStore.verifyPendingCommand(commandId), 0)
+  return commandId
 }) as typeof wsStore.sendUserCommand
+wsStore.inspectCommand = (commandId: string) => {
+  inspectCommandSends.value = [...inspectCommandSends.value, commandId]
+}
+wsStore.sendUserCommandPreview = ((payload: UserCommandPayload) => {
+  const requestId = '31313131-3131-4131-8131-313131313131'
+  commandSends.value = [...commandSends.value, payload]
+  if (payload.kind === 'SplitPreview') {
+    window.setTimeout(() => {
+      useSplitPreviewStore().setPreview({
+        request_uuid: requestId,
+        symbol: payload.data.symbol,
+        market_context: payload.data.market_context,
+        position_side: payload.data.position_side,
+        price_est: 50_000,
+        price_source: 'hyperliquid_mid',
+        total_qty_est: 0.002,
+        total_qty_adj: 0.002,
+        total_notional_est: 100,
+        split_count: 2,
+        split_min: 2,
+        split_max: 2,
+        child_qty_est: 0.001,
+        child_notional_est: 50,
+        child_notional_min: 50,
+        child_notional_max: 50,
+        target_child_notional: payload.data.split_settings?.target_child_notional ?? 50,
+        slippage_margin: payload.data.split_settings?.slippage_margin ?? 0,
+        warnings: [],
+      })
+    }, 0)
+  }
+  return requestId
+}) as typeof wsStore.sendUserCommandPreview
 
 declare global {
   interface Window {
     __tradBybitTerminalFixture?: {
       getContinueMissedEntrySends: () => string[]
       getCommandSends: () => unknown[]
+      getInspectCommandSends: () => string[]
+      getSelectedCommandId: () => string | null
       setChaseStale: () => void
+      setHyperliquidTeEnabled: (enabled: boolean) => void
     }
   }
 }
@@ -65,6 +110,18 @@ declare global {
 window.__tradBybitTerminalFixture = {
   getContinueMissedEntrySends: () => [...continueMissedEntrySends.value],
   getCommandSends: () => [...commandSends.value],
+  getInspectCommandSends: () => [...inspectCommandSends.value],
+  getSelectedCommandId: () => commandStore.selectedCommandId,
+  setHyperliquidTeEnabled: (enabled: boolean) => {
+    const key = `hyperliquid:${hyperliquidAccountId}`
+    const current = wsStore.marketCapabilities[key]
+    if (!current) return
+    wsStore.marketCapabilities[key] = {
+      ...current,
+      supports_trailing_entry: enabled,
+      supports_trailing_entry_close_command: enabled,
+    }
+  },
   setChaseStale: () => {
     const event: DeviceChaseDeltaEvent = {
       device_id: hyperliquidChaseDeviceId,
@@ -97,9 +154,19 @@ function openHyperliquidChaseOrder() {
   chaseOrderOpen.value = true
 }
 
+function openHyperliquidTrailingEntry() {
+  accountStore.selectedAccountId = hyperliquidAccountId
+  trailingEntryOpen.value = true
+}
+
 function captureMarketOrder(payload: unknown) {
   commandSends.value = [...commandSends.value, payload]
   marketOrderOpen.value = false
+}
+
+function captureTrailingEntry(payload: unknown) {
+  wsStore.sendUserCommand(payload as UserCommandPayload)
+  trailingEntryOpen.value = false
 }
 
 const binanceAccountId = '11111111-1111-4111-8111-111111111111'
@@ -1121,7 +1188,6 @@ const highCountBybitDevices = highCountBybitSymbols.map((symbol, index) => {
 })
 
 onMounted(async () => {
-  const commandStore = useCommandStore()
   const deviceStore = useDeviceStore()
 
   commandStore.history = [
@@ -1205,6 +1271,9 @@ onMounted(async () => {
       <button data-testid="open-hyperliquid-chase" type="button" @click="openHyperliquidChaseOrder">
         Open Hyperliquid Chase
       </button>
+      <button data-testid="open-hyperliquid-te" type="button" @click="openHyperliquidTrailingEntry">
+        Open Hyperliquid TE
+      </button>
     </div>
     <MarketOrderModal
       :open="marketOrderOpen"
@@ -1213,6 +1282,11 @@ onMounted(async () => {
     />
     <LimitOrderModal :open="limitOrderOpen" @close="limitOrderOpen = false" />
     <ChaseOrderModal :open="chaseOrderOpen" @close="chaseOrderOpen = false" />
+    <TrailingEntryOrderModal
+      :open="trailingEntryOpen"
+      @submit="captureTrailingEntry"
+      @close="trailingEntryOpen = false"
+    />
     <CommandModalContainer />
     <section class="e2e-panel" data-testid="accounts-panel" aria-label="Trading Accounts">
       <AccountsListPanel />

@@ -284,6 +284,125 @@ test('Hyperliquid order forms serialize explicit execution-guard overrides', asy
   })
 })
 
+test('Hyperliquid TE is capability-gated, previewed, and submitted with native symbols', async ({
+  page,
+}) => {
+  await page.route('https://api.hyperliquid-testnet.xyz/info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ BTC: '50000' }),
+    })
+  })
+  await page.goto('/e2e/bybit-terminal')
+  await page.getByTestId('open-hyperliquid-te').click()
+
+  const dialog = page.getByRole('dialog', { name: 'Trailing Entry' })
+  await expect(dialog.getByText('Unavailable', { exact: true })).toBeVisible()
+  await expect(
+    dialog.getByText(
+      'This server does not currently permit Hyperliquid Trailing Entry for the selected account.',
+      { exact: true },
+    ),
+  ).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Submit' })).toBeDisabled()
+
+  await page.evaluate(() => window.__tradBybitTerminalFixture?.setHyperliquidTeEnabled(true))
+  await expect(dialog.getByText('Unavailable', { exact: true })).toBeHidden()
+  await expect(dialog.getByLabel('Take Profit')).toBeVisible()
+  await expect(dialog.getByText(/Hyperliquid public mid \$50.00k/)).toBeVisible()
+
+  await dialog.getByRole('textbox', { name: 'Symbol' }).fill(' btc ')
+  await dialog.getByRole('spinbutton', { name: /^Activation Price/ }).fill('50000')
+  await dialog.getByRole('spinbutton', { name: /^Jump Threshold/ }).fill('0.1')
+  await dialog.getByRole('spinbutton', { name: /^Stop Loss/ }).fill('49000')
+  await dialog.getByRole('spinbutton', { name: /^Take Profit/ }).fill('51000')
+  await dialog.getByRole('spinbutton', { name: /^Risk Amount/ }).fill('10')
+  await dialog.getByRole('spinbutton', { name: /^Target Order Size/ }).fill('50')
+  await dialog.getByRole('spinbutton', { name: /^Max Splits Cap/ }).fill('2')
+  await dialog.getByRole('combobox', { name: 'Split Mode' }).selectOption('prefer_target')
+  await dialog.getByRole('spinbutton', { name: /^Slippage Margin/ }).fill('0.2')
+
+  await expect(dialog.getByText('Estimated splits (current price)')).toBeVisible()
+  await expect(dialog.getByText('2 (range 2–2)', { exact: true })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled()
+  await dialog.getByRole('button', { name: 'Submit' }).click()
+
+  const sends = await page.evaluate(() => window.__tradBybitTerminalFixture?.getCommandSends())
+  const trailingEntries = (sends ?? []).filter(
+    (payload: any) => payload?.kind === 'TrailingEntryOrder',
+  )
+  expect(trailingEntries.at(-1)).toMatchObject({
+    kind: 'TrailingEntryOrder',
+    data: {
+      symbol: 'BTC',
+      position_side: 'Long',
+      activation_price: 50000,
+      jump_frac_threshold: 0.1,
+      stop_loss: 49000,
+      take_profit: 51000,
+      risk_amount: 10,
+      split_settings: {
+        target_child_notional: 50,
+        max_splits_cap: 2,
+        mode: 'prefer_target',
+        slippage_margin: 0.002,
+      },
+    },
+  })
+  await expect
+    .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getSelectedCommandId()))
+    .toBe('19191919-1919-4919-8919-191919191919')
+  await expect
+    .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getInspectCommandSends()))
+    .toContain('19191919-1919-4919-8919-191919191919')
+})
+
+test('Hyperliquid short TE serializes side-correct exits and native symbols', async ({ page }) => {
+  await page.route('https://api.hyperliquid-testnet.xyz/info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ETH: '3000' }),
+    })
+  })
+  await page.goto('/e2e/bybit-terminal')
+  await page.getByTestId('open-hyperliquid-te').click()
+
+  const dialog = page.getByRole('dialog', { name: 'Trailing Entry' })
+  await expect(dialog.getByText('Unavailable', { exact: true })).toBeVisible()
+  await page.evaluate(() => window.__tradBybitTerminalFixture?.setHyperliquidTeEnabled(true))
+  await expect(dialog.getByText('Unavailable', { exact: true })).toBeHidden()
+  await dialog.getByRole('textbox', { name: 'Symbol' }).fill(' eth ')
+  await dialog.getByRole('combobox', { name: 'Position Side' }).selectOption('Short')
+  await dialog.getByRole('spinbutton', { name: /^Activation Price/ }).fill('3000')
+  await dialog.getByRole('spinbutton', { name: /^Jump Threshold/ }).fill('0.2')
+  await dialog.getByRole('spinbutton', { name: /^Stop Loss/ }).fill('3100')
+  await dialog.getByRole('spinbutton', { name: /^Take Profit/ }).fill('2800')
+  await dialog.getByRole('spinbutton', { name: /^Risk Amount/ }).fill('12')
+
+  await expect(dialog.getByText('Estimated splits (current price)')).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled()
+  await dialog.getByRole('button', { name: 'Submit' }).click()
+
+  const sends = await page.evaluate(() => window.__tradBybitTerminalFixture?.getCommandSends())
+  const trailingEntries = (sends ?? []).filter(
+    (payload: any) => payload?.kind === 'TrailingEntryOrder',
+  )
+  expect(trailingEntries.at(-1)).toMatchObject({
+    kind: 'TrailingEntryOrder',
+    data: {
+      symbol: 'ETH',
+      position_side: 'Short',
+      activation_price: 3000,
+      jump_frac_threshold: 0.2,
+      stop_loss: 3100,
+      take_profit: 2800,
+      risk_amount: 12,
+    },
+  })
+})
+
 test('Hyperliquid Chase form serializes post-only strategy controls and protection', async ({
   page,
 }) => {
