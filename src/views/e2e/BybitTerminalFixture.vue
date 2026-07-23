@@ -949,6 +949,13 @@ const hyperliquidChaseProtection = {
       tracked_parent_remote_order_ids: ['98765432'],
       entry_filled_qty: 0.0005,
       protection_filled_qty: 0,
+      owned_remaining_qty: 0.0005,
+      ownership_status: 'external_surplus',
+      last_live_signed_position: 0.001,
+      aggregate_owned_qty: 0.0005,
+      aggregate_owner_count: 1,
+      ownership_reason:
+        'Live position 0.00100000 includes 0.00050000 same-side quantity not owned by Trad protection groups',
       status: NativeProtectionStatus.Tracking,
       last_client_order_id: 'chase-sl',
       last_parent_client_order_id: '0x11111111111111111111111111111111',

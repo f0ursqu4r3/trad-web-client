@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 25
+export const PROTOCOL_VERSION = 26
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -193,6 +193,12 @@ export enum NativeProtectionStatus {
 }
 
 export type ProtectionActivationPolicy = 'parent_attached' | 'first_fill_cancel_remainder'
+export type ProtectionOwnershipStatus =
+  | 'unknown'
+  | 'consistent'
+  | 'external_surplus'
+  | 'reconciliation_required'
+  | 'flat'
 
 // ==============================================================================================
 // Protocol-specific enums (match Rust variant names)
@@ -1032,6 +1038,12 @@ export type NativeProtectionSnapshot = {
   entry_filled_qty: number
   protection_filled_qty: number
   execution_fills?: ExecutionFill[]
+  owned_remaining_qty?: number
+  ownership_status?: ProtectionOwnershipStatus
+  last_live_signed_position?: number | null
+  aggregate_owned_qty?: number | null
+  aggregate_owner_count?: number | null
+  ownership_reason?: string | null
   status: NativeProtectionStatus
   last_client_order_id?: string | null
   last_parent_client_order_id?: string | null
@@ -1275,6 +1287,12 @@ export type DeviceNpDelta =
         entry_filled_qty: number
         protection_filled_qty: number
         execution_fills?: ExecutionFill[]
+        owned_remaining_qty?: number
+        ownership_status?: ProtectionOwnershipStatus
+        last_live_signed_position?: number | null
+        aggregate_owned_qty?: number | null
+        aggregate_owner_count?: number | null
+        ownership_reason?: string | null
         status: NativeProtectionStatus
         last_client_order_id?: string | null
         last_parent_client_order_id?: string | null
@@ -1320,6 +1338,12 @@ export type DeviceNpDelta =
         observed_protection_order_ids?: string[]
         entry_filled_qty: number
         protection_filled_qty: number
+        owned_remaining_qty: number
+        ownership_status: ProtectionOwnershipStatus
+        last_live_signed_position?: number | null
+        aggregate_owned_qty?: number | null
+        aggregate_owner_count?: number | null
+        ownership_reason?: string | null
         status: NativeProtectionStatus
       }
     }

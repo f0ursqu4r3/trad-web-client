@@ -98,7 +98,12 @@ function fmtSplitMode(value: string | null | undefined) {
 
 const networkLabel = computed(() => {
   const ctx = props.device.market_context
-  if (ctx.type === 'binance' || ctx.type === 'bifake' || ctx.type === 'bybit') {
+  if (
+    ctx.type === 'binance' ||
+    ctx.type === 'bifake' ||
+    ctx.type === 'bybit' ||
+    ctx.type === 'hyperliquid'
+  ) {
     const account = accounts.accounts.find((item) => item.id === ctx.account_id)
     return account?.network ?? '-'
   }
@@ -294,7 +299,7 @@ const networkLabel = computed(() => {
         </div>
         <div>
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Net Base (Dust)
+            Command-Owned Remaining
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">
             {{ netBase.toFixed(6) }}
@@ -444,7 +449,8 @@ const networkLabel = computed(() => {
           v-if="
             (device.market_context.type === 'binance' ||
               device.market_context.type === 'bifake' ||
-              device.market_context.type === 'bybit') &&
+              device.market_context.type === 'bybit' ||
+              device.market_context.type === 'hyperliquid') &&
             'account_id' in device.market_context
           "
         >

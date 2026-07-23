@@ -387,6 +387,18 @@ test('Hyperliquid Chase renders composed attempts, diagnostics, stale state, and
       kind: 'CancelDevice',
       data: { device_id: '26262626-2626-4626-8626-262626262626' },
     })
+
+  await deviceTree.getByText('Native Protection', { exact: true }).last().click()
+  await expect(details.getByText('Exposure Ownership')).toBeVisible()
+  await expect(details.getByText('External surplus', { exact: true })).toBeVisible()
+  await expect(details.getByText('Command Owned', { exact: true })).toBeVisible()
+  await expect(details.getByText('Aggregate Trad Owned', { exact: true })).toBeVisible()
+  await expect(
+    details.getByText(
+      'Live position 0.00100000 includes 0.00050000 same-side quantity not owned by Trad protection groups',
+      { exact: true },
+    ),
+  ).toBeVisible()
 })
 
 test('Hyperliquid Chase command summary duplicates all strategy parameters', async ({ page }) => {

@@ -46,6 +46,35 @@ const activationPolicyLabel = computed(() =>
     : 'Parent attached',
 )
 
+const ownershipStatusLabel = computed(() => {
+  switch (props.device.ownership_status) {
+    case 'consistent':
+      return 'Consistent'
+    case 'external_surplus':
+      return 'External surplus'
+    case 'reconciliation_required':
+      return 'Reconciliation required'
+    case 'flat':
+      return 'Flat'
+    default:
+      return 'Pending'
+  }
+})
+
+const ownershipStatusClass = computed(() => {
+  switch (props.device.ownership_status) {
+    case 'consistent':
+    case 'flat':
+      return 'pill pill-ok'
+    case 'external_surplus':
+      return 'pill pill-warn'
+    case 'reconciliation_required':
+      return 'pill pill-err'
+    default:
+      return 'pill'
+  }
+})
+
 function getStatusClass(status: NativeProtectionStatus): string {
   switch (status) {
     case NativeProtectionStatus.Flat:
@@ -168,6 +197,73 @@ function fmtDate(d?: Date | null): string {
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">
             {{ formatQty(device.protection_filled_qty) }}
+          </dd>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="isHyperliquid" class="space-y-3">
+      <h4
+        class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)] m-0 border-b border-[var(--border-color)] pb-1"
+      >
+        Exposure Ownership
+      </h4>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Command Owned
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ formatQty(device.owned_remaining_qty) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Ownership
+          </dt>
+          <dd class="m-0">
+            <span :class="ownershipStatusClass" class="text-[10px] px-2 py-1">
+              {{ ownershipStatusLabel }}
+            </span>
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Live Signed Position
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ fmtOptionalQty(device.last_live_signed_position) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Aggregate Trad Owned
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ fmtOptionalQty(device.aggregate_owned_qty) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Protection Groups
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ device.aggregate_owner_count ?? '-' }}
+          </dd>
+        </div>
+        <div v-if="device.ownership_reason" class="col-span-2">
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Reconciliation
+          </dt>
+          <dd
+            class="m-0 font-mono text-[10px] break-words"
+            :class="
+              device.ownership_status === 'reconciliation_required'
+                ? 'text-[var(--color-danger)]'
+                : 'text-[var(--color-text-dim)]'
+            "
+          >
+            {{ device.ownership_reason }}
           </dd>
         </div>
       </div>

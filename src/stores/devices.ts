@@ -384,6 +384,14 @@ export const useDeviceStore = defineStore('device', () => {
         np.entry_filled_qty = s.entry_filled_qty
         np.protection_filled_qty = s.protection_filled_qty
         np.execution_fills = s.execution_fills ?? []
+        np.owned_remaining_qty =
+          s.owned_remaining_qty ??
+          Math.max(0, s.entry_filled_qty - s.protection_filled_qty)
+        np.ownership_status = s.ownership_status ?? 'unknown'
+        np.last_live_signed_position = s.last_live_signed_position ?? null
+        np.aggregate_owned_qty = s.aggregate_owned_qty ?? null
+        np.aggregate_owner_count = s.aggregate_owner_count ?? null
+        np.ownership_reason = s.ownership_reason ?? null
         np.status = s.status
         np.last_client_order_id = s.last_client_order_id ?? null
         np.last_parent_client_order_id = s.last_parent_client_order_id ?? null
@@ -944,6 +952,12 @@ export const useDeviceStore = defineStore('device', () => {
           entry_filled_qty,
           protection_filled_qty,
           execution_fills,
+          owned_remaining_qty,
+          ownership_status,
+          last_live_signed_position,
+          aggregate_owned_qty,
+          aggregate_owner_count,
+          ownership_reason,
           status,
           last_client_order_id,
           last_parent_client_order_id,
@@ -970,6 +984,13 @@ export const useDeviceStore = defineStore('device', () => {
         np.entry_filled_qty = entry_filled_qty
         np.protection_filled_qty = protection_filled_qty
         np.execution_fills = execution_fills ?? []
+        np.owned_remaining_qty =
+          owned_remaining_qty ?? Math.max(0, entry_filled_qty - protection_filled_qty)
+        np.ownership_status = ownership_status ?? 'unknown'
+        np.last_live_signed_position = last_live_signed_position ?? null
+        np.aggregate_owned_qty = aggregate_owned_qty ?? null
+        np.aggregate_owner_count = aggregate_owner_count ?? null
+        np.ownership_reason = ownership_reason ?? null
         np.status = status
         np.last_client_order_id = last_client_order_id ?? null
         np.last_parent_client_order_id = last_parent_client_order_id ?? null
@@ -1036,6 +1057,12 @@ export const useDeviceStore = defineStore('device', () => {
           observed_protection_order_ids,
           entry_filled_qty,
           protection_filled_qty,
+          owned_remaining_qty,
+          ownership_status,
+          last_live_signed_position,
+          aggregate_owned_qty,
+          aggregate_owner_count,
+          ownership_reason,
           status,
         } = delta.data
         np.observed_entries = observed_entries
@@ -1044,6 +1071,12 @@ export const useDeviceStore = defineStore('device', () => {
         np.observed_protection_order_ids = observed_protection_order_ids ?? []
         np.entry_filled_qty = entry_filled_qty
         np.protection_filled_qty = protection_filled_qty
+        np.owned_remaining_qty = owned_remaining_qty
+        np.ownership_status = ownership_status
+        np.last_live_signed_position = last_live_signed_position ?? null
+        np.aggregate_owned_qty = aggregate_owned_qty ?? null
+        np.aggregate_owner_count = aggregate_owner_count ?? null
+        np.ownership_reason = ownership_reason ?? null
         np.status = status
         np.last_update_seen_at = eventTime
         break
@@ -1290,6 +1323,12 @@ export interface NativeProtectionState {
   entry_filled_qty: number
   protection_filled_qty: number
   execution_fills?: ExecutionFill[]
+  owned_remaining_qty: number
+  ownership_status: import('@/lib/ws/protocol').ProtectionOwnershipStatus
+  last_live_signed_position: number | null
+  aggregate_owned_qty: number | null
+  aggregate_owner_count: number | null
+  ownership_reason: string | null
   status: NativeProtectionStatus
   last_client_order_id: string | null
   last_parent_client_order_id: string | null
@@ -1521,6 +1560,12 @@ function newNativeProtectionState(): NativeProtectionState {
     entry_filled_qty: 0,
     protection_filled_qty: 0,
     execution_fills: [],
+    owned_remaining_qty: 0,
+    ownership_status: 'unknown',
+    last_live_signed_position: null,
+    aggregate_owned_qty: null,
+    aggregate_owner_count: null,
+    ownership_reason: null,
     status: NativeProtectionStatus.Pending,
     last_client_order_id: null,
     last_parent_client_order_id: null,
