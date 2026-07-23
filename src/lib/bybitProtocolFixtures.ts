@@ -84,6 +84,7 @@ const bybitCapabilities = {
   market_context: bybitContext,
   supports_market_orders: true,
   supports_limit_orders: false,
+  supports_chase_orders: false,
   supports_trailing_entry: true,
   supports_direct_close_market_orders: true,
   supports_trailing_entry_close_command: true,

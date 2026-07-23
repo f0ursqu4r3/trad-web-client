@@ -20,6 +20,13 @@ export const commandRegistry: CommandMeta[] = [
   },
   { kind: 'LimitOrder', label: 'Limit Order', description: 'Place a limit order', modal: true },
   {
+    kind: 'ChaseOrder',
+    label: 'Chase Order',
+    description: 'Follow the same-side top of book with a post-only order',
+    aliases: ['chase'],
+    modal: true,
+  },
+  {
     kind: 'SplitMarketOrder',
     label: 'Split Market Order',
     description: 'Use Trailing Entry split settings',

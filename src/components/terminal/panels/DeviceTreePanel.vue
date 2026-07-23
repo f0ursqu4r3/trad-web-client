@@ -9,6 +9,7 @@ import {
   useDeviceStore,
   type Device,
   type OrderState,
+  type ChaseState,
   type TrailingEntryState,
 } from '@/stores/devices'
 import { useCommandStore } from '@/stores/command'
@@ -184,9 +185,11 @@ const treeData = computed<TreeItem[]>(() => {
     const intent =
       device.kind === 'Order'
         ? ((device.state as any).market_action as string)
-        : device.kind === 'Split'
-          ? splitIntent(device)
-          : null
+        : device.kind === 'Chase'
+          ? ((device.state as ChaseState).market_action as string)
+          : device.kind === 'Split'
+            ? splitIntent(device)
+            : null
     nodes.set(device.id, {
       id: device.id,
       children: [],
@@ -195,7 +198,9 @@ const treeData = computed<TreeItem[]>(() => {
           ? (device.state as OrderState).execution?.kind === 'limit'
             ? 'Limit Order'
             : 'Market Order'
-          : formatName(device.kind),
+          : device.kind === 'Chase'
+            ? 'Chase'
+            : formatName(device.kind),
       symbol: device.state.symbol,
       market: deviceMarketFacetMap.value.get(device.id)?.labels ?? null,
       protection: protectionDisplay(device.protection_state) as ProtectionDisplay | null,

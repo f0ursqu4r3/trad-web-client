@@ -7,6 +7,7 @@ import {
   type CommandHistoryItem,
   type Uuid,
   type LimitOrderCommand,
+  type ChaseOrderCommand,
   type MarketOrderCommand,
   type SetHedgeModeCommand,
   type SetLeverageCommand,
@@ -38,6 +39,7 @@ export interface OrderedCommandHistoryItem extends CommandHistoryItem {
 }
 
 export enum interestingCommandKinds {
+  ChaseOrder,
   LimitOrder,
   MarketOrder,
   SetHedgeMode,
@@ -47,6 +49,7 @@ export enum interestingCommandKinds {
 }
 
 export type InterestingCommand =
+  | ChaseOrderCommand
   | LimitOrderCommand
   | MarketOrderCommand
   | SetHedgeModeCommand
@@ -450,6 +453,7 @@ export const useCommandStore = defineStore(
       return (
         kind === 'MarketOrder' ||
         kind === 'LimitOrder' ||
+        kind === 'ChaseOrder' ||
         kind === 'SplitMarketOrder' ||
         kind === 'TrailingEntryOrder'
       )

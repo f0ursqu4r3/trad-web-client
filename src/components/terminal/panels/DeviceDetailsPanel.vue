@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useDeviceStore } from '@/stores/devices'
 import TrailingEntryDevice from '@/components/terminal/devices/TrailingEntryDevice.vue'
 import OrderDevice from '@/components/terminal/devices/OrderDevice.vue'
+import ChaseDevice from '@/components/terminal/devices/ChaseDevice.vue'
 import StopGuardDevice from '@/components/terminal/devices/StopGuardDevice.vue'
 import NativeProtectionDevice from '@/components/terminal/devices/NativeProtectionDevice.vue'
 import SplitDevice from '@/components/terminal/devices/SplitDevice.vue'
@@ -28,6 +29,8 @@ const deviceComp = computed(() => {
       return TrailingEntryDevice
     case 'Order':
       return OrderDevice
+    case 'Chase':
+      return ChaseDevice
     case 'StopGuard':
       return StopGuardDevice
     case 'NativeProtection':

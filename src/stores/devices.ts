@@ -13,6 +13,8 @@ import {
   type TrailingEntryStats,
   type DeviceOrderDelta,
   type DeviceOrderDeltaEvent,
+  type DeviceChaseDeltaEvent,
+  type ChaseSnapshot,
   type DeviceNpDelta,
   type DeviceNpDeltaEvent,
   type DeviceSgDelta,
@@ -70,9 +72,7 @@ export const useDeviceStore = defineStore('device', () => {
     return normalized.length > 0 ? normalized : null
   }
 
-  function findOrderByExchangeOrderId(
-    orderId: string | number | null | undefined,
-  ): Device | null {
+  function findOrderByExchangeOrderId(orderId: string | number | null | undefined): Device | null {
     const normalizedOrderId = normalizeOrderIdentifier(orderId)
     if (!normalizedOrderId) return null
 
@@ -297,6 +297,10 @@ export const useDeviceStore = defineStore('device', () => {
         if (s.stats) te.stats = s.stats
         break
       }
+      case 'Chase': {
+        device.state = chaseStateFromSnapshot(snapshot.data)
+        break
+      }
       case 'Order': {
         const order = device.state as OrderState
         const s = snapshot.data
@@ -320,7 +324,9 @@ export const useDeviceStore = defineStore('device', () => {
         order.client_order_id = s.client_order_id ?? null
         order.sent_at = s.sent_at ? new Date(s.sent_at) : null
         order.last_update_seen_at = s.last_update_seen_at ? new Date(s.last_update_seen_at) : null
-        order.last_status_check_at = s.last_status_check_at ? new Date(s.last_status_check_at) : null
+        order.last_status_check_at = s.last_status_check_at
+          ? new Date(s.last_status_check_at)
+          : null
         break
       }
       case 'Split': {
@@ -416,21 +422,25 @@ export const useDeviceStore = defineStore('device', () => {
   function handleDeviceUpdate(kind: string, event: DeviceDeltaEvent) {
     logger.debug('Handling device update of kind:', kind, 'with event:', event)
     let commandId = null
-    if (event.delta.kind === 'Init') {
+    if ('delta' in event && event.delta.kind === 'Init') {
       commandId = event.delta.data.command_id || null
+    }
+    if (kind === 'DeviceChaseDelta') {
+      const existing = deviceMap.value[event.device_id]
+      commandId = existing?.associated_command_id ?? null
     }
     const device = ensureDeviceRecord(event.device_id, kind, commandId)
     if (!device) {
       queuePendingUpdate(event.device_id, kind, event)
       return
     }
-    if (event.delta.kind === 'Init' && event.delta.data.created_at) {
+    if ('delta' in event && event.delta.kind === 'Init' && event.delta.data.created_at) {
       device.created_at = new Date(event.delta.data.created_at)
     } else if (!device.created_at && event.ts) {
       device.created_at = new Date(event.ts)
     }
     applyDeviceEvent(device, kind, event)
-    if (event.delta.kind === 'Init') {
+    if ('delta' in event && event.delta.kind === 'Init') {
       attachKnownChildren(device.id)
       drainPendingUpdates(device)
     }
@@ -447,6 +457,9 @@ export const useDeviceStore = defineStore('device', () => {
       case 'DeviceOrderDelta':
         applyDeviceOrderDeltaEvent(device, event as DeviceOrderDeltaEvent)
         break
+      case 'DeviceChaseDelta':
+        applyDeviceChaseDeltaEvent(device, event as DeviceChaseDeltaEvent)
+        break
       case 'DeviceSgDelta':
         applyDeviceSgDeltaEvent(device, event as DeviceSgDeltaEvent)
         break
@@ -454,6 +467,11 @@ export const useDeviceStore = defineStore('device', () => {
         applyDeviceNpDeltaEvent(device, event as DeviceNpDeltaEvent)
         break
     }
+  }
+
+  function applyDeviceChaseDeltaEvent(device: Device, event: DeviceChaseDeltaEvent) {
+    device.state = chaseStateFromSnapshot(event.chase)
+    device.created_at = new Date(event.chase.created_at)
   }
 
   function applyDeviceTeDeltaEvent(device: Device, event: DeviceTeDeltaEvent) {
@@ -1095,6 +1113,7 @@ export interface Device {
 
 export type DeviceState =
   | TrailingEntryState
+  | ChaseState
   | SplitState
   | OrderState
   | StopGuardState
@@ -1102,6 +1121,7 @@ export type DeviceState =
 
 export type DeviceDeltaEvent =
   | DeviceTeDeltaEvent
+  | DeviceChaseDeltaEvent
   | DeviceOrderDeltaEvent
   | DeviceNpDeltaEvent
   | DeviceSgDeltaEvent
@@ -1113,6 +1133,24 @@ export type DeviceDelta =
   | DeviceOrderDelta
   | DeviceSgDelta
   | DeviceNpDelta
+
+export interface ChaseState
+  extends Omit<
+    ChaseSnapshot,
+    | 'market_context'
+    | 'expires_at'
+    | 'latest_book_at'
+    | 'last_reprice_at'
+    | 'retry_not_before'
+    | 'created_at'
+  > {
+  market_context: MarketContext
+  expires_at: Date | null
+  latest_book_at: Date | null
+  last_reprice_at: Date | null
+  retry_not_before: Date | null
+  created_at: Date
+}
 
 export interface TrailingEntryState {
   // parameters
@@ -1259,6 +1297,7 @@ function newDevice(deviceId: string, kind: string, command_id: string | null): D
   const mappedKind =
     {
       DeviceTeDelta: 'TrailingEntry',
+      DeviceChaseDelta: 'Chase',
       DeviceOrderDelta: 'Order',
       DeviceSgDelta: 'StopGuard',
       DeviceNpDelta: 'NativeProtection',
@@ -1268,6 +1307,8 @@ function newDevice(deviceId: string, kind: string, command_id: string | null): D
     switch (mappedKind || kind) {
       case 'TrailingEntry':
         return newTrailingEntryState()
+      case 'Chase':
+        return newChaseState()
       case 'Split':
         return newSplitSate()
       case 'Order':
@@ -1334,6 +1375,55 @@ function newTrailingEntryState(): TrailingEntryState {
       dust_threshold: 0,
     },
   }
+}
+
+function chaseStateFromSnapshot(snapshot: ChaseSnapshot): ChaseState {
+  return {
+    ...snapshot,
+    market_context: normalizeMarketContext(snapshot.market_context),
+    expires_at: snapshot.expires_at ? new Date(snapshot.expires_at) : null,
+    latest_book_at: snapshot.latest_book_at ? new Date(snapshot.latest_book_at) : null,
+    last_reprice_at: snapshot.last_reprice_at ? new Date(snapshot.last_reprice_at) : null,
+    retry_not_before: snapshot.retry_not_before ? new Date(snapshot.retry_not_before) : null,
+    created_at: new Date(snapshot.created_at),
+  }
+}
+
+function newChaseState(): ChaseState {
+  return chaseStateFromSnapshot({
+    revision: 0,
+    market_context: { type: 'none' },
+    market_action: MarketAction.Open,
+    symbol: '',
+    order_side: OrderSide.Buy,
+    position_side: PositionSide.Long,
+    quantity: 0,
+    quantity_mode: 'base',
+    total_base_qty: 0,
+    filled_qty: 0,
+    remaining_qty: 0,
+    boundary: { kind: 'basis_points', value: 0 },
+    boundary_price: 0,
+    expires_at: null,
+    attached_exit_plan: null,
+    execution_guards: null,
+    status: 'waiting_for_market',
+    current_child_id: null,
+    current_client_order_id: null,
+    next_attempt_sequence: 0,
+    attempts: [],
+    latest_bid: null,
+    latest_ask: null,
+    latest_book_at: null,
+    desired_price: null,
+    working_price: null,
+    last_reprice_at: null,
+    retry_not_before: null,
+    replacement_pending: false,
+    pending_terminal_status: null,
+    last_reason: null,
+    created_at: new Date().toISOString(),
+  })
 }
 
 function newOrderState(): OrderState {

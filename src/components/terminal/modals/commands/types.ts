@@ -1,9 +1,25 @@
 import type {
+  ChaseBoundary,
+  HyperliquidExecutionGuardOverrides,
   LimitTimeInForce,
   MarketAction,
   OrderQuantityMode,
   PositionSide,
 } from '@/lib/ws/protocol'
+
+export type ChaseOrderPrefill = {
+  account_id?: string | null
+  symbol: string
+  action: MarketAction
+  position_side: PositionSide
+  quantity: number
+  quantity_mode: OrderQuantityMode
+  boundary: ChaseBoundary
+  expires_after_secs?: number | null
+  take_profit?: number | null
+  stop_loss?: number | null
+  execution_guard_overrides?: HyperliquidExecutionGuardOverrides | null
+}
 
 export type TrailingEntryPrefill = {
   activation_price?: number

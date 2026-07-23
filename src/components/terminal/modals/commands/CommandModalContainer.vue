@@ -4,6 +4,7 @@ import { useWsStore } from '@/stores/ws'
 import { storeToRefs } from 'pinia'
 import MarketOrderModal from '@/components/terminal/modals/commands/MarketOrderModal.vue'
 import LimitOrderModal from '@/components/terminal/modals/commands/LimitOrderModal.vue'
+import ChaseOrderModal from '@/components/terminal/modals/commands/ChaseOrderModal.vue'
 import TrailingEntryOrderModal from '@/components/terminal/modals/commands/TrailingEntryOrderModal.vue'
 import SplitMarketOrderModal from '@/components/terminal/modals/commands/SplitMarketOrderModal.vue'
 import { watch, onBeforeUnmount } from 'vue'
@@ -65,6 +66,7 @@ onBeforeUnmount(() => {
       @close="closeModal('MarketOrder')"
     />
     <LimitOrderModal :open="openModals['LimitOrder']" @close="closeModal('LimitOrder')" />
+    <ChaseOrderModal :open="openModals['ChaseOrder']" @close="closeModal('ChaseOrder')" />
     <TrailingEntryOrderModal
       :open="openModals['TrailingEntryOrder']"
       @submit="submitOrder"

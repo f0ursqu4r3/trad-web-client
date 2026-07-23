@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 23
+export const PROTOCOL_VERSION = 24
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -62,6 +62,7 @@ export type ProtectionStrategyCapability = 'managed_stop_guard' | 'native_attach
 
 export type DeviceKind =
   | 'TrailingEntry'
+  | 'Chase'
   | 'MarketOrder'
   | 'Split'
   | 'StopGuard'
@@ -409,6 +410,22 @@ export type LimitOrderCommand = {
   attached_exit_plan?: AttachedExitPlan | null
   execution_guard_overrides?: HyperliquidExecutionGuardOverrides | null
 }
+export type ChaseBoundary =
+  | { kind: 'price'; value: number }
+  | { kind: 'basis_points'; value: number }
+export type ChaseOrderCommand = {
+  action: MarketAction
+  side: OrderSide
+  symbol: string
+  quantity: number
+  quantity_mode: OrderQuantityMode
+  position_side: PositionSide
+  market_context: MarketContext
+  boundary: ChaseBoundary
+  expires_after_secs?: number | null
+  attached_exit_plan?: AttachedExitPlan | null
+  execution_guard_overrides?: HyperliquidExecutionGuardOverrides | null
+}
 export type TrailingEntryOrderCommand = {
   position_side: PositionSide
   symbol: string
@@ -480,6 +497,7 @@ export type UserCommandPayload =
   | { kind: 'GetDeviceTree'; data: GetDeviceTreeCommand }
   | { kind: 'GetPrice'; data: GetPriceCommand }
   | { kind: 'GetSymbolPrecision'; data: GetSymbolPrecisionCommand }
+  | { kind: 'ChaseOrder'; data: ChaseOrderCommand }
   | { kind: 'LimitOrder'; data: LimitOrderCommand }
   | { kind: 'ListDevices'; data: ListDevicesCommand }
   | { kind: 'ListHistoricMarkets'; data?: undefined }
@@ -516,6 +534,7 @@ export type ServerToClientPayload =
   | { kind: 'CommandResponse'; data: CommandResponseData }
   | { kind: 'DeviceLifecycle'; data: DeviceLifecycleEvent }
   | { kind: 'DeviceMarketInfoResponse'; data: DeviceMarketInfoResponseData }
+  | { kind: 'DeviceChaseDelta'; data: DeviceChaseDeltaEvent }
   | { kind: 'DeviceOrderDelta'; data: DeviceOrderDeltaEvent }
   | { kind: 'DeviceNpDelta'; data: DeviceNpDeltaEvent }
   | { kind: 'DeviceSgDelta'; data: DeviceSgDeltaEvent }
@@ -558,6 +577,7 @@ export type MarketCapabilitiesData = {
   market_context: MarketContext
   supports_market_orders: boolean
   supports_limit_orders: boolean
+  supports_chase_orders: boolean
   supports_trailing_entry: boolean
   supports_direct_close_market_orders: boolean
   supports_trailing_entry_close_command: boolean
@@ -789,6 +809,7 @@ export type DeviceSnapshotLiteData = {
 
 export type DeviceSnapshotLite =
   | { kind: 'TrailingEntry'; data: TrailingEntrySnapshot }
+  | { kind: 'Chase'; data: ChaseSnapshot }
   | { kind: 'Order'; data: OrderSnapshot }
   | { kind: 'Split'; data: SplitSnapshot }
   | { kind: 'StopGuard'; data: StopGuardSnapshot }
@@ -824,6 +845,77 @@ export type TrailingEntrySnapshot = {
   end_trigger_index?: number | null
   lifecycle?: TrailingEntryLifecycle
   stats?: TrailingEntryStats
+}
+
+export type ChaseStatus =
+  | 'waiting_for_market'
+  | 'placing'
+  | 'working'
+  | 'canceling_for_replace'
+  | 'paused_stale_market'
+  | 'reconciliation_required'
+  | 'partially_filled'
+  | 'filled'
+  | 'canceled'
+  | 'expired'
+  | 'boundary_reached'
+  | 'failed'
+
+export type ChaseAttemptStatus =
+  | 'creating'
+  | 'working'
+  | 'partially_filled'
+  | 'cancel_requested'
+  | 'canceled'
+  | 'filled'
+  | 'rejected'
+  | 'reconciliation_required'
+
+export type ChaseAttempt = {
+  sequence: number
+  child_device_id: Uuid
+  client_order_id: string
+  price: number
+  requested_qty: number
+  filled_qty: number
+  status: ChaseAttemptStatus
+  created_at: string
+  completed_at?: string | null
+}
+
+export type ChaseSnapshot = {
+  revision: number
+  market_context: MarketContext
+  market_action: MarketAction
+  symbol: string
+  order_side: OrderSide
+  position_side: PositionSide
+  quantity: number
+  quantity_mode: OrderQuantityMode
+  total_base_qty: number
+  filled_qty: number
+  remaining_qty: number
+  boundary: ChaseBoundary
+  boundary_price: number
+  expires_at?: string | null
+  attached_exit_plan?: AttachedExitPlan | null
+  execution_guards?: HyperliquidExecutionGuards | null
+  status: ChaseStatus
+  current_child_id?: Uuid | null
+  current_client_order_id?: string | null
+  next_attempt_sequence: number
+  attempts: ChaseAttempt[]
+  latest_bid?: number | null
+  latest_ask?: number | null
+  latest_book_at?: string | null
+  desired_price?: number | null
+  working_price?: number | null
+  last_reprice_at?: string | null
+  retry_not_before?: string | null
+  replacement_pending: boolean
+  pending_terminal_status?: ChaseStatus | null
+  last_reason?: string | null
+  created_at: string
 }
 
 export type TrailingEntryStats = {
@@ -1008,6 +1100,13 @@ export type DeviceTeDeltaEvent = {
   ts: string // ISO timestamp
   seq: number
   delta: DeviceTeDelta
+}
+
+export type DeviceChaseDeltaEvent = {
+  device_id: Uuid
+  ts: string
+  seq: number
+  chase: ChaseSnapshot
 }
 
 export type DeviceOrderDelta =

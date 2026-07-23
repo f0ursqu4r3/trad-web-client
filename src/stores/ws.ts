@@ -429,6 +429,7 @@ export const useWsStore = defineStore('ws', () => {
       DeviceLifecycle: handleDeviceLifecycle,
       DeviceSnapshotLite: handleDeviceSnapshotLite,
       DeviceTeDelta: handleDeviceTeDelta,
+      DeviceChaseDelta: handleDeviceChaseDelta,
       DeviceSgDelta: handleDeviceSgDelta,
       DeviceNpDelta: handleDeviceNpDelta,
       DeviceSplitDelta: handleDeviceSplitDelta,
@@ -666,6 +667,17 @@ export const useWsStore = defineStore('ws', () => {
     recordPerf('DeviceOrderDelta', start, {
       device_id: data.data.device_id,
       delta: data.data.delta.kind,
+    })
+  }
+
+  function handleDeviceChaseDelta(payload: ServerToClientMessage['payload']): void {
+    const start = performance.now()
+    const data = payload as Extract<ServerToClientMessage['payload'], { kind: 'DeviceChaseDelta' }>
+    deviceStore.handleDeviceUpdate(data.kind, data.data)
+    recordPerf('DeviceChaseDelta', start, {
+      device_id: data.data.device_id,
+      status: data.data.chase.status,
+      revision: data.data.chase.revision,
     })
   }
 

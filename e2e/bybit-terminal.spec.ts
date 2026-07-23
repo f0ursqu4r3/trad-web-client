@@ -284,11 +284,139 @@ test('Hyperliquid order forms serialize explicit execution-guard overrides', asy
   })
 })
 
+test('Hyperliquid Chase form serializes post-only strategy controls and protection', async ({
+  page,
+}) => {
+  await page.goto('/e2e/bybit-terminal')
+  await page.getByTestId('open-hyperliquid-chase').click()
+
+  const dialog = page.getByRole('dialog', { name: 'Chase Order' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByLabel('Maximum Distance (bps)')).toHaveValue('20')
+  await expect(dialog.getByText('0.2% from the first working best bid')).toBeVisible()
+  await expect(dialog.getByLabel('Expiry (minutes)')).toHaveValue('5')
+  await dialog.getByLabel('USDC Amount').fill('80')
+  await dialog.getByLabel('Maximum Distance (bps)').fill('15')
+  await dialog.getByLabel('Take Profit').fill('51000')
+  await dialog.getByLabel('Stop Loss').fill('49000')
+  await dialog.getByLabel('Override account protection guards').check()
+  await dialog.getByRole('spinbutton', { name: /Market TP Guard/ }).fill('2')
+  await dialog.getByRole('spinbutton', { name: /Market SL Guard/ }).fill('15')
+  await dialog.getByRole('button', { name: 'Start Chase' }).click()
+
+  let sends = await page.evaluate(() => window.__tradBybitTerminalFixture?.getCommandSends())
+  expect(sends?.at(-1)).toEqual({
+    kind: 'ChaseOrder',
+    data: {
+      action: 'open',
+      side: 'Buy',
+      symbol: 'BTC',
+      quantity: 80,
+      quantity_mode: 'notional',
+      position_side: 'Long',
+      market_context: {
+        hyperliquid: { account_id: '17171717-1717-4717-8717-171717171717' },
+      },
+      boundary: { kind: 'basis_points', value: 15 },
+      expires_after_secs: 300,
+      attached_exit_plan: { take_profit: 51000, stop_loss: 49000 },
+      execution_guard_overrides: {
+        entry_market_tenths_bps: null,
+        take_profit_market_tenths_bps: 2000,
+        stop_loss_market_tenths_bps: 15000,
+      },
+    },
+  })
+
+  await page.getByTestId('open-hyperliquid-chase').click()
+  const untilCanceledDialog = page.getByRole('dialog', { name: 'Chase Order' })
+  await untilCanceledDialog.getByLabel('Adverse Boundary').selectOption('price')
+  await untilCanceledDialog.getByLabel('Maximum Adverse Price').fill('50500')
+  await untilCanceledDialog.getByLabel('Run until canceled').check()
+  await expect(
+    untilCanceledDialog.getByText(/remains active across sessions and restarts/),
+  ).toBeVisible()
+  await untilCanceledDialog.getByRole('button', { name: 'Start Chase' }).click()
+
+  sends = await page.evaluate(() => window.__tradBybitTerminalFixture?.getCommandSends())
+  expect(sends?.at(-1)).toMatchObject({
+    kind: 'ChaseOrder',
+    data: {
+      boundary: { kind: 'price', value: 50500 },
+      expires_after_secs: null,
+    },
+  })
+})
+
+test('Hyperliquid Chase renders composed attempts, diagnostics, stale state, and cancel', async ({
+  page,
+}) => {
+  await page.goto('/e2e/bybit-terminal')
+
+  const deviceTree = page.getByTestId('device-tree-panel')
+  await deviceTree.getByText('Chase', { exact: true }).click()
+  await expect(deviceTree.getByText('Limit Order', { exact: true })).toHaveCount(3)
+  await expect(deviceTree.getByText('Native Protection', { exact: true }).last()).toBeVisible()
+
+  const details = page.getByTestId('device-details-panel')
+  await expect(details.getByText('Chase Device')).toBeVisible()
+  await expect(details.getByText('Best Bid', { exact: true })).toBeVisible()
+  await expect(details.getByText('$50.02k', { exact: true }).first()).toBeVisible()
+  await expect(details.getByText('0.000500', { exact: true }).first()).toBeVisible()
+  await expect(details.getByText('0.001000', { exact: true }).first()).toBeVisible()
+  await expect(details.getByText('33.33%', { exact: true })).toBeVisible()
+  await expect(details.getByText('20 bps (0.2%)', { exact: true })).toBeVisible()
+  await expect(details.getByText('TP $51.00k / SL $49.00k', { exact: true })).toBeVisible()
+  await expect(details.getByText('Child protection devices', { exact: true })).toBeVisible()
+
+  const attempts = details.getByTestId('chase-attempt-history').locator('tbody tr')
+  await expect(attempts).toHaveCount(1)
+  await details.getByRole('button', { name: /Replacement History/ }).click()
+  await expect(attempts).toHaveCount(2)
+
+  await page.evaluate(() => window.__tradBybitTerminalFixture?.setChaseStale())
+  await expect(details.getByTestId('chase-stale-warning')).toBeVisible()
+  await expect(details.getByText('Paused Stale Market', { exact: true })).toBeVisible()
+
+  await details.getByRole('button', { name: 'Cancel Chase' }).click()
+  await expect
+    .poll(async () => {
+      return await page.evaluate(() => window.__tradBybitTerminalFixture?.getCommandSends())
+    })
+    .toContainEqual({
+      kind: 'CancelDevice',
+      data: { device_id: '26262626-2626-4626-8626-262626262626' },
+    })
+})
+
+test('Hyperliquid Chase command summary duplicates all strategy parameters', async ({ page }) => {
+  await page.goto('/e2e/bybit-terminal')
+
+  const row = page
+    .getByTestId('command-panel')
+    .locator('.command-row')
+    .filter({ hasText: '#25252525' })
+  await expect(row.getByText('Chase Order', { exact: true })).toBeVisible()
+  await row.getByRole('button', { name: 'Toggle details' }).click()
+  await expect(row.getByText('75 USDC', { exact: true })).toBeVisible()
+  await expect(row.getByText('20 bps (0.2%)', { exact: true })).toBeVisible()
+  await expect(row.getByText('5m', { exact: true })).toBeVisible()
+
+  await row.getByTitle('Menu').click()
+  await page.getByRole('menuitem', { name: 'Duplicate' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Chase Order' })
+  await expect(dialog.getByLabel('USDC Amount')).toHaveValue('75')
+  await expect(dialog.getByLabel('Maximum Distance (bps)')).toHaveValue('20')
+  await expect(dialog.getByLabel('Expiry (minutes)')).toHaveValue('5')
+  await expect(dialog.getByLabel('Take Profit')).toHaveValue('51000')
+  await expect(dialog.getByLabel('Stop Loss')).toHaveValue('49000')
+})
+
 test('working Hyperliquid limit order can be canceled from device details', async ({ page }) => {
   await page.goto('/e2e/bybit-terminal')
 
   const deviceTree = page.getByTestId('device-tree-panel')
-  await deviceTree.getByText('Limit Order', { exact: true }).click()
+  await deviceTree.getByText('Limit Order', { exact: true }).first().click()
 
   const details = page.getByTestId('device-details-panel')
   await expect(details.getByText('Limit Order Device')).toBeVisible()

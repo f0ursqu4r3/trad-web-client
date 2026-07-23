@@ -4,6 +4,7 @@ import type { MarketCapabilitiesData } from '@/lib/ws/protocol'
 const CAPABILITY_GATED_COMMANDS: ReadonlySet<CommandMeta['kind']> = new Set([
   'MarketOrder',
   'LimitOrder',
+  'ChaseOrder',
   'TrailingEntryOrder',
 ])
 
@@ -35,6 +36,8 @@ export function commandWithMarketAvailability(
       return capabilities.supports_market_orders ? command : unavailable(command)
     case 'LimitOrder':
       return capabilities.supports_limit_orders ? command : unavailable(command)
+    case 'ChaseOrder':
+      return capabilities.supports_chase_orders ? command : unavailable(command)
     case 'TrailingEntryOrder':
       return capabilities.supports_trailing_entry ? command : unavailable(command)
     default:
