@@ -883,6 +883,15 @@ export type ChaseAttempt = {
   completed_at?: string | null
 }
 
+export type ChaseModifyIntent = {
+  sequence: number
+  child_device_id: Uuid
+  client_order_id: string
+  from_price: number
+  target_price: number
+  created_at: string
+}
+
 export type ChaseSnapshot = {
   revision: number
   market_context: MarketContext
@@ -913,6 +922,8 @@ export type ChaseSnapshot = {
   last_reprice_at?: string | null
   retry_not_before?: string | null
   replacement_pending: boolean
+  next_modify_sequence?: number
+  pending_modify?: ChaseModifyIntent | null
   pending_terminal_status?: ChaseStatus | null
   last_reason?: string | null
   created_at: string
@@ -1145,6 +1156,10 @@ export type DeviceOrderDelta =
         remote_order_id?: string | null
         sent_at?: string | null
       }
+    }
+  | {
+      kind: 'LimitModified'
+      data: { price: number; remote_id: number; remote_order_id: string }
     }
   | {
       kind: 'SubmissionIdentityConfirmed'

@@ -689,6 +689,15 @@ export const useDeviceStore = defineStore('device', () => {
           }
         }
         break
+      case 'LimitModified':
+        order.price = delta.data.price
+        order.remote_id = delta.data.remote_id
+        order.remote_order_id = delta.data.remote_order_id
+        if (eventTime) {
+          order.last_update_seen_at = eventTime
+          order.last_status_check_at = eventTime
+        }
+        break
       case 'SubmissionIdentityConfirmed':
         {
           if (delta.data.client_order_id !== undefined && delta.data.client_order_id !== null) {
