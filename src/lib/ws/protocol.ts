@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 26
+export const PROTOCOL_VERSION = 27
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -147,9 +147,11 @@ export enum TrailingEntryPhase {
 
 export enum TrailingEntryLifecycle {
   Running = 'Running',
-  SpawningChildren = 'Spawning Children',
-  ChildrenSpawned = 'Children Spawned',
+  SpawningChildren = 'SpawningChildren',
+  ChildrenSpawned = 'ChildrenSpawned',
   MissedEntryPaused = 'MissedEntryPaused',
+  RecoveringMissedEntry = 'RecoveringMissedEntry',
+  ReconciliationRequired = 'ReconciliationRequired',
   Completed = 'Completed',
   Canceled = 'Canceled',
 }
@@ -1105,6 +1107,15 @@ export type DeviceTeDelta =
   | { kind: 'Peak'; data: { price: number } }
   | { kind: 'Phase'; data: { from: string; to: string } }
   | { kind: 'Lifecycle'; data: { status: TrailingEntryLifecycle } }
+  | {
+      kind: 'Outcome'
+      data: {
+        completed: boolean
+        cancelled: boolean
+        succeeded: boolean
+        stop_loss_hit: boolean
+      }
+    }
   | { kind: 'TrailingStop'; data: { price: number } }
   | {
       kind: 'Review'

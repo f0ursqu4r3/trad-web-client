@@ -598,6 +598,15 @@ export const useDeviceStore = defineStore('device', () => {
           te.lifecycle = status
         }
         break
+      case 'Outcome':
+        {
+          const { completed, cancelled, succeeded, stop_loss_hit } = delta.data
+          te.completed = completed
+          te.cancelled = cancelled
+          te.succeeded = succeeded
+          te.stop_loss_hit = stop_loss_hit
+        }
+        break
       case 'TrailingStop':
         // optional visual cue
         break

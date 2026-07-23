@@ -40,6 +40,10 @@ export function getLifecycleClass(lifecycle: TrailingEntryLifecycle): string {
       return 'pill pill-ok'
     case TrailingEntryLifecycle.Canceled:
       return 'pill pill-warn'
+    case TrailingEntryLifecycle.ReconciliationRequired:
+      return 'pill pill-danger'
+    case TrailingEntryLifecycle.RecoveringMissedEntry:
+      return 'pill pill-warn'
     case TrailingEntryLifecycle.SpawningChildren:
     case TrailingEntryLifecycle.ChildrenSpawned:
       return 'pill pill-warn'
