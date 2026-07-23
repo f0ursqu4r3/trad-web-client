@@ -9,6 +9,9 @@ const accountLabel = process.env.HYPERLIQUID_TEST_ACCOUNT_LABEL || 'HL Signed Te
 const symbol = process.env.HYPERLIQUID_TEST_SYMBOL || 'BTC'
 const notional = Number(process.env.HYPERLIQUID_TEST_NOTIONAL || '20')
 const commandTimeoutMs = Number(process.env.HYPERLIQUID_TEST_COMMAND_TIMEOUT_MS || '90000')
+const walletAddress =
+  process.env.HYPERLIQUID_TEST_WALLET_ADDRESS ||
+  '0x7d6cabebf3ab638ee10e0eabe671bfcfb8336dc3'
 
 type QualificationResult = {
   accountLabel: string
@@ -25,6 +28,9 @@ type QualificationResult = {
   gtcCloseCommandId?: string
   protectedGtcOpenCommandId?: string
   protectedGtcCloseCommandId?: string
+  chaseCommandId?: string
+  chaseAttemptCount?: number
+  chaseFinalStatus?: string
   cleanupCommandIds: string[]
 }
 
@@ -199,6 +205,61 @@ test.describe.serial('Hyperliquid signed testnet through the production terminal
       writeResult(result)
     }
   })
+
+  test('Chase lifecycle qualification', async ({ page, request }) => {
+    test.setTimeout(4 * 60_000)
+    validateConfiguration()
+
+    const result: QualificationResult = {
+      accountLabel,
+      symbol,
+      referenceMid: await hyperliquidMid(request, symbol),
+      cleanupCommandIds: [],
+    }
+    let chaseCommandId: string | null = null
+
+    try {
+      await loginAndSelectTestnetAccount(page)
+      chaseCommandId = await submitChase(page)
+      result.chaseCommandId = chaseCommandId
+
+      const details = await inspectChase(page, chaseCommandId)
+      await expect(details).toContainText('POST ONLY')
+      await expect(details).toContainText('Best Bid / Ask')
+      await expect(details).toContainText('Configured Boundary')
+      await expect(details.getByTestId('chase-attempt-history').locator('tbody tr')).toHaveCount(1, {
+        timeout: commandTimeoutMs,
+      })
+
+      const cancel = details.getByRole('button', { name: 'Cancel Chase' })
+      await expect(cancel).toBeEnabled({ timeout: commandTimeoutMs })
+      await cancel.click()
+      await expect(details.getByText('Canceled', { exact: true })).toBeVisible({
+        timeout: commandTimeoutMs,
+      })
+      await expectCommandStatus(page, chaseCommandId, 'SUCCEEDED')
+
+      result.chaseAttemptCount = await details
+        .getByTestId('chase-attempt-history')
+        .locator('tbody tr')
+        .count()
+      result.chaseFinalStatus = 'canceled'
+      await expectHyperliquidFlat(request)
+      await page.screenshot({
+        path: 'test-results/hyperliquid-signed-chase.png',
+        fullPage: true,
+      })
+    } finally {
+      await bestEffortCloseModal(page)
+      if (chaseCommandId) await bestEffortCancelChase(page, chaseCommandId)
+      if (await hasHyperliquidPosition(request)) {
+        const cleanupId = await bestEffortFlattenLong(page)
+        if (cleanupId) result.cleanupCommandIds.push(cleanupId)
+      }
+      await expectHyperliquidFlat(request)
+      writeResult(result)
+    }
+  })
 })
 
 function validateConfiguration() {
@@ -312,6 +373,28 @@ async function submitLimit(
   return await waitForNewCommandId(page, before)
 }
 
+async function submitChase(page: Page): Promise<string> {
+  const before = await commandIds(page)
+  await openCommandModal(page, 'chase', 'Chase Order')
+  const dialog = page.getByRole('dialog', { name: 'Chase Order' })
+  const option = dialog.getByLabel('Hyperliquid Account').locator('option:checked')
+  await expect(option).toContainText(accountLabel)
+  await expect(option).toContainText(/HYPERLIQUID/i)
+  await expect(option).toContainText(/TESTNET/i)
+  await dialog.getByLabel('Symbol').fill(symbol)
+  await dialog.getByLabel('Action').selectOption('Open')
+  await dialog.getByLabel('Position Side').selectOption('Long')
+  await dialog.getByLabel('Amount Type').selectOption('notional')
+  await dialog.getByLabel('USDC Amount').fill(notional.toFixed(2))
+  await dialog.getByLabel('Adverse Boundary').selectOption('basis_points')
+  await dialog.getByLabel('Maximum Distance (bps)').fill('100')
+  await dialog.getByLabel('Expiry (minutes)').fill('2')
+  const submit = dialog.getByRole('button', { name: 'Start Chase' })
+  await expect(submit).toBeEnabled({ timeout: 15_000 })
+  await submit.click()
+  return await waitForNewCommandId(page, before)
+}
+
 async function openCommandModal(page: Page, search: string, label: string) {
   await page.keyboard.press('Control+K')
   const input = page.getByPlaceholder('Search commands...')
@@ -392,6 +475,16 @@ async function expectOrderDeviceStatus(page: Page, commandId: string, status: st
   })
 }
 
+async function inspectChase(page: Page, commandId: string): Promise<Locator> {
+  await inspectCommand(page, commandId)
+  const row = page.locator('.device-row').filter({ hasText: /^Chase/ }).first()
+  await expect(row).toBeVisible({ timeout: commandTimeoutMs })
+  await row.click()
+  const details = page.getByTestId('chase-device-details')
+  await expect(details).toBeVisible({ timeout: commandTimeoutMs })
+  return details
+}
+
 async function expectExecutionEconomics(page: Page) {
   const summary = page.getByTestId('execution-fill-summary')
   await expect(summary).toBeVisible({ timeout: commandTimeoutMs })
@@ -452,6 +545,21 @@ async function bestEffortCancelLimit(page: Page, commandId: string) {
   }
 }
 
+async function bestEffortCancelChase(page: Page, commandId: string) {
+  try {
+    const details = await inspectChase(page, commandId)
+    const cancel = details.getByRole('button', { name: 'Cancel Chase' })
+    if (await cancel.isVisible()) {
+      await cancel.click()
+      await expect(details.getByText('Canceled', { exact: true })).toBeVisible({
+        timeout: commandTimeoutMs,
+      })
+    }
+  } catch {
+    // A maker fill may have made the Chase terminal before cleanup reached it.
+  }
+}
+
 async function bestEffortCloseModal(page: Page) {
   try {
     const dialog = page.getByRole('dialog')
@@ -474,6 +582,44 @@ async function bestEffortFlattenLong(page: Page): Promise<string | null> {
   } catch {
     return null
   }
+}
+
+async function hyperliquidState(request: APIRequestContext) {
+  const [positionsResponse, ordersResponse] = await Promise.all([
+    request.post('https://api.hyperliquid-testnet.xyz/info', {
+      data: { type: 'clearinghouseState', user: walletAddress },
+    }),
+    request.post('https://api.hyperliquid-testnet.xyz/info', {
+      data: { type: 'openOrders', user: walletAddress },
+    }),
+  ])
+  if (!positionsResponse.ok() || !ordersResponse.ok()) {
+    throw new Error(
+      `Hyperliquid state query failed: positions=${positionsResponse.status()} orders=${ordersResponse.status()}`,
+    )
+  }
+  const clearinghouse = (await positionsResponse.json()) as {
+    assetPositions?: Array<{ position?: { coin?: string; szi?: string } }>
+  }
+  const orders = (await ordersResponse.json()) as Array<{ coin?: string }>
+  const position = clearinghouse.assetPositions?.find(
+    (entry) =>
+      entry.position?.coin === symbol && Math.abs(Number(entry.position?.szi || 0)) > 1e-12,
+  )
+  return {
+    hasPosition: position !== undefined,
+    openOrderCount: orders.filter((order) => order.coin === symbol).length,
+  }
+}
+
+async function hasHyperliquidPosition(request: APIRequestContext): Promise<boolean> {
+  return (await hyperliquidState(request)).hasPosition
+}
+
+async function expectHyperliquidFlat(request: APIRequestContext) {
+  await expect
+    .poll(async () => await hyperliquidState(request), { timeout: commandTimeoutMs })
+    .toEqual({ hasPosition: false, openOrderCount: 0 })
 }
 
 function writeResult(result: QualificationResult) {
