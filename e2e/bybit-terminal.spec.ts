@@ -327,6 +327,14 @@ test('Hyperliquid TE is capability-gated, previewed, and submitted with native s
       'Long and short exposure cannot remain open simultaneously on the same symbol.',
     ),
   ).toBeVisible()
+  await expect(
+    dialog.getByText(
+      "Defaults to one child. Trad adds children only when Hyperliquid's order maximum requires them.",
+      { exact: true },
+    ),
+  ).toBeVisible()
+  await expect(dialog.getByRole('spinbutton', { name: /^Target Order Size/ })).toBeHidden()
+  await dialog.getByRole('button', { name: 'Advanced splits' }).click()
 
   await dialog.getByRole('textbox', { name: 'Symbol' }).fill(' btc ')
   await dialog.getByRole('spinbutton', { name: /^Activation Price/ }).fill('50000')
@@ -398,6 +406,8 @@ test('Hyperliquid short TE serializes side-correct exits and native symbols', as
   await dialog.getByRole('spinbutton', { name: /^Risk Amount/ }).fill('12')
 
   await expect(dialog.getByText('Estimated splits (current price)')).toBeVisible()
+  await expect(dialog.getByText('1 (range 1–1)', { exact: true })).toBeVisible()
+  await expect(dialog.getByRole('spinbutton', { name: /^Target Order Size/ })).toBeHidden()
   await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled()
   await dialog.getByRole('button', { name: 'Submit' }).click()
 

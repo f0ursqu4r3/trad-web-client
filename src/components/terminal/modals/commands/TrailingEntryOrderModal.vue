@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { Info } from 'lucide-vue-next'
+import { ChevronDown, Info, Settings2 } from 'lucide-vue-next'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import {
   ExchangeType,
@@ -57,6 +57,7 @@ const take_profit = ref<number | null | ''>(null)
 const risk_amount = ref<number | null>(null)
 const position_side = ref<PositionSide>(PositionSide.Long)
 const showHyperliquidPositionInfo = ref(false)
+const showHyperliquidSplitControls = ref(false)
 const split_target_notional = ref<number | null>(null)
 const split_max_splits_cap = ref<number | null>(null)
 const split_mode = ref<SplitMode | ''>('')
@@ -222,6 +223,7 @@ function applyInitialValues() {
   split_mode.value = ''
   split_slippage_margin.value = null
   showHyperliquidPositionInfo.value = false
+  showHyperliquidSplitControls.value = false
   lastAccountId.value = selectedAccountId.value
 }
 
@@ -739,8 +741,36 @@ function formatNumber(value: number, digits: number) {
       </div>
 
       <div class="space-y-2">
-        <div class="section-title">Splits</div>
-        <div class="grid gap-3 md:grid-cols-2">
+        <div class="section-heading">
+          <div class="section-title">
+            {{ isHyperliquidAccount ? 'Execution plan' : 'Splits' }}
+          </div>
+          <button
+            v-if="isHyperliquidAccount"
+            type="button"
+            class="btn btn-ghost btn-sm inline-flex items-center gap-2"
+            :aria-expanded="showHyperliquidSplitControls"
+            aria-controls="hyperliquid-te-split-controls"
+            @click="showHyperliquidSplitControls = !showHyperliquidSplitControls"
+          >
+            <Settings2 :size="14" aria-hidden="true" />
+            <span>Advanced splits</span>
+            <ChevronDown
+              :size="14"
+              aria-hidden="true"
+              :class="{ 'rotate-180': showHyperliquidSplitControls }"
+            />
+          </button>
+        </div>
+        <div v-if="isHyperliquidAccount" class="preview-note">
+          Defaults to one child. Trad adds children only when Hyperliquid's order maximum requires
+          them.
+        </div>
+        <div
+          v-if="!isHyperliquidAccount || showHyperliquidSplitControls"
+          id="hyperliquid-te-split-controls"
+          class="grid gap-3 md:grid-cols-2"
+        >
           <label class="field">
             <span>Target Order Size (Notional)</span>
             <input
@@ -866,6 +896,15 @@ function formatNumber(value: number, digits: number) {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.6px;
+}
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.rotate-180 {
+  transform: rotate(180deg);
 }
 .preview {
   border: 1px solid var(--border-color);

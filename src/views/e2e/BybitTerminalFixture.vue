@@ -83,6 +83,14 @@ wsStore.sendUserCommandPreview = ((payload: UserCommandPayload) => {
   const requestId = '31313131-3131-4131-8131-313131313131'
   commandSends.value = [...commandSends.value, payload]
   if (payload.kind === 'SplitPreview') {
+    const settings = payload.data.split_settings
+    const hasExplicitSplitTopology =
+      settings?.target_child_notional !== undefined ||
+      (settings?.max_splits_cap ?? 0) > 1 ||
+      settings?.mode === 'max_splits'
+    const isHyperliquid = 'hyperliquid' in payload.data.market_context
+    const splitCount = isHyperliquid && !hasExplicitSplitTopology ? 1 : 2
+    const childNotional = 100 / splitCount
     window.setTimeout(() => {
       useSplitPreviewStore().setPreview({
         request_uuid: requestId,
@@ -94,15 +102,15 @@ wsStore.sendUserCommandPreview = ((payload: UserCommandPayload) => {
         total_qty_est: 0.002,
         total_qty_adj: 0.002,
         total_notional_est: 100,
-        split_count: 2,
-        split_min: 2,
-        split_max: 2,
-        child_qty_est: 0.001,
-        child_notional_est: 50,
-        child_notional_min: 50,
-        child_notional_max: 50,
-        target_child_notional: payload.data.split_settings?.target_child_notional ?? 50,
-        slippage_margin: payload.data.split_settings?.slippage_margin ?? 0,
+        split_count: splitCount,
+        split_min: splitCount,
+        split_max: splitCount,
+        child_qty_est: 0.002 / splitCount,
+        child_notional_est: childNotional,
+        child_notional_min: childNotional,
+        child_notional_max: childNotional,
+        target_child_notional: settings?.target_child_notional ?? childNotional,
+        slippage_margin: settings?.slippage_margin ?? 0,
         warnings: [],
       })
     }, 0)
