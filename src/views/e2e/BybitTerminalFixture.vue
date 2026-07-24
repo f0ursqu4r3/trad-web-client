@@ -31,6 +31,7 @@ import {
   type CommandHistoryItem,
   type DeviceSnapshotLiteData,
   type DeviceChaseDeltaEvent,
+  type DeviceTeDeltaEvent,
   type MarketContext,
   type MarketProduct,
   type MarketRef,
@@ -42,6 +43,8 @@ const accountStore = useAccountsStore()
 const commandStore = useCommandStore()
 const wsStore = useWsStore()
 const continueMissedEntrySends = ref<string[]>([])
+const cancelCommandSends = ref<string[]>([])
+const closePositionSends = ref<string[]>([])
 const commandSends = ref<unknown[]>([])
 const inspectCommandSends = ref<string[]>([])
 const marketOrderOpen = ref(false)
@@ -53,6 +56,14 @@ wsStore.sendContinueMissedTrailingEntry = (commandId: string) => {
   continueMissedEntrySends.value = [...continueMissedEntrySends.value, commandId]
   return commandId
 }
+wsStore.sendCancelCommand = (commandId: string) => {
+  cancelCommandSends.value = [...cancelCommandSends.value, commandId]
+  return commandId
+}
+wsStore.sendCloseTrailingEntryPosition = (commandId: string) => {
+  closePositionSends.value = [...closePositionSends.value, commandId]
+  return commandId
+}
 wsStore.sendUserCommand = ((payload: unknown) => {
   const commandId = '19191919-1919-4919-8919-191919191919'
   commandSends.value = [...commandSends.value, payload]
@@ -62,6 +73,11 @@ wsStore.sendUserCommand = ((payload: unknown) => {
 }) as typeof wsStore.sendUserCommand
 wsStore.inspectCommand = (commandId: string) => {
   inspectCommandSends.value = [...inspectCommandSends.value, commandId]
+  window.setTimeout(() => {
+    hyperliquidTeDevices
+      .filter((device) => device.associated_command_id === commandId)
+      .forEach((device) => useDeviceStore().handleDeviceSnapshotLite(device))
+  }, 0)
 }
 wsStore.sendUserCommandPreview = ((payload: UserCommandPayload) => {
   const requestId = '31313131-3131-4131-8131-313131313131'
@@ -98,9 +114,13 @@ declare global {
   interface Window {
     __tradBybitTerminalFixture?: {
       getContinueMissedEntrySends: () => string[]
+      getCancelCommandSends: () => string[]
+      getClosePositionSends: () => string[]
       getCommandSends: () => unknown[]
       getInspectCommandSends: () => string[]
       getSelectedCommandId: () => string | null
+      replayHyperliquidTeSnapshots: () => void
+      setHyperliquidTeTriggerStartZero: () => void
       setChaseStale: () => void
       setHyperliquidTeEnabled: (enabled: boolean) => void
     }
@@ -109,9 +129,30 @@ declare global {
 
 window.__tradBybitTerminalFixture = {
   getContinueMissedEntrySends: () => [...continueMissedEntrySends.value],
+  getCancelCommandSends: () => [...cancelCommandSends.value],
+  getClosePositionSends: () => [...closePositionSends.value],
   getCommandSends: () => [...commandSends.value],
   getInspectCommandSends: () => [...inspectCommandSends.value],
   getSelectedCommandId: () => commandStore.selectedCommandId,
+  replayHyperliquidTeSnapshots: () => {
+    const deviceStore = useDeviceStore()
+    hyperliquidTeDevices.forEach((device) => deviceStore.handleDeviceSnapshotLite(device))
+  },
+  setHyperliquidTeTriggerStartZero: () => {
+    const event: DeviceTeDeltaEvent = {
+      device_id: hyperliquidTeDeviceId,
+      ts: new Date().toISOString(),
+      seq: 19,
+      delta: {
+        kind: 'Review',
+        data: {
+          start_trigger_index: 0,
+          end_trigger_index: 14,
+        },
+      },
+    }
+    useDeviceStore().handleDeviceUpdate('DeviceTeDelta', event)
+  },
   setHyperliquidTeEnabled: (enabled: boolean) => {
     const key = `hyperliquid:${hyperliquidAccountId}`
     const current = wsStore.marketCapabilities[key]
@@ -186,6 +227,15 @@ const hyperliquidChaseDeviceId = '26262626-2626-4626-8626-262626262626'
 const hyperliquidChaseAttemptOneId = '27272727-2727-4727-8727-272727272727'
 const hyperliquidChaseAttemptTwoId = '28282828-2828-4828-8828-282828282828'
 const hyperliquidChaseProtectionId = '29292929-2929-4929-8929-292929292929'
+const hyperliquidTeCommandId = '61616161-6161-4161-8161-616161616161'
+const hyperliquidTeDeviceId = '62626262-6262-4262-8262-626262626262'
+const hyperliquidTeSplitId = '63636363-6363-4363-8363-636363636363'
+const hyperliquidTeFilledOrderId = '64646464-6464-4464-8464-646464646464'
+const hyperliquidTeRejectedOrderId = '65656565-6565-4565-8565-656565656565'
+const hyperliquidTeProtectionId = '66666666-6666-4666-8666-666666666666'
+const hyperliquidMissedCommandId = '67676767-6767-4767-8767-676767676767'
+const hyperliquidMissedTeDeviceId = '68686868-6868-4868-8868-686868686868'
+const hyperliquidMissedOrderId = '69696969-6969-4969-8969-696969696969'
 const binanceContext = {
   binance: { account_id: binanceAccountId },
 } satisfies MarketContext
@@ -497,6 +547,64 @@ const hyperliquidChaseCommand = {
   market_ref: hyperliquidMarketRef,
   status: CommandStatus.Running,
   created_at: '2026-06-19T00:06:00.000Z',
+} satisfies CommandHistoryItem
+
+const hyperliquidTeCommand = {
+  command_id: hyperliquidTeCommandId,
+  command: {
+    kind: 'TrailingEntryOrder',
+    data: {
+      position_side: PositionSide.Long,
+      symbol: 'ETH',
+      activation_price: 3_000,
+      jump_frac_threshold: 0.1,
+      stop_loss: 2_900,
+      take_profit: 3_200,
+      risk_amount: 100,
+      market_context: hyperliquidContext,
+      split_settings: {
+        target_child_notional: 75,
+        max_splits_cap: 2,
+        mode: 'prefer_target',
+        slippage_margin: 0.002,
+      },
+    },
+  },
+  market_ref: {
+    ...hyperliquidMarketRef,
+    symbol: 'ETH',
+  },
+  status: CommandStatus.Running,
+  created_at: '2026-06-19T00:07:00.000Z',
+} satisfies CommandHistoryItem
+
+const hyperliquidMissedCommand = {
+  command_id: hyperliquidMissedCommandId,
+  command: {
+    kind: 'TrailingEntryOrder',
+    data: {
+      position_side: PositionSide.Short,
+      symbol: 'SOL',
+      activation_price: 150,
+      jump_frac_threshold: 0.1,
+      stop_loss: 155,
+      take_profit: 140,
+      risk_amount: 25,
+      market_context: hyperliquidContext,
+      split_settings: {
+        target_child_notional: 50,
+        max_splits_cap: 1,
+        mode: 'prefer_target',
+        slippage_margin: 0.001,
+      },
+    },
+  },
+  market_ref: {
+    ...hyperliquidMarketRef,
+    symbol: 'SOL',
+  },
+  status: CommandStatus.Running,
+  created_at: '2026-06-19T00:08:00.000Z',
 } satisfies CommandHistoryItem
 
 const binanceOrderDevice = {
@@ -1035,6 +1143,383 @@ const hyperliquidChaseProtection = {
   },
 } satisfies DeviceSnapshotLiteData
 
+const hyperliquidTeDevice = {
+  device_id: hyperliquidTeDeviceId,
+  owner_user_id: '70707070-7070-4070-8070-707070707070',
+  associated_command_id: hyperliquidTeCommandId,
+  market_ref: {
+    ...hyperliquidMarketRef,
+    symbol: 'ETH',
+  },
+  protection_state: null,
+  parent_device: null,
+  children_devices: [hyperliquidTeSplitId, hyperliquidTeProtectionId],
+  created_at: '2026-06-19T00:07:00.000Z',
+  complete: false,
+  failed: false,
+  canceled: false,
+  awaiting_children: false,
+  failure_reason: 'Live same-side position is below aggregate Trad-owned protected quantity',
+  snapshot: {
+    kind: 'TrailingEntry',
+    data: {
+      symbol: 'ETH',
+      market_context: hyperliquidContext,
+      position_side: PositionSide.Long,
+      activation_price: 3_000,
+      jump_frac_threshold: 0.1,
+      stop_loss: 2_900,
+      take_profit: 3_200,
+      risk_amount: 100,
+      split_settings: {
+        target_child_notional: 75,
+        max_splits_cap: 2,
+        mode: 'prefer_target',
+        slippage_margin: 0.002,
+      },
+      phase: TrailingEntryPhase.Triggered,
+      peak: 2_995,
+      peak_index: 14,
+      position_size: 0.75,
+      actual_activation_price: 2_998,
+      buy_or_sell_price: 3_002,
+      completed: false,
+      cancelled: false,
+      succeeded: false,
+      stop_loss_hit: false,
+      base_index: 3,
+      total_points: 18,
+      start_trigger_index: 3,
+      end_trigger_index: 14,
+      lifecycle: TrailingEntryLifecycle.ReconciliationRequired,
+      stats: {
+        open_filled_qty: 0.75,
+        close_filled_qty: 0.1,
+        open_filled_notional: 2_251.5,
+        close_filled_notional: 301,
+        dust_threshold: 0.001,
+      },
+    },
+  },
+} satisfies DeviceSnapshotLiteData
+
+const hyperliquidTeSplitDevice = {
+  device_id: hyperliquidTeSplitId,
+  owner_user_id: '70707070-7070-4070-8070-707070707070',
+  associated_command_id: hyperliquidTeCommandId,
+  market_ref: {
+    ...hyperliquidMarketRef,
+    symbol: 'ETH',
+  },
+  protection_state: null,
+  parent_device: hyperliquidTeDeviceId,
+  children_devices: [hyperliquidTeFilledOrderId, hyperliquidTeRejectedOrderId],
+  created_at: '2026-06-19T00:07:01.000Z',
+  complete: true,
+  failed: false,
+  canceled: false,
+  awaiting_children: false,
+  failure_reason: null,
+  snapshot: {
+    kind: 'Split',
+    data: {
+      symbol: 'ETH',
+      quantity: 1.25,
+      price: 3_000,
+    },
+  },
+} satisfies DeviceSnapshotLiteData
+
+const hyperliquidTeFilledOrderDevice = {
+  device_id: hyperliquidTeFilledOrderId,
+  owner_user_id: '70707070-7070-4070-8070-707070707070',
+  associated_command_id: hyperliquidTeCommandId,
+  market_ref: {
+    ...hyperliquidMarketRef,
+    symbol: 'ETH',
+  },
+  protection_state: null,
+  parent_device: hyperliquidTeSplitId,
+  children_devices: null,
+  created_at: '2026-06-19T00:07:02.000Z',
+  complete: true,
+  failed: false,
+  canceled: false,
+  awaiting_children: false,
+  failure_reason: null,
+  snapshot: {
+    kind: 'Order',
+    data: {
+      market_context: hyperliquidContext,
+      market_action: MarketAction.Open,
+      symbol: 'ETH',
+      order_side: OrderSide.Buy,
+      quantity: 0.75,
+      position_side: PositionSide.Long,
+      price: 3_000,
+      execution: { kind: 'market' },
+      throttle: true,
+      one_way_open_semantics: 'target_side_exposure',
+      one_way_position_effect: {
+        baseline_signed_quantity: -0.25,
+        reduced_quantity: 0.25,
+        opened_quantity: 0.75,
+      },
+      one_way_transition: {
+        baseline_signed_quantity: -0.25,
+        reduce_quantity: 0.25,
+        residual_open_quantity: 0.75,
+        reduced_filled_quantity: 0.25,
+        opened_filled_quantity: 0.75,
+        flatten_client_order_id: '0x11111111111111111111111111111111',
+        working_client_order_id: '0x22222222222222222222222222222222',
+        phase: 'complete',
+      },
+      status: OrderStatus.Filled,
+      filled_qty: 0.75,
+      execution_fills: [
+        {
+          exchange: ExchangeType.Hyperliquid,
+          execution_id: 'hl-te-open-fill',
+          quantity: '0.75',
+          price: '3002',
+          fee: '0.12',
+          fee_token: 'USDC',
+          execution_time_ms: 1_750_291_622_000,
+        },
+      ],
+      remote_id: 1001,
+      remote_order_id: '1001',
+      client_order_id: '0x22222222222222222222222222222222',
+      sent_at: '2026-06-19T00:07:02.500Z',
+      last_status_check_at: '2026-06-19T00:07:03.000Z',
+      last_update_seen_at: '2026-06-19T00:07:03.000Z',
+    },
+  },
+} satisfies DeviceSnapshotLiteData
+
+const hyperliquidTeRejectedOrderDevice = {
+  device_id: hyperliquidTeRejectedOrderId,
+  owner_user_id: '70707070-7070-4070-8070-707070707070',
+  associated_command_id: hyperliquidTeCommandId,
+  market_ref: {
+    ...hyperliquidMarketRef,
+    symbol: 'ETH',
+  },
+  protection_state: null,
+  parent_device: hyperliquidTeSplitId,
+  children_devices: null,
+  created_at: '2026-06-19T00:07:02.000Z',
+  complete: true,
+  failed: true,
+  canceled: false,
+  awaiting_children: false,
+  failure_reason: 'Hyperliquid rejected split child: insufficient margin',
+  snapshot: {
+    kind: 'Order',
+    data: {
+      market_context: hyperliquidContext,
+      market_action: MarketAction.Open,
+      symbol: 'ETH',
+      order_side: OrderSide.Buy,
+      quantity: 0.5,
+      position_side: PositionSide.Long,
+      price: 3_000,
+      execution: { kind: 'market' },
+      throttle: true,
+      one_way_open_semantics: 'target_side_exposure',
+      status: OrderStatus.Rejected,
+      filled_qty: 0,
+      execution_fills: [],
+      remote_id: null,
+      remote_order_id: null,
+      client_order_id: '0x33333333333333333333333333333333',
+      sent_at: '2026-06-19T00:07:03.000Z',
+      last_status_check_at: '2026-06-19T00:07:03.500Z',
+      last_update_seen_at: '2026-06-19T00:07:03.500Z',
+    },
+  },
+} satisfies DeviceSnapshotLiteData
+
+const hyperliquidTeProtectionDevice = {
+  device_id: hyperliquidTeProtectionId,
+  owner_user_id: '70707070-7070-4070-8070-707070707070',
+  associated_command_id: hyperliquidTeCommandId,
+  market_ref: {
+    ...hyperliquidMarketRef,
+    symbol: 'ETH',
+  },
+  protection_state: null,
+  parent_device: hyperliquidTeDeviceId,
+  children_devices: null,
+  created_at: '2026-06-19T00:07:02.000Z',
+  complete: false,
+  failed: false,
+  canceled: false,
+  awaiting_children: false,
+  failure_reason: null,
+  snapshot: {
+    kind: 'NativeProtection',
+    data: {
+      symbol: 'ETH',
+      market_context: hyperliquidContext,
+      position_side: PositionSide.Long,
+      take_profit: 3_200,
+      stop_loss: 2_900,
+      expected_entries: 2,
+      activation_policy: 'first_fill_cancel_remainder',
+      execution_guards: {
+        entry_market_tenths_bps: 500,
+        take_profit_market_tenths_bps: 1_000,
+        stop_loss_market_tenths_bps: 10_000,
+      },
+      observed_entries: 2,
+      observed_protection_orders: 2,
+      observed_entry_order_ids: [
+        '0x22222222222222222222222222222222',
+        '0x33333333333333333333333333333333',
+      ],
+      observed_protection_order_ids: ['hl-te-tp', 'hl-te-sl'],
+      tracked_parent_client_order_ids: [
+        '0x22222222222222222222222222222222',
+        '0x33333333333333333333333333333333',
+      ],
+      tracked_parent_remote_order_ids: ['1001'],
+      entry_filled_qty: 0.75,
+      protection_filled_qty: 0.1,
+      owned_remaining_qty: 0.65,
+      ownership_status: 'reconciliation_required',
+      last_live_signed_position: 0.6,
+      aggregate_owned_qty: 0.75,
+      aggregate_owner_count: 2,
+      ownership_reason:
+        'Live position 0.60000000 is below 0.75000000 aggregate Trad-owned protected quantity',
+      status: NativeProtectionStatus.ReconciliationRequired,
+      last_client_order_id: 'hl-te-sl',
+      last_parent_client_order_id: '0x22222222222222222222222222222222',
+      last_remote_order_id: '1003',
+      last_order_status: 'Open',
+      last_order_reason: 'aggregate_owned_position_deficit',
+      last_update_seen_at: '2026-06-19T00:07:04.000Z',
+      created_at: '2026-06-19T00:07:02.000Z',
+    },
+  },
+} satisfies DeviceSnapshotLiteData
+
+const hyperliquidMissedTeDevice = {
+  device_id: hyperliquidMissedTeDeviceId,
+  owner_user_id: '71717171-7171-4171-8171-717171717171',
+  associated_command_id: hyperliquidMissedCommandId,
+  market_ref: {
+    ...hyperliquidMarketRef,
+    symbol: 'SOL',
+  },
+  protection_state: null,
+  parent_device: null,
+  children_devices: [hyperliquidMissedOrderId],
+  created_at: '2026-06-19T00:08:00.000Z',
+  complete: false,
+  failed: false,
+  canceled: false,
+  awaiting_children: false,
+  failure_reason: 'Missed entry: queued open orders became stale before submit',
+  snapshot: {
+    kind: 'TrailingEntry',
+    data: {
+      symbol: 'SOL',
+      market_context: hyperliquidContext,
+      position_side: PositionSide.Short,
+      activation_price: 150,
+      jump_frac_threshold: 0.1,
+      stop_loss: 155,
+      take_profit: 140,
+      risk_amount: 25,
+      split_settings: {
+        target_child_notional: 50,
+        max_splits_cap: 1,
+        mode: 'prefer_target',
+        slippage_margin: 0.001,
+      },
+      phase: TrailingEntryPhase.Triggered,
+      peak: 151,
+      peak_index: 8,
+      position_size: 0,
+      actual_activation_price: 150,
+      buy_or_sell_price: 0,
+      completed: false,
+      cancelled: false,
+      succeeded: false,
+      stop_loss_hit: false,
+      base_index: 0,
+      total_points: 9,
+      start_trigger_index: 0,
+      end_trigger_index: 8,
+      lifecycle: TrailingEntryLifecycle.MissedEntryPaused,
+      stats: {
+        open_filled_qty: 0,
+        close_filled_qty: 0,
+        open_filled_notional: 0,
+        close_filled_notional: 0,
+        dust_threshold: 0.001,
+      },
+    },
+  },
+} satisfies DeviceSnapshotLiteData
+
+const hyperliquidMissedOrderDevice = {
+  device_id: hyperliquidMissedOrderId,
+  owner_user_id: '71717171-7171-4171-8171-717171717171',
+  associated_command_id: hyperliquidMissedCommandId,
+  market_ref: {
+    ...hyperliquidMarketRef,
+    symbol: 'SOL',
+  },
+  protection_state: null,
+  parent_device: hyperliquidMissedTeDeviceId,
+  children_devices: null,
+  created_at: '2026-06-19T00:08:01.000Z',
+  complete: true,
+  failed: true,
+  canceled: false,
+  awaiting_children: false,
+  failure_reason:
+    'Hyperliquid queued market order is stale before submit: age=31000ms max=30000ms.',
+  snapshot: {
+    kind: 'Order',
+    data: {
+      market_context: hyperliquidContext,
+      market_action: MarketAction.Open,
+      symbol: 'SOL',
+      order_side: OrderSide.Sell,
+      quantity: 1,
+      position_side: PositionSide.Short,
+      price: 150,
+      execution: { kind: 'market' },
+      throttle: true,
+      one_way_open_semantics: 'target_side_exposure',
+      status: OrderStatus.Rejected,
+      filled_qty: 0,
+      execution_fills: [],
+      remote_id: null,
+      remote_order_id: null,
+      client_order_id: '0x44444444444444444444444444444444',
+      sent_at: null,
+      last_status_check_at: null,
+      last_update_seen_at: null,
+    },
+  },
+} satisfies DeviceSnapshotLiteData
+
+const hyperliquidTeDevices = [
+  hyperliquidTeDevice,
+  hyperliquidTeSplitDevice,
+  hyperliquidTeFilledOrderDevice,
+  hyperliquidTeRejectedOrderDevice,
+  hyperliquidTeProtectionDevice,
+  hyperliquidMissedTeDevice,
+  hyperliquidMissedOrderDevice,
+]
+
 const highCountBybitSymbols = [
   'DOGEUSDT',
   'XRPUSDT',
@@ -1187,6 +1672,105 @@ const highCountBybitDevices = highCountBybitSymbols.map((symbol, index) => {
   } satisfies DeviceSnapshotLiteData
 })
 
+const highCountHyperliquidSymbols = highCountBybitSymbols.map((symbol) =>
+  symbol.replace(/USDT$/, ''),
+)
+
+const highCountHyperliquidCommands = highCountHyperliquidSymbols.map((symbol, index) => {
+  const price = 10 + index * 0.5
+  return {
+    command_id: highCountId('50', index + 1),
+    command: {
+      kind: 'TrailingEntryOrder',
+      data: {
+        position_side: PositionSide.Long,
+        symbol,
+        activation_price: price,
+        jump_frac_threshold: 0.01,
+        stop_loss: price * 0.95,
+        take_profit: price * 1.02,
+        risk_amount: 5,
+        market_context: hyperliquidContext,
+        split_settings: {
+          target_child_notional: 50,
+          max_splits_cap: 1,
+          mode: 'prefer_target',
+          slippage_margin: 0.001,
+        },
+      },
+    },
+    market_ref: {
+      ...hyperliquidMarketRef,
+      symbol,
+    },
+    status: CommandStatus.Running,
+    created_at: `2026-06-19T02:${String(index).padStart(2, '0')}:00.000Z`,
+  } satisfies CommandHistoryItem
+})
+
+const highCountHyperliquidDevices = highCountHyperliquidSymbols.map((symbol, index) => {
+  const price = 10 + index * 0.5
+  return {
+    device_id: highCountId('60', index + 1),
+    owner_user_id: highCountId('70', index + 1),
+    associated_command_id: highCountHyperliquidCommands[index].command_id,
+    market_ref: {
+      ...hyperliquidMarketRef,
+      symbol,
+    },
+    protection_state: null,
+    parent_device: null,
+    children_devices: null,
+    created_at: `2026-06-19T02:${String(index).padStart(2, '0')}:00.000Z`,
+    complete: false,
+    failed: false,
+    canceled: false,
+    awaiting_children: false,
+    failure_reason: null,
+    snapshot: {
+      kind: 'TrailingEntry',
+      data: {
+        symbol,
+        market_context: hyperliquidContext,
+        position_side: PositionSide.Long,
+        activation_price: price,
+        jump_frac_threshold: 0.01,
+        stop_loss: price * 0.95,
+        take_profit: price * 1.02,
+        risk_amount: 5,
+        split_settings: {
+          target_child_notional: 50,
+          max_splits_cap: 1,
+          mode: 'prefer_target',
+          slippage_margin: 0.001,
+        },
+        phase: TrailingEntryPhase.Initial,
+        peak: price,
+        peak_index: 0,
+        position_size: 0,
+        actual_activation_price: 0,
+        buy_or_sell_price: 0,
+        completed: false,
+        cancelled: false,
+        succeeded: false,
+        stop_loss_hit: false,
+        base_index: 0,
+        total_points: 120 + index,
+        start_trigger_index: null,
+        end_trigger_index: null,
+        lifecycle: TrailingEntryLifecycle.Running,
+        stats: {
+          open_filled_qty: 0,
+          close_filled_qty: 0,
+          open_filled_notional: 0,
+          close_filled_notional: 0,
+          dust_threshold: 0.001,
+        },
+      },
+    },
+  } satisfies DeviceSnapshotLiteData
+})
+
 onMounted(async () => {
   const deviceStore = useDeviceStore()
 
@@ -1197,6 +1781,8 @@ onMounted(async () => {
     bybitMissedCommand,
     hyperliquidLimitCommand,
     hyperliquidChaseCommand,
+    hyperliquidTeCommand,
+    hyperliquidMissedCommand,
   ]
   commandStore.commandFilters = {
     kind: [],
@@ -1238,6 +1824,16 @@ onMounted(async () => {
       nicknameColor: null,
       pinned: false,
     },
+    [hyperliquidTeCommandId]: {
+      nickname: 'Hyperliquid ETH ownership conflict',
+      nicknameColor: null,
+      pinned: false,
+    },
+    [hyperliquidMissedCommandId]: {
+      nickname: 'Hyperliquid missed SOL entry',
+      nicknameColor: null,
+      pinned: false,
+    },
   }
 
   deviceStore.clearDevices()
@@ -1252,7 +1848,9 @@ onMounted(async () => {
   deviceStore.handleDeviceSnapshotLite(hyperliquidChaseAttemptOne)
   deviceStore.handleDeviceSnapshotLite(hyperliquidChaseAttemptTwo)
   deviceStore.handleDeviceSnapshotLite(hyperliquidChaseProtection)
+  hyperliquidTeDevices.forEach((device) => deviceStore.handleDeviceSnapshotLite(device))
   highCountBybitDevices.forEach((device) => deviceStore.handleDeviceSnapshotLite(device))
+  highCountHyperliquidDevices.forEach((device) => deviceStore.handleDeviceSnapshotLite(device))
 
   await nextTick()
   commandPanelRef.value?.toggleFilters()

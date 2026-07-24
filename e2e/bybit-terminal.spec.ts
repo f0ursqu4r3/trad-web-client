@@ -403,6 +403,120 @@ test('Hyperliquid short TE serializes side-correct exits and native symbols', as
   })
 })
 
+test('Hyperliquid TE tree exposes owned exposure, reversal, mixed children, and reconciliation', async ({
+  page,
+}) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+
+  const commandPanel = page.getByTestId('command-panel')
+  const commandRow = commandPanel.locator('.command-row').filter({
+    hasText: 'Hyperliquid ETH ownership conflict',
+  })
+  await commandRow.click()
+
+  const devicePanel = page.getByTestId('device-tree-panel')
+  const details = page.getByTestId('device-details-panel')
+  const deviceRows = devicePanel.locator('.device-row')
+
+  await expect(deviceRows.filter({ hasText: 'Trailing Entry' })).toHaveCount(1)
+  await expect(deviceRows.filter({ hasText: 'Split' })).toHaveCount(1)
+  await expect(deviceRows.filter({ hasText: 'Market Order' })).toHaveCount(2)
+  await expect(deviceRows.filter({ hasText: 'Native Protection' })).toHaveCount(1)
+  await expect(deviceRows.filter({ hasText: 'Failed' })).toHaveCount(1)
+
+  await deviceRows.filter({ hasText: 'Trailing Entry' }).click()
+  await expect(details.getByText('ReconciliationRequired', { exact: true })).toBeVisible()
+  await expect(details.getByText('Command-Owned Remaining', { exact: true })).toBeVisible()
+  await expect(details.getByText('0.650000', { exact: true })).toBeVisible()
+  await page.evaluate(() => window.__tradBybitTerminalFixture?.setHyperliquidTeTriggerStartZero())
+  await expect(
+    details
+      .getByText('Start Trigger', { exact: true })
+      .locator('..')
+      .getByText('0', { exact: true }),
+  ).toBeVisible()
+
+  await deviceRows.filter({ hasText: 'Market Order' }).filter({ hasText: 'Completed' }).click()
+  await expect(details.getByText('TE exposure target', { exact: true })).toBeVisible()
+  await expect(details.getByText('One-Way Net Effect', { exact: true })).toBeVisible()
+  await expect(details.getByText('Reversal', { exact: true })).toBeVisible()
+  await expect(details.getByText('Target side exposure', { exact: true })).toBeVisible()
+  await expect(details.getByText('Short 0.2500', { exact: true })).toBeVisible()
+  await expect(details.getByText('0.7500', { exact: true }).first()).toBeVisible()
+
+  await deviceRows.filter({ hasText: 'Market Order' }).filter({ hasText: 'Failed' }).click()
+  await expect(details.getByText('Rejected', { exact: true }).first()).toBeVisible()
+  await expect(
+    details.getByText('Hyperliquid rejected split child: insufficient margin'),
+  ).toBeVisible()
+
+  await deviceRows.filter({ hasText: 'Native Protection' }).click()
+  await expect(details.getByText('Reconciliation required', { exact: true })).toBeVisible()
+  await expect(details.getByText('Aggregate Trad Owned', { exact: true })).toBeVisible()
+  await expect(details.getByText('Protection Groups', { exact: true })).toBeVisible()
+  await expect(
+    details.getByText(
+      'Live position 0.60000000 is below 0.75000000 aggregate Trad-owned protected quantity',
+      { exact: true },
+    ),
+  ).toBeVisible()
+
+  await page.evaluate(() => window.__tradBybitTerminalFixture?.replayHyperliquidTeSnapshots())
+  await expect(deviceRows).toHaveCount(5)
+
+  await commandRow.getByTitle('Menu').click()
+  await page.getByRole('menuitem', { name: 'Close Position' }).click()
+  await expect
+    .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getClosePositionSends()))
+    .toEqual(['61616161-6161-4161-8161-616161616161'])
+
+  await commandRow.getByTitle('Menu').click()
+  await page.getByRole('menuitem', { name: 'Cancel' }).click()
+  await expect
+    .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getCancelCommandSends()))
+    .toEqual(['61616161-6161-4161-8161-616161616161'])
+})
+
+test('Hyperliquid missed TE exposes durable Continue Anyway recovery', async ({ page }) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+  const commandRow = page
+    .getByTestId('command-panel')
+    .locator('.command-row')
+    .filter({ hasText: 'Hyperliquid missed SOL entry' })
+
+  await commandRow.click()
+  await expect(
+    page
+      .getByTestId('device-tree-panel')
+      .locator('.device-row')
+      .filter({ hasText: 'Missed Entry Paused' }),
+  ).toBeVisible()
+
+  await commandRow.getByTitle('Menu').click()
+  await page.getByRole('menuitem', { name: 'Continue Anyway' }).click()
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__tradBybitTerminalFixture?.getContinueMissedEntrySends()),
+    )
+    .toContain('67676767-6767-4767-8767-676767676767')
+})
+
 test('Hyperliquid Chase form serializes post-only strategy controls and protection', async ({
   page,
 }) => {
@@ -475,7 +589,12 @@ test('Hyperliquid Chase renders composed attempts, diagnostics, stale state, and
   const deviceTree = page.getByTestId('device-tree-panel')
   await deviceTree.getByText('Chase', { exact: true }).click()
   await expect(deviceTree.getByText('Limit Order', { exact: true })).toHaveCount(3)
-  await expect(deviceTree.getByText('Native Protection', { exact: true }).last()).toBeVisible()
+  const chaseProtectionRow = deviceTree
+    .locator('.device-row')
+    .filter({ hasText: 'Native Protection' })
+    .filter({ hasText: 'BTC' })
+    .filter({ hasText: 'Hyperliquid' })
+  await expect(chaseProtectionRow).toBeVisible()
 
   const details = page.getByTestId('device-details-panel')
   await expect(details.getByText('Chase Device')).toBeVisible()
@@ -507,7 +626,7 @@ test('Hyperliquid Chase renders composed attempts, diagnostics, stale state, and
       data: { device_id: '26262626-2626-4626-8626-262626262626' },
     })
 
-  await deviceTree.getByText('Native Protection', { exact: true }).last().click()
+  await chaseProtectionRow.click()
   await expect(details.getByText('Exposure Ownership')).toBeVisible()
   await expect(details.getByText('External surplus', { exact: true })).toBeVisible()
   await expect(details.getByText('Command Owned', { exact: true })).toBeVisible()
@@ -1045,7 +1164,7 @@ test('Bybit terminal remains inspectable with many active TE rows', async ({ pag
   const deviceRows = devicePanel.locator('.device-row')
 
   await expect(commandPanel.getByText('Bybit missed BTC entry')).toBeVisible()
-  await expect(deviceRows.filter({ hasText: 'Trailing Entry' })).toHaveCount(51)
+  await expect(deviceRows.filter({ hasText: 'Trailing Entry' })).toHaveCount(103)
 
   await devicePanel.getByRole('button', { name: 'Bybit', exact: true }).click()
   await expect(deviceRows.filter({ hasText: 'Binance' })).toHaveCount(0)
@@ -1060,6 +1179,37 @@ test('Bybit terminal remains inspectable with many active TE rows', async ({ pag
 
   await expect(detailsPanel.getByText('Trailing Entry Device')).toBeVisible()
   await expect(detailsPanel.getByText('ZROUSDT').first()).toBeVisible()
+  await expect(detailsPanel.getByText('Risk Amount')).toBeVisible()
+  await expect(detailsPanel.getByText('Running', { exact: true }).first()).toBeVisible()
+})
+
+test('Hyperliquid terminal remains inspectable with fifty active TE rows', async ({ page }) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+
+  const devicePanel = page.getByTestId('device-tree-panel')
+  const detailsPanel = page.getByTestId('device-details-panel')
+  const deviceRows = devicePanel.locator('.device-row')
+
+  await devicePanel.getByRole('button', { name: 'Hyperliquid', exact: true }).click()
+  await expect(deviceRows.filter({ hasText: 'Trailing Entry' })).toHaveCount(52)
+
+  await devicePanel.getByRole('button', { name: 'ZRO', exact: true }).click()
+  await expect(deviceRows.filter({ hasText: 'Trailing Entry' })).toHaveCount(1)
+
+  const zroRow = deviceRows.filter({ hasText: 'ZRO' })
+  await zroRow.scrollIntoViewIfNeeded()
+  await zroRow.click()
+
+  await expect(detailsPanel.getByText('Trailing Entry Device')).toBeVisible()
+  await expect(detailsPanel.getByText('ZRO').first()).toBeVisible()
   await expect(detailsPanel.getByText('Risk Amount')).toBeVisible()
   await expect(detailsPanel.getByText('Running', { exact: true }).first()).toBeVisible()
 })

@@ -385,8 +385,7 @@ export const useDeviceStore = defineStore('device', () => {
         np.protection_filled_qty = s.protection_filled_qty
         np.execution_fills = s.execution_fills ?? []
         np.owned_remaining_qty =
-          s.owned_remaining_qty ??
-          Math.max(0, s.entry_filled_qty - s.protection_filled_qty)
+          s.owned_remaining_qty ?? Math.max(0, s.entry_filled_qty - s.protection_filled_qty)
         np.ownership_status = s.ownership_status ?? 'unknown'
         np.last_live_signed_position = s.last_live_signed_position ?? null
         np.aggregate_owned_qty = s.aggregate_owned_qty ?? null
@@ -616,8 +615,8 @@ export const useDeviceStore = defineStore('device', () => {
       case 'Review':
         {
           const { start_trigger_index, end_trigger_index } = delta.data
-          te.start_trigger_index = start_trigger_index || te.start_trigger_index
-          te.end_trigger_index = end_trigger_index || te.end_trigger_index
+          te.start_trigger_index = start_trigger_index ?? te.start_trigger_index
+          te.end_trigger_index = end_trigger_index ?? te.end_trigger_index
         }
         break
       case 'Stats':
