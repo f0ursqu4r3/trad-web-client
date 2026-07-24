@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { Info } from 'lucide-vue-next'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import {
   ExchangeType,
@@ -55,6 +56,7 @@ const stop_loss = ref<number | null>(null)
 const take_profit = ref<number | null | ''>(null)
 const risk_amount = ref<number | null>(null)
 const position_side = ref<PositionSide>(PositionSide.Long)
+const showHyperliquidPositionInfo = ref(false)
 const split_target_notional = ref<number | null>(null)
 const split_max_splits_cap = ref<number | null>(null)
 const split_mode = ref<SplitMode | ''>('')
@@ -219,6 +221,7 @@ function applyInitialValues() {
   split_max_splits_cap.value = null
   split_mode.value = ''
   split_slippage_margin.value = null
+  showHyperliquidPositionInfo.value = false
   lastAccountId.value = selectedAccountId.value
 }
 
@@ -703,6 +706,38 @@ function formatNumber(value: number, digits: number) {
         </label>
       </div>
 
+      <div v-if="isHyperliquidAccount" class="space-y-2">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm inline-flex items-center gap-2"
+          :aria-expanded="showHyperliquidPositionInfo"
+          aria-controls="hyperliquid-te-position-info"
+          title="Hyperliquid one-way position behavior"
+          @click="showHyperliquidPositionInfo = !showHyperliquidPositionInfo"
+        >
+          <Info :size="14" aria-hidden="true" />
+          <span>One-way position behavior</span>
+        </button>
+        <div
+          v-if="showHyperliquidPositionInfo"
+          id="hyperliquid-te-position-info"
+          data-testid="hyperliquid-te-position-info"
+          class="position-info"
+        >
+          <p>Hyperliquid maintains one net position per account and symbol.</p>
+          <p>
+            Existing same-side exposure remains unowned. This TE protects and closes only fills
+            created by this command.
+          </p>
+          <p>
+            If this TE triggers against opposite exposure, Trad first closes the entire opposite
+            position, including exposure created outside Trad, confirms flat, and then opens the
+            full {{ position_side.toLowerCase() }} target.
+          </p>
+          <p>Long and short exposure cannot remain open simultaneously on the same symbol.</p>
+        </div>
+      </div>
+
       <div class="space-y-2">
         <div class="section-title">Splits</div>
         <div class="grid gap-3 md:grid-cols-2">
@@ -861,5 +896,16 @@ function formatNumber(value: number, digits: number) {
 .preview-note {
   color: var(--color-text-dim);
   font-size: 11px;
+}
+.position-info {
+  border: 1px solid color-mix(in srgb, var(--color-warning) 60%, var(--border-color));
+  padding: 0.75rem;
+  color: var(--color-text);
+  font-size: 11px;
+  display: grid;
+  gap: 0.5rem;
+}
+.position-info p {
+  margin: 0;
 }
 </style>

@@ -311,6 +311,22 @@ test('Hyperliquid TE is capability-gated, previewed, and submitted with native s
   await expect(dialog.getByText('Unavailable', { exact: true })).toBeHidden()
   await expect(dialog.getByLabel('Take Profit')).toBeVisible()
   await expect(dialog.getByText(/Hyperliquid public mid \$50.00k/)).toBeVisible()
+  await dialog.getByRole('button', { name: 'One-way position behavior' }).click()
+  const positionInfo = dialog.getByTestId('hyperliquid-te-position-info')
+  await expect(
+    positionInfo.getByText('Hyperliquid maintains one net position per account and symbol.'),
+  ).toBeVisible()
+  await expect(
+    positionInfo.getByText(
+      'Existing same-side exposure remains unowned. This TE protects and closes only fills created by this command.',
+    ),
+  ).toBeVisible()
+  await expect(positionInfo.getByText(/including exposure created outside Trad/)).toBeVisible()
+  await expect(
+    positionInfo.getByText(
+      'Long and short exposure cannot remain open simultaneously on the same symbol.',
+    ),
+  ).toBeVisible()
 
   await dialog.getByRole('textbox', { name: 'Symbol' }).fill(' btc ')
   await dialog.getByRole('spinbutton', { name: /^Activation Price/ }).fill('50000')
@@ -436,6 +452,30 @@ test('Hyperliquid TE tree exposes owned exposure, reversal, mixed children, and 
   await expect(details.getByText('ReconciliationRequired', { exact: true })).toBeVisible()
   await expect(details.getByText('Command-Owned Remaining', { exact: true })).toBeVisible()
   await expect(details.getByText('0.650000', { exact: true })).toBeVisible()
+  const economics = details.getByTestId('te-economics-summary')
+  await expect(economics.getByText('Reported Closed PnL', { exact: true })).toBeVisible()
+  await expect(economics.getByText('0.8 USDC', { exact: true })).toBeVisible()
+  await expect(economics.getByText('Total Execution Fees', { exact: true })).toBeVisible()
+  await expect(economics.getByText('0.15 USDC', { exact: true })).toBeVisible()
+  await expect(economics.getByText('Net After Fees', { exact: true })).toBeVisible()
+  await expect(economics.getByText('0.65 USDC', { exact: true })).toBeVisible()
+  await expect(economics.getByText('Builder Component', { exact: true })).toBeVisible()
+  await expect(economics.getByText('0.01 USDC', { exact: true })).toBeVisible()
+  await expect(economics.getByText('Exchange Component', { exact: true })).toBeVisible()
+  await expect(economics.getByText('0.14 USDC', { exact: true })).toBeVisible()
+  await expect(economics.getByText('2', { exact: true })).toBeVisible()
+  await expect(
+    economics.getByText(
+      'Realized exchange-reported PnL minus execution fees. Funding and unrealized PnL are not included.',
+      { exact: true },
+    ),
+  ).toBeVisible()
+  await expect(
+    economics.getByText(
+      'This command reversed an existing one-way position. These totals include the pre-entry flatten; inspect the child fills to separate its economics from the new TE exposure.',
+      { exact: true },
+    ),
+  ).toBeVisible()
   await page.evaluate(() => window.__tradBybitTerminalFixture?.setHyperliquidTeTriggerStartZero())
   await expect(
     details

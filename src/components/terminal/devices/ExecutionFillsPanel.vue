@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { ExecutionFill } from '@/lib/ws/protocol'
 import { formatPrice, formatQty } from './utils'
+import { formatTokenTotals, summarizeExecutionFills } from '@/lib/executionEconomics'
 
 const props = defineProps<{
   fills: ExecutionFill[]
@@ -46,36 +47,7 @@ const averageFillPrice = computed(() => {
   return totalNotional.value / totalQuantity.value
 })
 
-function totalsByToken(field: 'fee' | 'builder_fee' | 'closed_pnl'): Map<string, number> {
-  const totals = new Map<string, number>()
-  for (const fill of props.fills) {
-    const value = decimal(fill[field])
-    if (value == null) continue
-    const token = fill.fee_token?.trim() || 'quote'
-    totals.set(token, (totals.get(token) ?? 0) + value)
-  }
-  return totals
-}
-
-function subtractTotals(total: Map<string, number>, component: Map<string, number>) {
-  const result = new Map(total)
-  for (const [token, value] of component) {
-    result.set(token, (result.get(token) ?? 0) - value)
-  }
-  return result
-}
-
-const totalFees = computed(() => totalsByToken('fee'))
-const builderFees = computed(() => totalsByToken('builder_fee'))
-const exchangeFees = computed(() => subtractTotals(totalFees.value, builderFees.value))
-const closedPnl = computed(() => totalsByToken('closed_pnl'))
-
-function formatTotals(totals: Map<string, number>): string {
-  if (totals.size === 0) return '-'
-  return [...totals.entries()]
-    .map(([token, value]) => `${formatDecimal(value)} ${token}`)
-    .join(', ')
-}
+const economics = computed(() => summarizeExecutionFills(props.fills))
 
 function liquidity(fill: ExecutionFill): string {
   if (fill.is_maker === true) return 'Maker'
@@ -110,19 +82,27 @@ function shortId(value?: string | null): string {
       </div>
       <div>
         <dt class="dt-label">Total Fee</dt>
-        <dd class="m-0 font-mono text-primary">{{ formatTotals(totalFees) }}</dd>
+        <dd class="m-0 font-mono text-primary">
+          {{ formatTokenTotals(economics.totalFees) }}
+        </dd>
       </div>
       <div>
         <dt class="dt-label">Builder Component</dt>
-        <dd class="m-0 font-mono text-primary">{{ formatTotals(builderFees) }}</dd>
+        <dd class="m-0 font-mono text-primary">
+          {{ formatTokenTotals(economics.builderFees) }}
+        </dd>
       </div>
       <div>
         <dt class="dt-label">Exchange Component</dt>
-        <dd class="m-0 font-mono text-primary">{{ formatTotals(exchangeFees) }}</dd>
+        <dd class="m-0 font-mono text-primary">
+          {{ formatTokenTotals(economics.exchangeFees) }}
+        </dd>
       </div>
       <div>
         <dt class="dt-label">Reported Closed PnL</dt>
-        <dd class="m-0 font-mono text-primary">{{ formatTotals(closedPnl) }}</dd>
+        <dd class="m-0 font-mono text-primary">
+          {{ formatTokenTotals(economics.closedPnl) }}
+        </dd>
       </div>
     </div>
 

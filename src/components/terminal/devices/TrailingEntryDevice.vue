@@ -5,10 +5,16 @@ import { useAccountsStore } from '@/stores/accounts'
 import { useDeviceStore } from '@/stores/devices'
 import { useCommandStore } from '@/stores/command'
 import {
+  executionFillKey,
+  formatTokenTotals,
+  summarizeExecutionFills,
+} from '@/lib/executionEconomics'
+import {
   MarketAction,
   OrderStatus,
   type MarketRef,
   type ProtectionState,
+  type ExecutionFill,
 } from '@/lib/ws/protocol'
 import {
   formatPrice,
@@ -59,6 +65,32 @@ const avgClosePrice = computed(() => {
 
 const deviceStore = useDeviceStore()
 const commandStore = useCommandStore()
+const commandExecutionFills = computed<ExecutionFill[]>(() => {
+  if (!props.commandId) return []
+  const seen = new Set<string>()
+  const fills: ExecutionFill[] = []
+  for (const device of deviceStore.devices) {
+    if (device.associated_command_id !== props.commandId) continue
+    if (device.kind !== 'Order' && device.kind !== 'NativeProtection') continue
+    const state = device.state as OrderState | import('@/stores/devices').NativeProtectionState
+    for (const fill of state.execution_fills ?? []) {
+      const key = executionFillKey(fill)
+      if (seen.has(key)) continue
+      seen.add(key)
+      fills.push(fill)
+    }
+  }
+  return fills
+})
+const commandEconomics = computed(() => summarizeExecutionFills(commandExecutionFills.value))
+const hasCommandEconomics = computed(() => commandExecutionFills.value.length > 0)
+const includesOneWayReversal = computed(() =>
+  deviceStore.devices.some((device) => {
+    if (device.associated_command_id !== props.commandId || device.kind !== 'Order') return false
+    const transition = (device.state as OrderState).one_way_transition
+    return transition !== null && transition.reduced_filled_quantity > 0
+  }),
+)
 const closeInProgress = computed(() => {
   if (!props.commandId) return false
   return deviceStore.devices.some((device) => {
@@ -66,11 +98,7 @@ const closeInProgress = computed(() => {
     if (device.kind !== 'Order') return false
     const state = device.state as OrderState
     if (state.market_action !== MarketAction.Close) return false
-    return ![
-      OrderStatus.Filled,
-      OrderStatus.Canceled,
-      OrderStatus.Rejected,
-    ].includes(state.status)
+    return ![OrderStatus.Filled, OrderStatus.Canceled, OrderStatus.Rejected].includes(state.status)
   })
 })
 
@@ -350,6 +378,74 @@ const networkLabel = computed(() => {
         </button>
         <span v-else class="text-[var(--color-text-dim)]">Close in progress</span>
       </div>
+    </div>
+
+    <div v-if="hasCommandEconomics" class="space-y-3" data-testid="te-economics-summary">
+      <h4
+        class="text-[11px] uppercase tracking-wide text-[var(--color-text-dim)] m-0 border-b border-[var(--border-color)] pb-1"
+      >
+        Command Economics
+      </h4>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Reported Closed PnL
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ formatTokenTotals(commandEconomics.closedPnl) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Total Execution Fees
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ formatTokenTotals(commandEconomics.totalFees) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Net After Fees
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{
+              commandEconomics.hasClosedPnl ? formatTokenTotals(commandEconomics.netAfterFees) : '-'
+            }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Builder Component
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ formatTokenTotals(commandEconomics.builderFees) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Exchange Component
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ formatTokenTotals(commandEconomics.exchangeFees) }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Exchange Fills
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ commandExecutionFills.length }}
+          </dd>
+        </div>
+      </div>
+      <p class="m-0 text-[10px] text-[var(--color-text-dim)]">
+        Realized exchange-reported PnL minus execution fees. Funding and unrealized PnL are not
+        included.
+      </p>
+      <p v-if="includesOneWayReversal" class="m-0 text-[10px] text-[var(--color-warning)]">
+        This command reversed an existing one-way position. These totals include the pre-entry
+        flatten; inspect the child fills to separate its economics from the new TE exposure.
+      </p>
     </div>
 
     <!-- Results Section (only show if device has completed data) -->
