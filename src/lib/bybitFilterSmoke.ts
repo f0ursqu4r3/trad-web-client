@@ -217,6 +217,7 @@ function bybitNativeProtectionDevice(): Device {
     aggregate_owned_qty: null,
     aggregate_owner_count: null,
     ownership_reason: null,
+    explicit_close_cleanup: false,
     status: NativeProtectionStatus.Tracking,
     last_client_order_id: 'bybit-entry-1',
     last_parent_client_order_id: null,

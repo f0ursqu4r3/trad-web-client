@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 27
+export const PROTOCOL_VERSION = 28
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -1046,6 +1046,7 @@ export type NativeProtectionSnapshot = {
   aggregate_owned_qty?: number | null
   aggregate_owner_count?: number | null
   ownership_reason?: string | null
+  explicit_close_cleanup?: boolean
   status: NativeProtectionStatus
   last_client_order_id?: string | null
   last_parent_client_order_id?: string | null
@@ -1304,6 +1305,7 @@ export type DeviceNpDelta =
         aggregate_owned_qty?: number | null
         aggregate_owner_count?: number | null
         ownership_reason?: string | null
+        explicit_close_cleanup?: boolean
         status: NativeProtectionStatus
         last_client_order_id?: string | null
         last_parent_client_order_id?: string | null
@@ -1355,7 +1357,14 @@ export type DeviceNpDelta =
         aggregate_owned_qty?: number | null
         aggregate_owner_count?: number | null
         ownership_reason?: string | null
+        explicit_close_cleanup?: boolean
         status: NativeProtectionStatus
+        last_client_order_id?: string | null
+        last_parent_client_order_id?: string | null
+        last_remote_order_id?: string | null
+        last_order_status?: string | null
+        last_order_reason?: string | null
+        last_update_seen_at?: string | null
       }
     }
   | { kind: 'ExecutionObserved'; data: { fill: ExecutionFill; fills: ExecutionFill[] } }

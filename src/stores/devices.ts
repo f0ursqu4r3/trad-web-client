@@ -391,6 +391,7 @@ export const useDeviceStore = defineStore('device', () => {
         np.aggregate_owned_qty = s.aggregate_owned_qty ?? null
         np.aggregate_owner_count = s.aggregate_owner_count ?? null
         np.ownership_reason = s.ownership_reason ?? null
+        np.explicit_close_cleanup = s.explicit_close_cleanup ?? false
         np.status = s.status
         np.last_client_order_id = s.last_client_order_id ?? null
         np.last_parent_client_order_id = s.last_parent_client_order_id ?? null
@@ -966,6 +967,7 @@ export const useDeviceStore = defineStore('device', () => {
           aggregate_owned_qty,
           aggregate_owner_count,
           ownership_reason,
+          explicit_close_cleanup,
           status,
           last_client_order_id,
           last_parent_client_order_id,
@@ -999,6 +1001,7 @@ export const useDeviceStore = defineStore('device', () => {
         np.aggregate_owned_qty = aggregate_owned_qty ?? null
         np.aggregate_owner_count = aggregate_owner_count ?? null
         np.ownership_reason = ownership_reason ?? null
+        np.explicit_close_cleanup = explicit_close_cleanup ?? false
         np.status = status
         np.last_client_order_id = last_client_order_id ?? null
         np.last_parent_client_order_id = last_parent_client_order_id ?? null
@@ -1071,7 +1074,14 @@ export const useDeviceStore = defineStore('device', () => {
           aggregate_owned_qty,
           aggregate_owner_count,
           ownership_reason,
+          explicit_close_cleanup,
           status,
+          last_client_order_id,
+          last_parent_client_order_id,
+          last_remote_order_id,
+          last_order_status,
+          last_order_reason,
+          last_update_seen_at,
         } = delta.data
         np.observed_entries = observed_entries
         np.observed_protection_orders = observed_protection_orders
@@ -1085,8 +1095,28 @@ export const useDeviceStore = defineStore('device', () => {
         np.aggregate_owned_qty = aggregate_owned_qty ?? null
         np.aggregate_owner_count = aggregate_owner_count ?? null
         np.ownership_reason = ownership_reason ?? null
+        if (explicit_close_cleanup !== undefined) {
+          np.explicit_close_cleanup = explicit_close_cleanup
+        }
         np.status = status
-        np.last_update_seen_at = eventTime
+        if (last_client_order_id !== undefined) {
+          np.last_client_order_id = last_client_order_id
+        }
+        if (last_parent_client_order_id !== undefined) {
+          np.last_parent_client_order_id = last_parent_client_order_id
+        }
+        if (last_remote_order_id !== undefined) {
+          np.last_remote_order_id = last_remote_order_id
+        }
+        if (last_order_status !== undefined) {
+          np.last_order_status = last_order_status
+        }
+        if (last_order_reason !== undefined) {
+          np.last_order_reason = last_order_reason
+        }
+        np.last_update_seen_at = last_update_seen_at
+          ? new Date(last_update_seen_at)
+          : eventTime
         break
       }
       case 'ExecutionObserved':
@@ -1337,6 +1367,7 @@ export interface NativeProtectionState {
   aggregate_owned_qty: number | null
   aggregate_owner_count: number | null
   ownership_reason: string | null
+  explicit_close_cleanup: boolean
   status: NativeProtectionStatus
   last_client_order_id: string | null
   last_parent_client_order_id: string | null
@@ -1574,6 +1605,7 @@ function newNativeProtectionState(): NativeProtectionState {
     aggregate_owned_qty: null,
     aggregate_owner_count: null,
     ownership_reason: null,
+    explicit_close_cleanup: false,
     status: NativeProtectionStatus.Pending,
     last_client_order_id: null,
     last_parent_client_order_id: null,
