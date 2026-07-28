@@ -685,7 +685,7 @@ test('Hyperliquid TE tree exposes owned exposure, reversal, mixed children, and 
   const closeExposureItem = page.getByRole('menuitem', { name: 'Close Command Exposure' })
   await expect(closeExposureItem).toHaveAttribute(
     'title',
-    "Reduce-only closes this command's owned exposure. Other command and external exposure is unchanged.",
+    "Submits a reduce-only market close for this command's owned exposure. Other command and external exposure is unchanged.",
   )
   await closeExposureItem.click()
   const closeDialog = page.getByRole('dialog', { name: 'Close Command Exposure' })
