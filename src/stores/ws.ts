@@ -75,9 +75,9 @@ export const useWsStore = defineStore('ws', () => {
   const marketCapabilities = ref<Record<string, MarketCapabilitiesData>>({})
   const orderThrottleSnapshots = ref<Record<string, OrderThrottleSnapshotData>>({})
   const symbolLeverageSnapshots = ref<Record<string, SymbolLeverageSnapshotData>>({})
-  const hyperliquidPositionEffectPreviews = ref<
-    Record<Uuid, HyperliquidPositionEffectPreviewData>
-  >({})
+  const hyperliquidPositionEffectPreviews = ref<Record<Uuid, HyperliquidPositionEffectPreviewData>>(
+    {},
+  )
   const hyperliquidPositionEffectErrors = ref<Record<Uuid, string>>({})
   const hyperliquidPositionOwnership = ref<Record<string, HyperliquidPositionOwnershipData>>({})
   const hyperliquidPositionOwnershipErrors = ref<Record<string, string>>({})
@@ -265,6 +265,29 @@ export const useWsStore = defineStore('ws', () => {
       kind: 'FlattenHyperliquidSymbol',
       data: { market_context: marketContext, symbol },
     })
+  }
+
+  function sendRefreshHyperliquidReconciliation(
+    marketContext: MarketContext,
+    scope?: {
+      symbol?: string | null
+      commandId?: Uuid | null
+      protectionDeviceId?: Uuid | null
+    },
+  ): Uuid {
+    const key = marketContextKey(marketContext)
+    const requestId = sendUserCommandPreview({
+      kind: 'RefreshHyperliquidReconciliation',
+      data: {
+        market_context: marketContext,
+        symbol: scope?.symbol || null,
+        command_id: scope?.commandId || null,
+        protection_device_id: scope?.protectionDeviceId || null,
+      },
+    })
+    pendingPositionOwnership.set(requestId, key)
+    delete hyperliquidPositionOwnershipErrors.value[key]
+    return requestId
   }
 
   function sendContinueMissedTrailingEntry(commandId: Uuid) {
@@ -671,9 +694,7 @@ export const useWsStore = defineStore('ws', () => {
     applySymbolLeverageSnapshot(data)
   }
 
-  function handleHyperliquidPositionEffectPreview(
-    payload: ServerToClientMessage['payload'],
-  ): void {
+  function handleHyperliquidPositionEffectPreview(payload: ServerToClientMessage['payload']): void {
     const data = (
       payload as Extract<
         ServerToClientMessage['payload'],
@@ -686,12 +707,10 @@ export const useWsStore = defineStore('ws', () => {
 
   function handleHyperliquidPositionOwnership(payload: ServerToClientMessage['payload']): void {
     const data = (
-      payload as Extract<
-        ServerToClientMessage['payload'],
-        { kind: 'HyperliquidPositionOwnership' }
-      >
+      payload as Extract<ServerToClientMessage['payload'], { kind: 'HyperliquidPositionOwnership' }>
     ).data
-    const key = pendingPositionOwnership.get(data.request_uuid) ?? marketContextKey(data.market_context)
+    const key =
+      pendingPositionOwnership.get(data.request_uuid) ?? marketContextKey(data.market_context)
     pendingPositionOwnership.delete(data.request_uuid)
     hyperliquidPositionOwnership.value[key] = data
     delete hyperliquidPositionOwnershipErrors.value[key]
@@ -862,6 +881,7 @@ export const useWsStore = defineStore('ws', () => {
     sendCloseCommandPosition,
     sendCancelCommandRemainingEntry,
     sendFlattenHyperliquidSymbol,
+    sendRefreshHyperliquidReconciliation,
     sendContinueMissedTrailingEntry,
     sendRefreshAccountKeys,
     sendDeleteHyperliquidAccount,

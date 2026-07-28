@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 29
+export const PROTOCOL_VERSION = 30
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -483,6 +483,12 @@ export type FlattenHyperliquidSymbolCommand = {
   market_context: MarketContext
   symbol: string
 }
+export type RefreshHyperliquidReconciliationCommand = {
+  market_context: MarketContext
+  symbol?: string | null
+  command_id?: Uuid | null
+  protection_device_id?: Uuid | null
+}
 export type ContinueMissedTrailingEntryCommand = { command_id: Uuid }
 export type ListDevicesCommand = { filter: DeviceFilter }
 export type GetDeviceTreeCommand = { device_id: Uuid }
@@ -524,6 +530,10 @@ export type UserCommandPayload =
   | { kind: 'CloseCommandPosition'; data: CloseCommandPositionCommand }
   | { kind: 'CancelCommandRemainingEntry'; data: CancelCommandRemainingEntryCommand }
   | { kind: 'FlattenHyperliquidSymbol'; data: FlattenHyperliquidSymbolCommand }
+  | {
+      kind: 'RefreshHyperliquidReconciliation'
+      data: RefreshHyperliquidReconciliationCommand
+    }
   | { kind: 'ContinueMissedTrailingEntry'; data: ContinueMissedTrailingEntryCommand }
   | { kind: 'ControlSimMarket'; data: ControlSimMarketCommand }
   | { kind: 'CreateHistoricSimMarket'; data: CreateHistoricSimMarketCommand }
@@ -681,13 +691,37 @@ export type HyperliquidSymbolOwnershipData = {
   unresolved_deficit_quantity: number
   status: HyperliquidPositionOwnershipStatus
   opens_blocked: boolean
+  unknown_external_open_order_count: number
+  discrepancies: string[]
   owners: HyperliquidPositionOwnerData[]
+}
+export type HyperliquidAccountStreamHealthData = {
+  connected: boolean
+  fresh: boolean
+  position_snapshot_seen: boolean
+  open_orders_snapshot_seen: boolean
+  last_frame_age_ms?: number | null
+}
+export type HyperliquidReconciliationEvidenceData = {
+  scope: string
+  stream_health: HyperliquidAccountStreamHealthData
+  position_snapshot_time_ms?: number | null
+  authoritative_open_orders_checked: number
+  known_trad_open_orders: number
+  unknown_external_open_orders: number
+  expensive_fills_read: boolean
+  recent_fill_count: number
+  unresolved_submission_intents: boolean
+  refreshed_device_count: number
+  audit_recorded: boolean
+  errors: string[]
 }
 export type HyperliquidPositionOwnershipData = {
   request_uuid: Uuid
   market_context: MarketContext
   observed_at: string
   symbols: HyperliquidSymbolOwnershipData[]
+  reconciliation?: HyperliquidReconciliationEvidenceData | null
 }
 export type OrderThrottleAccountData = {
   account_id: Uuid

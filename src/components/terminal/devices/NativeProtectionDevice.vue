@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { NativeProtectionState } from '@/stores/devices'
 import { NativeProtectionStatus, type MarketRef, type ProtectionState } from '@/lib/ws/protocol'
 import { formatPrice, formatQty, getPositionSideClass, formatSide } from './utils'
@@ -8,14 +8,19 @@ import { formatMarketContext, formatMarketRef, normalizeMarketContext } from '@/
 import { protectionDisplay } from '@/lib/protectionState'
 import { formatExecutionGuardPercent } from '@/lib/hyperliquidExecutionGuards'
 import ExecutionFillsPanel from './ExecutionFillsPanel.vue'
+import { useWsStore } from '@/stores/ws'
 
 const props = defineProps<{
   device: NativeProtectionState
   marketRef?: MarketRef | null
   protectionState?: ProtectionState | null
   failureReason?: string | null
+  deviceId?: string | null
+  commandId?: string | null
 }>()
 
+const ws = useWsStore()
+const reconciliationRequestId = ref<string | null>(null)
 const marketContextLabel = computed(() => {
   const refLabel = formatMarketRef(props.marketRef)
   if (refLabel) return refLabel
@@ -27,6 +32,41 @@ const protectionSummary = computed(() => protectionDisplay(props.protectionState
 const normalizedMarketContext = computed(() => normalizeMarketContext(props.device.market_context))
 const isBybit = computed(() => normalizedMarketContext.value.type === 'bybit')
 const isHyperliquid = computed(() => normalizedMarketContext.value.type === 'hyperliquid')
+const reconciliation = computed(() => {
+  if (!isHyperliquid.value) return null
+  return ws.hyperliquidOwnershipForMarketContext(props.device.market_context)
+})
+const symbolReconciliation = computed(() =>
+  reconciliation.value?.symbols.find(
+    (position) => position.symbol.toUpperCase() === props.device.symbol.toUpperCase(),
+  ),
+)
+const reconciliationPending = computed(
+  () =>
+    reconciliationRequestId.value !== null &&
+    reconciliation.value?.request_uuid !== reconciliationRequestId.value,
+)
+
+function refreshExchangeState() {
+  if (!isHyperliquid.value || !props.deviceId) return
+  reconciliationRequestId.value = ws.sendRefreshHyperliquidReconciliation(
+    props.device.market_context,
+    {
+      symbol: props.device.symbol,
+      commandId: props.commandId || null,
+      protectionDeviceId: props.deviceId,
+    },
+  )
+}
+
+watch(
+  () => reconciliation.value?.request_uuid,
+  (requestId) => {
+    if (requestId && requestId === reconciliationRequestId.value) {
+      reconciliationRequestId.value = null
+    }
+  },
+)
 
 function fmtOptionalPrice(value?: number | null): string {
   return value == null ? '-' : `$${formatPrice(value)}`
@@ -266,6 +306,28 @@ function fmtDate(d?: Date | null): string {
             {{ device.ownership_reason }}
           </dd>
         </div>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="text-[10px] text-[var(--color-text-dim)]">
+          <template v-if="reconciliation?.reconciliation">
+            Exchange observed {{ fmtDate(new Date(reconciliation.observed_at)) }}
+          </template>
+          <template v-else>No explicit exchange reconciliation recorded in this session.</template>
+        </div>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          :disabled="reconciliationPending"
+          @click="refreshExchangeState"
+        >
+          {{ reconciliationPending ? 'Refreshing...' : 'Refresh Exchange State' }}
+        </button>
+      </div>
+      <div
+        v-if="symbolReconciliation?.discrepancies.length"
+        class="border border-[var(--color-warning)] p-2 text-[10px] text-warning"
+      >
+        {{ symbolReconciliation.discrepancies.join(', ').replace(/_/g, ' ') }}
       </div>
     </div>
 

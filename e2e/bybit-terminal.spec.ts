@@ -110,6 +110,27 @@ test('Hyperliquid position view exposes ownership and requires explicit full fla
   await expect(dialog.getByText('0.001', { exact: true })).toBeVisible()
   await expect(dialog.getByRole('button', { name: /Limit Order #21212121/ })).toBeVisible()
 
+  await dialog.getByRole('button', { name: 'Refresh Exchange State' }).first().click()
+  const evidence = dialog.getByTestId('hyperliquid-reconciliation-evidence')
+  await expect(evidence).toBeVisible()
+  await expect(evidence.getByText('connected / fresh')).toBeVisible()
+  await expect(evidence.getByText('4 (2 Trad / 2 external)')).toBeVisible()
+  await expect(evidence.getByText('recorded', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('Unknown external open orders: 2')).toBeVisible()
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__tradBybitTerminalFixture?.getCommandSends()))
+    .toContainEqual({
+      kind: 'RefreshHyperliquidReconciliation',
+      data: {
+        market_context: {
+          hyperliquid: { account_id: '17171717-1717-4717-8717-171717171717' },
+        },
+        symbol: null,
+        command_id: null,
+        protection_device_id: null,
+      },
+    })
+
   await dialog.getByRole('button', { name: 'Flatten Symbol' }).click()
   await expect(
     dialog.getByText('It also closes external or manually created quantity.'),
@@ -175,9 +196,7 @@ test('partially filled Hyperliquid command offers cancel-remaining-and-close, no
 
   await row.getByTitle('Menu').click()
   page.once('dialog', (dialog) => dialog.accept())
-  await page
-    .getByRole('menuitem', { name: 'Cancel Remaining And Close Filled Position' })
-    .click()
+  await page.getByRole('menuitem', { name: 'Cancel Remaining And Close Filled Position' }).click()
   await expect
     .poll(() =>
       page.evaluate(() => (window as any).__tradBybitTerminalFixture?.getClosePositionSends()),
@@ -776,6 +795,21 @@ test('Hyperliquid Chase renders composed attempts, diagnostics, stale state, and
       { exact: true },
     ),
   ).toBeVisible()
+  await details.getByRole('button', { name: 'Refresh Exchange State' }).click()
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__tradBybitTerminalFixture?.getCommandSends()))
+    .toContainEqual({
+      kind: 'RefreshHyperliquidReconciliation',
+      data: {
+        market_context: {
+          type: 'hyperliquid',
+          account_id: '17171717-1717-4717-8717-171717171717',
+        },
+        symbol: 'BTC',
+        command_id: '25252525-2525-4525-8525-252525252525',
+        protection_device_id: '29292929-2929-4929-8929-292929292929',
+      },
+    })
 })
 
 test('Hyperliquid Chase command summary duplicates all strategy parameters', async ({ page }) => {
@@ -791,6 +825,21 @@ test('Hyperliquid Chase command summary duplicates all strategy parameters', asy
   await expect(row.getByText('20 bps (0.2%)', { exact: true })).toBeVisible()
   await expect(row.getByText('5m', { exact: true })).toBeVisible()
 
+  await row.getByTitle('Menu').click()
+  await page.getByRole('menuitem', { name: 'Refresh Exchange State' }).click()
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__tradBybitTerminalFixture?.getCommandSends()))
+    .toContainEqual({
+      kind: 'RefreshHyperliquidReconciliation',
+      data: {
+        market_context: {
+          hyperliquid: { account_id: '17171717-1717-4717-8717-171717171717' },
+        },
+        symbol: 'BTC',
+        command_id: '25252525-2525-4525-8525-252525252525',
+        protection_device_id: null,
+      },
+    })
   await row.getByTitle('Menu').click()
   await page.getByRole('menuitem', { name: 'Duplicate' }).click()
   const dialog = page.getByRole('dialog', { name: 'Chase Order' })

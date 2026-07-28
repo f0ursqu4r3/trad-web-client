@@ -20,6 +20,7 @@ const props = withDefaults(
     canClosePosition?: boolean
     closePositionLabel?: string
     canContinueMissedEntry?: boolean
+    canRefreshExchangeState?: boolean
   }>(),
   {
     commandKind: '',
@@ -33,6 +34,7 @@ const props = withDefaults(
     canClosePosition: false,
     closePositionLabel: 'Close Position',
     canContinueMissedEntry: false,
+    canRefreshExchangeState: false,
   },
 )
 
@@ -44,6 +46,7 @@ const emit = defineEmits<{
   (e: 'inspect', commandId: string): void
   (e: 'close-position', commandId: string): void
   (e: 'continue-missed-entry', commandId: string): void
+  (e: 'refresh-exchange-state', commandId: string): void
   (e: 'rename', commandId: string): void
   (e: 'pin', commandId: string): void
 }>()
@@ -115,6 +118,12 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
     items.push({
       label: 'Cancel',
       action: () => emit('cancel', props.commandId),
+    })
+  }
+  if (props.canRefreshExchangeState) {
+    items.push({
+      label: 'Refresh Exchange State',
+      action: () => emit('refresh-exchange-state', props.commandId),
     })
   }
   return items

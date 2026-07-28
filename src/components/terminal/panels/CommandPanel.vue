@@ -16,7 +16,7 @@ import type {
   MarketOrderPrefill,
   TrailingEntryPrefill,
 } from '../modals/commands/types'
-import type { UserCommandPayload } from '@/lib/ws/protocol'
+import type { MarketContext, UserCommandPayload } from '@/lib/ws/protocol'
 import { interestingCommandKinds } from '@/stores/command'
 
 import CommandHistoryItem from '@/components/terminal/commands/CommandHistoryItem.vue'
@@ -27,7 +27,7 @@ import LimitOrderCommand from '@/components/terminal/commands/LimitOrderCommand.
 import ChaseOrderCommand from '@/components/terminal/commands/ChaseOrderCommand.vue'
 import SetHedgeModeCommand from '@/components/terminal/commands/SetHedgeModeCommand.vue'
 import SetLeverageCommand from '@/components/terminal/commands/SetLeverageCommand.vue'
-import { marketContextAccountId } from '@/lib/marketContext'
+import { marketContextAccountId, normalizeMarketContext } from '@/lib/marketContext'
 
 defineOptions({
   inheritAttrs: false,
@@ -301,6 +301,30 @@ function handleCancelRemainingEntry(commandId: string): void {
     return
   }
   commandStore.cancelRemainingEntry(commandId)
+}
+
+function canRefreshExchangeState(command: UserCommandPayload): boolean {
+  if (
+    !['MarketOrder', 'LimitOrder', 'ChaseOrder', 'TrailingEntryOrder'].includes(command.kind) ||
+    !command.data ||
+    !('market_context' in command.data)
+  ) {
+    return false
+  }
+  return normalizeMarketContext(command.data.market_context).type === 'hyperliquid'
+}
+
+function handleRefreshExchangeState(commandId: string): void {
+  const item = commandStore.commandMap[commandId]
+  if (!item || !canRefreshExchangeState(item.command)) return
+  const data = item.command.data as {
+    market_context: MarketContext
+    symbol: string
+  }
+  wsStore.sendRefreshHyperliquidReconciliation(data.market_context, {
+    symbol: data.symbol,
+    commandId,
+  })
 }
 
 function handleContinueMissedEntry(commandId: string): void {
@@ -602,6 +626,7 @@ function saveRename() {
                           :canContinueMissedEntry="
                             commandStore.canContinueMissedEntry(cmd.command_id)
                           "
+                          :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
                           :createdAt="cmd.created_at"
                           @duplicate="handleDuplicate(cmd.command)"
                           @cancel="handleCancel"
@@ -609,6 +634,7 @@ function saveRename() {
                           @close-position="handleClosePosition"
                           @cancel-remaining-entry="handleCancelRemainingEntry"
                           @continue-missed-entry="handleContinueMissedEntry"
+                          @refresh-exchange-state="handleRefreshExchangeState"
                           @rename="handleRename"
                           @pin="handlePin"
                         >
@@ -664,6 +690,7 @@ function saveRename() {
                       :canClosePosition="commandStore.canClosePosition(cmd.command_id)"
                       :closePositionLabel="commandStore.closePositionLabel(cmd.command_id)"
                       :canContinueMissedEntry="commandStore.canContinueMissedEntry(cmd.command_id)"
+                      :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
                       :createdAt="cmd.created_at"
                       @duplicate="handleDuplicate(cmd.command)"
                       @cancel="handleCancel"
@@ -671,6 +698,7 @@ function saveRename() {
                       @close-position="handleClosePosition"
                       @cancel-remaining-entry="handleCancelRemainingEntry"
                       @continue-missed-entry="handleContinueMissedEntry"
+                      @refresh-exchange-state="handleRefreshExchangeState"
                       @rename="handleRename"
                       @pin="handlePin"
                     >
@@ -722,6 +750,7 @@ function saveRename() {
               :canClosePosition="commandStore.canClosePosition(cmd.command_id)"
               :closePositionLabel="commandStore.closePositionLabel(cmd.command_id)"
               :canContinueMissedEntry="commandStore.canContinueMissedEntry(cmd.command_id)"
+              :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
               :createdAt="cmd.created_at"
               @duplicate="handleDuplicate(cmd.command)"
               @cancel="handleCancel"
@@ -729,6 +758,7 @@ function saveRename() {
               @close-position="handleClosePosition"
               @cancel-remaining-entry="handleCancelRemainingEntry"
               @continue-missed-entry="handleContinueMissedEntry"
+              @refresh-exchange-state="handleRefreshExchangeState"
               @rename="handleRename"
               @pin="handlePin"
             >

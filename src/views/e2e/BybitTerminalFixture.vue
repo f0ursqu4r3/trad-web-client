@@ -173,8 +173,11 @@ wsStore.requestHyperliquidPositionEffectPreview = (request) => {
   }, 0)
   return requestId
 }
-wsStore.requestHyperliquidPositionOwnership = (marketContext) => {
-  const requestId = crypto.randomUUID()
+function publishHyperliquidOwnership(
+  marketContext: MarketContext,
+  requestId: string,
+  reconciled: boolean,
+) {
   window.setTimeout(() => {
     wsStore.hyperliquidPositionOwnership[`hyperliquid:${hyperliquidAccountId}`] = {
       request_uuid: requestId,
@@ -189,7 +192,11 @@ wsStore.requestHyperliquidPositionOwnership = (marketContext) => {
           external_same_side_quantity: 0.001,
           unresolved_deficit_quantity: 0,
           status: 'external_surplus',
-          opens_blocked: false,
+          opens_blocked: reconciled,
+          unknown_external_open_order_count: reconciled ? 2 : 0,
+          discrepancies: reconciled
+            ? ['external_same_side_surplus', 'unknown_external_open_orders:2']
+            : [],
           owners: [
             {
               command_id: hyperliquidLimitCommandId,
@@ -209,8 +216,52 @@ wsStore.requestHyperliquidPositionOwnership = (marketContext) => {
           ],
         },
       ],
+      reconciliation: reconciled
+        ? {
+            scope: 'account',
+            stream_health: {
+              connected: true,
+              fresh: true,
+              position_snapshot_seen: true,
+              open_orders_snapshot_seen: true,
+              last_frame_age_ms: 12,
+            },
+            position_snapshot_time_ms: Date.now(),
+            authoritative_open_orders_checked: 4,
+            known_trad_open_orders: 2,
+            unknown_external_open_orders: 2,
+            expensive_fills_read: false,
+            recent_fill_count: 0,
+            unresolved_submission_intents: false,
+            refreshed_device_count: 3,
+            audit_recorded: true,
+            errors: [],
+          }
+        : null,
     }
   }, 0)
+}
+
+wsStore.requestHyperliquidPositionOwnership = (marketContext) => {
+  const requestId = crypto.randomUUID()
+  publishHyperliquidOwnership(marketContext, requestId, false)
+  return requestId
+}
+wsStore.sendRefreshHyperliquidReconciliation = (marketContext, scope) => {
+  const requestId = crypto.randomUUID()
+  commandSends.value = [
+    ...commandSends.value,
+    {
+      kind: 'RefreshHyperliquidReconciliation',
+      data: {
+        market_context: marketContext,
+        symbol: scope?.symbol || null,
+        command_id: scope?.commandId || null,
+        protection_device_id: scope?.protectionDeviceId || null,
+      },
+    },
+  ]
+  publishHyperliquidOwnership(marketContext, requestId, true)
   return requestId
 }
 
