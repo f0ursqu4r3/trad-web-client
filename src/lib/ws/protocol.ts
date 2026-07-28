@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 32
+export const PROTOCOL_VERSION = 33
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -275,6 +275,7 @@ export type SystemMessagePayload =
   | { kind: 'ListCommandDevicesRequest'; data: ListCommandDevicesRequest }
   | { kind: 'InspectStart'; data: InspectStartRequest }
   | { kind: 'InspectReadyAck'; data: InspectReadyAckData }
+  | { kind: 'GetCommandActionContext'; data: GetCommandActionContextRequest }
   | { kind: 'ResyncDevice'; data: ResyncDeviceRequest }
   | { kind: 'CancelCommand'; data: CancelCommandRequest }
   | { kind: 'RefreshAccountKeys'; data: RefreshAccountKeysMessage }
@@ -296,6 +297,10 @@ export type SystemMessagePayload =
   | { kind: 'Hello'; data: HelloData }
 
 export type CancelCommandRequest = {
+  command_id: Uuid
+}
+
+export type GetCommandActionContextRequest = {
   command_id: Uuid
 }
 
@@ -595,6 +600,7 @@ export type ServerToClientPayload =
   | { kind: 'ClientJoined'; data: ClientJoinedData }
   | { kind: 'ClientLeft'; data: ClientLeftData }
   | { kind: 'CommandDevicesList'; data: CommandDevicesListData }
+  | { kind: 'CommandActionContext'; data: CommandActionContextData }
   | { kind: 'CommandHistory'; data: CommandHistoryData }
   | { kind: 'CommandResponse'; data: CommandResponseData }
   | { kind: 'DeviceLifecycle'; data: DeviceLifecycleEvent }
@@ -953,6 +959,13 @@ export type DeviceSnapshotLiteData = {
   awaiting_children: boolean
   failure_reason?: string | null
   snapshot: DeviceSnapshotLite
+}
+
+export type CommandActionContextData = {
+  request_uuid: Uuid
+  command_id: Uuid
+  generated_at: string
+  devices: DeviceSnapshotLiteData[]
 }
 
 export type DeviceSnapshotLite =

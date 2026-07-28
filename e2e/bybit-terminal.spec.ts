@@ -856,6 +856,16 @@ test('command rows open their existing action menu at the right-click position',
   await page.goto('/e2e/bybit-terminal')
 
   const commandId = '21212121-2121-4121-8121-212121212121'
+  const selectedCommandId = '25252525-2525-4525-8525-252525252525'
+  const selectedRow = page
+    .getByTestId('command-panel')
+    .locator('.command-row')
+    .filter({ hasText: '#25252525' })
+  await selectedRow.click()
+  await expect
+    .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getSelectedCommandId()))
+    .toBe(selectedCommandId)
+
   const row = page
     .getByTestId('command-panel')
     .locator('.command-row')
@@ -884,6 +894,11 @@ test('command rows open their existing action menu at the right-click position',
 
   const menu = page.getByRole('menu')
   await expect(menu).toBeVisible()
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__tradBybitTerminalFixture?.getActionContextRequestSends()),
+    )
+    .toContain(commandId)
   const inspectStateAfter = await page.evaluate(() => ({
     selectedCommandId: window.__tradBybitTerminalFixture?.getSelectedCommandId(),
     inspectCommandSends: window.__tradBybitTerminalFixture?.getInspectCommandSends(),

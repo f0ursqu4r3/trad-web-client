@@ -1,10 +1,12 @@
 import {
   CommandStatus,
+  type CommandActionContextData,
   MarketAction,
   OrderStatus,
   TrailingEntryLifecycle,
   type CommandDevicesListData,
   type CommandHistoryItem,
+  type DeviceSnapshotLiteData,
   type Uuid,
   type LimitOrderCommand,
   type ChaseOrderCommand,
@@ -43,6 +45,16 @@ export interface PendingCommand {
 
 export interface OrderedCommandHistoryItem extends CommandHistoryItem {
   orderIndex: number
+}
+
+export type CommandActionContextStatus = 'idle' | 'loading' | 'ready' | 'error'
+
+export interface CommandActionContextEntry {
+  status: CommandActionContextStatus
+  requestId: Uuid | null
+  generatedAt: string | null
+  devices: DeviceSnapshotLiteData[]
+  error: string | null
 }
 
 export enum interestingCommandKinds {
@@ -84,6 +96,7 @@ export const useCommandStore = defineStore(
     const pendingCommands = new Map<Uuid, PendingCommand>()
     const selectedCommandId = ref<string | null>(null)
     const autoInspectNewCommands = ref(true)
+    const actionContexts = ref<Record<Uuid, CommandActionContextEntry>>({})
 
     const commandMeta = ref<
       Record<
@@ -162,7 +175,76 @@ export const useCommandStore = defineStore(
       return ids
     })
 
+    function commandActionContext(commandId: Uuid): CommandActionContextEntry {
+      return (
+        actionContexts.value[commandId] ?? {
+          status: 'idle',
+          requestId: null,
+          generatedAt: null,
+          devices: [],
+          error: null,
+        }
+      )
+    }
+
+    function beginCommandActionContext(commandId: Uuid, requestId: Uuid) {
+      actionContexts.value = {
+        [commandId]: {
+          status: 'loading',
+          requestId,
+          generatedAt: null,
+          devices: [],
+          error: null,
+        },
+      }
+    }
+
+    function resolveCommandActionContext(data: CommandActionContextData) {
+      const current = actionContexts.value[data.command_id]
+      if (!current || current.requestId !== data.request_uuid) return
+      actionContexts.value = {
+        ...actionContexts.value,
+        [data.command_id]: {
+          status: 'ready',
+          requestId: data.request_uuid,
+          generatedAt: data.generated_at,
+          devices: data.devices,
+          error: null,
+        },
+      }
+    }
+
+    function rejectCommandActionContext(requestId: Uuid, commandId: Uuid, error: string) {
+      const current = actionContexts.value[commandId]
+      if (!current || current.requestId !== requestId) return
+      actionContexts.value = {
+        ...actionContexts.value,
+        [commandId]: {
+          ...current,
+          status: 'error',
+          requestId: null,
+          devices: [],
+          error,
+        },
+      }
+    }
+
+    function commandActionContextDevices(commandId: Uuid): DeviceSnapshotLiteData[] | null {
+      const context = actionContexts.value[commandId]
+      return context?.status === 'ready' ? context.devices : null
+    }
+
     function trailingEntryCanClose(commandId: string): boolean {
+      const contextDevices = commandActionContextDevices(commandId)
+      if (contextDevices) {
+        return contextDevices.some((device) => {
+          if (device.snapshot.kind !== 'TrailingEntry') return false
+          const stats = device.snapshot.data.stats
+          if (!stats) return false
+          const netBase = (stats.open_filled_qty ?? 0) - (stats.close_filled_qty ?? 0)
+          return netBase > Math.max(stats.dust_threshold ?? 0, 1e-12)
+        })
+      }
       return deviceStore.devices.some((device) => {
         if (device.kind !== 'TrailingEntry') return false
         if (device.associated_command_id !== commandId) return false
@@ -187,18 +269,45 @@ export const useCommandStore = defineStore(
     }
 
     function hyperliquidCommandActionState(commandId: string) {
-      const commandDevices = deviceStore.devices.filter(
-        (device) => device.associated_command_id === commandId,
-      )
-      const orders = commandDevices
-        .filter((device) => device.kind === 'Order')
-        .map((device) => device.state as OrderState)
-      const protections = commandDevices
-        .filter((device) => device.kind === 'NativeProtection')
-        .map((device) => device.state as NativeProtectionState)
-      const chases = commandDevices
-        .filter((device) => device.kind === 'Chase')
-        .map((device) => device.state as ChaseState)
+      const contextDevices = commandActionContextDevices(commandId)
+      const commandDevices = contextDevices
+        ? []
+        : deviceStore.devices.filter((device) => device.associated_command_id === commandId)
+      const orders = contextDevices
+        ? contextDevices
+            .filter((device) => device.snapshot.kind === 'Order')
+            .map((device) => {
+              const snapshot = device.snapshot
+              return snapshot.kind === 'Order' ? snapshot.data : null
+            })
+            .filter((order): order is NonNullable<typeof order> => order !== null)
+        : commandDevices
+            .filter((device) => device.kind === 'Order')
+            .map((device) => device.state as OrderState)
+      const protections = contextDevices
+        ? contextDevices
+            .filter((device) => device.snapshot.kind === 'NativeProtection')
+            .map((device) => {
+              const snapshot = device.snapshot
+              return snapshot.kind === 'NativeProtection' ? snapshot.data : null
+            })
+            .filter(
+              (protection): protection is NonNullable<typeof protection> => protection !== null,
+            )
+        : commandDevices
+            .filter((device) => device.kind === 'NativeProtection')
+            .map((device) => device.state as NativeProtectionState)
+      const chases = contextDevices
+        ? contextDevices
+            .filter((device) => device.snapshot.kind === 'Chase')
+            .map((device) => {
+              const snapshot = device.snapshot
+              return snapshot.kind === 'Chase' ? snapshot.data : null
+            })
+            .filter((chase): chase is NonNullable<typeof chase> => chase !== null)
+        : commandDevices
+            .filter((device) => device.kind === 'Chase')
+            .map((device) => device.state as ChaseState)
       const orderTerminal = (status: OrderStatus) =>
         [OrderStatus.Filled, OrderStatus.Canceled, OrderStatus.Rejected].includes(status)
       const chaseTerminal = (status: string) =>
@@ -224,10 +333,13 @@ export const useCommandStore = defineStore(
           )
         : Math.max(0, opened - closed)
       return {
-        loaded: commandDevices.length > 0,
+        loaded: contextDevices ? contextDevices.length > 0 : commandDevices.length > 0,
         workingEntry,
         reconciliationRequired,
         ownedQuantity,
+        protectionCount: protections.filter(
+          (protection) => (protection.owned_remaining_qty ?? 0) > 0,
+        ).length,
       }
     }
 
@@ -274,6 +386,14 @@ export const useCommandStore = defineStore(
     }
 
     function canContinueMissedEntry(commandId: string): boolean {
+      const contextDevices = commandActionContextDevices(commandId)
+      if (contextDevices) {
+        return contextDevices.some(
+          (device) =>
+            device.snapshot.kind === 'TrailingEntry' &&
+            device.snapshot.data.lifecycle === TrailingEntryLifecycle.MissedEntryPaused,
+        )
+      }
       const pausedTeExists = deviceStore.devices.some((device) => {
         if (device.kind !== 'TrailingEntry') return false
         if (device.associated_command_id !== commandId) return false
@@ -670,6 +790,7 @@ export const useCommandStore = defineStore(
       selectedCommandId,
       selectedCommand,
       autoInspectNewCommands,
+      actionContexts,
       pendingCommands,
       commandFilters,
       commandMeta,
@@ -687,8 +808,13 @@ export const useCommandStore = defineStore(
       canCancelCommand,
       canCancelRemainingEntry,
       canContinueMissedEntry,
+      commandActionContext,
+      commandActionContextDevices,
       /* actions */
       inspectCommand,
+      beginCommandActionContext,
+      resolveCommandActionContext,
+      rejectCommandActionContext,
       setAutoInspectNewCommands,
       cancelCommand,
       closePosition,

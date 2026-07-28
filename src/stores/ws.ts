@@ -1,5 +1,6 @@
 import {
   CommandStatus,
+  type CommandActionContextData,
   type E2eBybitPublicTradeTick,
   type E2eHyperliquidPublicTradeTick,
   type HyperliquidPositionEffectPreviewData,
@@ -87,6 +88,13 @@ export const useWsStore = defineStore('ws', () => {
   const pendingAccountRefreshes = new Set<Uuid>()
   const pendingPositionEffectPreviews = new Set<Uuid>()
   const pendingPositionOwnership = new Map<Uuid, string>()
+  const pendingCommandActionContexts = new Map<
+    Uuid,
+    {
+      commandId: Uuid
+      timer: number
+    }
+  >()
   const pendingAccountRefreshResolvers = new Map<
     Uuid,
     {
@@ -237,6 +245,24 @@ export const useWsStore = defineStore('ws', () => {
       kind: 'CancelCommand',
       data: { command_id: commandId },
     })
+  }
+
+  function requestCommandActionContext(commandId: Uuid): Uuid {
+    const requestId = sendSystemCommand({
+      kind: 'GetCommandActionContext',
+      data: { command_id: commandId },
+    })
+    const timer = window.setTimeout(() => {
+      if (!pendingCommandActionContexts.delete(requestId)) return
+      commandStore.rejectCommandActionContext(
+        requestId,
+        commandId,
+        'Timed out loading command actions.',
+      )
+    }, 5_000)
+    pendingCommandActionContexts.set(requestId, { commandId, timer })
+    commandStore.beginCommandActionContext(commandId, requestId)
+    return requestId
   }
 
   function sendCloseTrailingEntryPosition(commandId: Uuid) {
@@ -543,6 +569,7 @@ export const useWsStore = defineStore('ws', () => {
       CommandHistory: handleCommandHistory,
       SetCommandStatus: handleSetCommandStatus,
       CommandDevicesList: handleCommandDevicesList,
+      CommandActionContext: handleCommandActionContext,
       InspectReady: handleInspectReady,
       DeviceLifecycle: handleDeviceLifecycle,
       DeviceSnapshotLite: handleDeviceSnapshotLite,
@@ -686,6 +713,16 @@ export const useWsStore = defineStore('ws', () => {
         pendingPositionOwnership.delete(data.request_uuid)
         hyperliquidPositionOwnershipErrors.value[ownershipKey] = data.error
       }
+      const actionContextRequest = pendingCommandActionContexts.get(data.request_uuid)
+      if (actionContextRequest) {
+        window.clearTimeout(actionContextRequest.timer)
+        pendingCommandActionContexts.delete(data.request_uuid)
+        commandStore.rejectCommandActionContext(
+          data.request_uuid,
+          actionContextRequest.commandId,
+          data.error,
+        )
+      }
       const accountRefreshResolver = pendingAccountRefreshResolvers.get(data.request_uuid)
       if (accountRefreshResolver) {
         window.clearTimeout(accountRefreshResolver.timer)
@@ -750,6 +787,18 @@ export const useWsStore = defineStore('ws', () => {
     const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandHistory' }>)
       .data
     commandStore.setCommandHistory(data.items)
+  }
+
+  function handleCommandActionContext(payload: ServerToClientMessage['payload']): void {
+    const data = (
+      payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandActionContext' }>
+    ).data as CommandActionContextData
+    const pending = pendingCommandActionContexts.get(data.request_uuid)
+    if (pending) {
+      window.clearTimeout(pending.timer)
+      pendingCommandActionContexts.delete(data.request_uuid)
+    }
+    commandStore.resolveCommandActionContext(data)
   }
 
   function handleSetCommandStatus(payload: ServerToClientMessage['payload']): void {
@@ -901,6 +950,7 @@ export const useWsStore = defineStore('ws', () => {
     dismissServerActionNotice,
     setInboundDebugEnabled,
     inspectCommand,
+    requestCommandActionContext,
     sendSystemPing,
     sendTokenLogin,
     sendLogout,

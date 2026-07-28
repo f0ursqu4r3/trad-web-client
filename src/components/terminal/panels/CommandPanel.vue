@@ -7,7 +7,7 @@ import { useWsStore } from '@/stores/ws'
 import { useAccountsStore } from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
 import { useUiStore } from '@/stores/ui'
-import { useDeviceStore, type Device, type NativeProtectionState } from '@/stores/devices'
+import { useDeviceStore, type NativeProtectionState } from '@/stores/devices'
 import { formatName } from '@/lib/utils'
 import { marketProductLabel } from '@/lib/marketContext'
 
@@ -43,7 +43,7 @@ const accountsStore = useAccountsStore()
 const modalStore = useModalStore()
 const uiStore = useUiStore()
 const deviceStore = useDeviceStore()
-const editProtectionDevice = ref<Device | null>(null)
+const editProtectionDevice = ref<{ id: string; state: NativeProtectionState } | null>(null)
 const editProtectionState = computed(
   () => editProtectionDevice.value?.state as NativeProtectionState | undefined,
 )
@@ -293,6 +293,10 @@ function handleInspect(commandId: string): void {
   commandStore.inspectCommand(commandId)
 }
 
+function handleRequestActionContext(commandId: string): void {
+  wsStore.requestCommandActionContext(commandId)
+}
+
 function handleCancel(commandId: string): void {
   commandStore.cancelCommand(commandId)
 }
@@ -329,12 +333,7 @@ function handlePartialClosePosition(commandId: string): void {
     marketContext: item.command.data.market_context,
     positionSide: item.command.data.position_side,
     ownedQuantity: state.ownedQuantity,
-    protectionCount: deviceStore.devices.filter(
-      (device) =>
-        device.associated_command_id === commandId &&
-        device.kind === 'NativeProtection' &&
-        (device.state as NativeProtectionState).owned_remaining_qty > 0,
-    ).length,
+    protectionCount: state.protectionCount,
   }
 }
 
@@ -387,24 +386,65 @@ function handleRefreshExchangeState(commandId: string): void {
   })
 }
 
-function editableProtection(commandId: string): Device | null {
+function editableProtection(
+  commandId: string,
+): { id: string; state: NativeProtectionState } | null {
+  const contextDevices = commandStore.commandActionContextDevices(commandId)
+  if (contextDevices) {
+    const device = contextDevices.find(
+      (candidate) =>
+        candidate.snapshot.kind === 'NativeProtection' &&
+        !candidate.complete &&
+        normalizeMarketContext(candidate.snapshot.data.market_context).type === 'hyperliquid' &&
+        candidate.snapshot.data.status === NativeProtectionStatus.Tracking &&
+        candidate.snapshot.data.ownership_status === 'consistent' &&
+        (candidate.snapshot.data.owned_remaining_qty ?? 0) > 0,
+    )
+    if (!device || device.snapshot.kind !== 'NativeProtection') return null
+    const snapshot = device.snapshot.data
+    return {
+      id: device.device_id,
+      state: {
+        ...snapshot,
+        market_context: normalizeMarketContext(snapshot.market_context),
+        take_profit: snapshot.take_profit ?? null,
+        stop_loss: snapshot.stop_loss ?? null,
+        owned_remaining_qty: snapshot.owned_remaining_qty ?? 0,
+        last_live_signed_position: snapshot.last_live_signed_position ?? null,
+        aggregate_owned_qty: snapshot.aggregate_owned_qty ?? null,
+        aggregate_owner_count: snapshot.aggregate_owner_count ?? null,
+        ownership_reason: snapshot.ownership_reason ?? null,
+        explicit_close_cleanup: snapshot.explicit_close_cleanup ?? false,
+        last_client_order_id: snapshot.last_client_order_id ?? null,
+        last_parent_client_order_id: snapshot.last_parent_client_order_id ?? null,
+        last_remote_order_id: snapshot.last_remote_order_id ?? null,
+        last_order_status: snapshot.last_order_status ?? null,
+        last_order_reason: snapshot.last_order_reason ?? null,
+        last_take_profit: null,
+        last_stop_loss: null,
+        last_tpsl_mode: null,
+        last_update_seen_at: snapshot.last_update_seen_at
+          ? new Date(snapshot.last_update_seen_at)
+          : null,
+        created_at: new Date(snapshot.created_at),
+      } as NativeProtectionState,
+    }
+  }
   return (
-    deviceStore.devices.find((device) => {
-      if (
-        device.kind !== 'NativeProtection' ||
-        device.associated_command_id !== commandId ||
-        device.complete
-      ) {
-        return false
-      }
-      const protection = device.state as NativeProtectionState
-      return (
-        normalizeMarketContext(protection.market_context).type === 'hyperliquid' &&
-        protection.status === NativeProtectionStatus.Tracking &&
-        protection.ownership_status === 'consistent' &&
-        protection.owned_remaining_qty > 0
-      )
-    }) ?? null
+    deviceStore.devices
+      .filter((device) => device.associated_command_id === commandId)
+      .map((device) => ({ id: device.id, state: device.state as NativeProtectionState, device }))
+      .find(({ device, state: protection }) => {
+        if (device.kind !== 'NativeProtection' || device.complete) {
+          return false
+        }
+        return (
+          normalizeMarketContext(protection.market_context).type === 'hyperliquid' &&
+          protection.status === NativeProtectionStatus.Tracking &&
+          protection.ownership_status === 'consistent' &&
+          protection.owned_remaining_qty > 0
+        )
+      }) ?? null
   )
 }
 
@@ -720,6 +760,12 @@ function saveRename() {
                           "
                           :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
                           :canEditProtection="canEditProtection(cmd.command_id)"
+                          :actionContextStatus="
+                            commandStore.commandActionContext(cmd.command_id).status
+                          "
+                          :actionContextError="
+                            commandStore.commandActionContext(cmd.command_id).error
+                          "
                           :createdAt="cmd.created_at"
                           @duplicate="handleDuplicate(cmd.command)"
                           @cancel="handleCancel"
@@ -732,6 +778,7 @@ function saveRename() {
                           @edit-protection="handleEditProtection"
                           @rename="handleRename"
                           @pin="handlePin"
+                          @request-action-context="handleRequestActionContext"
                         >
                           <component
                             :is="getCommandComponent(cmd.command)"
@@ -790,6 +837,10 @@ function saveRename() {
                       :canContinueMissedEntry="commandStore.canContinueMissedEntry(cmd.command_id)"
                       :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
                       :canEditProtection="canEditProtection(cmd.command_id)"
+                      :actionContextStatus="
+                        commandStore.commandActionContext(cmd.command_id).status
+                      "
+                      :actionContextError="commandStore.commandActionContext(cmd.command_id).error"
                       :createdAt="cmd.created_at"
                       @duplicate="handleDuplicate(cmd.command)"
                       @cancel="handleCancel"
@@ -802,6 +853,7 @@ function saveRename() {
                       @edit-protection="handleEditProtection"
                       @rename="handleRename"
                       @pin="handlePin"
+                      @request-action-context="handleRequestActionContext"
                     >
                       <component
                         :is="getCommandComponent(cmd.command)"
@@ -854,6 +906,8 @@ function saveRename() {
               :canContinueMissedEntry="commandStore.canContinueMissedEntry(cmd.command_id)"
               :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
               :canEditProtection="canEditProtection(cmd.command_id)"
+              :actionContextStatus="commandStore.commandActionContext(cmd.command_id).status"
+              :actionContextError="commandStore.commandActionContext(cmd.command_id).error"
               :createdAt="cmd.created_at"
               @duplicate="handleDuplicate(cmd.command)"
               @cancel="handleCancel"
@@ -866,6 +920,7 @@ function saveRename() {
               @edit-protection="handleEditProtection"
               @rename="handleRename"
               @pin="handlePin"
+              @request-action-context="handleRequestActionContext"
             >
               <component
                 :is="getCommandComponent(cmd.command)"

@@ -32,6 +32,7 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+  (e: 'open'): void
   (e: 'select', item: DropMenuItem & { selected?: boolean }): void
   (e: 'update:modelValue', value: Array<string | number>): void
 }>()
@@ -297,6 +298,7 @@ async function toggleMenu() {
   }
 
   cursorAnchor.value = null
+  emit('open')
   showMenu.value = true
   await nextTick()
   await adjustMenuPlacement({ reset: true })
@@ -304,6 +306,7 @@ async function toggleMenu() {
 
 async function openAt(x: number, y: number) {
   cursorAnchor.value = { x, y }
+  emit('open')
   showMenu.value = true
   await nextTick()
   applyCursorPosition()
@@ -369,6 +372,15 @@ watch(
     if (props.multiple && (!props.modelValue || props.modelValue.length === 0)) {
       syncSelectedFromModel()
     }
+    if (showMenu.value) {
+      void nextTick().then(() => {
+        if (cursorAnchor.value) {
+          applyCursorPosition()
+        } else {
+          return adjustMenuPlacement()
+        }
+      })
+    }
   },
   { deep: true },
 )
@@ -428,7 +440,7 @@ onBeforeUnmount(() => {
         <slot name="items">
           <button
             v-for="(item, index) in props.items"
-            :key="index"
+            :key="getItemValue(item, index)"
             class="dropmenu-item"
             :class="item.className"
             :style="item.style"

@@ -4,6 +4,7 @@ import DropMenu from '@/components/general/DropMenu.vue'
 import { type DropMenuItem } from '@/components/general/DropMenu.vue'
 import { ChevronDown, Pin } from 'lucide-vue-next'
 import { formatName } from '@/lib/utils'
+import type { CommandActionContextStatus } from '@/stores/command'
 
 const props = withDefaults(
   defineProps<{
@@ -23,6 +24,8 @@ const props = withDefaults(
     canContinueMissedEntry?: boolean
     canRefreshExchangeState?: boolean
     canEditProtection?: boolean
+    actionContextStatus?: CommandActionContextStatus
+    actionContextError?: string | null
   }>(),
   {
     commandKind: '',
@@ -39,6 +42,8 @@ const props = withDefaults(
     canContinueMissedEntry: false,
     canRefreshExchangeState: false,
     canEditProtection: false,
+    actionContextStatus: 'idle',
+    actionContextError: null,
   },
 )
 
@@ -55,6 +60,7 @@ const emit = defineEmits<{
   (e: 'edit-protection', commandId: string): void
   (e: 'rename', commandId: string): void
   (e: 'pin', commandId: string): void
+  (e: 'request-action-context', commandId: string): void
 }>()
 
 const shortId = computed(() => props.commandId.slice(0, 8))
@@ -89,7 +95,7 @@ const statusClass = computed(() => {
 })
 
 const menuItems = computed<Array<DropMenuItem>>(() => {
-  const items = [
+  const items: Array<DropMenuItem> = [
     {
       label: 'Inspect',
       action: () => emit('inspect', props.commandId),
@@ -103,31 +109,36 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
       action: () => emit('duplicate', props.commandId),
     },
   ]
-  if (props.canClosePosition) {
+  const actionContextReady = !['loading', 'error'].includes(props.actionContextStatus)
+  if (actionContextReady && props.canClosePosition) {
     items.push({
       label: props.closePositionLabel,
       action: () => emit('close-position', props.commandId),
     })
   }
-  if (props.canPartialClosePosition) {
+  if (actionContextReady && props.canPartialClosePosition) {
     items.push({
       label: 'Close Part...',
       action: () => emit('partial-close-position', props.commandId),
     })
   }
-  if (props.canCancelRemainingEntry) {
+  if (actionContextReady && props.canCancelRemainingEntry) {
     items.push({
       label: 'Cancel Remaining',
       action: () => emit('cancel-remaining-entry', props.commandId),
     })
   }
-  if (props.commandKind === 'TrailingEntryOrder' && props.canContinueMissedEntry) {
+  if (
+    actionContextReady &&
+    props.commandKind === 'TrailingEntryOrder' &&
+    props.canContinueMissedEntry
+  ) {
     items.push({
       label: 'Continue Anyway',
       action: () => emit('continue-missed-entry', props.commandId),
     })
   }
-  if (props.canCancel) {
+  if (actionContextReady && props.canCancel) {
     items.push({
       label: 'Cancel',
       action: () => emit('cancel', props.commandId),
@@ -139,10 +150,24 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
       action: () => emit('refresh-exchange-state', props.commandId),
     })
   }
-  if (props.canEditProtection) {
+  if (actionContextReady && props.canEditProtection) {
     items.push({
       label: 'Edit Protection',
       action: () => emit('edit-protection', props.commandId),
+    })
+  }
+  if (props.actionContextStatus === 'loading') {
+    items.push({
+      label: 'Loading live actions...',
+      disabled: true,
+    })
+  } else if (props.actionContextStatus === 'error') {
+    items.push({
+      label: props.actionContextError
+        ? `Live actions unavailable: ${props.actionContextError}`
+        : 'Live actions unavailable',
+      disabled: true,
+      className: 'text-[var(--color-error)]',
     })
   }
   return items
@@ -220,7 +245,12 @@ function openContextMenu(event: MouseEvent) {
           >
             <Pin :size="10" :class="props.pinned ? 'pin-active' : ''" />
           </button>
-          <DropMenu ref="commandMenuRef" :items="menuItems" trigger-class="command-action-btn" />
+          <DropMenu
+            ref="commandMenuRef"
+            :items="menuItems"
+            trigger-class="command-action-btn"
+            @open="emit('request-action-context', props.commandId)"
+          />
 
           <button
             class="btn btn-sm icon-btn command-action-btn"

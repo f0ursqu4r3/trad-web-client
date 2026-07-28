@@ -50,6 +50,8 @@ const flattenSymbolSends = ref<string[]>([])
 const cancelRemainingEntrySends = ref<string[]>([])
 const commandSends = ref<unknown[]>([])
 const inspectCommandSends = ref<string[]>([])
+const actionContextRequestSends = ref<string[]>([])
+const chaseProtectionContextConsistent = ref(false)
 const positionPreviewScenario = ref<'add' | 'reverse'>('add')
 const marketOrderOpen = ref(false)
 const limitOrderOpen = ref(false)
@@ -113,6 +115,59 @@ wsStore.inspectCommand = (commandId: string) => {
       .filter((device) => device.associated_command_id === commandId)
       .forEach((device) => useDeviceStore().handleDeviceSnapshotLite(device))
   }, 0)
+}
+wsStore.requestCommandActionContext = (commandId: string) => {
+  const requestId = crypto.randomUUID()
+  actionContextRequestSends.value = [...actionContextRequestSends.value, commandId]
+  commandStore.beginCommandActionContext(commandId, requestId)
+  window.setTimeout(() => {
+    const fixtureDevices = [
+      binanceOrderDevice,
+      bybitProtocolFixtures.bybitDeviceSnapshotLite,
+      bybitRejectedOrderDevice,
+      bybitMissedTrailingEntryDevice,
+      bybitMissedOrderDevice,
+      bybitMissingProtectionDevice,
+      hyperliquidWorkingLimitDevice,
+      hyperliquidChaseDevice,
+      hyperliquidChaseAttemptOne,
+      hyperliquidChaseAttemptTwo,
+      hyperliquidChaseProtection,
+      ...hyperliquidTeDevices,
+      ...highCountBybitDevices,
+      ...highCountHyperliquidDevices,
+    ]
+      .filter((device) => device.associated_command_id === commandId)
+      .map((device) => {
+        if (
+          device.device_id !== hyperliquidChaseProtectionId ||
+          device.snapshot.kind !== 'NativeProtection' ||
+          !chaseProtectionContextConsistent.value
+        ) {
+          return device
+        }
+        return {
+          ...device,
+          snapshot: {
+            ...device.snapshot,
+            data: {
+              ...device.snapshot.data,
+              ownership_status: 'consistent' as const,
+              last_live_signed_position: 0.0005,
+              aggregate_owned_qty: 0.0005,
+              ownership_reason: null,
+            },
+          },
+        }
+      })
+    commandStore.resolveCommandActionContext({
+      request_uuid: requestId,
+      command_id: commandId,
+      generated_at: new Date().toISOString(),
+      devices: fixtureDevices,
+    })
+  }, 0)
+  return requestId
 }
 wsStore.sendUserCommandPreview = ((payload: UserCommandPayload) => {
   const requestId = '31313131-3131-4131-8131-313131313131'
@@ -310,6 +365,7 @@ declare global {
       getCancelRemainingEntrySends: () => string[]
       getCommandSends: () => unknown[]
       getInspectCommandSends: () => string[]
+      getActionContextRequestSends: () => string[]
       getSelectedCommandId: () => string | null
       replayHyperliquidTeSnapshots: () => void
       setHyperliquidTeTriggerStartZero: () => void
@@ -329,6 +385,7 @@ window.__tradBybitTerminalFixture = {
   getCancelRemainingEntrySends: () => [...cancelRemainingEntrySends.value],
   getCommandSends: () => [...commandSends.value],
   getInspectCommandSends: () => [...inspectCommandSends.value],
+  getActionContextRequestSends: () => [...actionContextRequestSends.value],
   getSelectedCommandId: () => commandStore.selectedCommandId,
   replayHyperliquidTeSnapshots: () => {
     const deviceStore = useDeviceStore()
@@ -378,6 +435,7 @@ window.__tradBybitTerminalFixture = {
     useDeviceStore().handleDeviceUpdate('DeviceChaseDelta', event)
   },
   setChaseProtectionConsistent: () => {
+    chaseProtectionContextConsistent.value = true
     const event: DeviceNpDeltaEvent = {
       device_id: hyperliquidChaseProtectionId,
       ts: new Date().toISOString(),
