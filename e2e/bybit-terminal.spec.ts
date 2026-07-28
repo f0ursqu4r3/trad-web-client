@@ -180,7 +180,7 @@ test('partially filled Hyperliquid command offers cancel-remaining-and-close, no
     .filter({ hasText: '#21212121' })
   await row.getByTitle('Menu').click()
   await expect(
-    page.getByRole('menuitem', { name: 'Cancel Remaining And Close Filled Position' }),
+    page.getByRole('menuitem', { name: 'Cancel Entry And Close Command Exposure' }),
   ).toBeVisible()
   await expect(page.getByRole('menuitem', { name: 'Cancel Remaining', exact: true })).toBeVisible()
   await expect(page.getByRole('menuitem', { name: 'Cancel', exact: true })).toHaveCount(0)
@@ -198,13 +198,13 @@ test('partially filled Hyperliquid command offers cancel-remaining-and-close, no
     .toContain('21212121-2121-4121-8121-212121212121')
 
   await row.getByTitle('Menu').click()
-  await page.getByRole('menuitem', { name: 'Cancel Remaining And Close Filled Position' }).click()
+  await page.getByRole('menuitem', { name: 'Cancel Entry And Close Command Exposure' }).click()
   const closePartialDialog = page.getByRole('dialog', {
-    name: 'Cancel Remaining And Close Filled Position',
+    name: 'Cancel Entry And Close Command Exposure',
   })
   await expect(closePartialDialog).toBeVisible()
   await closePartialDialog
-    .getByRole('button', { name: 'Cancel Remaining And Close Filled Position' })
+    .getByRole('button', { name: 'Cancel Entry And Close Command Exposure' })
     .click()
   await expect
     .poll(() =>
@@ -682,11 +682,16 @@ test('Hyperliquid TE tree exposes owned exposure, reversal, mixed children, and 
   await expect(deviceRows).toHaveCount(5)
 
   await commandRow.getByTitle('Menu').click()
-  await page.getByRole('menuitem', { name: 'Close Position' }).click()
-  const closeDialog = page.getByRole('dialog', { name: 'Close Position' })
+  const closeExposureItem = page.getByRole('menuitem', { name: 'Close Command Exposure' })
+  await expect(closeExposureItem).toHaveAttribute(
+    'title',
+    "Reduce-only closes this command's owned exposure. Other command and external exposure is unchanged.",
+  )
+  await closeExposureItem.click()
+  const closeDialog = page.getByRole('dialog', { name: 'Close Command Exposure' })
   await expect(closeDialog).toBeVisible()
   await closeDialog.getByLabel("Don't ask again for position closes").check()
-  await closeDialog.getByRole('button', { name: 'Close Position' }).click()
+  await closeDialog.getByRole('button', { name: 'Close Command Exposure' }).click()
   await expect
     .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getClosePositionSends()))
     .toEqual(['61616161-6161-4161-8161-616161616161'])
@@ -699,8 +704,8 @@ test('Hyperliquid TE tree exposes owned exposure, reversal, mixed children, and 
     .toBe(false)
 
   await commandRow.getByTitle('Menu').click()
-  await page.getByRole('menuitem', { name: 'Close Position' }).click()
-  await expect(page.getByRole('dialog', { name: 'Close Position' })).toHaveCount(0)
+  await page.getByRole('menuitem', { name: 'Close Command Exposure' }).click()
+  await expect(page.getByRole('dialog', { name: 'Close Command Exposure' })).toHaveCount(0)
   await expect
     .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getClosePositionSends()))
     .toHaveLength(2)

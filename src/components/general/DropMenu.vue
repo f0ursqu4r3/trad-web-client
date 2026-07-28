@@ -1,6 +1,7 @@
 <script lang="ts">
 export interface DropMenuItem {
   label: string
+  title?: string
   action?: () => void
   disabled?: boolean
   value?: string | number
@@ -444,6 +445,7 @@ onBeforeUnmount(() => {
             class="dropmenu-item"
             :class="item.className"
             :style="item.style"
+            :title="item.title"
             :disabled="item.disabled"
             @click="performAction(item, index)"
             :role="props.multiple ? 'menuitemcheckbox' : 'menuitem'"

@@ -358,9 +358,11 @@ export const useCommandStore = defineStore(
     }
 
     function closePositionLabel(commandId: string): string {
-      if (!isHyperliquidPositionCommand(commandId)) return 'Close Position'
+      if (!isHyperliquidPositionCommand(commandId)) return 'Close Command Exposure'
       const state = hyperliquidCommandActionState(commandId)
-      return state.workingEntry ? 'Cancel Remaining And Close Filled Position' : 'Close Position'
+      return state.workingEntry
+        ? 'Cancel Entry And Close Command Exposure'
+        : 'Close Command Exposure'
     }
 
     function canCancelCommand(commandId: string): boolean {
