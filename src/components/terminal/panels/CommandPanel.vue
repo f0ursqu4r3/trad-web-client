@@ -60,6 +60,8 @@ const confirmation = ref<{
   title: string
   message: string
   confirmLabel: string
+  rememberLabel?: string
+  disableFutureConfirmation?: boolean
   action: () => void
 } | null>(null)
 
@@ -309,11 +311,17 @@ function handleCancel(commandId: string): void {
 }
 
 function handleClosePosition(commandId: string): void {
+  if (!uiStore.confirmPositionCloses) {
+    commandStore.closePosition(commandId)
+    return
+  }
   const label = commandStore.closePositionLabel(commandId)
   confirmation.value = {
     title: label,
     message: `${label} for command ${commandId.slice(0, 8)}?\n\nTrad will cancel any remaining entry order before submitting a reduce-only market close for this command's attributable exposure.`,
     confirmLabel: label,
+    rememberLabel: "Don't ask again for position closes",
+    disableFutureConfirmation: true,
     action: () => commandStore.closePosition(commandId),
   }
 }
@@ -365,10 +373,13 @@ function handleCancelRemainingEntry(commandId: string): void {
   }
 }
 
-function confirmPendingAction(): void {
-  const action = confirmation.value?.action
+function confirmPendingAction(disableFutureConfirmation = false): void {
+  const pending = confirmation.value
   confirmation.value = null
-  action?.()
+  if (pending?.disableFutureConfirmation && disableFutureConfirmation) {
+    uiStore.setConfirmPositionCloses(false)
+  }
+  pending?.action()
 }
 
 function canRefreshExchangeState(command: UserCommandPayload): boolean {
@@ -1040,6 +1051,7 @@ function saveRename() {
       :title="confirmation.title"
       :message="confirmation.message"
       :confirm-label="confirmation.confirmLabel"
+      :remember-label="confirmation.rememberLabel"
       @confirm="confirmPendingAction"
       @cancel="confirmation = null"
     />

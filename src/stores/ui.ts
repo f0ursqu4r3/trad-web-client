@@ -35,6 +35,7 @@ export const useUiStore = defineStore(
     const theme = ref<ThemeMode>('system')
     const numberDisplayMode = ref<NumberDisplayMode>('compact')
     const newestCommandsFirst = ref(false)
+    const confirmPositionCloses = ref(true)
     const systemPrefersDark = ref<boolean>(
       typeof window !== 'undefined'
         ? window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -76,6 +77,11 @@ export const useUiStore = defineStore(
       useUserStore().saveProfile()
     }
 
+    function setConfirmPositionCloses(enabled: boolean) {
+      confirmPositionCloses.value = enabled
+      useUserStore().saveProfile()
+    }
+
     function getVar(name: string, fallback?: string | undefined): string {
       return getComputedStyle(document.documentElement).getPropertyValue(name).trim() ?? fallback
     }
@@ -101,12 +107,14 @@ export const useUiStore = defineStore(
       theme,
       numberDisplayMode,
       newestCommandsFirst,
+      confirmPositionCloses,
       effectiveTheme,
       systemPrefersDark,
       setTheme,
       toggleTheme,
       setNumberDisplayMode,
       setNewestCommandsFirst,
+      setConfirmPositionCloses,
       getVar,
       settingsOpen,
       openSettings,
@@ -119,7 +127,13 @@ export const useUiStore = defineStore(
   {
     persist: {
       key: 'trad-ui-store',
-      pick: ['theme', 'numberDisplayMode', 'newestCommandsFirst', 'showInboundPanel'],
+      pick: [
+        'theme',
+        'numberDisplayMode',
+        'newestCommandsFirst',
+        'confirmPositionCloses',
+        'showInboundPanel',
+      ],
     },
   },
 )

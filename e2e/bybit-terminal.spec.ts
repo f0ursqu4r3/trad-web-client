@@ -685,10 +685,25 @@ test('Hyperliquid TE tree exposes owned exposure, reversal, mixed children, and 
   await page.getByRole('menuitem', { name: 'Close Position' }).click()
   const closeDialog = page.getByRole('dialog', { name: 'Close Position' })
   await expect(closeDialog).toBeVisible()
+  await closeDialog.getByLabel("Don't ask again for position closes").check()
   await closeDialog.getByRole('button', { name: 'Close Position' }).click()
   await expect
     .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getClosePositionSends()))
     .toEqual(['61616161-6161-4161-8161-616161616161'])
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => JSON.parse(localStorage.getItem('trad-ui-store') ?? '{}').confirmPositionCloses,
+      ),
+    )
+    .toBe(false)
+
+  await commandRow.getByTitle('Menu').click()
+  await page.getByRole('menuitem', { name: 'Close Position' }).click()
+  await expect(page.getByRole('dialog', { name: 'Close Position' })).toHaveCount(0)
+  await expect
+    .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getClosePositionSends()))
+    .toHaveLength(2)
 
   await commandRow.getByTitle('Menu').click()
   await expect(page.getByRole('menuitem', { name: 'Cancel', exact: true })).toHaveCount(0)

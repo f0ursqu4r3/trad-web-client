@@ -40,6 +40,10 @@ const newestCommandsFirst = computed({
   get: () => uiStore.newestCommandsFirst,
   set: (enabled: boolean) => uiStore.setNewestCommandsFirst(enabled),
 })
+const confirmPositionCloses = computed({
+  get: () => uiStore.confirmPositionCloses,
+  set: (enabled: boolean) => uiStore.setConfirmPositionCloses(enabled),
+})
 const managedAccount = computed(
   () => accountsStore.accounts.find((account) => account.id === managedAccountId.value) ?? null,
 )
@@ -483,6 +487,10 @@ const returnToOrigin = window.location.origin
                 <label class="mt-2 flex items-center gap-2 text-[12px]">
                   <input v-model="newestCommandsFirst" type="checkbox" class="checkbox" />
                   <span>Newest commands first</span>
+                </label>
+                <label class="mt-2 flex items-center gap-2 text-[12px]">
+                  <input v-model="confirmPositionCloses" type="checkbox" class="checkbox" />
+                  <span>Confirm position closes</span>
                 </label>
               </section>
 
