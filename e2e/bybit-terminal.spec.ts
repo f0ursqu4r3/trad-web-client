@@ -1107,7 +1107,8 @@ test('Hyperliquid partial close previews normalized remainder and emits stale-sa
 
   await dialog.getByLabel('Exact Quantity').fill('0.00026')
   await expect(dialog.getByText('0.000240', { exact: true })).toBeVisible()
-  await dialog.getByRole('checkbox').check()
+  await expect(dialog.getByRole('checkbox')).toHaveCount(0)
+  await expect(dialog.getByRole('button', { name: 'close part' })).toBeEnabled()
   await dialog.getByRole('button', { name: 'close part' }).click()
 
   await expect

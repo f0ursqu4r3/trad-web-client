@@ -30,7 +30,6 @@ const ws = useWsStore()
 const quantity = ref(0)
 const sizeDecimals = ref<number | null>(null)
 const rulesError = ref<string | null>(null)
-const confirmed = ref(false)
 const submitting = ref(false)
 let abort: AbortController | null = null
 
@@ -82,11 +81,10 @@ const validationError = computed(() => {
   }
   return null
 })
-const canSubmit = computed(() => confirmed.value && !validationError.value && !submitting.value)
+const canSubmit = computed(() => !validationError.value && !submitting.value)
 
 function choosePercent(percent: number) {
   quantity.value = props.ownedQuantity * percent
-  confirmed.value = false
 }
 
 async function loadSizeRules() {
@@ -140,7 +138,6 @@ watch(
   (open) => {
     if (!open) return
     quantity.value = props.ownedQuantity * 0.25
-    confirmed.value = false
     submitting.value = false
     ws.requestHyperliquidPositionOwnership(props.marketContext, props.symbol)
     void loadSizeRules()
@@ -237,14 +234,6 @@ onBeforeUnmount(() => abort?.abort())
             submits an exact reduce-only close. Protection is resized to the actual filled
             remainder, including partial fills.
           </p>
-
-          <label class="flex items-start gap-2">
-            <input v-model="confirmed" type="checkbox" class="mt-0.5" />
-            <span>
-              Confirm closing this selected command's exposure. Other command owners remain
-              unchanged.
-            </span>
-          </label>
         </div>
 
         <footer class="flex justify-end gap-2 p-3 border-t border-[var(--border-color)]">
