@@ -50,6 +50,7 @@ const DEFAULT_MENU_MIN_WIDTH_PX = 192
 const menuPosition = ref({ left: 0, top: 0 })
 const triggerWidth = ref<number | null>(null)
 const menuMaxHeight = ref<number | null>(null)
+const cursorAnchor = ref<{ x: number; y: number } | null>(null)
 
 const menuInlineStyle = computed(() => {
   const style: Record<string, string> = {
@@ -117,6 +118,32 @@ function applyMenuPosition(containerRect: DOMRect) {
   menuMaxHeight.value = window.innerHeight - VIEWPORT_PADDING_PX * 2
 }
 
+function applyCursorPosition() {
+  const menuElement = menuRef.value
+  const anchor = cursorAnchor.value
+  if (!menuElement || !anchor) {
+    return
+  }
+
+  triggerWidth.value = null
+
+  const menuRect = menuElement.getBoundingClientRect()
+  const maxLeft = Math.max(
+    VIEWPORT_PADDING_PX,
+    window.innerWidth - menuRect.width - VIEWPORT_PADDING_PX,
+  )
+  const maxTop = Math.max(
+    VIEWPORT_PADDING_PX,
+    window.innerHeight - menuRect.height - VIEWPORT_PADDING_PX,
+  )
+
+  menuPosition.value = {
+    left: clamp(anchor.x, VIEWPORT_PADDING_PX, maxLeft),
+    top: clamp(anchor.y, VIEWPORT_PADDING_PX, maxTop),
+  }
+  menuMaxHeight.value = window.innerHeight - VIEWPORT_PADDING_PX * 2
+}
+
 function clampMenuToViewport() {
   const menuElement = menuRef.value
   if (!menuElement) {
@@ -176,6 +203,7 @@ function closeMenu() {
   horizontalPlacement.value = 'right'
   triggerWidth.value = null
   menuMaxHeight.value = null
+  cursorAnchor.value = null
 }
 
 function handleGlobalPointerDown(event: PointerEvent) {
@@ -196,7 +224,11 @@ function handleKeydown(event: KeyboardEvent) {
 
 function handleViewportChange() {
   if (showMenu.value) {
-    void adjustMenuPlacement()
+    if (cursorAnchor.value) {
+      applyCursorPosition()
+    } else {
+      void adjustMenuPlacement()
+    }
   }
 }
 
@@ -264,10 +296,23 @@ async function toggleMenu() {
     return
   }
 
+  cursorAnchor.value = null
   showMenu.value = true
   await nextTick()
   await adjustMenuPlacement({ reset: true })
 }
+
+async function openAt(x: number, y: number) {
+  cursorAnchor.value = { x, y }
+  showMenu.value = true
+  await nextTick()
+  applyCursorPosition()
+}
+
+defineExpose({
+  close: closeMenu,
+  openAt,
+})
 
 function performAction(item: DropMenuItem, index: number) {
   if (item.disabled) {

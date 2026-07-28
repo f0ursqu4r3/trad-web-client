@@ -59,6 +59,7 @@ const emit = defineEmits<{
 
 const shortId = computed(() => props.commandId.slice(0, 8))
 const expanded = ref(false)
+const commandMenuRef = ref<{ openAt: (x: number, y: number) => void } | null>(null)
 const createdAtLabel = computed(() => {
   if (!props.createdAt) return ''
   try {
@@ -155,6 +156,16 @@ async function copyId() {
   }
 }
 
+function openContextMenu(event: MouseEvent) {
+  if (event.shiftKey) {
+    return
+  }
+
+  event.preventDefault()
+  event.stopPropagation()
+  commandMenuRef.value?.openAt(event.clientX, event.clientY)
+}
+
 // Detail formatting is handled by child components using this wrapper.
 </script>
 
@@ -163,6 +174,7 @@ async function copyId() {
     class="flex flex-col shadow-sm cursor-pointer command-row relative"
     :class="props.pinned ? 'command-row-pinned' : ''"
     @click="emit('inspect', commandId)"
+    @contextmenu="openContextMenu"
   >
     <div class="command-status-bar" :class="statusClass"></div>
     <div class="flex items-start justify-between gap-3 px-3 py-2">
@@ -208,7 +220,7 @@ async function copyId() {
           >
             <Pin :size="10" :class="props.pinned ? 'pin-active' : ''" />
           </button>
-          <DropMenu :items="menuItems" trigger-class="command-action-btn" />
+          <DropMenu ref="commandMenuRef" :items="menuItems" trigger-class="command-action-btn" />
 
           <button
             class="btn btn-sm icon-btn command-action-btn"

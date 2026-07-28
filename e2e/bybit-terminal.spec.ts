@@ -850,6 +850,86 @@ test('Hyperliquid Chase command summary duplicates all strategy parameters', asy
   await expect(dialog.getByLabel('Stop Loss')).toHaveValue('49000')
 })
 
+test('command rows open their existing action menu at the right-click position', async ({
+  page,
+}) => {
+  await page.goto('/e2e/bybit-terminal')
+
+  const commandId = '21212121-2121-4121-8121-212121212121'
+  const row = page
+    .getByTestId('command-panel')
+    .locator('.command-row')
+    .filter({ hasText: '#21212121' })
+  const rowBox = await row.boundingBox()
+  expect(rowBox).not.toBeNull()
+  const inspectStateBefore = await page.evaluate(() => ({
+    selectedCommandId: window.__tradBybitTerminalFixture?.getSelectedCommandId(),
+    inspectCommandSends: window.__tradBybitTerminalFixture?.getInspectCommandSends(),
+  }))
+
+  const clickPosition = { x: 110, y: 18 }
+  await row.evaluate((element) => {
+    element.addEventListener(
+      'contextmenu',
+      (event) => {
+        ;(window as any).__commandContextPoint = {
+          x: event.clientX,
+          y: event.clientY,
+        }
+      },
+      { once: true },
+    )
+  })
+  await row.click({ button: 'right', position: clickPosition })
+
+  const menu = page.getByRole('menu')
+  await expect(menu).toBeVisible()
+  const inspectStateAfter = await page.evaluate(() => ({
+    selectedCommandId: window.__tradBybitTerminalFixture?.getSelectedCommandId(),
+    inspectCommandSends: window.__tradBybitTerminalFixture?.getInspectCommandSends(),
+  }))
+  expect(inspectStateAfter).toEqual(inspectStateBefore)
+
+  const menuBox = await menu.boundingBox()
+  expect(menuBox).not.toBeNull()
+  const contextPoint = await page.evaluate(
+    () => (window as any).__commandContextPoint as { x: number; y: number },
+  )
+  const viewport = page.viewportSize()
+  expect(viewport).not.toBeNull()
+  const expectedX = Math.min(
+    Math.max(8, contextPoint.x),
+    Math.max(8, viewport!.width - menuBox!.width - 8),
+  )
+  const expectedY = Math.min(
+    Math.max(8, contextPoint.y),
+    Math.max(8, viewport!.height - menuBox!.height - 8),
+  )
+  expect(Math.abs(menuBox!.x - expectedX)).toBeLessThanOrEqual(2)
+  expect(Math.abs(menuBox!.y - expectedY)).toBeLessThanOrEqual(2)
+
+  await page.getByRole('menuitem', { name: 'Duplicate' }).click()
+  await expect(page.getByRole('dialog', { name: 'Limit Order' })).toBeVisible()
+  await page
+    .getByRole('dialog', { name: 'Limit Order' })
+    .getByRole('button', { name: 'Cancel' })
+    .click()
+
+  const shiftContextMenuPrevented = await row.evaluate((element) => {
+    const event = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 100,
+      clientY: 100,
+      shiftKey: true,
+    })
+    element.dispatchEvent(event)
+    return event.defaultPrevented
+  })
+  expect(shiftContextMenuPrevented).toBe(false)
+  await expect(menu).toBeHidden()
+})
+
 test('Hyperliquid protection edit validates against live mid and emits exact device command', async ({
   page,
 }) => {
