@@ -879,7 +879,9 @@ test('Hyperliquid protection edit validates against live mid and emits exact dev
 
   const dialog = page.getByRole('dialog', { name: 'Edit Hyperliquid protection' })
   await expect(dialog.getByText('Current mid: $50.00k', { exact: true })).toBeVisible()
-  await expect(dialog.getByText('Protection gap: none expected for existing-leg repricing')).toBeVisible()
+  await expect(
+    dialog.getByText('Protection gap: none expected for existing-leg repricing'),
+  ).toBeVisible()
   await expect(dialog.getByLabel('Take Profit')).toHaveValue('51000')
   await expect(dialog.getByLabel('Stop Loss')).toHaveValue('49000')
   await dialog.getByLabel('Take Profit').fill('52000')
@@ -903,6 +905,53 @@ test('Hyperliquid protection edit validates against live mid and emits exact dev
     .filter({ hasText: '#25252525' })
   await commandRow.getByTitle('Menu').click()
   await expect(page.getByRole('menuitem', { name: 'Edit Protection' })).toBeVisible()
+})
+
+test('Hyperliquid partial close previews normalized remainder and emits stale-safe command', async ({
+  page,
+}) => {
+  await page.route('https://api.hyperliquid-testnet.xyz/info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        universe: [{ name: 'BTC', szDecimals: 5 }],
+      }),
+    })
+  })
+  await page.goto('/e2e/bybit-terminal')
+  await page.evaluate(() => window.__tradBybitTerminalFixture?.setChaseProtectionConsistent())
+
+  const commandRow = page
+    .getByTestId('command-panel')
+    .locator('.command-row')
+    .filter({ hasText: '#25252525' })
+  await commandRow.getByTitle('Menu').click()
+  await page.getByRole('menuitem', { name: 'Close Part...' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'Partially close Hyperliquid command' })
+  await expect(dialog.getByText('0.000120', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('0.000380', { exact: true })).toBeVisible()
+  await expect(
+    dialog.getByText('atomically resize 1 protection group(s)', { exact: true }),
+  ).toBeVisible()
+  await expect(dialog.getByText('0.003000', { exact: true })).toBeVisible()
+
+  await dialog.getByLabel('Exact Quantity').fill('0.00026')
+  await expect(dialog.getByText('0.000240', { exact: true })).toBeVisible()
+  await dialog.getByRole('checkbox').check()
+  await dialog.getByRole('button', { name: 'close part' }).click()
+
+  await expect
+    .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getCommandSends()))
+    .toContainEqual({
+      kind: 'PartialCloseCommandPosition',
+      data: {
+        command_id: '25252525-2525-4525-8525-252525252525',
+        quantity: 0.00026,
+        expected_owned_quantity: 0.0005,
+      },
+    })
 })
 
 test('working Hyperliquid limit order can be canceled from device details', async ({ page }) => {

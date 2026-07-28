@@ -17,7 +17,7 @@ import type {
   MarketOrderPrefill,
   TrailingEntryPrefill,
 } from '../modals/commands/types'
-import type { MarketContext, UserCommandPayload } from '@/lib/ws/protocol'
+import type { MarketContext, PositionSide, UserCommandPayload } from '@/lib/ws/protocol'
 import { interestingCommandKinds } from '@/stores/command'
 
 import CommandHistoryItem from '@/components/terminal/commands/CommandHistoryItem.vue'
@@ -31,6 +31,7 @@ import SetLeverageCommand from '@/components/terminal/commands/SetLeverageComman
 import { marketContextAccountId, normalizeMarketContext } from '@/lib/marketContext'
 import { NativeProtectionStatus } from '@/lib/ws/protocol'
 import EditHyperliquidProtectionModal from '@/components/terminal/modals/EditHyperliquidProtectionModal.vue'
+import PartialHyperliquidCommandCloseModal from '@/components/terminal/modals/PartialHyperliquidCommandCloseModal.vue'
 
 defineOptions({
   inheritAttrs: false,
@@ -46,6 +47,14 @@ const editProtectionDevice = ref<Device | null>(null)
 const editProtectionState = computed(
   () => editProtectionDevice.value?.state as NativeProtectionState | undefined,
 )
+const partialCloseData = ref<{
+  commandId: string
+  symbol: string
+  marketContext: MarketContext
+  positionSide: PositionSide
+  ownedQuantity: number
+  protectionCount: number
+} | null>(null)
 
 const showFilters = ref(false)
 
@@ -298,6 +307,49 @@ function handleClosePosition(commandId: string): void {
     return
   }
   commandStore.closePosition(commandId)
+}
+
+function handlePartialClosePosition(commandId: string): void {
+  const item = commandStore.commandMap[commandId]
+  if (
+    !item ||
+    !['MarketOrder', 'LimitOrder', 'ChaseOrder'].includes(item.command.kind) ||
+    !item.command.data ||
+    !('market_context' in item.command.data) ||
+    !('symbol' in item.command.data) ||
+    !('position_side' in item.command.data)
+  ) {
+    return
+  }
+  const state = commandStore.hyperliquidCommandActionState(commandId)
+  if (!commandStore.canPartialClosePosition(commandId) || state.ownedQuantity <= 0) return
+  partialCloseData.value = {
+    commandId,
+    symbol: item.command.data.symbol,
+    marketContext: item.command.data.market_context,
+    positionSide: item.command.data.position_side,
+    ownedQuantity: state.ownedQuantity,
+    protectionCount: deviceStore.devices.filter(
+      (device) =>
+        device.associated_command_id === commandId &&
+        device.kind === 'NativeProtection' &&
+        (device.state as NativeProtectionState).owned_remaining_qty > 0,
+    ).length,
+  }
+}
+
+function submitPartialClose(data: {
+  quantity: number
+  expectedOwnedQuantity: number
+  fullClose: boolean
+}): void {
+  const commandId = partialCloseData.value?.commandId
+  if (!commandId) return
+  if (data.fullClose) {
+    commandStore.closePosition(commandId)
+  } else {
+    commandStore.partialClosePosition(commandId, data.quantity, data.expectedOwnedQuantity)
+  }
 }
 
 function handleCancelRemainingEntry(commandId: string): void {
@@ -659,6 +711,9 @@ function saveRename() {
                             commandStore.canCancelRemainingEntry(cmd.command_id)
                           "
                           :canClosePosition="commandStore.canClosePosition(cmd.command_id)"
+                          :canPartialClosePosition="
+                            commandStore.canPartialClosePosition(cmd.command_id)
+                          "
                           :closePositionLabel="commandStore.closePositionLabel(cmd.command_id)"
                           :canContinueMissedEntry="
                             commandStore.canContinueMissedEntry(cmd.command_id)
@@ -670,6 +725,7 @@ function saveRename() {
                           @cancel="handleCancel"
                           @inspect="handleInspect"
                           @close-position="handleClosePosition"
+                          @partial-close-position="handlePartialClosePosition"
                           @cancel-remaining-entry="handleCancelRemainingEntry"
                           @continue-missed-entry="handleContinueMissedEntry"
                           @refresh-exchange-state="handleRefreshExchangeState"
@@ -727,6 +783,9 @@ function saveRename() {
                         commandStore.canCancelRemainingEntry(cmd.command_id)
                       "
                       :canClosePosition="commandStore.canClosePosition(cmd.command_id)"
+                      :canPartialClosePosition="
+                        commandStore.canPartialClosePosition(cmd.command_id)
+                      "
                       :closePositionLabel="commandStore.closePositionLabel(cmd.command_id)"
                       :canContinueMissedEntry="commandStore.canContinueMissedEntry(cmd.command_id)"
                       :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
@@ -736,6 +795,7 @@ function saveRename() {
                       @cancel="handleCancel"
                       @inspect="handleInspect"
                       @close-position="handleClosePosition"
+                      @partial-close-position="handlePartialClosePosition"
                       @cancel-remaining-entry="handleCancelRemainingEntry"
                       @continue-missed-entry="handleContinueMissedEntry"
                       @refresh-exchange-state="handleRefreshExchangeState"
@@ -789,6 +849,7 @@ function saveRename() {
               :canCancel="commandStore.canCancelCommand(cmd.command_id)"
               :canCancelRemainingEntry="commandStore.canCancelRemainingEntry(cmd.command_id)"
               :canClosePosition="commandStore.canClosePosition(cmd.command_id)"
+              :canPartialClosePosition="commandStore.canPartialClosePosition(cmd.command_id)"
               :closePositionLabel="commandStore.closePositionLabel(cmd.command_id)"
               :canContinueMissedEntry="commandStore.canContinueMissedEntry(cmd.command_id)"
               :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
@@ -798,6 +859,7 @@ function saveRename() {
               @cancel="handleCancel"
               @inspect="handleInspect"
               @close-position="handleClosePosition"
+              @partial-close-position="handlePartialClosePosition"
               @cancel-remaining-entry="handleCancelRemainingEntry"
               @continue-missed-entry="handleContinueMissedEntry"
               @refresh-exchange-state="handleRefreshExchangeState"
@@ -892,6 +954,18 @@ function saveRename() {
       :device-id="editProtectionDevice.id"
       :device="editProtectionState"
       @close="editProtectionDevice = null"
+    />
+    <PartialHyperliquidCommandCloseModal
+      v-if="partialCloseData"
+      :open="true"
+      :command-id="partialCloseData.commandId"
+      :symbol="partialCloseData.symbol"
+      :market-context="partialCloseData.marketContext"
+      :position-side="partialCloseData.positionSide"
+      :owned-quantity="partialCloseData.ownedQuantity"
+      :protection-count="partialCloseData.protectionCount"
+      @submit="submitPartialClose"
+      @close="partialCloseData = null"
     />
   </div>
 </template>

@@ -239,24 +239,27 @@ export const useCommandStore = defineStore(
       return state.loaded && !state.reconciliationRequired && state.ownedQuantity > 1e-12
     }
 
+    function canPartialClosePosition(commandId: string): boolean {
+      if (!isHyperliquidPositionCommand(commandId)) return false
+      const state = hyperliquidCommandActionState(commandId)
+      return state.loaded && !state.reconciliationRequired && state.ownedQuantity > 1e-12
+    }
+
     function closePositionLabel(commandId: string): string {
       if (!isHyperliquidPositionCommand(commandId)) return 'Close Position'
       const state = hyperliquidCommandActionState(commandId)
-      return state.workingEntry
-        ? 'Cancel Remaining And Close Filled Position'
-        : 'Close Position'
+      return state.workingEntry ? 'Cancel Remaining And Close Filled Position' : 'Close Position'
     }
 
     function canCancelCommand(commandId: string): boolean {
       const item = commandMap.value[commandId]
-      if (!item || !['Unsent', 'Pending', 'Running', 'Malformed'].includes(item.status)) return false
+      if (!item || !['Unsent', 'Pending', 'Running', 'Malformed'].includes(item.status))
+        return false
       if (item.command.kind === 'TrailingEntryOrder') return !trailingEntryCanClose(commandId)
       if (!isHyperliquidPositionCommand(commandId)) return true
       const state = hyperliquidCommandActionState(commandId)
       if (!state.loaded) return true
-      return (
-        state.workingEntry && !state.reconciliationRequired && state.ownedQuantity <= 1e-12
-      )
+      return state.workingEntry && !state.reconciliationRequired && state.ownedQuantity <= 1e-12
     }
 
     function canCancelRemainingEntry(commandId: string): boolean {
@@ -638,6 +641,15 @@ export const useCommandStore = defineStore(
       }
     }
 
+    function partialClosePosition(
+      commandId: string,
+      quantity: number,
+      expectedOwnedQuantity: number,
+    ) {
+      if (!canPartialClosePosition(commandId)) return
+      ws.sendPartialCloseCommandPosition(commandId, quantity, expectedOwnedQuantity)
+    }
+
     function cancelRemainingEntry(commandId: string) {
       if (!canCancelRemainingEntry(commandId)) return
       ws.sendCancelCommandRemainingEntry(commandId)
@@ -669,6 +681,8 @@ export const useCommandStore = defineStore(
       activeCommandSymbols,
       dustedCommandIds,
       canClosePosition,
+      canPartialClosePosition,
+      hyperliquidCommandActionState,
       closePositionLabel,
       canCancelCommand,
       canCancelRemainingEntry,
@@ -678,6 +692,7 @@ export const useCommandStore = defineStore(
       setAutoInspectNewCommands,
       cancelCommand,
       closePosition,
+      partialClosePosition,
       cancelRemainingEntry,
       continueMissedEntry,
       addPendingCommand,

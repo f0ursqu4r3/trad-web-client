@@ -263,6 +263,14 @@ function fmtDate(d?: Date | null): string {
             {{ formatQty(device.protection_filled_qty) }}
           </dd>
         </div>
+        <div>
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Explicitly Closed
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ formatQty(device.explicit_close_filled_qty) }}
+          </dd>
+        </div>
       </div>
     </div>
 

@@ -18,6 +18,7 @@ const props = withDefaults(
     canCancel?: boolean
     canCancelRemainingEntry?: boolean
     canClosePosition?: boolean
+    canPartialClosePosition?: boolean
     closePositionLabel?: string
     canContinueMissedEntry?: boolean
     canRefreshExchangeState?: boolean
@@ -33,6 +34,7 @@ const props = withDefaults(
     canCancel: false,
     canCancelRemainingEntry: false,
     canClosePosition: false,
+    canPartialClosePosition: false,
     closePositionLabel: 'Close Position',
     canContinueMissedEntry: false,
     canRefreshExchangeState: false,
@@ -47,6 +49,7 @@ const emit = defineEmits<{
   (e: 'cancel-remaining-entry', commandId: string): void
   (e: 'inspect', commandId: string): void
   (e: 'close-position', commandId: string): void
+  (e: 'partial-close-position', commandId: string): void
   (e: 'continue-missed-entry', commandId: string): void
   (e: 'refresh-exchange-state', commandId: string): void
   (e: 'edit-protection', commandId: string): void
@@ -103,6 +106,12 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
     items.push({
       label: props.closePositionLabel,
       action: () => emit('close-position', props.commandId),
+    })
+  }
+  if (props.canPartialClosePosition) {
+    items.push({
+      label: 'Close Part...',
+      action: () => emit('partial-close-position', props.commandId),
     })
   }
   if (props.canCancelRemainingEntry) {

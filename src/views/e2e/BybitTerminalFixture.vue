@@ -72,6 +72,25 @@ wsStore.sendCloseCommandPosition = (commandId: string) => {
   closePositionSends.value = [...closePositionSends.value, commandId]
   return commandId
 }
+wsStore.sendPartialCloseCommandPosition = (
+  commandId: string,
+  quantity: number,
+  expectedOwnedQuantity: number,
+) => {
+  const requestId = '32323232-3232-4232-8232-323232323232'
+  commandSends.value = [
+    ...commandSends.value,
+    {
+      kind: 'PartialCloseCommandPosition',
+      data: {
+        command_id: commandId,
+        quantity,
+        expected_owned_quantity: expectedOwnedQuantity,
+      },
+    },
+  ]
+  return requestId
+}
 wsStore.sendCancelCommandRemainingEntry = (commandId: string) => {
   cancelRemainingEntrySends.value = [...cancelRemainingEntrySends.value, commandId]
   return commandId

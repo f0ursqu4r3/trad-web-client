@@ -383,9 +383,14 @@ export const useDeviceStore = defineStore('device', () => {
         np.tracked_parent_remote_order_ids = s.tracked_parent_remote_order_ids ?? []
         np.entry_filled_qty = s.entry_filled_qty
         np.protection_filled_qty = s.protection_filled_qty
+        np.explicit_close_filled_qty = s.explicit_close_filled_qty ?? 0
         np.execution_fills = s.execution_fills ?? []
         np.owned_remaining_qty =
-          s.owned_remaining_qty ?? Math.max(0, s.entry_filled_qty - s.protection_filled_qty)
+          s.owned_remaining_qty ??
+          Math.max(
+            0,
+            s.entry_filled_qty - s.protection_filled_qty - (s.explicit_close_filled_qty ?? 0),
+          )
         np.ownership_status = s.ownership_status ?? 'unknown'
         np.last_live_signed_position = s.last_live_signed_position ?? null
         np.aggregate_owned_qty = s.aggregate_owned_qty ?? null
@@ -960,6 +965,7 @@ export const useDeviceStore = defineStore('device', () => {
           tracked_parent_remote_order_ids,
           entry_filled_qty,
           protection_filled_qty,
+          explicit_close_filled_qty,
           execution_fills,
           owned_remaining_qty,
           ownership_status,
@@ -993,9 +999,11 @@ export const useDeviceStore = defineStore('device', () => {
         np.tracked_parent_remote_order_ids = tracked_parent_remote_order_ids ?? []
         np.entry_filled_qty = entry_filled_qty
         np.protection_filled_qty = protection_filled_qty
+        np.explicit_close_filled_qty = explicit_close_filled_qty ?? 0
         np.execution_fills = execution_fills ?? []
         np.owned_remaining_qty =
-          owned_remaining_qty ?? Math.max(0, entry_filled_qty - protection_filled_qty)
+          owned_remaining_qty ??
+          Math.max(0, entry_filled_qty - protection_filled_qty - (explicit_close_filled_qty ?? 0))
         np.ownership_status = ownership_status ?? 'unknown'
         np.last_live_signed_position = last_live_signed_position ?? null
         np.aggregate_owned_qty = aggregate_owned_qty ?? null
@@ -1070,6 +1078,7 @@ export const useDeviceStore = defineStore('device', () => {
           observed_protection_order_ids,
           entry_filled_qty,
           protection_filled_qty,
+          explicit_close_filled_qty,
           owned_remaining_qty,
           ownership_status,
           last_live_signed_position,
@@ -1097,6 +1106,7 @@ export const useDeviceStore = defineStore('device', () => {
         np.observed_protection_order_ids = observed_protection_order_ids ?? []
         np.entry_filled_qty = entry_filled_qty
         np.protection_filled_qty = protection_filled_qty
+        np.explicit_close_filled_qty = explicit_close_filled_qty ?? 0
         np.owned_remaining_qty = owned_remaining_qty
         np.ownership_status = ownership_status
         np.last_live_signed_position = last_live_signed_position ?? null
@@ -1122,9 +1132,7 @@ export const useDeviceStore = defineStore('device', () => {
         if (last_order_reason !== undefined) {
           np.last_order_reason = last_order_reason
         }
-        np.last_update_seen_at = last_update_seen_at
-          ? new Date(last_update_seen_at)
-          : eventTime
+        np.last_update_seen_at = last_update_seen_at ? new Date(last_update_seen_at) : eventTime
         break
       }
       case 'ExecutionObserved':
@@ -1368,6 +1376,7 @@ export interface NativeProtectionState {
   tracked_parent_remote_order_ids: string[]
   entry_filled_qty: number
   protection_filled_qty: number
+  explicit_close_filled_qty: number
   execution_fills?: ExecutionFill[]
   owned_remaining_qty: number
   ownership_status: import('@/lib/ws/protocol').ProtectionOwnershipStatus
@@ -1606,6 +1615,7 @@ function newNativeProtectionState(): NativeProtectionState {
     tracked_parent_remote_order_ids: [],
     entry_filled_qty: 0,
     protection_filled_qty: 0,
+    explicit_close_filled_qty: 0,
     execution_fills: [],
     owned_remaining_qty: 0,
     ownership_status: 'unknown',

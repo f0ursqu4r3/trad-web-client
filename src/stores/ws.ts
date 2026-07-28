@@ -253,6 +253,21 @@ export const useWsStore = defineStore('ws', () => {
     })
   }
 
+  function sendPartialCloseCommandPosition(
+    commandId: Uuid,
+    quantity: number,
+    expectedOwnedQuantity: number,
+  ) {
+    return sendUserCommand({
+      kind: 'PartialCloseCommandPosition',
+      data: {
+        command_id: commandId,
+        quantity,
+        expected_owned_quantity: expectedOwnedQuantity,
+      },
+    })
+  }
+
   function sendCancelCommandRemainingEntry(commandId: Uuid) {
     return sendUserCommand({
       kind: 'CancelCommandRemainingEntry',
@@ -894,6 +909,7 @@ export const useWsStore = defineStore('ws', () => {
     sendCancelCommand,
     sendCloseTrailingEntryPosition,
     sendCloseCommandPosition,
+    sendPartialCloseCommandPosition,
     sendCancelCommandRemainingEntry,
     sendFlattenHyperliquidSymbol,
     sendRefreshHyperliquidReconciliation,

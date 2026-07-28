@@ -211,6 +211,7 @@ function bybitNativeProtectionDevice(): Device {
     tracked_parent_remote_order_ids: ['remote-bybit-entry-1'],
     entry_filled_qty: 0.001,
     protection_filled_qty: 0,
+    explicit_close_filled_qty: 0,
     owned_remaining_qty: 0.001,
     ownership_status: 'unknown',
     last_live_signed_position: null,

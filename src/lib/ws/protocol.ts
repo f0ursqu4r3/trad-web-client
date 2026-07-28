@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 30
+export const PROTOCOL_VERSION = 32
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -480,6 +480,11 @@ export type SplitPreviewCommand = {
 }
 export type CloseTrailingEntryPositionCommand = { command_id: Uuid }
 export type CloseCommandPositionCommand = { command_id: Uuid }
+export type PartialCloseCommandPositionCommand = {
+  command_id: Uuid
+  quantity: number
+  expected_owned_quantity: number
+}
 export type CancelCommandRemainingEntryCommand = { command_id: Uuid }
 export type FlattenHyperliquidSymbolCommand = {
   market_context: MarketContext
@@ -535,6 +540,7 @@ export type UserCommandPayload =
   | { kind: 'CancelPosition'; data: CancelPositionCommand }
   | { kind: 'CloseTrailingEntryPosition'; data: CloseTrailingEntryPositionCommand }
   | { kind: 'CloseCommandPosition'; data: CloseCommandPositionCommand }
+  | { kind: 'PartialCloseCommandPosition'; data: PartialCloseCommandPositionCommand }
   | { kind: 'CancelCommandRemainingEntry'; data: CancelCommandRemainingEntryCommand }
   | { kind: 'FlattenHyperliquidSymbol'; data: FlattenHyperliquidSymbolCommand }
   | {
@@ -1173,6 +1179,7 @@ export type NativeProtectionSnapshot = {
   tracked_parent_remote_order_ids?: string[]
   entry_filled_qty: number
   protection_filled_qty: number
+  explicit_close_filled_qty?: number
   execution_fills?: ExecutionFill[]
   owned_remaining_qty?: number
   ownership_status?: ProtectionOwnershipStatus
@@ -1432,6 +1439,7 @@ export type DeviceNpDelta =
         tracked_parent_remote_order_ids?: string[]
         entry_filled_qty: number
         protection_filled_qty: number
+        explicit_close_filled_qty?: number
         execution_fills?: ExecutionFill[]
         owned_remaining_qty?: number
         ownership_status?: ProtectionOwnershipStatus
@@ -1487,6 +1495,7 @@ export type DeviceNpDelta =
         observed_protection_order_ids?: string[]
         entry_filled_qty: number
         protection_filled_qty: number
+        explicit_close_filled_qty?: number
         owned_remaining_qty: number
         ownership_status: ProtectionOwnershipStatus
         last_live_signed_position?: number | null
