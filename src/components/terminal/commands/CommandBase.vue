@@ -15,7 +15,10 @@ const props = withDefaults(
     nickname?: string | null
     nicknameColor?: string | null
     pinned?: boolean
+    canCancel?: boolean
+    canCancelRemainingEntry?: boolean
     canClosePosition?: boolean
+    closePositionLabel?: string
     canContinueMissedEntry?: boolean
   }>(),
   {
@@ -25,7 +28,10 @@ const props = withDefaults(
     nickname: null,
     nicknameColor: null,
     pinned: false,
+    canCancel: false,
+    canCancelRemainingEntry: false,
     canClosePosition: false,
+    closePositionLabel: 'Close Position',
     canContinueMissedEntry: false,
   },
 )
@@ -34,6 +40,7 @@ const emit = defineEmits<{
   (e: 'select', commandId: string): void
   (e: 'duplicate', commandId: string): void
   (e: 'cancel', commandId: string): void
+  (e: 'cancel-remaining-entry', commandId: string): void
   (e: 'inspect', commandId: string): void
   (e: 'close-position', commandId: string): void
   (e: 'continue-missed-entry', commandId: string): void
@@ -57,10 +64,6 @@ const createdAtLabel = computed(() => {
     return ''
   }
 })
-
-const canCancel = computed(() =>
-  ['Unsent', 'Pending', 'Running', 'Malformed'].includes(props.commandStatus),
-)
 
 const statusClass = computed(() => {
   const map: Record<string, string> = {
@@ -90,10 +93,16 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
       action: () => emit('duplicate', props.commandId),
     },
   ]
-  if (props.commandKind === 'TrailingEntryOrder' && props.canClosePosition) {
+  if (props.canClosePosition) {
     items.push({
-      label: 'Close Position',
+      label: props.closePositionLabel,
       action: () => emit('close-position', props.commandId),
+    })
+  }
+  if (props.canCancelRemainingEntry) {
+    items.push({
+      label: 'Cancel Remaining',
+      action: () => emit('cancel-remaining-entry', props.commandId),
     })
   }
   if (props.commandKind === 'TrailingEntryOrder' && props.canContinueMissedEntry) {
@@ -102,7 +111,7 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
       action: () => emit('continue-missed-entry', props.commandId),
     })
   }
-  if (canCancel.value) {
+  if (props.canCancel) {
     items.push({
       label: 'Cancel',
       action: () => emit('cancel', props.commandId),

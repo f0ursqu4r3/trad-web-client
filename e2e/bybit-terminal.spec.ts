@@ -94,6 +94,97 @@ test('Hyperliquid account panel renders exchange-keyed queue telemetry', async (
   await expect(accountPanel.getByText('15+3 open · fresh 2.0s')).toBeVisible()
 })
 
+test('Hyperliquid position view exposes ownership and requires explicit full flatten confirmation', async ({
+  page,
+}) => {
+  await page.goto('/e2e/bybit-terminal')
+
+  const accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
+  await accountPanel.getByRole('button', { name: 'Positions' }).click()
+
+  const dialog = page.getByRole('dialog', { name: /Hyperliquid Positions/ })
+  await expect(dialog.getByText('external surplus')).toBeVisible()
+  await expect(dialog.getByText('0.003', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('0.002', { exact: true }).first()).toBeVisible()
+  await expect(dialog.getByText('0.001', { exact: true })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: /Limit Order #21212121/ })).toBeVisible()
+
+  await dialog.getByRole('button', { name: 'Flatten Symbol' }).click()
+  await expect(
+    dialog.getByText('It also closes external or manually created quantity.'),
+  ).toBeVisible()
+  const confirm = dialog.getByLabel(/I understand this closes the entire account position/)
+  await expect(dialog.getByRole('button', { name: 'Confirm Flatten' })).toBeDisabled()
+  await confirm.check()
+  await dialog.getByRole('button', { name: 'Confirm Flatten' }).click()
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as any).__tradBybitTerminalFixture?.getFlattenSymbolSends()),
+    )
+    .toContain('BTC')
+})
+
+test('Hyperliquid opposite-side order preview requires fresh economic confirmation', async ({
+  page,
+}) => {
+  await page.goto('/e2e/bybit-terminal')
+  await page.getByTestId('open-hyperliquid-mo').click()
+
+  const dialog = page.getByRole('dialog', { name: 'Market Order' })
+  await dialog.getByLabel('Symbol', { exact: true }).fill('REV')
+  await expect(dialog.getByText('Reverse', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('Current signed position')).toBeVisible()
+  const submit = dialog.getByRole('button', { name: 'Submit' })
+  await expect(submit).toBeDisabled()
+  await dialog.getByLabel(/Confirm reverse from/).check()
+  await expect(submit).toBeEnabled()
+
+  await dialog.getByLabel('USD Amount').fill('60')
+  await expect(submit).toBeDisabled()
+  await dialog.getByLabel(/Confirm reverse from/).check()
+  await expect(submit).toBeEnabled()
+})
+
+test('partially filled Hyperliquid command offers cancel-remaining-and-close, not cancel', async ({
+  page,
+}) => {
+  await page.goto('/e2e/bybit-terminal')
+
+  const row = page
+    .getByTestId('command-panel')
+    .locator('.command-row')
+    .filter({ hasText: '#21212121' })
+  await row.getByTitle('Menu').click()
+  await expect(
+    page.getByRole('menuitem', { name: 'Cancel Remaining And Close Filled Position' }),
+  ).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Cancel Remaining', exact: true })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Cancel', exact: true })).toHaveCount(0)
+
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('menuitem', { name: 'Cancel Remaining', exact: true }).click()
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as any).__tradBybitTerminalFixture?.getCancelRemainingEntrySends(),
+      ),
+    )
+    .toContain('21212121-2121-4121-8121-212121212121')
+
+  await row.getByTitle('Menu').click()
+  page.once('dialog', (dialog) => dialog.accept())
+  await page
+    .getByRole('menuitem', { name: 'Cancel Remaining And Close Filled Position' })
+    .click()
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as any).__tradBybitTerminalFixture?.getClosePositionSends()),
+    )
+    .toContain('21212121-2121-4121-8121-212121212121')
+})
+
 test('Hyperliquid account panel shows and saves builder fee bps clearly', async ({ page }) => {
   await page.route('**/auth/session', async (route) => {
     await route.fulfill({
@@ -523,16 +614,14 @@ test('Hyperliquid TE tree exposes owned exposure, reversal, mixed children, and 
   await expect(deviceRows).toHaveCount(5)
 
   await commandRow.getByTitle('Menu').click()
+  page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('menuitem', { name: 'Close Position' }).click()
   await expect
     .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getClosePositionSends()))
     .toEqual(['61616161-6161-4161-8161-616161616161'])
 
   await commandRow.getByTitle('Menu').click()
-  await page.getByRole('menuitem', { name: 'Cancel' }).click()
-  await expect
-    .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getCancelCommandSends()))
-    .toEqual(['61616161-6161-4161-8161-616161616161'])
+  await expect(page.getByRole('menuitem', { name: 'Cancel', exact: true })).toHaveCount(0)
 })
 
 test('Hyperliquid missed TE exposes durable Continue Anyway recovery', async ({ page }) => {

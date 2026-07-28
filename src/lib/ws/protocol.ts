@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 28
+export const PROTOCOL_VERSION = 29
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -280,6 +280,11 @@ export type SystemMessagePayload =
   | { kind: 'GetMarketCapabilities'; data: GetMarketCapabilitiesRequest }
   | { kind: 'GetOrderThrottleSnapshot'; data: GetOrderThrottleSnapshotRequest }
   | { kind: 'GetSymbolLeverage'; data: GetSymbolLeverageRequest }
+  | {
+      kind: 'GetHyperliquidPositionEffectPreview'
+      data: HyperliquidPositionEffectPreviewRequest
+    }
+  | { kind: 'GetHyperliquidPositionOwnership'; data: HyperliquidPositionOwnershipRequest }
   | { kind: 'E2ePublishBybitPublicTrades'; data: E2ePublishBybitPublicTradesRequest }
   | { kind: 'E2ePublishHyperliquidPublicTrades'; data: E2ePublishHyperliquidPublicTradesRequest }
   | { kind: 'GetBalance'; data: GetBalanceRequest }
@@ -320,6 +325,22 @@ export type GetOrderThrottleSnapshotRequest = {
 export type GetSymbolLeverageRequest = {
   market_context: MarketContext
   symbols: string[]
+}
+
+export type HyperliquidPositionEffectPreviewRequest = {
+  market_context: MarketContext
+  symbol: string
+  action: MarketAction
+  position_side: PositionSide
+  quantity: number
+  quantity_mode: OrderQuantityMode
+  reference_price?: number | null
+  one_way_open_semantics?: OneWayOpenSemantics
+}
+
+export type HyperliquidPositionOwnershipRequest = {
+  market_context: MarketContext
+  symbol?: string | null
 }
 
 export type E2eBybitPublicTradeTick = {
@@ -456,6 +477,12 @@ export type SplitPreviewCommand = {
   split_settings?: SplitSettings | null
 }
 export type CloseTrailingEntryPositionCommand = { command_id: Uuid }
+export type CloseCommandPositionCommand = { command_id: Uuid }
+export type CancelCommandRemainingEntryCommand = { command_id: Uuid }
+export type FlattenHyperliquidSymbolCommand = {
+  market_context: MarketContext
+  symbol: string
+}
 export type ContinueMissedTrailingEntryCommand = { command_id: Uuid }
 export type ListDevicesCommand = { filter: DeviceFilter }
 export type GetDeviceTreeCommand = { device_id: Uuid }
@@ -494,6 +521,9 @@ export type UserCommandPayload =
   | { kind: 'CancelDevice'; data: CancelDeviceCommand }
   | { kind: 'CancelPosition'; data: CancelPositionCommand }
   | { kind: 'CloseTrailingEntryPosition'; data: CloseTrailingEntryPositionCommand }
+  | { kind: 'CloseCommandPosition'; data: CloseCommandPositionCommand }
+  | { kind: 'CancelCommandRemainingEntry'; data: CancelCommandRemainingEntryCommand }
+  | { kind: 'FlattenHyperliquidSymbol'; data: FlattenHyperliquidSymbolCommand }
   | { kind: 'ContinueMissedTrailingEntry'; data: ContinueMissedTrailingEntryCommand }
   | { kind: 'ControlSimMarket'; data: ControlSimMarketCommand }
   | { kind: 'CreateHistoricSimMarket'; data: CreateHistoricSimMarketCommand }
@@ -556,6 +586,8 @@ export type ServerToClientPayload =
   | { kind: 'InspectReady'; data: InspectReadyData }
   | { kind: 'Message'; data: MessageData }
   | { kind: 'MarketCapabilities'; data: MarketCapabilitiesData }
+  | { kind: 'HyperliquidPositionEffectPreview'; data: HyperliquidPositionEffectPreviewData }
+  | { kind: 'HyperliquidPositionOwnership'; data: HyperliquidPositionOwnershipData }
   | { kind: 'OrderThrottleSnapshot'; data: OrderThrottleSnapshotData }
   | { kind: 'Pong'; data: PongData }
   | { kind: 'PositionsSnapshot'; data: PositionsSnapshotData }
@@ -599,6 +631,63 @@ export type MarketCapabilitiesData = {
   protection_strategy: ProtectionStrategyCapability
   product?: MarketProduct | null
   notes: string[]
+}
+export type HyperliquidPositionEffectKind = 'add' | 'reduce' | 'flatten' | 'reverse' | 'noop'
+export type HyperliquidPositionEffectPreviewData = {
+  request_uuid: Uuid
+  market_context: MarketContext
+  symbol: string
+  action: MarketAction
+  position_side: PositionSide
+  requested_base_quantity: number
+  current_signed_quantity: number
+  expected_signed_quantity: number
+  effect: HyperliquidPositionEffectKind
+  owned_same_side_quantity: number
+  external_same_side_quantity: number
+  unresolved_deficit_quantity: number
+  affected_owner_count: number
+  requires_new_confirmation: boolean
+  blocked_reason?: string | null
+  observed_at: string
+}
+export type HyperliquidPositionOwnershipStatus =
+  | 'flat'
+  | 'consistent'
+  | 'external_surplus'
+  | 'deficit'
+  | 'conflicting_sides'
+export type HyperliquidPositionOwnerData = {
+  command_id: Uuid
+  owner_device_ids: Uuid[]
+  command_kind: string
+  position_side: PositionSide
+  opened_quantity: number
+  explicitly_closed_quantity: number
+  protection_filled_quantity: number
+  remaining_quantity: number
+  entry_working: boolean
+  protection_status?: string | null
+  take_profit?: number | null
+  stop_loss?: number | null
+  last_reconciled_at?: string | null
+}
+export type HyperliquidSymbolOwnershipData = {
+  symbol: string
+  live_signed_quantity: number
+  live_position_side?: PositionSide | null
+  owned_same_side_quantity: number
+  external_same_side_quantity: number
+  unresolved_deficit_quantity: number
+  status: HyperliquidPositionOwnershipStatus
+  opens_blocked: boolean
+  owners: HyperliquidPositionOwnerData[]
+}
+export type HyperliquidPositionOwnershipData = {
+  request_uuid: Uuid
+  market_context: MarketContext
+  observed_at: string
+  symbols: HyperliquidSymbolOwnershipData[]
 }
 export type OrderThrottleAccountData = {
   account_id: Uuid

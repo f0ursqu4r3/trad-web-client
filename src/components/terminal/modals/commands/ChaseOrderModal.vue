@@ -9,6 +9,7 @@ import {
   type ChaseBoundary,
   type ChaseOrderCommand,
   type HyperliquidExecutionGuardOverrides,
+  type HyperliquidPositionEffectPreviewRequest,
   type MarketContext,
   type OrderQuantityMode,
   type UserCommandPayload,
@@ -33,6 +34,8 @@ import {
   tenthsBpsToPercent,
 } from '@/lib/hyperliquidExecutionGuards'
 import type { ChaseOrderPrefill } from './types'
+import HyperliquidPositionEffectPreview from './HyperliquidPositionEffectPreview.vue'
+import { useHyperliquidPositionEffectPreview } from '@/composables/useHyperliquidPositionEffectPreview'
 
 const logger = createLogger('commands')
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
@@ -113,6 +116,31 @@ const exitLevelError = computed(() => {
   }
   return null
 })
+const positionEffectRequest = computed<HyperliquidPositionEffectPreviewRequest | null>(() => {
+  const marketContext = selectedMarketContext.value
+  if (
+    !marketContext ||
+    !isValidHyperliquidPerpSymbol(symbol.value) ||
+    quantity.value === null ||
+    !Number.isFinite(quantity.value) ||
+    quantity.value <= 0
+  ) {
+    return null
+  }
+  return {
+    market_context: marketContext,
+    symbol: normalizeHyperliquidPerpSymbol(symbol.value),
+    action: action.value,
+    position_side: positionSide.value,
+    quantity: quantity.value,
+    quantity_mode: quantityMode.value,
+    reference_price: null,
+  }
+})
+const positionEffect = useHyperliquidPositionEffectPreview(
+  positionEffectRequest,
+  computed(() => props.open),
+)
 
 function resetProtectionGuards() {
   const guards = accountExecutionGuards.value
@@ -232,7 +260,7 @@ function validate(): boolean {
 
 function submit() {
   const marketContext = accounts.getMarketContextForAccount(selectedAccountId.value)
-  if (!marketContext || !validate() || quantity.value === null) {
+  if (!marketContext || !validate() || !positionEffect.canSubmit.value || quantity.value === null) {
     logger.error('Chase order validation failed')
     return
   }
@@ -416,11 +444,23 @@ function submit() {
       <p v-else-if="!supportsChaseOrders" class="m-0 text-[11px] text-[var(--color-text-dim)]">
         Chase orders are unavailable for this account or disabled by server policy.
       </p>
+      <HyperliquidPositionEffectPreview
+        :preview="positionEffect.preview.value"
+        :error="positionEffect.error.value"
+        :pending="positionEffect.pending.value"
+        :confirmed="positionEffect.confirmed.value"
+        @update:confirmed="positionEffect.setConfirmed"
+      />
     </form>
     <template #footer>
       <div class="flex gap-2 justify-end pt-2">
         <button type="button" class="btn btn-secondary" @click="emit('close')">Cancel</button>
-        <button form="chase-order" type="submit" class="btn btn-primary" :disabled="!validate()">
+        <button
+          form="chase-order"
+          type="submit"
+          class="btn btn-primary"
+          :disabled="!validate() || !positionEffect.canSubmit.value"
+        >
           Start Chase
         </button>
       </div>

@@ -17,9 +17,16 @@ import {
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useWsStore } from '@/stores/ws'
-import { useDeviceStore, type OrderState, type TrailingEntryState } from '@/stores/devices'
+import {
+  useDeviceStore,
+  type ChaseState,
+  type NativeProtectionState,
+  type OrderState,
+  type TrailingEntryState,
+} from '@/stores/devices'
 import { useUiStore } from '@/stores/ui'
 import { createLogger } from '@/lib/utils'
+import { normalizeMarketContext } from '@/lib/marketContext'
 import {
   commandMarketFacets,
   marketFacetMatchesFilters,
@@ -155,7 +162,7 @@ export const useCommandStore = defineStore(
       return ids
     })
 
-    function canClosePosition(commandId: string): boolean {
+    function trailingEntryCanClose(commandId: string): boolean {
       return deviceStore.devices.some((device) => {
         if (device.kind !== 'TrailingEntry') return false
         if (device.associated_command_id !== commandId) return false
@@ -164,6 +171,103 @@ export const useCommandStore = defineStore(
         const dustThreshold = stats.dust_threshold ?? 0
         return netBase > Math.max(dustThreshold, 1e-12)
       })
+    }
+
+    function isHyperliquidPositionCommand(commandId: string): boolean {
+      const command = commandMap.value[commandId]?.command
+      if (
+        !command ||
+        !command.data ||
+        !['MarketOrder', 'LimitOrder', 'ChaseOrder'].includes(command.kind) ||
+        !('market_context' in command.data)
+      ) {
+        return false
+      }
+      return normalizeMarketContext(command.data.market_context).type === 'hyperliquid'
+    }
+
+    function hyperliquidCommandActionState(commandId: string) {
+      const commandDevices = deviceStore.devices.filter(
+        (device) => device.associated_command_id === commandId,
+      )
+      const orders = commandDevices
+        .filter((device) => device.kind === 'Order')
+        .map((device) => device.state as OrderState)
+      const protections = commandDevices
+        .filter((device) => device.kind === 'NativeProtection')
+        .map((device) => device.state as NativeProtectionState)
+      const chases = commandDevices
+        .filter((device) => device.kind === 'Chase')
+        .map((device) => device.state as ChaseState)
+      const orderTerminal = (status: OrderStatus) =>
+        [OrderStatus.Filled, OrderStatus.Canceled, OrderStatus.Rejected].includes(status)
+      const chaseTerminal = (status: string) =>
+        ['filled', 'canceled', 'expired', 'boundary_reached', 'failed'].includes(status)
+      const workingEntry =
+        orders.some(
+          (order) => order.market_action === MarketAction.Open && !orderTerminal(order.status),
+        ) || chases.some((chase) => !chaseTerminal(chase.status))
+      const reconciliationRequired =
+        orders.some((order) => order.status === OrderStatus.ReconciliationRequired) ||
+        chases.some((chase) => chase.status === 'reconciliation_required') ||
+        protections.some((protection) => protection.status === 'ReconciliationRequired')
+      const opened = orders
+        .filter((order) => order.market_action === MarketAction.Open)
+        .reduce((sum, order) => sum + Math.max(0, order.filled_qty ?? 0), 0)
+      const closed = orders
+        .filter((order) => order.market_action === MarketAction.Close)
+        .reduce((sum, order) => sum + Math.max(0, order.filled_qty ?? 0), 0)
+      const ownedQuantity = protections.length
+        ? protections.reduce(
+            (sum, protection) => sum + Math.max(0, protection.owned_remaining_qty ?? 0),
+            0,
+          )
+        : Math.max(0, opened - closed)
+      return {
+        loaded: commandDevices.length > 0,
+        workingEntry,
+        reconciliationRequired,
+        ownedQuantity,
+      }
+    }
+
+    function canClosePosition(commandId: string): boolean {
+      const command = commandMap.value[commandId]?.command
+      if (command?.kind === 'TrailingEntryOrder') return trailingEntryCanClose(commandId)
+      if (!isHyperliquidPositionCommand(commandId)) return false
+      const state = hyperliquidCommandActionState(commandId)
+      return state.loaded && !state.reconciliationRequired && state.ownedQuantity > 1e-12
+    }
+
+    function closePositionLabel(commandId: string): string {
+      if (!isHyperliquidPositionCommand(commandId)) return 'Close Position'
+      const state = hyperliquidCommandActionState(commandId)
+      return state.workingEntry
+        ? 'Cancel Remaining And Close Filled Position'
+        : 'Close Position'
+    }
+
+    function canCancelCommand(commandId: string): boolean {
+      const item = commandMap.value[commandId]
+      if (!item || !['Unsent', 'Pending', 'Running', 'Malformed'].includes(item.status)) return false
+      if (item.command.kind === 'TrailingEntryOrder') return !trailingEntryCanClose(commandId)
+      if (!isHyperliquidPositionCommand(commandId)) return true
+      const state = hyperliquidCommandActionState(commandId)
+      if (!state.loaded) return true
+      return (
+        state.workingEntry && !state.reconciliationRequired && state.ownedQuantity <= 1e-12
+      )
+    }
+
+    function canCancelRemainingEntry(commandId: string): boolean {
+      if (!isHyperliquidPositionCommand(commandId)) return false
+      const state = hyperliquidCommandActionState(commandId)
+      return (
+        state.loaded &&
+        state.workingEntry &&
+        !state.reconciliationRequired &&
+        state.ownedQuantity > 1e-12
+      )
     }
 
     function canContinueMissedEntry(commandId: string): boolean {
@@ -526,7 +630,17 @@ export const useCommandStore = defineStore(
 
     function closePosition(commandId: string) {
       if (!canClosePosition(commandId)) return
-      ws.sendCloseTrailingEntryPosition(commandId)
+      const command = commandMap.value[commandId]?.command
+      if (command?.kind === 'TrailingEntryOrder') {
+        ws.sendCloseTrailingEntryPosition(commandId)
+      } else {
+        ws.sendCloseCommandPosition(commandId)
+      }
+    }
+
+    function cancelRemainingEntry(commandId: string) {
+      if (!canCancelRemainingEntry(commandId)) return
+      ws.sendCancelCommandRemainingEntry(commandId)
     }
 
     function continueMissedEntry(commandId: string) {
@@ -555,12 +669,16 @@ export const useCommandStore = defineStore(
       activeCommandSymbols,
       dustedCommandIds,
       canClosePosition,
+      closePositionLabel,
+      canCancelCommand,
+      canCancelRemainingEntry,
       canContinueMissedEntry,
       /* actions */
       inspectCommand,
       setAutoInspectNewCommands,
       cancelCommand,
       closePosition,
+      cancelRemainingEntry,
       continueMissedEntry,
       addPendingCommand,
       verifyPendingCommand,

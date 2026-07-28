@@ -281,9 +281,26 @@ function handleCancel(commandId: string): void {
 }
 
 function handleClosePosition(commandId: string): void {
-  const cmd = commandStore.commandMap[commandId]
-  if (!cmd || cmd.command.kind !== 'TrailingEntryOrder') return
+  const label = commandStore.closePositionLabel(commandId)
+  if (
+    !window.confirm(
+      `${label} for command ${commandId.slice(0, 8)}?\n\nTrad will cancel any remaining entry order before submitting a reduce-only market close for this command's attributable exposure.`,
+    )
+  ) {
+    return
+  }
   commandStore.closePosition(commandId)
+}
+
+function handleCancelRemainingEntry(commandId: string): void {
+  if (
+    !window.confirm(
+      `Cancel the remaining entry for command ${commandId.slice(0, 8)}?\n\nAlready filled exposure and its active protection will remain open.`,
+    )
+  ) {
+    return
+  }
+  commandStore.cancelRemainingEntry(commandId)
 }
 
 function handleContinueMissedEntry(commandId: string): void {
@@ -576,7 +593,12 @@ function saveRename() {
                             commandStore.commandMeta?.[cmd.command_id]?.nicknameColor ?? null
                           "
                           :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
+                          :canCancel="commandStore.canCancelCommand(cmd.command_id)"
+                          :canCancelRemainingEntry="
+                            commandStore.canCancelRemainingEntry(cmd.command_id)
+                          "
                           :canClosePosition="commandStore.canClosePosition(cmd.command_id)"
+                          :closePositionLabel="commandStore.closePositionLabel(cmd.command_id)"
                           :canContinueMissedEntry="
                             commandStore.canContinueMissedEntry(cmd.command_id)
                           "
@@ -585,6 +607,7 @@ function saveRename() {
                           @cancel="handleCancel"
                           @inspect="handleInspect"
                           @close-position="handleClosePosition"
+                          @cancel-remaining-entry="handleCancelRemainingEntry"
                           @continue-missed-entry="handleContinueMissedEntry"
                           @rename="handleRename"
                           @pin="handlePin"
@@ -634,13 +657,19 @@ function saveRename() {
                         commandStore.commandMeta?.[cmd.command_id]?.nicknameColor ?? null
                       "
                       :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
+                      :canCancel="commandStore.canCancelCommand(cmd.command_id)"
+                      :canCancelRemainingEntry="
+                        commandStore.canCancelRemainingEntry(cmd.command_id)
+                      "
                       :canClosePosition="commandStore.canClosePosition(cmd.command_id)"
+                      :closePositionLabel="commandStore.closePositionLabel(cmd.command_id)"
                       :canContinueMissedEntry="commandStore.canContinueMissedEntry(cmd.command_id)"
                       :createdAt="cmd.created_at"
                       @duplicate="handleDuplicate(cmd.command)"
                       @cancel="handleCancel"
                       @inspect="handleInspect"
                       @close-position="handleClosePosition"
+                      @cancel-remaining-entry="handleCancelRemainingEntry"
                       @continue-missed-entry="handleContinueMissedEntry"
                       @rename="handleRename"
                       @pin="handlePin"
@@ -688,13 +717,17 @@ function saveRename() {
               :nickname="commandStore.commandMeta?.[cmd.command_id]?.nickname ?? null"
               :nicknameColor="commandStore.commandMeta?.[cmd.command_id]?.nicknameColor ?? null"
               :pinned="commandStore.commandMeta?.[cmd.command_id]?.pinned ?? false"
+              :canCancel="commandStore.canCancelCommand(cmd.command_id)"
+              :canCancelRemainingEntry="commandStore.canCancelRemainingEntry(cmd.command_id)"
               :canClosePosition="commandStore.canClosePosition(cmd.command_id)"
+              :closePositionLabel="commandStore.closePositionLabel(cmd.command_id)"
               :canContinueMissedEntry="commandStore.canContinueMissedEntry(cmd.command_id)"
               :createdAt="cmd.created_at"
               @duplicate="handleDuplicate(cmd.command)"
               @cancel="handleCancel"
               @inspect="handleInspect"
               @close-position="handleClosePosition"
+              @cancel-remaining-entry="handleCancelRemainingEntry"
               @continue-missed-entry="handleContinueMissedEntry"
               @rename="handleRename"
               @pin="handlePin"

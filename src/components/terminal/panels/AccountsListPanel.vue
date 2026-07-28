@@ -10,6 +10,7 @@ import {
 } from '@/stores/accounts'
 import { useWsStore } from '@/stores/ws'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
+import HyperliquidPositionOwnershipModal from '@/components/terminal/modals/HyperliquidPositionOwnershipModal.vue'
 import { X } from 'lucide-vue-next'
 import { getWebSocketToken } from '@/lib/auth'
 import {
@@ -55,6 +56,7 @@ const accounts = useAccountsStore()
 const ws = useWsStore()
 
 const isCreateModalOpen = ref(false)
+const positionAccount = ref<AccountRecord | null>(null)
 const refreshingAccountIds = ref<Set<string>>(new Set())
 const refreshingLeverageAccountIds = ref<Set<string>>(new Set())
 const requestedCapabilityAccountIds = ref<Set<string>>(new Set())
@@ -149,6 +151,11 @@ function selectAccount(account: AccountRecord) {
 function manageAccount(account: AccountRecord) {
   selectAccount(account)
   emit('manage', account.id)
+}
+
+function openPositions(account: AccountRecord) {
+  selectAccount(account)
+  positionAccount.value = account
 }
 
 function showAccountDetails(account: AccountRecord): boolean {
@@ -1384,6 +1391,14 @@ watch(
               {{ accountReady(account) ? 'Manage' : 'Setup' }}
             </button>
             <button
+              v-if="account.exchange === ExchangeType.Hyperliquid"
+              class="btn btn-secondary btn-xs"
+              type="button"
+              @click.stop="openPositions(account)"
+            >
+              Positions
+            </button>
+            <button
               class="btn btn-secondary btn-xs"
               type="button"
               title="Refresh credentials and exchange metadata"
@@ -1405,5 +1420,10 @@ watch(
       </ul>
     </div>
     <CreateAccountModal :open="isCreateModalOpen" @close="isCreateModalOpen = false" />
+    <HyperliquidPositionOwnershipModal
+      :open="positionAccount !== null"
+      :account="positionAccount"
+      @close="positionAccount = null"
+    />
   </section>
 </template>

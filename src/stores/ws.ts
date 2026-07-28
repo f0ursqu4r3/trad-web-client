@@ -2,6 +2,9 @@ import {
   CommandStatus,
   type E2eBybitPublicTradeTick,
   type E2eHyperliquidPublicTradeTick,
+  type HyperliquidPositionEffectPreviewData,
+  type HyperliquidPositionEffectPreviewRequest,
+  type HyperliquidPositionOwnershipData,
   type MarketContext,
   type MarketCapabilitiesData,
   type OrderThrottleSnapshotData,
@@ -72,10 +75,18 @@ export const useWsStore = defineStore('ws', () => {
   const marketCapabilities = ref<Record<string, MarketCapabilitiesData>>({})
   const orderThrottleSnapshots = ref<Record<string, OrderThrottleSnapshotData>>({})
   const symbolLeverageSnapshots = ref<Record<string, SymbolLeverageSnapshotData>>({})
+  const hyperliquidPositionEffectPreviews = ref<
+    Record<Uuid, HyperliquidPositionEffectPreviewData>
+  >({})
+  const hyperliquidPositionEffectErrors = ref<Record<Uuid, string>>({})
+  const hyperliquidPositionOwnership = ref<Record<string, HyperliquidPositionOwnershipData>>({})
+  const hyperliquidPositionOwnershipErrors = ref<Record<string, string>>({})
   let lastPingSend: number | null = null
   let perfLoopTimer: number | null = null
   let serverActionNoticeId = 0
   const pendingAccountRefreshes = new Set<Uuid>()
+  const pendingPositionEffectPreviews = new Set<Uuid>()
+  const pendingPositionOwnership = new Map<Uuid, string>()
   const pendingAccountRefreshResolvers = new Map<
     Uuid,
     {
@@ -235,6 +246,27 @@ export const useWsStore = defineStore('ws', () => {
     })
   }
 
+  function sendCloseCommandPosition(commandId: Uuid) {
+    return sendUserCommand({
+      kind: 'CloseCommandPosition',
+      data: { command_id: commandId },
+    })
+  }
+
+  function sendCancelCommandRemainingEntry(commandId: Uuid) {
+    return sendUserCommand({
+      kind: 'CancelCommandRemainingEntry',
+      data: { command_id: commandId },
+    })
+  }
+
+  function sendFlattenHyperliquidSymbol(marketContext: MarketContext, symbol: string) {
+    return sendUserCommand({
+      kind: 'FlattenHyperliquidSymbol',
+      data: { market_context: marketContext, symbol },
+    })
+  }
+
   function sendContinueMissedTrailingEntry(commandId: Uuid) {
     sendUserCommand({
       kind: 'ContinueMissedTrailingEntry',
@@ -341,6 +373,39 @@ export const useWsStore = defineStore('ws', () => {
     })
   }
 
+  function requestHyperliquidPositionEffectPreview(
+    request: HyperliquidPositionEffectPreviewRequest,
+  ): Uuid {
+    const requestId = sendSystemCommand({
+      kind: 'GetHyperliquidPositionEffectPreview',
+      data: request,
+    })
+    pendingPositionEffectPreviews.add(requestId)
+    delete hyperliquidPositionEffectErrors.value[requestId]
+    return requestId
+  }
+
+  function requestHyperliquidPositionOwnership(
+    marketContext: MarketContext,
+    symbol?: string | null,
+  ): Uuid {
+    const key = marketContextKey(marketContext)
+    const requestId = sendSystemCommand({
+      kind: 'GetHyperliquidPositionOwnership',
+      data: { market_context: marketContext, symbol: symbol || null },
+    })
+    pendingPositionOwnership.set(requestId, key)
+    delete hyperliquidPositionOwnershipErrors.value[key]
+    return requestId
+  }
+
+  function hyperliquidOwnershipForMarketContext(
+    marketContext: MarketContext | null | undefined,
+  ): HyperliquidPositionOwnershipData | null {
+    if (!marketContext) return null
+    return hyperliquidPositionOwnership.value[marketContextKey(marketContext)] ?? null
+  }
+
   function requestOrderThrottleSnapshot(marketContext: MarketContext) {
     sendSystemCommand({
       kind: 'GetOrderThrottleSnapshot',
@@ -438,6 +503,8 @@ export const useWsStore = defineStore('ws', () => {
       MarketCapabilities: handleMarketCapabilities,
       OrderThrottleSnapshot: handleOrderThrottleSnapshot,
       SymbolLeverageSnapshot: handleSymbolLeverageSnapshot,
+      HyperliquidPositionEffectPreview: handleHyperliquidPositionEffectPreview,
+      HyperliquidPositionOwnership: handleHyperliquidPositionOwnership,
     } as Record<string, (p: ServerToClientMessage['payload']) => void>
     const handler = handlers[payload.kind] || handleUnknowServerMessage
     handler(payload)
@@ -558,6 +625,14 @@ export const useWsStore = defineStore('ws', () => {
       }
       const previewStore = useSplitPreviewStore()
       previewStore.setError(data.request_uuid, data.error)
+      if (pendingPositionEffectPreviews.delete(data.request_uuid)) {
+        hyperliquidPositionEffectErrors.value[data.request_uuid] = data.error
+      }
+      const ownershipKey = pendingPositionOwnership.get(data.request_uuid)
+      if (ownershipKey) {
+        pendingPositionOwnership.delete(data.request_uuid)
+        hyperliquidPositionOwnershipErrors.value[ownershipKey] = data.error
+      }
       const accountRefreshResolver = pendingAccountRefreshResolvers.get(data.request_uuid)
       if (accountRefreshResolver) {
         window.clearTimeout(accountRefreshResolver.timer)
@@ -594,6 +669,32 @@ export const useWsStore = defineStore('ws', () => {
       payload as Extract<ServerToClientMessage['payload'], { kind: 'SymbolLeverageSnapshot' }>
     ).data
     applySymbolLeverageSnapshot(data)
+  }
+
+  function handleHyperliquidPositionEffectPreview(
+    payload: ServerToClientMessage['payload'],
+  ): void {
+    const data = (
+      payload as Extract<
+        ServerToClientMessage['payload'],
+        { kind: 'HyperliquidPositionEffectPreview' }
+      >
+    ).data
+    pendingPositionEffectPreviews.delete(data.request_uuid)
+    hyperliquidPositionEffectPreviews.value[data.request_uuid] = data
+  }
+
+  function handleHyperliquidPositionOwnership(payload: ServerToClientMessage['payload']): void {
+    const data = (
+      payload as Extract<
+        ServerToClientMessage['payload'],
+        { kind: 'HyperliquidPositionOwnership' }
+      >
+    ).data
+    const key = pendingPositionOwnership.get(data.request_uuid) ?? marketContextKey(data.market_context)
+    pendingPositionOwnership.delete(data.request_uuid)
+    hyperliquidPositionOwnership.value[key] = data
+    delete hyperliquidPositionOwnershipErrors.value[key]
   }
 
   function handleCommandHistory(payload: ServerToClientMessage['payload']): void {
@@ -739,6 +840,10 @@ export const useWsStore = defineStore('ws', () => {
     authError,
     serverActionNotice,
     marketCapabilities,
+    hyperliquidPositionEffectPreviews,
+    hyperliquidPositionEffectErrors,
+    hyperliquidPositionOwnership,
+    hyperliquidPositionOwnershipErrors,
     // getters
     isConnected,
     // actions
@@ -754,10 +859,16 @@ export const useWsStore = defineStore('ws', () => {
     sendUserCommandPreview,
     sendCancelCommand,
     sendCloseTrailingEntryPosition,
+    sendCloseCommandPosition,
+    sendCancelCommandRemainingEntry,
+    sendFlattenHyperliquidSymbol,
     sendContinueMissedTrailingEntry,
     sendRefreshAccountKeys,
     sendDeleteHyperliquidAccount,
     requestMarketCapabilities,
+    requestHyperliquidPositionEffectPreview,
+    requestHyperliquidPositionOwnership,
+    hyperliquidOwnershipForMarketContext,
     capabilitiesForMarketContext,
     requestOrderThrottleSnapshot,
     applyOrderThrottleSnapshot,

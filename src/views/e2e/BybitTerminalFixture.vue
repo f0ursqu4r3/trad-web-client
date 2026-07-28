@@ -45,8 +45,11 @@ const wsStore = useWsStore()
 const continueMissedEntrySends = ref<string[]>([])
 const cancelCommandSends = ref<string[]>([])
 const closePositionSends = ref<string[]>([])
+const flattenSymbolSends = ref<string[]>([])
+const cancelRemainingEntrySends = ref<string[]>([])
 const commandSends = ref<unknown[]>([])
 const inspectCommandSends = ref<string[]>([])
+const positionPreviewScenario = ref<'add' | 'reverse'>('add')
 const marketOrderOpen = ref(false)
 const limitOrderOpen = ref(false)
 const chaseOrderOpen = ref(false)
@@ -63,6 +66,18 @@ wsStore.sendCancelCommand = (commandId: string) => {
 wsStore.sendCloseTrailingEntryPosition = (commandId: string) => {
   closePositionSends.value = [...closePositionSends.value, commandId]
   return commandId
+}
+wsStore.sendCloseCommandPosition = (commandId: string) => {
+  closePositionSends.value = [...closePositionSends.value, commandId]
+  return commandId
+}
+wsStore.sendCancelCommandRemainingEntry = (commandId: string) => {
+  cancelRemainingEntrySends.value = [...cancelRemainingEntrySends.value, commandId]
+  return commandId
+}
+wsStore.sendFlattenHyperliquidSymbol = (_marketContext: MarketContext, symbol: string) => {
+  flattenSymbolSends.value = [...flattenSymbolSends.value, symbol]
+  return '74747474-7474-4474-8474-747474747474'
 }
 wsStore.sendUserCommand = ((payload: unknown) => {
   const commandId = '19191919-1919-4919-8919-191919191919'
@@ -117,6 +132,87 @@ wsStore.sendUserCommandPreview = ((payload: UserCommandPayload) => {
   }
   return requestId
 }) as typeof wsStore.sendUserCommandPreview
+wsStore.requestHyperliquidPositionEffectPreview = (request) => {
+  const requestId = crypto.randomUUID()
+  const requestedBaseQuantity =
+    request.quantity_mode === 'notional'
+      ? request.quantity / (request.reference_price || 50_000)
+      : request.quantity
+  const direction = request.position_side === PositionSide.Long ? 1 : -1
+  const currentSignedQuantity =
+    positionPreviewScenario.value === 'reverse' || request.symbol === 'REV' ? -0.0005 : 0
+  const expectedSignedQuantity =
+    request.one_way_open_semantics === 'target_side_exposure'
+      ? direction * requestedBaseQuantity
+      : currentSignedQuantity + direction * requestedBaseQuantity
+  const effect =
+    currentSignedQuantity !== 0 &&
+    expectedSignedQuantity !== 0 &&
+    Math.sign(currentSignedQuantity) !== Math.sign(expectedSignedQuantity)
+      ? 'reverse'
+      : 'add'
+  window.setTimeout(() => {
+    wsStore.hyperliquidPositionEffectPreviews[requestId] = {
+      request_uuid: requestId,
+      market_context: request.market_context,
+      symbol: request.symbol,
+      action: request.action,
+      position_side: request.position_side,
+      requested_base_quantity: requestedBaseQuantity,
+      current_signed_quantity: currentSignedQuantity,
+      expected_signed_quantity: expectedSignedQuantity,
+      effect,
+      owned_same_side_quantity: Math.abs(currentSignedQuantity),
+      external_same_side_quantity: 0,
+      unresolved_deficit_quantity: 0,
+      affected_owner_count: effect === 'reverse' ? 1 : 0,
+      requires_new_confirmation: effect === 'reverse',
+      blocked_reason: null,
+      observed_at: new Date().toISOString(),
+    }
+  }, 0)
+  return requestId
+}
+wsStore.requestHyperliquidPositionOwnership = (marketContext) => {
+  const requestId = crypto.randomUUID()
+  window.setTimeout(() => {
+    wsStore.hyperliquidPositionOwnership[`hyperliquid:${hyperliquidAccountId}`] = {
+      request_uuid: requestId,
+      market_context: marketContext,
+      observed_at: new Date().toISOString(),
+      symbols: [
+        {
+          symbol: 'BTC',
+          live_signed_quantity: 0.003,
+          live_position_side: PositionSide.Long,
+          owned_same_side_quantity: 0.002,
+          external_same_side_quantity: 0.001,
+          unresolved_deficit_quantity: 0,
+          status: 'external_surplus',
+          opens_blocked: false,
+          owners: [
+            {
+              command_id: hyperliquidLimitCommandId,
+              owner_device_ids: [hyperliquidLimitDeviceId],
+              command_kind: 'Limit Order',
+              position_side: PositionSide.Long,
+              opened_quantity: 0.002,
+              explicitly_closed_quantity: 0,
+              protection_filled_quantity: 0,
+              remaining_quantity: 0.002,
+              entry_working: true,
+              protection_status: 'Tracking',
+              take_profit: 70_000,
+              stop_loss: 60_000,
+              last_reconciled_at: new Date().toISOString(),
+            },
+          ],
+        },
+      ],
+    }
+  }, 0)
+  return requestId
+}
 
 declare global {
   interface Window {
@@ -124,6 +220,8 @@ declare global {
       getContinueMissedEntrySends: () => string[]
       getCancelCommandSends: () => string[]
       getClosePositionSends: () => string[]
+      getFlattenSymbolSends: () => string[]
+      getCancelRemainingEntrySends: () => string[]
       getCommandSends: () => unknown[]
       getInspectCommandSends: () => string[]
       getSelectedCommandId: () => string | null
@@ -131,6 +229,7 @@ declare global {
       setHyperliquidTeTriggerStartZero: () => void
       setChaseStale: () => void
       setHyperliquidTeEnabled: (enabled: boolean) => void
+      setPositionPreviewScenario: (scenario: 'add' | 'reverse') => void
     }
   }
 }
@@ -139,6 +238,8 @@ window.__tradBybitTerminalFixture = {
   getContinueMissedEntrySends: () => [...continueMissedEntrySends.value],
   getCancelCommandSends: () => [...cancelCommandSends.value],
   getClosePositionSends: () => [...closePositionSends.value],
+  getFlattenSymbolSends: () => [...flattenSymbolSends.value],
+  getCancelRemainingEntrySends: () => [...cancelRemainingEntrySends.value],
   getCommandSends: () => [...commandSends.value],
   getInspectCommandSends: () => [...inspectCommandSends.value],
   getSelectedCommandId: () => commandStore.selectedCommandId,
@@ -170,6 +271,9 @@ window.__tradBybitTerminalFixture = {
       supports_trailing_entry: enabled,
       supports_trailing_entry_close_command: enabled,
     }
+  },
+  setPositionPreviewScenario: (scenario) => {
+    positionPreviewScenario.value = scenario
   },
   setChaseStale: () => {
     const event: DeviceChaseDeltaEvent = {

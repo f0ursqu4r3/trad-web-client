@@ -9,6 +9,7 @@ import {
   type LimitOrderCommand,
   type LimitTimeInForce,
   type HyperliquidExecutionGuardOverrides,
+  type HyperliquidPositionEffectPreviewRequest,
   type MarketContext,
   type OrderQuantityMode,
   type UserCommandPayload,
@@ -33,6 +34,8 @@ import {
   tenthsBpsToPercent,
 } from '@/lib/hyperliquidExecutionGuards'
 import type { LimitOrderPrefill } from './types'
+import HyperliquidPositionEffectPreview from './HyperliquidPositionEffectPreview.vue'
+import { useHyperliquidPositionEffectPreview } from '@/composables/useHyperliquidPositionEffectPreview'
 
 const logger = createLogger('commands')
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
@@ -115,6 +118,33 @@ const accountProtectionGuardLabel = computed(() => {
     `SL ${formatExecutionGuardPercent(guards.stop_loss_market_tenths_bps)}`,
   ].join(' / ')
 })
+const positionEffectRequest = computed<HyperliquidPositionEffectPreviewRequest | null>(() => {
+  const marketContext = selectedMarketContext.value
+  if (
+    !marketContext ||
+    !isHyperliquid.value ||
+    !isValidHyperliquidPerpSymbol(symbol.value) ||
+    quantity.value === null ||
+    quantity.value <= 0 ||
+    price.value === null ||
+    price.value <= 0
+  ) {
+    return null
+  }
+  return {
+    market_context: marketContext,
+    symbol: normalizeHyperliquidPerpSymbol(symbol.value),
+    action: action.value,
+    position_side: positionSide.value,
+    quantity: quantity.value,
+    quantity_mode: quantityMode.value,
+    reference_price: price.value,
+  }
+})
+const positionEffect = useHyperliquidPositionEffectPreview(
+  positionEffectRequest,
+  computed(() => props.open && isHyperliquid.value),
+)
 
 function resetProtectionGuards() {
   const guards = accountExecutionGuards.value
@@ -197,7 +227,13 @@ function validate(): boolean {
 
 function submit() {
   const marketContext = accounts.getMarketContextForAccount(selectedAccountId.value)
-  if (!marketContext || !validate() || quantity.value === null || price.value === null) {
+  if (
+    !marketContext ||
+    !validate() ||
+    !positionEffect.canSubmit.value ||
+    quantity.value === null ||
+    price.value === null
+  ) {
     logger.error('Limit order validation failed')
     return
   }
@@ -340,11 +376,24 @@ function submit() {
       <p v-else-if="!supportsLimitOrders" class="m-0 text-[11px] text-[var(--color-text-dim)]">
         Limit orders are unavailable for this market.
       </p>
+      <HyperliquidPositionEffectPreview
+        v-if="isHyperliquid"
+        :preview="positionEffect.preview.value"
+        :error="positionEffect.error.value"
+        :pending="positionEffect.pending.value"
+        :confirmed="positionEffect.confirmed.value"
+        @update:confirmed="positionEffect.setConfirmed"
+      />
     </form>
     <template #footer>
       <div class="flex gap-2 justify-end pt-2">
         <button type="button" class="btn btn-secondary" @click="emit('close')">Cancel</button>
-        <button form="limit-order" type="submit" class="btn btn-primary" :disabled="!validate()">
+        <button
+          form="limit-order"
+          type="submit"
+          class="btn btn-primary"
+          :disabled="!validate() || !positionEffect.canSubmit.value"
+        >
           Submit
         </button>
       </div>
