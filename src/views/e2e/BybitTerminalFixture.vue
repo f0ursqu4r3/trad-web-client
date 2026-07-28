@@ -31,6 +31,7 @@ import {
   type CommandHistoryItem,
   type DeviceSnapshotLiteData,
   type DeviceChaseDeltaEvent,
+  type DeviceNpDeltaEvent,
   type DeviceTeDeltaEvent,
   type MarketContext,
   type MarketProduct,
@@ -264,6 +265,21 @@ wsStore.sendRefreshHyperliquidReconciliation = (marketContext, scope) => {
   publishHyperliquidOwnership(marketContext, requestId, true)
   return requestId
 }
+wsStore.sendEditHyperliquidProtection = (deviceId, takeProfit, stopLoss) => {
+  const requestId = crypto.randomUUID()
+  commandSends.value = [
+    ...commandSends.value,
+    {
+      kind: 'EditHyperliquidProtection',
+      data: {
+        protection_device_id: deviceId,
+        take_profit: takeProfit,
+        stop_loss: stopLoss,
+      },
+    },
+  ]
+  return requestId
+}
 
 declare global {
   interface Window {
@@ -279,6 +295,7 @@ declare global {
       replayHyperliquidTeSnapshots: () => void
       setHyperliquidTeTriggerStartZero: () => void
       setChaseStale: () => void
+      setChaseProtectionConsistent: () => void
       setHyperliquidTeEnabled: (enabled: boolean) => void
       setPositionPreviewScenario: (scenario: 'add' | 'reverse') => void
     }
@@ -340,6 +357,38 @@ window.__tradBybitTerminalFixture = {
       },
     }
     useDeviceStore().handleDeviceUpdate('DeviceChaseDelta', event)
+  },
+  setChaseProtectionConsistent: () => {
+    const event: DeviceNpDeltaEvent = {
+      device_id: hyperliquidChaseProtectionId,
+      ts: new Date().toISOString(),
+      seq: 14,
+      delta: {
+        kind: 'Coverage',
+        data: {
+          take_profit: 51_000,
+          stop_loss: 49_000,
+          observed_entries: 1,
+          observed_protection_orders: 2,
+          entry_filled_qty: 0.0005,
+          protection_filled_qty: 0,
+          owned_remaining_qty: 0.0005,
+          ownership_status: 'consistent',
+          last_live_signed_position: 0.0005,
+          aggregate_owned_qty: 0.0005,
+          aggregate_owner_count: 1,
+          ownership_reason: null,
+          status: NativeProtectionStatus.Tracking,
+          last_client_order_id: 'chase-sl',
+          last_parent_client_order_id: '0x11111111111111111111111111111111',
+          last_remote_order_id: '98765435',
+          last_order_status: 'Open',
+          last_order_reason: null,
+          last_update_seen_at: new Date().toISOString(),
+        },
+      },
+    }
+    useDeviceStore().handleDeviceUpdate('DeviceNpDelta', event)
   },
 }
 

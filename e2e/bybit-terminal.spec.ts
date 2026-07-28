@@ -850,6 +850,61 @@ test('Hyperliquid Chase command summary duplicates all strategy parameters', asy
   await expect(dialog.getByLabel('Stop Loss')).toHaveValue('49000')
 })
 
+test('Hyperliquid protection edit validates against live mid and emits exact device command', async ({
+  page,
+}) => {
+  await page.route('https://api.hyperliquid-testnet.xyz/info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ BTC: '50000' }),
+    })
+  })
+  await page.goto('/e2e/bybit-terminal')
+
+  const deviceTree = page.getByTestId('device-tree-panel')
+  const protectionRow = deviceTree
+    .locator('.device-row')
+    .filter({ hasText: 'Native Protection' })
+    .filter({ hasText: 'BTC' })
+    .filter({ hasText: 'Hyperliquid' })
+  await expect(protectionRow).toBeVisible()
+  await page.evaluate(() => window.__tradBybitTerminalFixture?.setChaseProtectionConsistent())
+  await protectionRow.click()
+
+  const details = page.getByTestId('device-details-panel')
+  const editButton = details.getByRole('button', { name: 'edit protection' })
+  await expect(editButton).toBeEnabled()
+  await editButton.click()
+
+  const dialog = page.getByRole('dialog', { name: 'Edit Hyperliquid protection' })
+  await expect(dialog.getByText('Current mid: $50.00k', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('Protection gap: none expected for existing-leg repricing')).toBeVisible()
+  await expect(dialog.getByLabel('Take Profit')).toHaveValue('51000')
+  await expect(dialog.getByLabel('Stop Loss')).toHaveValue('49000')
+  await dialog.getByLabel('Take Profit').fill('52000')
+  await dialog.getByRole('checkbox').check()
+  await dialog.getByRole('button', { name: 'apply protection' }).click()
+
+  await expect
+    .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getCommandSends()))
+    .toContainEqual({
+      kind: 'EditHyperliquidProtection',
+      data: {
+        protection_device_id: '29292929-2929-4929-8929-292929292929',
+        take_profit: 52000,
+        stop_loss: 49000,
+      },
+    })
+
+  const commandRow = page
+    .getByTestId('command-panel')
+    .locator('.command-row')
+    .filter({ hasText: '#25252525' })
+  await commandRow.getByTitle('Menu').click()
+  await expect(page.getByRole('menuitem', { name: 'Edit Protection' })).toBeVisible()
+})
+
 test('working Hyperliquid limit order can be canceled from device details', async ({ page }) => {
   await page.goto('/e2e/bybit-terminal')
 

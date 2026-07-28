@@ -1062,6 +1062,8 @@ export const useDeviceStore = defineStore('device', () => {
       }
       case 'Coverage': {
         const {
+          take_profit,
+          stop_loss,
           observed_entries,
           observed_protection_orders,
           observed_entry_order_ids,
@@ -1083,6 +1085,12 @@ export const useDeviceStore = defineStore('device', () => {
           last_order_reason,
           last_update_seen_at,
         } = delta.data
+        if (take_profit !== undefined) {
+          np.take_profit = take_profit
+        }
+        if (stop_loss !== undefined) {
+          np.stop_loss = stop_loss
+        }
         np.observed_entries = observed_entries
         np.observed_protection_orders = observed_protection_orders
         np.observed_entry_order_ids = observed_entry_order_ids ?? []

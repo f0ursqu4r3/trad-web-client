@@ -9,6 +9,7 @@ import { protectionDisplay } from '@/lib/protectionState'
 import { formatExecutionGuardPercent } from '@/lib/hyperliquidExecutionGuards'
 import ExecutionFillsPanel from './ExecutionFillsPanel.vue'
 import { useWsStore } from '@/stores/ws'
+import EditHyperliquidProtectionModal from '@/components/terminal/modals/EditHyperliquidProtectionModal.vue'
 
 const props = defineProps<{
   device: NativeProtectionState
@@ -21,6 +22,7 @@ const props = defineProps<{
 
 const ws = useWsStore()
 const reconciliationRequestId = ref<string | null>(null)
+const editProtectionOpen = ref(false)
 const marketContextLabel = computed(() => {
   const refLabel = formatMarketRef(props.marketRef)
   if (refLabel) return refLabel
@@ -45,6 +47,14 @@ const reconciliationPending = computed(
   () =>
     reconciliationRequestId.value !== null &&
     reconciliation.value?.request_uuid !== reconciliationRequestId.value,
+)
+const canEditProtection = computed(
+  () =>
+    isHyperliquid.value &&
+    Boolean(props.deviceId) &&
+    props.device.status === NativeProtectionStatus.Tracking &&
+    props.device.ownership_status === 'consistent' &&
+    props.device.owned_remaining_qty > 0,
 )
 
 function refreshExchangeState() {
@@ -121,11 +131,14 @@ function getStatusClass(status: NativeProtectionStatus): string {
       return 'pill pill-ok'
     case NativeProtectionStatus.Tracking:
       return 'pill pill-info'
+    case NativeProtectionStatus.Mutating:
+      return 'pill pill-warn'
     case NativeProtectionStatus.Triggered:
       return 'pill pill-warn'
     case NativeProtectionStatus.Canceled:
       return 'pill pill-warn'
     case NativeProtectionStatus.ReconciliationRequired:
+    case NativeProtectionStatus.FailedUnprotected:
     case NativeProtectionStatus.Rejected:
       return 'pill pill-err'
     default:
@@ -166,6 +179,17 @@ function fmtDate(d?: Date | null): string {
       >
         Attached TP/SL
       </h4>
+      <div v-if="isHyperliquid" class="flex justify-end gap-2">
+        <button
+          class="btn btn-sm"
+          type="button"
+          :disabled="!canEditProtection"
+          title="Reprice the configured Hyperliquid TP/SL orders"
+          @click="editProtectionOpen = true"
+        >
+          edit protection
+        </button>
+      </div>
       <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
         <div>
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
@@ -558,4 +582,11 @@ function fmtDate(d?: Date | null): string {
       {{ failureReason }}
     </div>
   </div>
+  <EditHyperliquidProtectionModal
+    v-if="deviceId"
+    :open="editProtectionOpen"
+    :device-id="deviceId"
+    :device="device"
+    @close="editProtectionOpen = false"
+  />
 </template>

@@ -7,6 +7,7 @@ import { useWsStore } from '@/stores/ws'
 import { useAccountsStore } from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
 import { useUiStore } from '@/stores/ui'
+import { useDeviceStore, type Device, type NativeProtectionState } from '@/stores/devices'
 import { formatName } from '@/lib/utils'
 import { marketProductLabel } from '@/lib/marketContext'
 
@@ -28,6 +29,8 @@ import ChaseOrderCommand from '@/components/terminal/commands/ChaseOrderCommand.
 import SetHedgeModeCommand from '@/components/terminal/commands/SetHedgeModeCommand.vue'
 import SetLeverageCommand from '@/components/terminal/commands/SetLeverageCommand.vue'
 import { marketContextAccountId, normalizeMarketContext } from '@/lib/marketContext'
+import { NativeProtectionStatus } from '@/lib/ws/protocol'
+import EditHyperliquidProtectionModal from '@/components/terminal/modals/EditHyperliquidProtectionModal.vue'
 
 defineOptions({
   inheritAttrs: false,
@@ -38,6 +41,11 @@ const wsStore = useWsStore()
 const accountsStore = useAccountsStore()
 const modalStore = useModalStore()
 const uiStore = useUiStore()
+const deviceStore = useDeviceStore()
+const editProtectionDevice = ref<Device | null>(null)
+const editProtectionState = computed(
+  () => editProtectionDevice.value?.state as NativeProtectionState | undefined,
+)
 
 const showFilters = ref(false)
 
@@ -325,6 +333,35 @@ function handleRefreshExchangeState(commandId: string): void {
     symbol: data.symbol,
     commandId,
   })
+}
+
+function editableProtection(commandId: string): Device | null {
+  return (
+    deviceStore.devices.find((device) => {
+      if (
+        device.kind !== 'NativeProtection' ||
+        device.associated_command_id !== commandId ||
+        device.complete
+      ) {
+        return false
+      }
+      const protection = device.state as NativeProtectionState
+      return (
+        normalizeMarketContext(protection.market_context).type === 'hyperliquid' &&
+        protection.status === NativeProtectionStatus.Tracking &&
+        protection.ownership_status === 'consistent' &&
+        protection.owned_remaining_qty > 0
+      )
+    }) ?? null
+  )
+}
+
+function canEditProtection(commandId: string): boolean {
+  return editableProtection(commandId) !== null
+}
+
+function handleEditProtection(commandId: string): void {
+  editProtectionDevice.value = editableProtection(commandId)
 }
 
 function handleContinueMissedEntry(commandId: string): void {
@@ -627,6 +664,7 @@ function saveRename() {
                             commandStore.canContinueMissedEntry(cmd.command_id)
                           "
                           :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
+                          :canEditProtection="canEditProtection(cmd.command_id)"
                           :createdAt="cmd.created_at"
                           @duplicate="handleDuplicate(cmd.command)"
                           @cancel="handleCancel"
@@ -635,6 +673,7 @@ function saveRename() {
                           @cancel-remaining-entry="handleCancelRemainingEntry"
                           @continue-missed-entry="handleContinueMissedEntry"
                           @refresh-exchange-state="handleRefreshExchangeState"
+                          @edit-protection="handleEditProtection"
                           @rename="handleRename"
                           @pin="handlePin"
                         >
@@ -691,6 +730,7 @@ function saveRename() {
                       :closePositionLabel="commandStore.closePositionLabel(cmd.command_id)"
                       :canContinueMissedEntry="commandStore.canContinueMissedEntry(cmd.command_id)"
                       :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
+                      :canEditProtection="canEditProtection(cmd.command_id)"
                       :createdAt="cmd.created_at"
                       @duplicate="handleDuplicate(cmd.command)"
                       @cancel="handleCancel"
@@ -699,6 +739,7 @@ function saveRename() {
                       @cancel-remaining-entry="handleCancelRemainingEntry"
                       @continue-missed-entry="handleContinueMissedEntry"
                       @refresh-exchange-state="handleRefreshExchangeState"
+                      @edit-protection="handleEditProtection"
                       @rename="handleRename"
                       @pin="handlePin"
                     >
@@ -751,6 +792,7 @@ function saveRename() {
               :closePositionLabel="commandStore.closePositionLabel(cmd.command_id)"
               :canContinueMissedEntry="commandStore.canContinueMissedEntry(cmd.command_id)"
               :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
+              :canEditProtection="canEditProtection(cmd.command_id)"
               :createdAt="cmd.created_at"
               @duplicate="handleDuplicate(cmd.command)"
               @cancel="handleCancel"
@@ -759,6 +801,7 @@ function saveRename() {
               @cancel-remaining-entry="handleCancelRemainingEntry"
               @continue-missed-entry="handleContinueMissedEntry"
               @refresh-exchange-state="handleRefreshExchangeState"
+              @edit-protection="handleEditProtection"
               @rename="handleRename"
               @pin="handlePin"
             >
@@ -843,6 +886,13 @@ function saveRename() {
         </div>
       </div>
     </Teleport>
+    <EditHyperliquidProtectionModal
+      v-if="editProtectionDevice && editProtectionState"
+      :open="true"
+      :device-id="editProtectionDevice.id"
+      :device="editProtectionState"
+      @close="editProtectionDevice = null"
+    />
   </div>
 </template>
 

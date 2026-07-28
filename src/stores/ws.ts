@@ -290,6 +290,21 @@ export const useWsStore = defineStore('ws', () => {
     return requestId
   }
 
+  function sendEditHyperliquidProtection(
+    protectionDeviceId: Uuid,
+    takeProfit: number | null,
+    stopLoss: number | null,
+  ): Uuid {
+    return sendUserCommandPreview({
+      kind: 'EditHyperliquidProtection',
+      data: {
+        protection_device_id: protectionDeviceId,
+        take_profit: takeProfit,
+        stop_loss: stopLoss,
+      },
+    })
+  }
+
   function sendContinueMissedTrailingEntry(commandId: Uuid) {
     sendUserCommand({
       kind: 'ContinueMissedTrailingEntry',
@@ -882,6 +897,7 @@ export const useWsStore = defineStore('ws', () => {
     sendCancelCommandRemainingEntry,
     sendFlattenHyperliquidSymbol,
     sendRefreshHyperliquidReconciliation,
+    sendEditHyperliquidProtection,
     sendContinueMissedTrailingEntry,
     sendRefreshAccountKeys,
     sendDeleteHyperliquidAccount,

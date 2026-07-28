@@ -187,10 +187,12 @@ export enum StopGuardStatus {
 export enum NativeProtectionStatus {
   Pending = 'Pending',
   Tracking = 'Tracking',
+  Mutating = 'Mutating',
   Triggered = 'Triggered',
   Flat = 'Flat',
   Canceled = 'Canceled',
   ReconciliationRequired = 'ReconciliationRequired',
+  FailedUnprotected = 'FailedUnprotected',
   Rejected = 'Rejected',
 }
 
@@ -489,6 +491,11 @@ export type RefreshHyperliquidReconciliationCommand = {
   command_id?: Uuid | null
   protection_device_id?: Uuid | null
 }
+export type EditHyperliquidProtectionCommand = {
+  protection_device_id: Uuid
+  take_profit?: number | null
+  stop_loss?: number | null
+}
 export type ContinueMissedTrailingEntryCommand = { command_id: Uuid }
 export type ListDevicesCommand = { filter: DeviceFilter }
 export type GetDeviceTreeCommand = { device_id: Uuid }
@@ -533,6 +540,10 @@ export type UserCommandPayload =
   | {
       kind: 'RefreshHyperliquidReconciliation'
       data: RefreshHyperliquidReconciliationCommand
+    }
+  | {
+      kind: 'EditHyperliquidProtection'
+      data: EditHyperliquidProtectionCommand
     }
   | { kind: 'ContinueMissedTrailingEntry'; data: ContinueMissedTrailingEntryCommand }
   | { kind: 'ControlSimMarket'; data: ControlSimMarketCommand }
@@ -1468,6 +1479,8 @@ export type DeviceNpDelta =
   | {
       kind: 'Coverage'
       data: {
+        take_profit?: number | null
+        stop_loss?: number | null
         observed_entries: number
         observed_protection_orders: number
         observed_entry_order_ids?: string[]

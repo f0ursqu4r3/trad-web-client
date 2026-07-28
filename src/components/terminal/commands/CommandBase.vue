@@ -21,6 +21,7 @@ const props = withDefaults(
     closePositionLabel?: string
     canContinueMissedEntry?: boolean
     canRefreshExchangeState?: boolean
+    canEditProtection?: boolean
   }>(),
   {
     commandKind: '',
@@ -35,6 +36,7 @@ const props = withDefaults(
     closePositionLabel: 'Close Position',
     canContinueMissedEntry: false,
     canRefreshExchangeState: false,
+    canEditProtection: false,
   },
 )
 
@@ -47,6 +49,7 @@ const emit = defineEmits<{
   (e: 'close-position', commandId: string): void
   (e: 'continue-missed-entry', commandId: string): void
   (e: 'refresh-exchange-state', commandId: string): void
+  (e: 'edit-protection', commandId: string): void
   (e: 'rename', commandId: string): void
   (e: 'pin', commandId: string): void
 }>()
@@ -124,6 +127,12 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
     items.push({
       label: 'Refresh Exchange State',
       action: () => emit('refresh-exchange-state', props.commandId),
+    })
+  }
+  if (props.canEditProtection) {
+    items.push({
+      label: 'Edit Protection',
+      action: () => emit('edit-protection', props.commandId),
     })
   }
   return items
