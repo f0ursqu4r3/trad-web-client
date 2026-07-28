@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 33
+export const PROTOCOL_VERSION = 34
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -910,6 +910,7 @@ export type CommandHistoryItem = {
   market_ref?: MarketRef | null
   status: CommandStatus
   created_at: string
+  result?: string | null
 }
 
 export type CommandHistoryData = {

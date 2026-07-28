@@ -4,6 +4,7 @@ import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandM
 import {
   ExchangeType,
   MarketAction,
+  NetworkType,
   OrderSide,
   PositionSide,
   type ChaseBoundary,
@@ -36,6 +37,8 @@ import {
 import type { ChaseOrderPrefill } from './types'
 import HyperliquidPositionEffectPreview from './HyperliquidPositionEffectPreview.vue'
 import { useHyperliquidPositionEffectPreview } from '@/composables/useHyperliquidPositionEffectPreview'
+import { useHyperliquidMidPrice } from '@/composables/useHyperliquidMidPrice'
+import { marketOrderExitLevelError } from '@/lib/bybitOrderValidation'
 
 const logger = createLogger('commands')
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
@@ -69,6 +72,17 @@ const selectedMarketContext = computed<MarketContext | null>(() =>
 )
 const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
+)
+const hyperliquidSymbol = computed(() =>
+  isValidHyperliquidPerpSymbol(symbol.value) ? normalizeHyperliquidPerpSymbol(symbol.value) : '',
+)
+const hyperliquidNetwork = computed(
+  () => selectedAccount.value?.network ?? (null as NetworkType | null),
+)
+const hyperliquidMid = useHyperliquidMidPrice(
+  hyperliquidNetwork,
+  hyperliquidSymbol,
+  computed(() => props.open),
 )
 const capabilities = computed(() => ws.capabilitiesForMarketContext(selectedMarketContext.value))
 const supportsChaseOrders = computed(() => capabilities.value?.supports_chase_orders === true)
@@ -108,13 +122,13 @@ const accountProtectionGuardLabel = computed(() => {
 })
 const exitLevelError = computed(() => {
   if (!supportsAttachedExit.value) return null
-  if (takeProfit.value !== null && (!Number.isFinite(takeProfit.value) || takeProfit.value <= 0)) {
-    return 'Take profit must be a positive price.'
-  }
-  if (stopLoss.value !== null && (!Number.isFinite(stopLoss.value) || stopLoss.value <= 0)) {
-    return 'Stop loss must be a positive price.'
-  }
-  return null
+  return marketOrderExitLevelError(
+    'Hyperliquid Chase',
+    positionSide.value,
+    takeProfit.value,
+    stopLoss.value,
+    hyperliquidMid.price.value,
+  )
 })
 const positionEffectRequest = computed<HyperliquidPositionEffectPreviewRequest | null>(() => {
   const marketContext = selectedMarketContext.value
@@ -249,6 +263,13 @@ function validate(): boolean {
   if (exitLevelError.value) return false
   if (
     supportsAttachedExit.value &&
+    (takeProfit.value !== null || stopLoss.value !== null) &&
+    hyperliquidMid.price.value === null
+  ) {
+    return false
+  }
+  if (
+    supportsAttachedExit.value &&
     overrideProtectionGuards.value &&
     (!isValidExecutionGuardPercent(takeProfitGuardPercent.value) ||
       !isValidExecutionGuardPercent(stopLossGuardPercent.value))
@@ -315,7 +336,16 @@ function submit() {
             </option>
           </select>
         </label>
-        <label class="field"><span>Symbol</span><input v-model="symbol" class="input" /></label>
+        <label class="field">
+          <span>Symbol</span><input v-model="symbol" class="input" aria-label="Symbol" />
+          <small v-if="hyperliquidMid.price.value !== null">
+            Current mid ${{ hyperliquidMid.price.value.toLocaleString() }}
+          </small>
+          <small v-else-if="hyperliquidMid.loading.value">Loading current midpoint</small>
+          <small v-else-if="hyperliquidMid.error.value" class="text-error">
+            Midpoint unavailable
+          </small>
+        </label>
         <label class="field">
           <span>Action</span>
           <select v-model="action" class="input">
@@ -382,11 +412,11 @@ function submit() {
         </p>
         <template v-if="supportsAttachedExit">
           <label class="field">
-            <span>Take Profit</span>
+            <span>Take Profit Price (optional)</span>
             <input v-model.number="takeProfit" type="number" min="0" step="any" class="input" />
           </label>
           <label class="field">
-            <span>Stop Loss</span>
+            <span>Stop Loss Price (optional)</span>
             <input v-model.number="stopLoss" type="number" min="0" step="any" class="input" />
           </label>
           <p class="col-span-2 m-0 text-[11px] text-[var(--color-text-dim)]">

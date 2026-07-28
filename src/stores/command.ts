@@ -686,7 +686,7 @@ export const useCommandStore = defineStore(
       )
     }
 
-    function verifyPendingCommand(commandId: string): number | undefined {
+    function verifyPendingCommand(commandId: string, result?: string | null): number | undefined {
       const pending = pendingCommands.get(commandId)
       if (!pending) return
       const now = performance.now()
@@ -697,6 +697,7 @@ export const useCommandStore = defineStore(
         command: pending.command,
         status: CommandStatus.Running,
         created_at: new Date().toISOString(),
+        result: result || null,
       } as CommandHistoryItem
       pendingHistoryAppends.push(item)
       pendingHistoryById.set(commandId, item)

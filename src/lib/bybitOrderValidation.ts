@@ -39,13 +39,7 @@ export function bybitTrailingEntryExitLevelError(
   stopLoss: number | null,
   takeProfit: OptionalPrice,
 ): string | null {
-  return trailingEntryExitLevelError(
-    'Bybit',
-    positionSide,
-    activationPrice,
-    stopLoss,
-    takeProfit,
-  )
+  return trailingEntryExitLevelError('Bybit', positionSide, activationPrice, stopLoss, takeProfit)
 }
 
 export function trailingEntryExitLevelError(
@@ -56,7 +50,8 @@ export function trailingEntryExitLevelError(
   takeProfit: OptionalPrice,
 ): string | null {
   if (activationPrice === null || stopLoss === null) return null
-  if (!positiveFinite(activationPrice)) return `${exchangeLabel} TE activation price must be positive.`
+  if (!positiveFinite(activationPrice))
+    return `${exchangeLabel} TE activation price must be positive.`
   if (!positiveFinite(stopLoss)) return `${exchangeLabel} TE stop loss must be positive.`
 
   const normalizedTakeProfit = normalizeOptionalPrice(takeProfit)
@@ -96,6 +91,7 @@ export function marketOrderExitLevelError(
   positionSide: PositionSide,
   takeProfit: OptionalPrice,
   stopLoss: OptionalPrice,
+  currentPrice: number | null = null,
 ): string | null {
   const normalizedTakeProfit = normalizeOptionalPrice(takeProfit)
   const normalizedStopLoss = normalizeOptionalPrice(stopLoss)
@@ -106,6 +102,25 @@ export function marketOrderExitLevelError(
   if (normalizedStopLoss !== null && !positiveFinite(normalizedStopLoss)) {
     return `${exchangeLabel} market stop loss must be positive.`
   }
+  if (currentPrice !== null && positiveFinite(currentPrice)) {
+    if (
+      normalizedTakeProfit !== null &&
+      (positionSide === PositionSide.Long
+        ? normalizedTakeProfit <= currentPrice
+        : normalizedTakeProfit >= currentPrice)
+    ) {
+      return `${exchangeLabel} ${positionSide.toLowerCase()} market take profit must be ${positionSide === PositionSide.Long ? 'above' : 'below'} current midpoint ${currentPrice}.`
+    }
+    if (
+      normalizedStopLoss !== null &&
+      (positionSide === PositionSide.Long
+        ? normalizedStopLoss >= currentPrice
+        : normalizedStopLoss <= currentPrice)
+    ) {
+      return `${exchangeLabel} ${positionSide.toLowerCase()} market stop loss must be ${positionSide === PositionSide.Long ? 'below' : 'above'} current midpoint ${currentPrice}.`
+    }
+  }
+
   if (normalizedTakeProfit === null || normalizedStopLoss === null) return null
 
   if (positionSide === PositionSide.Long && normalizedTakeProfit <= normalizedStopLoss) {

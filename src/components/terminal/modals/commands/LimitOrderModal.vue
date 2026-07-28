@@ -4,6 +4,7 @@ import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandM
 import {
   ExchangeType,
   MarketAction,
+  NetworkType,
   OrderSide,
   PositionSide,
   type LimitOrderCommand,
@@ -36,6 +37,7 @@ import {
 import type { LimitOrderPrefill } from './types'
 import HyperliquidPositionEffectPreview from './HyperliquidPositionEffectPreview.vue'
 import { useHyperliquidPositionEffectPreview } from '@/composables/useHyperliquidPositionEffectPreview'
+import { useHyperliquidMidPrice } from '@/composables/useHyperliquidMidPrice'
 
 const logger = createLogger('commands')
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
@@ -68,6 +70,17 @@ const selectedAccount = computed(
 const capabilities = computed(() => ws.capabilitiesForMarketContext(selectedMarketContext.value))
 const supportsLimitOrders = computed(() => capabilities.value?.supports_limit_orders === true)
 const isHyperliquid = computed(() => selectedAccount.value?.exchange === ExchangeType.Hyperliquid)
+const hyperliquidSymbol = computed(() =>
+  isValidHyperliquidPerpSymbol(symbol.value) ? normalizeHyperliquidPerpSymbol(symbol.value) : '',
+)
+const hyperliquidNetwork = computed(
+  () => selectedAccount.value?.network ?? (null as NetworkType | null),
+)
+const hyperliquidMid = useHyperliquidMidPrice(
+  hyperliquidNetwork,
+  hyperliquidSymbol,
+  computed(() => props.open && isHyperliquid.value),
+)
 const supportsAttachedExit = computed(
   () =>
     action.value === MarketAction.Open &&
@@ -282,7 +295,18 @@ function submit() {
             </option>
           </select>
         </label>
-        <label class="field"><span>Symbol</span><input v-model="symbol" class="input" /></label>
+        <label class="field">
+          <span>Symbol</span><input v-model="symbol" class="input" aria-label="Symbol" />
+          <small v-if="isHyperliquid && hyperliquidMid.price.value !== null">
+            Current mid ${{ hyperliquidMid.price.value.toLocaleString() }}
+          </small>
+          <small v-else-if="isHyperliquid && hyperliquidMid.loading.value">
+            Loading current midpoint
+          </small>
+          <small v-else-if="isHyperliquid && hyperliquidMid.error.value" class="text-error">
+            Midpoint unavailable
+          </small>
+        </label>
         <label class="field">
           <span>Action</span>
           <select v-model="action" class="input">
@@ -321,11 +345,11 @@ function submit() {
         </label>
         <template v-if="supportsAttachedExit">
           <label class="field">
-            <span>Take Profit</span>
+            <span>Take Profit Price (optional)</span>
             <input v-model.number="takeProfit" type="number" step="any" class="input" />
           </label>
           <label class="field">
-            <span>Stop Loss</span>
+            <span>Stop Loss Price (optional)</span>
             <input v-model.number="stopLoss" type="number" step="any" class="input" />
           </label>
           <label v-if="isHyperliquid" class="field col-span-2 flex-row items-center gap-2">

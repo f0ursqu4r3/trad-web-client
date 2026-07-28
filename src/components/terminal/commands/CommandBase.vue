@@ -26,6 +26,7 @@ const props = withDefaults(
     canEditProtection?: boolean
     actionContextStatus?: CommandActionContextStatus
     actionContextError?: string | null
+    result?: string | null
   }>(),
   {
     commandKind: '',
@@ -44,6 +45,7 @@ const props = withDefaults(
     canEditProtection: false,
     actionContextStatus: 'idle',
     actionContextError: null,
+    result: null,
   },
 )
 
@@ -267,6 +269,14 @@ function openContextMenu(event: MouseEvent) {
         </div>
       </div>
     </div>
+
+    <p
+      v-if="props.result && ['Failed', 'Malformed'].includes(props.commandStatus)"
+      class="mx-3 mb-2 mt-0 border-l-2 border-[var(--color-error)] pl-2 text-[11px] text-error"
+      :title="props.result"
+    >
+      {{ props.result }}
+    </p>
 
     <div v-if="expanded" class="px-3 py-2">
       <slot />

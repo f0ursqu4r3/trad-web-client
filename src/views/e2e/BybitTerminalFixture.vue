@@ -761,6 +761,7 @@ const bybitRejectedCommand = {
   },
   status: CommandStatus.Failed,
   created_at: '2026-06-19T00:02:00.000Z',
+  result: 'Bybit rejected open: insufficient margin.',
 } satisfies CommandHistoryItem
 
 const bybitMissedCommand = {

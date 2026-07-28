@@ -32,6 +32,7 @@ import { marketContextAccountId, normalizeMarketContext } from '@/lib/marketCont
 import { NativeProtectionStatus } from '@/lib/ws/protocol'
 import EditHyperliquidProtectionModal from '@/components/terminal/modals/EditHyperliquidProtectionModal.vue'
 import PartialHyperliquidCommandCloseModal from '@/components/terminal/modals/PartialHyperliquidCommandCloseModal.vue'
+import ActionConfirmationModal from '@/components/terminal/modals/ActionConfirmationModal.vue'
 
 defineOptions({
   inheritAttrs: false,
@@ -54,6 +55,12 @@ const partialCloseData = ref<{
   positionSide: PositionSide
   ownedQuantity: number
   protectionCount: number
+} | null>(null)
+const confirmation = ref<{
+  title: string
+  message: string
+  confirmLabel: string
+  action: () => void
 } | null>(null)
 
 const showFilters = ref(false)
@@ -303,14 +310,12 @@ function handleCancel(commandId: string): void {
 
 function handleClosePosition(commandId: string): void {
   const label = commandStore.closePositionLabel(commandId)
-  if (
-    !window.confirm(
-      `${label} for command ${commandId.slice(0, 8)}?\n\nTrad will cancel any remaining entry order before submitting a reduce-only market close for this command's attributable exposure.`,
-    )
-  ) {
-    return
+  confirmation.value = {
+    title: label,
+    message: `${label} for command ${commandId.slice(0, 8)}?\n\nTrad will cancel any remaining entry order before submitting a reduce-only market close for this command's attributable exposure.`,
+    confirmLabel: label,
+    action: () => commandStore.closePosition(commandId),
   }
-  commandStore.closePosition(commandId)
 }
 
 function handlePartialClosePosition(commandId: string): void {
@@ -352,14 +357,18 @@ function submitPartialClose(data: {
 }
 
 function handleCancelRemainingEntry(commandId: string): void {
-  if (
-    !window.confirm(
-      `Cancel the remaining entry for command ${commandId.slice(0, 8)}?\n\nAlready filled exposure and its active protection will remain open.`,
-    )
-  ) {
-    return
+  confirmation.value = {
+    title: 'Cancel Remaining Entry',
+    message: `Cancel the remaining entry for command ${commandId.slice(0, 8)}?\n\nAlready filled exposure and its active protection will remain open.`,
+    confirmLabel: 'Cancel Remaining',
+    action: () => commandStore.cancelRemainingEntry(commandId),
   }
-  commandStore.cancelRemainingEntry(commandId)
+}
+
+function confirmPendingAction(): void {
+  const action = confirmation.value?.action
+  confirmation.value = null
+  action?.()
 }
 
 function canRefreshExchangeState(command: UserCommandPayload): boolean {
@@ -767,6 +776,7 @@ function saveRename() {
                             commandStore.commandActionContext(cmd.command_id).error
                           "
                           :createdAt="cmd.created_at"
+                          :result="cmd.result"
                           @duplicate="handleDuplicate(cmd.command)"
                           @cancel="handleCancel"
                           @inspect="handleInspect"
@@ -842,6 +852,7 @@ function saveRename() {
                       "
                       :actionContextError="commandStore.commandActionContext(cmd.command_id).error"
                       :createdAt="cmd.created_at"
+                      :result="cmd.result"
                       @duplicate="handleDuplicate(cmd.command)"
                       @cancel="handleCancel"
                       @inspect="handleInspect"
@@ -909,6 +920,7 @@ function saveRename() {
               :actionContextStatus="commandStore.commandActionContext(cmd.command_id).status"
               :actionContextError="commandStore.commandActionContext(cmd.command_id).error"
               :createdAt="cmd.created_at"
+              :result="cmd.result"
               @duplicate="handleDuplicate(cmd.command)"
               @cancel="handleCancel"
               @inspect="handleInspect"
@@ -1021,6 +1033,15 @@ function saveRename() {
       :protection-count="partialCloseData.protectionCount"
       @submit="submitPartialClose"
       @close="partialCloseData = null"
+    />
+    <ActionConfirmationModal
+      v-if="confirmation"
+      :open="true"
+      :title="confirmation.title"
+      :message="confirmation.message"
+      :confirm-label="confirmation.confirmLabel"
+      @confirm="confirmPendingAction"
+      @cancel="confirmation = null"
     />
   </div>
 </template>

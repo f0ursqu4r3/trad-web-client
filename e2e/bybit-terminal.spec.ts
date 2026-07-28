@@ -19,6 +19,7 @@ test('Bybit command and device filters are explicit, not selected-account scoped
 
   await expect(commandPanel.getByText('Bybit BTC native TP/SL')).toBeVisible()
   await expect(commandPanel.getByText('Binance ETH legacy')).toBeVisible()
+  await expect(commandPanel.getByText('Bybit rejected open: insufficient margin.')).toBeVisible()
   await expect(deviceRows.filter({ hasText: 'Native Protection' }).first()).toBeVisible()
   await expect(deviceRows.filter({ hasText: 'Market Order' }).first()).toBeVisible()
 
@@ -184,8 +185,10 @@ test('partially filled Hyperliquid command offers cancel-remaining-and-close, no
   await expect(page.getByRole('menuitem', { name: 'Cancel Remaining', exact: true })).toBeVisible()
   await expect(page.getByRole('menuitem', { name: 'Cancel', exact: true })).toHaveCount(0)
 
-  page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('menuitem', { name: 'Cancel Remaining', exact: true }).click()
+  const cancelRemainingDialog = page.getByRole('dialog', { name: 'Cancel Remaining Entry' })
+  await expect(cancelRemainingDialog).toBeVisible()
+  await cancelRemainingDialog.getByRole('button', { name: 'Cancel Remaining', exact: true }).click()
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -195,8 +198,14 @@ test('partially filled Hyperliquid command offers cancel-remaining-and-close, no
     .toContain('21212121-2121-4121-8121-212121212121')
 
   await row.getByTitle('Menu').click()
-  page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('menuitem', { name: 'Cancel Remaining And Close Filled Position' }).click()
+  const closePartialDialog = page.getByRole('dialog', {
+    name: 'Cancel Remaining And Close Filled Position',
+  })
+  await expect(closePartialDialog).toBeVisible()
+  await closePartialDialog
+    .getByRole('button', { name: 'Cancel Remaining And Close Filled Position' })
+    .click()
   await expect
     .poll(() =>
       page.evaluate(() => (window as any).__tradBybitTerminalFixture?.getClosePositionSends()),
@@ -390,6 +399,46 @@ test('Hyperliquid order forms serialize explicit execution-guard overrides', asy
         take_profit_market_tenths_bps: 2000,
         stop_loss_market_tenths_bps: 15000,
       },
+    },
+  })
+})
+
+test('Hyperliquid market order explains optional protection and rejects an invalid exit price', async ({
+  page,
+}) => {
+  await page.route('https://api.hyperliquid-testnet.xyz/info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ BTC: '50000' }),
+    })
+  })
+  await page.goto('/e2e/bybit-terminal')
+  await page.getByTestId('open-hyperliquid-mo').click()
+
+  const dialog = page.getByRole('dialog', { name: 'Market Order' })
+  await expect(dialog.getByText('Current mid $50,000')).toBeVisible()
+  await expect(dialog.getByText('Attached protection: none')).toBeVisible()
+
+  await dialog.getByRole('spinbutton', { name: /^Take Profit Price/ }).fill('100')
+  await expect(
+    dialog.getByText('Hyperliquid long market take profit must be above current midpoint 50000.', {
+      exact: true,
+    }),
+  ).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Submit' })).toBeDisabled()
+
+  await dialog.getByRole('spinbutton', { name: /^Take Profit Price/ }).fill('')
+  await expect(dialog.getByText('Attached protection: none')).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled()
+  await dialog.getByRole('button', { name: 'Submit' }).click()
+
+  const sends = await page.evaluate(() => window.__tradBybitTerminalFixture?.getCommandSends())
+  expect(sends?.at(-1)).toMatchObject({
+    kind: 'MarketOrder',
+    data: {
+      symbol: 'BTC',
+      attached_exit_plan: null,
     },
   })
 })
@@ -633,8 +682,10 @@ test('Hyperliquid TE tree exposes owned exposure, reversal, mixed children, and 
   await expect(deviceRows).toHaveCount(5)
 
   await commandRow.getByTitle('Menu').click()
-  page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('menuitem', { name: 'Close Position' }).click()
+  const closeDialog = page.getByRole('dialog', { name: 'Close Position' })
+  await expect(closeDialog).toBeVisible()
+  await closeDialog.getByRole('button', { name: 'Close Position' }).click()
   await expect
     .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getClosePositionSends()))
     .toEqual(['61616161-6161-4161-8161-616161616161'])
@@ -678,6 +729,13 @@ test('Hyperliquid missed TE exposes durable Continue Anyway recovery', async ({ 
 test('Hyperliquid Chase form serializes post-only strategy controls and protection', async ({
   page,
 }) => {
+  await page.route('https://api.hyperliquid-testnet.xyz/info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ BTC: '50000' }),
+    })
+  })
   await page.goto('/e2e/bybit-terminal')
   await page.getByTestId('open-hyperliquid-chase').click()
 

@@ -649,7 +649,7 @@ export const useWsStore = defineStore('ws', () => {
       window.clearTimeout(accountRefreshResolver.timer)
       pendingAccountRefreshResolvers.delete(data.request_uuid)
     }
-    commandStore.verifyPendingCommand(data.request_uuid)
+    commandStore.verifyPendingCommand(data.request_uuid, data.message)
     if (wasAccountRefresh) {
       accountsStore
         .fetchAccounts()
@@ -700,7 +700,7 @@ export const useWsStore = defineStore('ws', () => {
     const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'ServerError' }>)
       .data
     if (data.request_uuid) {
-      if (commandStore.verifyPendingCommand(data.request_uuid) !== undefined) {
+      if (commandStore.verifyPendingCommand(data.request_uuid, data.error) !== undefined) {
         commandStore.setCommandStatus(data.request_uuid, CommandStatus.Failed)
       }
       const previewStore = useSplitPreviewStore()

@@ -4,6 +4,7 @@ import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandM
 import {
   MarketAction,
   ExchangeType,
+  NetworkType,
   PositionSide,
   type MarketContext,
   type MarketOrderCommand,
@@ -38,6 +39,7 @@ import {
   resolveHyperliquidExecutionGuards,
   tenthsBpsToPercent,
 } from '@/lib/hyperliquidExecutionGuards'
+import { useHyperliquidMidPrice } from '@/composables/useHyperliquidMidPrice'
 
 const logger = createLogger('commands')
 
@@ -77,6 +79,17 @@ const isBybitAccount = computed(() => selectedAccount.value?.exchange === Exchan
 const isHyperliquidAccount = computed(
   () => selectedAccount.value?.exchange === ExchangeType.Hyperliquid,
 )
+const hyperliquidSymbol = computed(() =>
+  isValidHyperliquidPerpSymbol(symbol.value) ? normalizeHyperliquidPerpSymbol(symbol.value) : '',
+)
+const hyperliquidNetwork = computed(
+  () => selectedAccount.value?.network ?? (null as NetworkType | null),
+)
+const hyperliquidMid = useHyperliquidMidPrice(
+  hyperliquidNetwork,
+  hyperliquidSymbol,
+  computed(() => props.open && isHyperliquidAccount.value),
+)
 const blocksOpeningOrder = computed(() => {
   if (action.value !== MarketAction.Open) return false
   if (isBybitAccount.value) return !isBybitMetadataVerified(selectedAccount.value)
@@ -102,7 +115,16 @@ const exitLevelError = computed(() => {
     position_side.value,
     take_profit.value,
     stop_loss.value,
+    isHyperliquidAccount.value ? hyperliquidMid.price.value : null,
   )
+})
+const protectionLabel = computed(() => {
+  const hasTakeProfit = optionalPositivePrice(take_profit.value) !== null
+  const hasStopLoss = optionalPositivePrice(stop_loss.value) !== null
+  if (hasTakeProfit && hasStopLoss) return 'Attached protection: TP + SL'
+  if (hasTakeProfit) return 'Attached protection: TP only'
+  if (hasStopLoss) return 'Attached protection: SL only'
+  return 'Attached protection: none'
 })
 const readinessWarning = computed(() => {
   if (isHyperliquidAccount.value) {
@@ -223,6 +245,13 @@ function validate(): boolean {
   if (stop_loss.value !== null && stop_loss.value !== '' && sl === null) return false
   if (
     isHyperliquidAccount.value &&
+    (tp !== null || sl !== null) &&
+    hyperliquidMid.price.value === null
+  ) {
+    return false
+  }
+  if (
+    isHyperliquidAccount.value &&
     overrideExecutionGuards.value &&
     (!isValidExecutionGuardPercent(entryGuardPercent.value) ||
       (supportsAttachedExit.value &&
@@ -305,7 +334,18 @@ function normalizedSymbolForSubmit(): string {
             </option>
           </select>
         </label>
-        <label class="field"><span>Symbol</span><input v-model="symbol" class="input" /></label>
+        <label class="field">
+          <span>Symbol</span><input v-model="symbol" class="input" aria-label="Symbol" />
+          <small v-if="isHyperliquidAccount && hyperliquidMid.price.value !== null">
+            Current mid ${{ hyperliquidMid.price.value.toLocaleString() }}
+          </small>
+          <small v-else-if="isHyperliquidAccount && hyperliquidMid.loading.value">
+            Loading current midpoint
+          </small>
+          <small v-else-if="isHyperliquidAccount && hyperliquidMid.error.value" class="text-error">
+            Midpoint unavailable
+          </small>
+        </label>
         <label class="field">
           <span>Action</span>
           <select v-model="action" class="input">
@@ -326,14 +366,20 @@ function normalizedSymbolForSubmit(): string {
         </label>
         <template v-if="supportsAttachedExit">
           <label class="field">
-            <span>Take Profit</span>
+            <span>Take Profit Price (optional)</span>
             <input type="number" step="any" v-model.number="take_profit" class="input" />
           </label>
           <label class="field">
-            <span>Stop Loss</span>
+            <span>Stop Loss Price (optional)</span>
             <input type="number" step="any" v-model.number="stop_loss" class="input" />
           </label>
         </template>
+        <p
+          v-if="supportsAttachedExit"
+          class="col-span-2 m-0 text-[11px] text-[var(--color-text-dim)]"
+        >
+          {{ protectionLabel }}
+        </p>
         <template v-if="isHyperliquidAccount">
           <label class="field col-span-2 flex-row items-center gap-2">
             <input v-model="overrideExecutionGuards" type="checkbox" />
