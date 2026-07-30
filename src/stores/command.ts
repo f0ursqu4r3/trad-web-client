@@ -1,5 +1,6 @@
 import {
   CommandStatus,
+  type CommandEffectRecord,
   type CommandActionContextData,
   MarketAction,
   OrderStatus,
@@ -59,6 +60,8 @@ export interface CommandActionContextEntry {
 
 export enum interestingCommandKinds {
   ChaseOrder,
+  FlattenHyperliquidAccount,
+  FlattenHyperliquidSymbol,
   LimitOrder,
   MarketOrder,
   SetHedgeMode,
@@ -84,6 +87,7 @@ export const useCommandStore = defineStore(
     const uiStore = useUiStore()
 
     const history = ref<CommandHistoryItem[]>([])
+    const commandEffects = ref<CommandEffectRecord[]>([])
     const commandIndexById = new Map<Uuid, number>()
     const pendingStatusUpdates = new Map<Uuid, CommandStatus>()
     const pendingHistoryAppends: CommandHistoryItem[] = []
@@ -581,16 +585,36 @@ export const useCommandStore = defineStore(
       })
     }
 
-    function setCommandHistory(items: CommandHistoryItem[]) {
+    function setCommandHistory(items: CommandHistoryItem[], effects: CommandEffectRecord[] = []) {
       history.value = items
+      commandEffects.value = effects
       rebuildCommandIndex()
     }
 
     function clearHistory() {
-      setCommandHistory([])
+      setCommandHistory([], [])
       pendingStatusUpdates.clear()
       pendingHistoryAppends.splice(0, pendingHistoryAppends.length)
       pendingHistoryById.clear()
+    }
+
+    function recordCommandEffect(effect: CommandEffectRecord) {
+      const index = commandEffects.value.findIndex(
+        (candidate) => candidate.effect_id === effect.effect_id,
+      )
+      if (index === -1) {
+        commandEffects.value.push(effect)
+      } else {
+        commandEffects.value[index] = effect
+      }
+    }
+
+    function flattenEffectsFrom(commandId: Uuid): CommandEffectRecord[] {
+      return commandEffects.value.filter((effect) => effect.source_command_id === commandId)
+    }
+
+    function flattenEffectsAffecting(commandId: Uuid): CommandEffectRecord[] {
+      return commandEffects.value.filter((effect) => effect.affected_command_id === commandId)
     }
 
     function commandHistoryIndex(commandId: Uuid): number {
@@ -794,6 +818,7 @@ export const useCommandStore = defineStore(
       selectedCommand,
       autoInspectNewCommands,
       actionContexts,
+      commandEffects,
       pendingCommands,
       commandFilters,
       commandMeta,
@@ -827,6 +852,9 @@ export const useCommandStore = defineStore(
       addPendingCommand,
       verifyPendingCommand,
       setCommandHistory,
+      recordCommandEffect,
+      flattenEffectsFrom,
+      flattenEffectsAffecting,
       clearHistory,
       commandStatus,
       setCommandStatus,

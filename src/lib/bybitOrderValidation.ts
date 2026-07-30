@@ -1,6 +1,7 @@
 import { PositionSide } from '@/lib/ws/protocol'
 
 type OptionalPrice = number | null | ''
+const HYPERLIQUID_MAX_LIMIT_PRICE_DISTANCE_FRACTION = 0.8
 
 export function normalizeBybitUsdtSymbol(symbol: string): string {
   const upper = symbol.trim().toUpperCase()
@@ -24,7 +25,23 @@ export function isValidHyperliquidPerpSymbol(symbol: string): boolean {
   return normalizeHyperliquidPerpSymbol(symbol) !== ''
 }
 
-function positiveFinite(value: number | null): boolean {
+export function hyperliquidLimitPriceReferenceError(
+  limitPrice: number | null,
+  referencePrice: number | null,
+): string | null {
+  if (!positiveFinite(limitPrice) || !positiveFinite(referencePrice)) return null
+
+  const reference = referencePrice
+  const minimum = reference * (1 - HYPERLIQUID_MAX_LIMIT_PRICE_DISTANCE_FRACTION)
+  const maximum = reference * (1 + HYPERLIQUID_MAX_LIMIT_PRICE_DISTANCE_FRACTION)
+  if (limitPrice >= minimum && limitPrice <= maximum) return null
+
+  const format = (value: number) =>
+    value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 8 })
+  return `Hyperliquid limit price $${format(limitPrice)} must be within 80% of current midpoint $${format(reference)} (allowed $${format(minimum)} to $${format(maximum)}). Check the symbol and price.`
+}
+
+function positiveFinite(value: number | null): value is number {
   return value !== null && Number.isFinite(value) && value > 0
 }
 

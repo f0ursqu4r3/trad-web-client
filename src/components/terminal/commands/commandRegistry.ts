@@ -1,4 +1,4 @@
-import type { UserCommandPayload } from '@/lib/ws/protocol'
+import { ExchangeType, type UserCommandPayload } from '@/lib/ws/protocol'
 
 export interface CommandMeta {
   kind: UserCommandPayload['kind']
@@ -7,6 +7,7 @@ export interface CommandMeta {
   aliases?: string[]
   modal?: boolean
   disabled?: boolean
+  exchange?: ExchangeType
 }
 
 // Central list of user commands; add remaining kinds iteratively.
@@ -18,20 +19,19 @@ export const commandRegistry: CommandMeta[] = [
     aliases: ['mo'],
     modal: true,
   },
-  { kind: 'LimitOrder', label: 'Limit Order', description: 'Place a limit order', modal: true },
+  {
+    kind: 'LimitOrder',
+    label: 'Limit Order',
+    description: 'Place a limit order',
+    aliases: ['lo'],
+    modal: true,
+  },
   {
     kind: 'ChaseOrder',
     label: 'Chase Order',
     description: 'Follow the same-side top of book with a post-only order',
     aliases: ['chase'],
     modal: true,
-  },
-  {
-    kind: 'SplitMarketOrder',
-    label: 'Split Market Order',
-    description: 'Use Trailing Entry split settings',
-    modal: true,
-    disabled: true,
   },
   {
     kind: 'TrailingEntryOrder',
@@ -41,12 +41,18 @@ export const commandRegistry: CommandMeta[] = [
     modal: true,
   },
   {
-    kind: 'ControlSimMarket',
-    label: 'Control Sim Market',
-    description: 'Control / adjust sim market',
+    kind: 'CancelAllDevicesCommand',
+    label: 'Cancel All Entry Work',
+    description: 'Cancel pending entries while preserving positions, protection, and closes',
+    aliases: ['ca'],
     modal: true,
   },
-  // Non-modal quick commands below
-  { kind: 'ListDevices', label: 'List Devices' },
-  { kind: 'CancelAllDevicesCommand', label: 'Cancel All Devices' },
+  {
+    kind: 'FlattenHyperliquidSymbol',
+    label: 'Flatten Position',
+    description: 'Close one or all authoritative Hyperliquid positions reduce-only',
+    aliases: ['fp', 'fl'],
+    modal: true,
+    exchange: ExchangeType.Hyperliquid,
+  },
 ]

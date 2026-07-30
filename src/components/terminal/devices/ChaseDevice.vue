@@ -325,6 +325,7 @@ function cancelChase() {
               <th class="py-1 pr-3">Price</th>
               <th class="py-1 pr-3">Filled / Qty</th>
               <th class="py-1 pr-3">Status</th>
+              <th class="py-1 pr-3">Reason</th>
               <th class="py-1">Client ID</th>
             </tr>
           </thead>
@@ -340,6 +341,9 @@ function cancelChase() {
                 {{ formatQty(attempt.filled_qty) }} / {{ formatQty(attempt.requested_qty) }}
               </td>
               <td class="py-1 pr-3">{{ attempt.status.replace(/_/g, ' ') }}</td>
+              <td class="min-w-48 py-1 pr-3 text-[10px] whitespace-normal">
+                {{ attempt.reason || '-' }}
+              </td>
               <td class="py-1 text-[10px] break-all">{{ attempt.client_order_id }}</td>
             </tr>
           </tbody>

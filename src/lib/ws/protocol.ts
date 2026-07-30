@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 34
+export const PROTOCOL_VERSION = 37
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -473,6 +473,25 @@ export type TrailingEntryOrderCommand = {
   market_context: MarketContext
   split_settings?: SplitSettings | null
 }
+export type AmendTrailingEntryCommand = {
+  device_id: Uuid
+  expected_revision: number
+  expected_phase: TrailingEntryPhase
+  expected_lifecycle: TrailingEntryLifecycle
+  activation_price?: number | null
+  jump_frac_threshold?: number | null
+  stop_loss?: number | null
+  take_profit?: number | null
+  clear_take_profit?: boolean
+  risk_amount?: number | null
+  split_settings?: SplitSettings | null
+}
+export type TrailingEntryImmediateActionCommand = {
+  device_id: Uuid
+  expected_revision: number
+  expected_phase: TrailingEntryPhase
+  expected_lifecycle: TrailingEntryLifecycle
+}
 export type SplitPreviewCommand = {
   symbol: string
   market_context: MarketContext
@@ -494,6 +513,9 @@ export type CancelCommandRemainingEntryCommand = { command_id: Uuid }
 export type FlattenHyperliquidSymbolCommand = {
   market_context: MarketContext
   symbol: string
+}
+export type FlattenHyperliquidAccountCommand = {
+  market_context: MarketContext
 }
 export type RefreshHyperliquidReconciliationCommand = {
   market_context: MarketContext
@@ -548,6 +570,7 @@ export type UserCommandPayload =
   | { kind: 'PartialCloseCommandPosition'; data: PartialCloseCommandPositionCommand }
   | { kind: 'CancelCommandRemainingEntry'; data: CancelCommandRemainingEntryCommand }
   | { kind: 'FlattenHyperliquidSymbol'; data: FlattenHyperliquidSymbolCommand }
+  | { kind: 'FlattenHyperliquidAccount'; data: FlattenHyperliquidAccountCommand }
   | {
       kind: 'RefreshHyperliquidReconciliation'
       data: RefreshHyperliquidReconciliationCommand
@@ -581,6 +604,9 @@ export type UserCommandPayload =
   | { kind: 'Test'; data: TestCommand }
   | { kind: 'TokenLogin'; data: TokenLoginCommand }
   | { kind: 'TrailingEntryOrder'; data: TrailingEntryOrderCommand }
+  | { kind: 'AmendTrailingEntry'; data: AmendTrailingEntryCommand }
+  | { kind: 'ActivateTrailingEntryNow'; data: TrailingEntryImmediateActionCommand }
+  | { kind: 'EnterTrailingEntryNow'; data: TrailingEntryImmediateActionCommand }
   | { kind: 'SplitPreview'; data: SplitPreviewCommand }
 
 // ==============================================================================================
@@ -601,6 +627,7 @@ export type ServerToClientPayload =
   | { kind: 'ClientLeft'; data: ClientLeftData }
   | { kind: 'CommandDevicesList'; data: CommandDevicesListData }
   | { kind: 'CommandActionContext'; data: CommandActionContextData }
+  | { kind: 'CommandEffectRecorded'; data: CommandEffectRecord }
   | { kind: 'CommandHistory'; data: CommandHistoryData }
   | { kind: 'CommandResponse'; data: CommandResponseData }
   | { kind: 'DeviceLifecycle'; data: DeviceLifecycleEvent }
@@ -719,6 +746,7 @@ export type HyperliquidSymbolOwnershipData = {
   owners: HyperliquidPositionOwnerData[]
 }
 export type HyperliquidAccountStreamHealthData = {
+  expected: boolean
   connected: boolean
   fresh: boolean
   position_snapshot_seen: boolean
@@ -915,6 +943,25 @@ export type CommandHistoryItem = {
 
 export type CommandHistoryData = {
   items: CommandHistoryItem[]
+  effects?: CommandEffectRecord[]
+}
+
+export enum CommandEffectKind {
+  EntryCanceled = 'EntryCanceled',
+  PositionClosed = 'PositionClosed',
+  ProtectionCleared = 'ProtectionCleared',
+  AlreadyFlat = 'AlreadyFlat',
+}
+
+export type CommandEffectRecord = {
+  effect_id: Uuid
+  owner_user_id: Uuid
+  source_command_id: Uuid
+  affected_command_id: Uuid
+  symbol: string
+  effect: CommandEffectKind
+  close_order_device_id?: Uuid | null
+  created_at: string
 }
 
 export type SetCommandStatusData = {
@@ -978,6 +1025,7 @@ export type DeviceSnapshotLite =
   | { kind: 'NativeProtection'; data: NativeProtectionSnapshot }
 
 export type TrailingEntrySnapshot = {
+  state_revision?: number
   // parameters
   symbol: string
   market_context: MarketContext
@@ -1043,6 +1091,7 @@ export type ChaseAttempt = {
   status: ChaseAttemptStatus
   created_at: string
   completed_at?: string | null
+  reason?: string | null
 }
 
 export type ChaseModifyIntent = {
@@ -1238,6 +1287,7 @@ export type DeviceTeDelta =
   | {
       kind: 'Init'
       data: {
+        state_revision?: number
         command_id: Uuid
         symbol: string
         market_context: MarketContext
@@ -1256,6 +1306,18 @@ export type DeviceTeDelta =
         created_at: string
         lifecycle: TrailingEntryLifecycle
         stats?: TrailingEntryStats
+      }
+    }
+  | {
+      kind: 'Parameters'
+      data: {
+        state_revision: number
+        activation_price: number
+        jump_frac_threshold: number
+        stop_loss: number
+        take_profit?: number | null
+        risk_amount: number
+        split_settings?: SplitSettings | null
       }
     }
   | { kind: 'PointsInit'; data: { start_idx: number; points: number[]; total_len: number } }

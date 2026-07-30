@@ -58,8 +58,8 @@ const boundaryBps = ref<number | null>(20)
 const boundaryPrice = ref<number | null>(null)
 const untilCanceled = ref(false)
 const expiryMinutes = ref<number | null>(5)
-const takeProfit = ref<number | null>(null)
-const stopLoss = ref<number | null>(null)
+const takeProfit = ref<number | null | ''>(null)
+const stopLoss = ref<number | null | ''>(null)
 const overrideProtectionGuards = ref(false)
 const takeProfitGuardPercent = ref(1)
 const stopLossGuardPercent = ref(10)
@@ -263,7 +263,8 @@ function validate(): boolean {
   if (exitLevelError.value) return false
   if (
     supportsAttachedExit.value &&
-    (takeProfit.value !== null || stopLoss.value !== null) &&
+    (optionalPositivePrice(takeProfit.value) !== null ||
+      optionalPositivePrice(stopLoss.value) !== null) &&
     hyperliquidMid.price.value === null
   ) {
     return false
@@ -289,9 +290,12 @@ function submit() {
     boundaryMode.value === 'price'
       ? { kind: 'price', value: boundaryPrice.value! }
       : { kind: 'basis_points', value: boundaryBps.value! }
+  const normalizedTakeProfit = optionalPositivePrice(takeProfit.value)
+  const normalizedStopLoss = optionalPositivePrice(stopLoss.value)
   const attachedExitPlan =
-    supportsAttachedExit.value && (takeProfit.value !== null || stopLoss.value !== null)
-      ? { take_profit: takeProfit.value, stop_loss: stopLoss.value }
+    supportsAttachedExit.value &&
+    (normalizedTakeProfit !== null || normalizedStopLoss !== null)
+      ? { take_profit: normalizedTakeProfit, stop_loss: normalizedStopLoss }
       : null
   const executionGuardOverrides: HyperliquidExecutionGuardOverrides | null =
     supportsAttachedExit.value && overrideProtectionGuards.value
@@ -321,6 +325,12 @@ function submit() {
   }
   ws.sendUserCommand(payload)
   emit('close')
+}
+
+function optionalPositivePrice(value: number | null | ''): number | null {
+  if (value === null || value === '') return null
+  if (!Number.isFinite(value) || value <= 0) return null
+  return value
 }
 </script>
 

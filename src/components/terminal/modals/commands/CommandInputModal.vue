@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted, nextTick, onBeforeUpdate } from 'vue'
 import { storeToRefs } from 'pinia'
-import type { UserCommandPayload } from '@/lib/ws/protocol'
 import { X } from 'lucide-vue-next'
 import { commandRegistry, type CommandMeta } from '@/components/terminal/commands/commandRegistry'
 import { useWsStore } from '@/stores/ws'
@@ -43,11 +42,18 @@ const selectedCapabilities = computed(() =>
 )
 
 const availableCommands = computed(() =>
-  allCommands.value.map((command) =>
-    commandWithMarketAvailability(command, selectedCapabilities.value, {
+  allCommands.value.map((command) => {
+    if (command.exchange && command.exchange !== accounts.selectedAccount?.exchange) {
+      return {
+        ...command,
+        disabled: true,
+        description: `Available only for ${command.exchange}`,
+      }
+    }
+    return commandWithMarketAvailability(command, selectedCapabilities.value, {
       capabilitiesPending: !!selectedMarketContext.value && !selectedCapabilities.value,
-    }),
-  ),
+    })
+  }),
 )
 
 const filteredCommands = computed(() => {
@@ -80,20 +86,7 @@ function submitQuick(cmd: CommandMeta) {
     store.openModal(cmd.kind)
     return
   }
-  // Map of zero-data commands
-  const zeroDataKinds: Array<UserCommandPayload['kind']> = [
-    'ListDevices',
-    'CancelAllDevicesCommand',
-  ]
-  if (zeroDataKinds.includes(cmd.kind as UserCommandPayload['kind'])) {
-    const payload = { kind: cmd.kind as UserCommandPayload['kind'], data: undefined } as Extract<
-      UserCommandPayload,
-      { data: undefined }
-    >
-    ws.sendUserCommand(payload)
-  } else {
-    logger.warn('Unhandled quick command kind without modal', cmd.kind)
-  }
+  logger.warn('Unhandled quick command kind without modal', cmd.kind)
   filter.value = ''
 }
 
@@ -207,7 +200,8 @@ onUnmounted(() => {
         @click.self="closePalette"
       >
         <div
-          class="absolute top-[10%] left-1/2 -translate-x-1/2 w-[min(640px,90%)] bg-[var(--panel-bg)] border border-[var(--border-color)] shadow-2xl text-[color:var(--color-text)] overflow-hidden"
+          data-testid="command-palette"
+          class="command-palette absolute top-[5vh] left-1/2 -translate-x-1/2 w-[min(960px,calc(100vw-24px))] max-h-[90vh] bg-[var(--panel-bg)] border border-[var(--border-color)] shadow-2xl text-[color:var(--color-text)] overflow-hidden"
           :style="{ borderRadius: 'var(--radius-none)' }"
         >
           <div class="relative p-2 border-b border-[var(--border-color)] flex items-center gap-2">
@@ -231,13 +225,13 @@ onUnmounted(() => {
               <X :size="12" />
             </button>
           </div>
-          <div class="max-h-80 overflow-auto scroll-smooth">
-            <ul>
+          <div class="max-h-[min(78vh,720px)] overflow-auto scroll-smooth">
+            <ul class="command-grid" data-testid="command-grid">
               <li
                 v-for="(c, i) in filteredCommands"
                 :key="c.kind"
                 :ref="(el) => (itemRefs[i] = el as HTMLElement)"
-                class="p-2 px-3 border-b border-[var(--border-color)] cursor-pointer transition-colors"
+                class="command-option min-h-[86px] p-3 border-b border-[var(--border-color)] cursor-pointer transition-colors"
                 :class="[
                   c.disabled
                     ? 'cursor-not-allowed opacity-50'
@@ -264,7 +258,10 @@ onUnmounted(() => {
                   </span>
                 </div>
               </li>
-              <li v-if="!filteredCommands.length" class="p-3 text-[12px] text-center dim">
+              <li
+                v-if="!filteredCommands.length"
+                class="command-empty p-6 text-[12px] text-center dim"
+              >
                 No matches
               </li>
             </ul>
@@ -275,4 +272,23 @@ onUnmounted(() => {
   </div>
 </template>
 
-<!-- Converted to Tailwind utility classes; component no longer needs scoped CSS -->
+<style scoped>
+.command-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.command-empty {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 768px) {
+  .command-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .command-option:nth-child(odd) {
+    border-right: 1px solid var(--border-color);
+  }
+}
+</style>

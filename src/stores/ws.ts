@@ -46,6 +46,7 @@ interface RawInboundRecord {
 
 interface ServerActionNotice {
   id: number
+  title?: string
   message: string
   action?: {
     kind: 'inspect_command'
@@ -88,6 +89,7 @@ export const useWsStore = defineStore('ws', () => {
   const pendingAccountRefreshes = new Set<Uuid>()
   const pendingPositionEffectPreviews = new Set<Uuid>()
   const pendingPositionOwnership = new Map<Uuid, string>()
+  const pendingAccountActions = new Map<Uuid, string>()
   const pendingCommandActionContexts = new Map<
     Uuid,
     {
@@ -302,10 +304,30 @@ export const useWsStore = defineStore('ws', () => {
   }
 
   function sendFlattenHyperliquidSymbol(marketContext: MarketContext, symbol: string) {
-    return sendUserCommand({
+    const requestId = sendUserCommand({
       kind: 'FlattenHyperliquidSymbol',
       data: { market_context: marketContext, symbol },
     })
+    pendingAccountActions.set(requestId, `Flatten ${symbol}`)
+    return requestId
+  }
+
+  function sendFlattenHyperliquidAccount(marketContext: MarketContext) {
+    const requestId = sendUserCommand({
+      kind: 'FlattenHyperliquidAccount',
+      data: { market_context: marketContext },
+    })
+    pendingAccountActions.set(requestId, 'Flatten All Positions')
+    return requestId
+  }
+
+  function sendCancelAllDevices() {
+    const requestId = sendUserCommandPreview({
+      kind: 'CancelAllDevicesCommand',
+      data: undefined,
+    })
+    pendingAccountActions.set(requestId, 'Cancel All Entry Work')
+    return requestId
   }
 
   function sendRefreshHyperliquidReconciliation(
@@ -567,6 +589,7 @@ export const useWsStore = defineStore('ws', () => {
       FatalServerError: handleFatalServerError,
       ServerError: handleServerError,
       CommandHistory: handleCommandHistory,
+      CommandEffectRecorded: handleCommandEffectRecorded,
       SetCommandStatus: handleSetCommandStatus,
       CommandDevicesList: handleCommandDevicesList,
       CommandActionContext: handleCommandActionContext,
@@ -650,6 +673,15 @@ export const useWsStore = defineStore('ws', () => {
       pendingAccountRefreshResolvers.delete(data.request_uuid)
     }
     commandStore.verifyPendingCommand(data.request_uuid, data.message)
+    const accountAction = pendingAccountActions.get(data.request_uuid)
+    if (accountAction) {
+      pendingAccountActions.delete(data.request_uuid)
+      serverActionNotice.value = {
+        id: ++serverActionNoticeId,
+        title: accountAction,
+        message: data.message,
+      }
+    }
     if (wasAccountRefresh) {
       accountsStore
         .fetchAccounts()
@@ -712,6 +744,15 @@ export const useWsStore = defineStore('ws', () => {
       if (ownershipKey) {
         pendingPositionOwnership.delete(data.request_uuid)
         hyperliquidPositionOwnershipErrors.value[ownershipKey] = data.error
+      }
+      const accountAction = pendingAccountActions.get(data.request_uuid)
+      if (accountAction) {
+        pendingAccountActions.delete(data.request_uuid)
+        serverActionNotice.value = {
+          id: ++serverActionNoticeId,
+          title: `${accountAction} failed`,
+          message: data.error,
+        }
       }
       const actionContextRequest = pendingCommandActionContexts.get(data.request_uuid)
       if (actionContextRequest) {
@@ -786,7 +827,14 @@ export const useWsStore = defineStore('ws', () => {
   function handleCommandHistory(payload: ServerToClientMessage['payload']): void {
     const data = (payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandHistory' }>)
       .data
-    commandStore.setCommandHistory(data.items)
+    commandStore.setCommandHistory(data.items, data.effects ?? [])
+  }
+
+  function handleCommandEffectRecorded(payload: ServerToClientMessage['payload']): void {
+    const data = (
+      payload as Extract<ServerToClientMessage['payload'], { kind: 'CommandEffectRecorded' }>
+    ).data
+    commandStore.recordCommandEffect(data)
   }
 
   function handleCommandActionContext(payload: ServerToClientMessage['payload']): void {
@@ -961,7 +1009,9 @@ export const useWsStore = defineStore('ws', () => {
     sendCloseCommandPosition,
     sendPartialCloseCommandPosition,
     sendCancelCommandRemainingEntry,
+    sendCancelAllDevices,
     sendFlattenHyperliquidSymbol,
+    sendFlattenHyperliquidAccount,
     sendRefreshHyperliquidReconciliation,
     sendEditHyperliquidProtection,
     sendContinueMissedTrailingEntry,

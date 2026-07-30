@@ -5,6 +5,10 @@ import type { AccountRecord } from '@/stores/accounts'
 import { useAccountsStore } from '@/stores/accounts'
 import { useCommandStore } from '@/stores/command'
 import { useWsStore } from '@/stores/ws'
+import type {
+  HyperliquidPositionOwnerData,
+  HyperliquidSymbolOwnershipData,
+} from '@/lib/ws/protocol'
 
 const props = defineProps<{
   open: boolean
@@ -17,6 +21,8 @@ const commands = useCommandStore()
 const ws = useWsStore()
 const flattenSymbol = ref<string | null>(null)
 const flattenAcknowledged = ref(false)
+const flattenAllOpen = ref(false)
+const flattenAllAcknowledged = ref(false)
 const actionMessage = ref<string | null>(null)
 const reconciliationScope = ref<string | null>(null)
 
@@ -24,6 +30,12 @@ const marketContext = computed(() =>
   props.account ? accounts.getMarketContextForAccount(props.account.id) : null,
 )
 const ownership = computed(() => ws.hyperliquidOwnershipForMarketContext(marketContext.value))
+const livePositions = computed(
+  () => ownership.value?.symbols.filter((position) => Math.abs(position.live_signed_quantity) > 1e-12) ?? [],
+)
+const visiblePositions = computed(
+  () => ownership.value?.symbols.filter(positionRequiresAttention) ?? [],
+)
 const error = computed(() =>
   props.account
     ? (ws.hyperliquidPositionOwnershipErrors[`hyperliquid:${props.account.id}`] ?? null)
@@ -50,6 +62,8 @@ function inspect(commandId: string) {
 }
 
 function prepareFlatten(symbol: string) {
+  flattenAllOpen.value = false
+  flattenAllAcknowledged.value = false
   flattenSymbol.value = symbol
   flattenAcknowledged.value = false
   actionMessage.value = null
@@ -63,6 +77,23 @@ function submitFlatten() {
   flattenAcknowledged.value = false
 }
 
+function prepareFlattenAll() {
+  flattenSymbol.value = null
+  flattenAcknowledged.value = false
+  flattenAllOpen.value = true
+  flattenAllAcknowledged.value = false
+  actionMessage.value = null
+}
+
+function submitFlattenAll() {
+  if (!marketContext.value || !flattenAllAcknowledged.value) return
+  ws.sendFlattenHyperliquidAccount(marketContext.value)
+  actionMessage.value =
+    'Flatten All requested. Every symbol is attempted independently; review the result notice.'
+  flattenAllOpen.value = false
+  flattenAllAcknowledged.value = false
+}
+
 function formatQuantity(value: number): string {
   return value.toLocaleString(undefined, { maximumFractionDigits: 8 })
 }
@@ -71,6 +102,21 @@ function formatTimestamp(value?: string | number | null): string {
   if (value == null) return '-'
   const date = typeof value === 'number' ? new Date(value) : new Date(value)
   return Number.isFinite(date.getTime()) ? date.toLocaleString() : '-'
+}
+
+function ownerRequiresAttention(owner: HyperliquidPositionOwnerData): boolean {
+  if (owner.entry_working || Math.abs(owner.remaining_quantity) > 1e-12) return true
+  const protectionStatus = owner.protection_status?.toLowerCase() ?? null
+  return protectionStatus !== null && !['flat', 'canceled'].includes(protectionStatus)
+}
+
+function positionRequiresAttention(position: HyperliquidSymbolOwnershipData): boolean {
+  return (
+    Math.abs(position.live_signed_quantity) > 1e-12 ||
+    position.owners.some(ownerRequiresAttention) ||
+    position.discrepancies.length > 0 ||
+    position.opens_blocked
+  )
 }
 
 function discrepancyLabel(value: string): string {
@@ -94,6 +140,8 @@ watch(
   (open) => {
     flattenSymbol.value = null
     flattenAcknowledged.value = false
+    flattenAllOpen.value = false
+    flattenAllAcknowledged.value = false
     actionMessage.value = null
     reconciliationScope.value = null
     if (open) refresh()
@@ -136,12 +184,19 @@ watch(
           >
             Refresh Exchange State
           </button>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm text-error"
+            @click="prepareFlattenAll"
+          >
+            Flatten All
+          </button>
         </div>
       </div>
 
       <p v-if="error" class="m-0 text-error">{{ error }}</p>
       <p v-else-if="!ownership" class="m-0 text-[var(--color-text-dim)]">Loading positions...</p>
-      <p v-else-if="ownership.symbols.length === 0" class="m-0 text-[var(--color-text-dim)]">
+      <p v-else-if="visiblePositions.length === 0" class="m-0 text-[var(--color-text-dim)]">
         No live or Trad-owned Hyperliquid positions.
       </p>
 
@@ -167,10 +222,17 @@ watch(
           <span class="text-[var(--color-text-dim)]">Account stream</span>
           <span
             class="text-right font-mono"
-            :class="ownership.reconciliation.stream_health.fresh ? 'text-success' : 'text-error'"
+            :class="
+              !ownership.reconciliation.stream_health.expected ||
+              ownership.reconciliation.stream_health.fresh
+                ? 'text-success'
+                : 'text-error'
+            "
           >
             {{
-              ownership.reconciliation.stream_health.connected
+              !ownership.reconciliation.stream_health.expected
+                ? 'idle (no active devices)'
+                : ownership.reconciliation.stream_health.connected
                 ? ownership.reconciliation.stream_health.fresh
                   ? 'connected / fresh'
                   : 'connected / stale'
@@ -180,8 +242,10 @@ watch(
           <span class="text-[var(--color-text-dim)]">Last stream frame</span>
           <span class="text-right font-mono">
             {{
-              ownership.reconciliation.stream_health.last_frame_age_ms == null
-                ? '-'
+              !ownership.reconciliation.stream_health.expected
+                ? 'not required while idle'
+                : ownership.reconciliation.stream_health.last_frame_age_ms == null
+                  ? '-'
                 : `${ownership.reconciliation.stream_health.last_frame_age_ms} ms ago`
             }}
           </span>
@@ -215,9 +279,50 @@ watch(
           <div v-for="item in ownership.reconciliation.errors" :key="item">{{ item }}</div>
         </div>
       </section>
+      <section
+        v-if="flattenAllOpen"
+        class="border border-[var(--color-error)] p-3 text-[11px]"
+        aria-label="Confirm flatten all positions"
+      >
+        <strong>Flatten every Hyperliquid position</strong>
+        <p class="my-2">
+          This cancels affected Trad entry work and submits an independent reduce-only market close
+          for every authoritative nonzero position on {{ account?.label }}. Trad-owned protection
+          is cleared only after each close succeeds. External or manually created quantity is also
+          closed.
+        </p>
+        <div class="mb-2 font-mono">
+          <div v-for="position in livePositions" :key="position.symbol">
+            {{ position.symbol }}: {{ formatQuantity(position.live_signed_quantity) }}
+          </div>
+          <div v-if="!livePositions.length" class="text-[var(--color-text-dim)]">
+            The latest view shows no nonzero positions. The backend will check the exchange again
+            before acting.
+          </div>
+        </div>
+        <label class="flex items-start gap-2">
+          <input v-model="flattenAllAcknowledged" type="checkbox" />
+          <span>
+            I understand this attempts to close every position in this Hyperliquid account.
+          </span>
+        </label>
+        <div class="mt-3 flex justify-end gap-2">
+          <button type="button" class="btn btn-secondary btn-sm" @click="flattenAllOpen = false">
+            Back
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            :disabled="!flattenAllAcknowledged"
+            @click="submitFlattenAll"
+          >
+            Confirm Flatten All
+          </button>
+        </div>
+      </section>
 
       <article
-        v-for="position in ownership?.symbols ?? []"
+        v-for="position in visiblePositions"
         :key="position.symbol"
         class="border border-[var(--border-color)] p-3"
       >
@@ -278,9 +383,12 @@ watch(
           </div>
         </div>
 
-        <div v-if="position.owners.length" class="mt-3 border-t border-[var(--border-color)] pt-2">
+        <div
+          v-if="position.owners.some(ownerRequiresAttention)"
+          class="mt-3 border-t border-[var(--border-color)] pt-2"
+        >
           <div
-            v-for="owner in position.owners"
+            v-for="owner in position.owners.filter(ownerRequiresAttention)"
             :key="owner.command_id"
             class="grid grid-cols-[minmax(0,1fr)_auto] gap-2 border-b border-[var(--border-color)] py-2 last:border-b-0"
           >

@@ -270,6 +270,7 @@ export const useDeviceStore = defineStore('device', () => {
       case 'TrailingEntry': {
         const te = device.state as TrailingEntryState
         const s = snapshot.data
+        te.state_revision = s.state_revision ?? 0
         te.symbol = s.symbol
         te.market_context = normalizeMarketContext(s.market_context as MarketContext)
         te.position_side = s.position_side
@@ -497,6 +498,7 @@ export const useDeviceStore = defineStore('device', () => {
       case 'Init':
         {
           const {
+            state_revision,
             symbol,
             market_context,
             position_side,
@@ -514,6 +516,7 @@ export const useDeviceStore = defineStore('device', () => {
             lifecycle,
             stats,
           } = delta.data
+          te.state_revision = state_revision ?? 0
           te.symbol = symbol
           te.market_context = normalizeMarketContext(market_context as MarketContext)
           te.position_side = position_side
@@ -532,6 +535,26 @@ export const useDeviceStore = defineStore('device', () => {
           if (stats) te.stats = stats
 
           selectedDeviceId.value = device.id
+        }
+        break
+      case 'Parameters':
+        {
+          const {
+            state_revision,
+            activation_price,
+            jump_frac_threshold,
+            stop_loss,
+            take_profit,
+            risk_amount,
+            split_settings,
+          } = delta.data
+          te.state_revision = state_revision
+          te.activation_price = activation_price
+          te.jump_frac_threshold = jump_frac_threshold
+          te.stop_loss = stop_loss
+          te.take_profit = take_profit ?? null
+          te.risk_amount = risk_amount
+          te.split_settings = split_settings ?? null
         }
         break
       case 'PointsInit':
@@ -1168,13 +1191,6 @@ export const useDeviceStore = defineStore('device', () => {
     }
   }
 
-  function setTePriceLine(line: 'activation_price' | 'stop_loss', price: number) {
-    const te = teDevice.value
-    if (!te) return
-    if (!Number.isFinite(price)) return
-    te[line] = price
-  }
-
   return {
     // state
     devices,
@@ -1187,7 +1203,6 @@ export const useDeviceStore = defineStore('device', () => {
     handleDeviceLifecycle,
     inspectDevice,
     clearDevices,
-    setTePriceLine,
   }
 })
 
@@ -1252,6 +1267,7 @@ export interface ChaseState
 }
 
 export interface TrailingEntryState {
+  state_revision: number
   // parameters
   symbol: string
   market_context: MarketContext
@@ -1449,6 +1465,7 @@ function newDevice(deviceId: string, kind: string, command_id: string | null): D
 
 function newTrailingEntryState(): TrailingEntryState {
   return {
+    state_revision: 0,
     symbol: '',
     market_context: { type: 'none' } as MarketContext,
     position_side: PositionSide.Long,

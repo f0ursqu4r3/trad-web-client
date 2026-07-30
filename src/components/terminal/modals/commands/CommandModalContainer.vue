@@ -7,6 +7,9 @@ import LimitOrderModal from '@/components/terminal/modals/commands/LimitOrderMod
 import ChaseOrderModal from '@/components/terminal/modals/commands/ChaseOrderModal.vue'
 import TrailingEntryOrderModal from '@/components/terminal/modals/commands/TrailingEntryOrderModal.vue'
 import SplitMarketOrderModal from '@/components/terminal/modals/commands/SplitMarketOrderModal.vue'
+import CancelAllDevicesModal from '@/components/terminal/modals/commands/CancelAllDevicesModal.vue'
+import HyperliquidPositionOwnershipModal from '@/components/terminal/modals/HyperliquidPositionOwnershipModal.vue'
+import { useAccountsStore } from '@/stores/accounts'
 import { watch, onBeforeUnmount } from 'vue'
 import type { UserCommandPayload } from '@/lib/ws/protocol'
 import { createLogger } from '@/lib/utils'
@@ -15,6 +18,7 @@ const logger = createLogger('commands')
 
 const store = useModalStore()
 const ws = useWsStore()
+const accounts = useAccountsStore()
 
 const { openModals, modalStack } = storeToRefs(store)
 const closeModal = store.closeModal
@@ -75,6 +79,15 @@ onBeforeUnmount(() => {
     <SplitMarketOrderModal
       :open="openModals['SplitMarketOrder']"
       @close="closeModal('SplitMarketOrder')"
+    />
+    <CancelAllDevicesModal
+      :open="openModals['CancelAllDevicesCommand']"
+      @close="closeModal('CancelAllDevicesCommand')"
+    />
+    <HyperliquidPositionOwnershipModal
+      :open="openModals['FlattenHyperliquidSymbol']"
+      :account="accounts.selectedAccount"
+      @close="closeModal('FlattenHyperliquidSymbol')"
     />
   </Teleport>
 </template>

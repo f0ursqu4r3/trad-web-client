@@ -434,7 +434,7 @@ onBeforeUnmount(() => {
       <div
         v-if="props.items && showMenu"
         ref="menuRef"
-        class="fixed dropmenu-panel z-10"
+        class="fixed dropmenu-panel z-[300]"
         :style="menuInlineStyle"
         role="menu"
       >

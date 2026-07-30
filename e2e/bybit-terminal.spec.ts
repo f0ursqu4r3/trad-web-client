@@ -95,6 +95,74 @@ test('Hyperliquid account panel renders exchange-keyed queue telemetry', async (
   await expect(accountPanel.getByText('15+3 open · fresh 2.0s')).toBeVisible()
 })
 
+test('flatten operations retain reciprocal command links without reparenting devices', async ({
+  page,
+}) => {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    })
+  })
+
+  await page.goto('/e2e/bybit-terminal')
+  const commandPanel = page.getByTestId('command-panel')
+  const flattenAll = commandPanel
+    .locator('.command-row')
+    .filter({ hasText: 'Hyperliquid account flatten audit' })
+  await expect(flattenAll).toContainText('Flatten All')
+  await expect(flattenAll).toContainText('2 affected')
+
+  await flattenAll.getByTitle('Expand').click()
+  await expect(flattenAll).toContainText('#21212121')
+  await expect(flattenAll).toContainText('Position Closed')
+  await expect(flattenAll).toContainText('#61616161')
+  await expect(flattenAll).toContainText('Entry Canceled')
+
+  const originalCommandLink = commandPanel.getByRole('button', {
+    name: 'Closed by Flatten #69696969',
+  })
+  await expect(originalCommandLink).toBeVisible()
+  await originalCommandLink.click()
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__tradBybitTerminalFixture?.getSelectedCommandId() ?? null),
+    )
+    .toBe('69696969-6969-4969-8969-696969696969')
+
+  const details = page.getByTestId('device-details-panel')
+  await expect(details.getByText('Hyperliquid operation')).toBeVisible()
+  await expect(details.getByRole('heading', { name: 'Flatten All' })).toBeVisible()
+  await expect(details.getByText('Entire Hyperliquid account')).toBeVisible()
+  await expect(
+    details.getByText('Hyperliquid Flatten All: submitted [BTC 0.001 Long].'),
+  ).toBeVisible()
+  await expect(details.getByRole('button', { name: /BTC #21212121 Position Closed/ })).toBeVisible()
+  await expect(details.getByRole('button', { name: /ETH #61616161 Entry Canceled/ })).toBeVisible()
+  await expect(
+    details.getByRole('button', { name: /Order #73737373 Inspect device/ }),
+  ).toBeVisible()
+  await expect(details.getByText('No device selected')).toHaveCount(0)
+
+  const symbolFlatten = commandPanel
+    .locator('.command-row')
+    .filter({ hasText: 'Hyperliquid BTC flatten audit' })
+  await expect(symbolFlatten).toContainText('Flatten Position')
+  await expect(symbolFlatten).toContainText('1 affected')
+  await expect(
+    commandPanel.getByRole('button', {
+      name: 'Flatten confirmed flat #70707070',
+    }),
+  ).toBeVisible()
+  await symbolFlatten.click()
+  await expect(details.getByRole('heading', { name: 'Flatten Position' })).toBeVisible()
+  await expect(details.getByText('Symbol BTC')).toBeVisible()
+  await expect(
+    details.getByText('Hyperliquid BTC was already flat; protection cleanup requested.'),
+  ).toBeVisible()
+})
+
 test('Hyperliquid position view exposes ownership and requires explicit full flatten confirmation', async ({
   page,
 }) => {
@@ -110,6 +178,7 @@ test('Hyperliquid position view exposes ownership and requires explicit full fla
   await expect(dialog.getByText('0.002', { exact: true }).first()).toBeVisible()
   await expect(dialog.getByText('0.001', { exact: true })).toBeVisible()
   await expect(dialog.getByRole('button', { name: /Limit Order #21212121/ })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: /Market Order #99999999/ })).toHaveCount(0)
 
   await dialog.getByRole('button', { name: 'Refresh Exchange State' }).first().click()
   const evidence = dialog.getByTestId('hyperliquid-reconciliation-evidence')
@@ -146,6 +215,87 @@ test('Hyperliquid position view exposes ownership and requires explicit full fla
       page.evaluate(() => (window as any).__tradBybitTerminalFixture?.getFlattenSymbolSends()),
     )
     .toContain('BTC')
+})
+
+test('account safety commands are discoverable and dispatched through the command palette', async ({
+  page,
+}) => {
+  await page.goto('/e2e/bybit-terminal')
+
+  const accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
+
+  await page.getByRole('button', { name: /^Commands/ }).click()
+  await page.getByPlaceholder('Search commands...').fill('cancel all')
+  await page.getByText('Cancel All Entry Work', { exact: true }).click()
+
+  const cancelDialog = page.getByRole('dialog', { name: 'Cancel All Entry Work' })
+  await expect(
+    cancelDialog.getByText('Established positions will remain open and protected.'),
+  ).toBeVisible()
+  await cancelDialog.getByRole('button', { name: 'Cancel All Entry Work' }).click()
+  await expect
+    .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getCancelAllSends()))
+    .toBe(1)
+
+  await page.getByRole('button', { name: /^Commands/ }).click()
+  await page.getByPlaceholder('Search commands...').fill('flatten')
+  await page.locator('[role="option"]').filter({ hasText: 'Flatten Position' }).click()
+
+  const flattenDialog = page.getByRole('dialog', { name: /Hyperliquid Positions/ })
+  await expect(flattenDialog.getByRole('button', { name: 'Flatten Symbol' })).toBeVisible()
+  await expect(flattenDialog.getByText('external surplus')).toBeVisible()
+})
+
+test('command palette exposes concise trading aliases and hides legacy terminal commands', async ({
+  page,
+}) => {
+  await page.goto('/e2e/bybit-terminal')
+
+  const accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
+
+  await page.getByRole('button', { name: /^Commands/ }).click()
+  await expect(page.getByText('List Devices', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Control Sim Market', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Split Market Order', { exact: true })).toHaveCount(0)
+  await expect
+    .poll(() =>
+      page.getByTestId('command-grid').evaluate((element) => {
+        return getComputedStyle(element).gridTemplateColumns.split(' ').length
+      }),
+    )
+    .toBe(2)
+
+  const search = page.getByPlaceholder('Search commands...')
+  await search.fill('lo')
+  await search.press('Enter')
+  await expect(page.getByRole('dialog', { name: 'Limit Order' })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  await page.getByRole('button', { name: /^Commands/ }).click()
+  await page.getByPlaceholder('Search commands...').fill('ca')
+  await page.getByPlaceholder('Search commands...').press('Enter')
+  await expect(page.getByRole('dialog', { name: 'Cancel All Entry Work' })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  for (const alias of ['fp', 'fl']) {
+    await page.getByRole('button', { name: /^Commands/ }).click()
+    await page.getByPlaceholder('Search commands...').fill(alias)
+    await page.getByPlaceholder('Search commands...').press('Enter')
+    await expect(page.getByRole('dialog', { name: /Hyperliquid Positions/ })).toBeVisible()
+    await page.keyboard.press('Escape')
+  }
+
+  await page.getByRole('button', { name: /^Commands/ }).click()
+  await page.setViewportSize({ width: 600, height: 900 })
+  await expect
+    .poll(() =>
+      page.getByTestId('command-grid').evaluate((element) => {
+        return getComputedStyle(element).gridTemplateColumns.split(' ').length
+      }),
+    )
+    .toBe(1)
 })
 
 test('Hyperliquid opposite-side order preview requires fresh economic confirmation', async ({
@@ -355,6 +505,13 @@ test('Hyperliquid order forms serialize explicit execution-guard overrides', asy
       body: JSON.stringify({ authenticated: false }),
     })
   })
+  await page.route('https://api.hyperliquid-testnet.xyz/info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ BTC: '65000' }),
+    })
+  })
 
   await page.goto('/e2e/bybit-terminal')
   await page.getByTestId('open-hyperliquid-mo').click()
@@ -438,6 +595,50 @@ test('Hyperliquid market order explains optional protection and rejects an inval
     kind: 'MarketOrder',
     data: {
       symbol: 'BTC',
+      attached_exit_plan: null,
+    },
+  })
+})
+
+test('Hyperliquid limit order rejects a price more than 80% from the live midpoint in the form', async ({
+  page,
+}) => {
+  await page.route('https://api.hyperliquid-testnet.xyz/info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ BTC: '50000' }),
+    })
+  })
+  await page.goto('/e2e/bybit-terminal')
+  await page.getByTestId('open-hyperliquid-limit').click()
+
+  const dialog = page.getByRole('dialog', { name: 'Limit Order' })
+  await expect(dialog.getByText('Current mid $50,000')).toBeVisible()
+  await dialog.getByRole('spinbutton', { name: 'Limit Price' }).fill('1900')
+
+  await expect(
+    dialog.getByText(
+      'Hyperliquid limit price $1,900 must be within 80% of current midpoint $50,000 (allowed $10,000 to $90,000). Check the symbol and price.',
+      { exact: true },
+    ),
+  ).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Submit' })).toBeDisabled()
+
+  await dialog.getByRole('spinbutton', { name: 'Limit Price' }).fill('49000')
+  await expect(dialog.getByText(/must be within 80%/)).toHaveCount(0)
+  await dialog.getByRole('spinbutton', { name: /^Take Profit Price/ }).fill('51000')
+  await dialog.getByRole('spinbutton', { name: /^Take Profit Price/ }).fill('')
+  await expect(dialog.getByText(/take profit must be above/)).toHaveCount(0)
+  await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled()
+  await dialog.getByRole('button', { name: 'Submit' }).click()
+
+  const sends = await page.evaluate(() => window.__tradBybitTerminalFixture?.getCommandSends())
+  expect(sends?.at(-1)).toMatchObject({
+    kind: 'LimitOrder',
+    data: {
+      symbol: 'BTC',
+      price: 49000,
       attached_exit_plan: null,
     },
   })
@@ -1021,6 +1222,129 @@ test('command rows open their existing action menu at the right-click position',
   })
   expect(shiftContextMenuPrevented).toBe(false)
   await expect(menu).toBeHidden()
+})
+
+test('editable TE exposes actions and clickable off-scale tabs synchronized with axis reset', async ({
+  page,
+}) => {
+  await page.goto('/e2e/bybit-terminal')
+
+  const row = page
+    .getByTestId('command-panel')
+    .locator('.command-row')
+    .filter({ hasText: '#61616161' })
+  await expect(row).toBeVisible()
+  await page.evaluate(() => window.__tradBybitTerminalFixture?.setHyperliquidTeEditable())
+  await row.click()
+  await expect(page.getByRole('button', { name: 'Activate Now' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Enter Now' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Edit TE' })).toBeVisible()
+
+  await page.evaluate(() => window.__tradBybitTerminalFixture?.setHyperliquidTeEditable())
+  await page.evaluate(() => window.__tradBybitTerminalFixture?.showEditableTeChart())
+  const chartBox = await page.getByTestId('te-chart').boundingBox()
+  expect(chartBox).not.toBeNull()
+  await page.mouse.move(chartBox!.x + chartBox!.width - 4, chartBox!.y + chartBox!.height / 2)
+  for (let index = 0; index < 16; index += 1) {
+    await page.mouse.wheel(0, -120)
+  }
+  const upperTabs = page.getByTestId('offscale-upper-tabs')
+  const lowerTabs = page.getByTestId('offscale-lower-tabs')
+  await expect(upperTabs.getByText(/↑ TP 3\.20k/)).toBeVisible()
+  await expect(lowerTabs.getByText(/↓ Act 2\.92k/)).toBeVisible()
+  await expect(lowerTabs.getByText(/↓ Stop 2\.90k/)).toBeVisible()
+
+  const upperBox = await upperTabs.boundingBox()
+  const lowerBox = await lowerTabs.boundingBox()
+  expect(upperBox).not.toBeNull()
+  expect(lowerBox).not.toBeNull()
+  expect(Math.abs(upperBox!.y - chartBox!.y)).toBeLessThanOrEqual(2)
+  expect(
+    Math.abs(lowerBox!.y + lowerBox!.height - (chartBox!.y + chartBox!.height)),
+  ).toBeLessThanOrEqual(2)
+
+  const lowerTabBoxes = await lowerTabs.locator('.offscale-tab').evaluateAll((elements) =>
+    elements.map((element) => {
+      const rect = element.getBoundingClientRect()
+      return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }
+    }),
+  )
+  expect(lowerTabBoxes).toHaveLength(2)
+  expect(
+    lowerTabBoxes[0].right <= lowerTabBoxes[1].left ||
+      lowerTabBoxes[1].right <= lowerTabBoxes[0].left ||
+      lowerTabBoxes[0].bottom <= lowerTabBoxes[1].top ||
+      lowerTabBoxes[1].bottom <= lowerTabBoxes[0].top,
+  ).toBe(true)
+
+  await page.getByRole('button', { name: /Show TP 3\.20k/ }).click()
+  await expect(page.getByRole('button', { name: /Show TP 3\.20k/ })).toBeHidden()
+  await expect(lowerTabs).toBeVisible()
+  await expect(page.getByRole('button', { name: /Show Peak/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Show Jump/ })).toHaveCount(0)
+  const upperFocusState = await page.evaluate(() =>
+    window.__tradBybitTerminalFixture?.getEditableTeChartState(),
+  )
+  expect(upperFocusState).not.toBeNull()
+  expect(upperFocusState!.lineCoordinates.take_profit! / upperFocusState!.height).toBeCloseTo(
+    0.05,
+    1,
+  )
+
+  await page.mouse.dblclick(
+    chartBox!.x + chartBox!.width - 4,
+    chartBox!.y + chartBox!.height / 2,
+  )
+  await expect(upperTabs).toBeHidden()
+  await expect(lowerTabs).toBeHidden()
+
+  await page.mouse.move(chartBox!.x + chartBox!.width - 4, chartBox!.y + chartBox!.height / 2)
+  for (let index = 0; index < 16; index += 1) {
+    await page.mouse.wheel(0, -120)
+  }
+  await expect(page.getByRole('button', { name: /Show Stop 2\.90k/ })).toBeVisible()
+  await page.getByRole('button', { name: /Show Stop 2\.90k/ }).click()
+  await expect(page.getByRole('button', { name: /Show Stop 2\.90k/ })).toBeHidden()
+  await expect(page.getByRole('button', { name: /Show Peak/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Show Jump/ })).toHaveCount(0)
+  const lowerFocusState = await page.evaluate(() =>
+    window.__tradBybitTerminalFixture?.getEditableTeChartState(),
+  )
+  expect(lowerFocusState).not.toBeNull()
+  expect(lowerFocusState!.lineCoordinates.stop_loss! / lowerFocusState!.height).toBeCloseTo(
+    0.95,
+    1,
+  )
+
+  await page.evaluate(() => window.__tradBybitTerminalFixture?.hideEditableTeChart())
+
+  await row.click({ button: 'right' })
+  await expect(page.getByRole('menuitem', { name: 'Activate Now' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Enter Now...' })).toBeVisible()
+  await page.getByRole('menuitem', { name: 'Edit TE...' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'Edit Trailing Entry' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('spinbutton', { name: 'Risk amount' }).fill('125')
+  await dialog.getByRole('button', { name: 'Apply' }).click()
+
+  await expect
+    .poll(async () => {
+      const sends = await page.evaluate(() =>
+        window.__tradBybitTerminalFixture?.getCommandSends(),
+      )
+      return (sends ?? []).findLast((payload: any) => payload?.kind === 'AmendTrailingEntry')
+    })
+    .toMatchObject({
+      kind: 'AmendTrailingEntry',
+      data: {
+        device_id: '62626262-6262-4262-8262-626262626262',
+        expected_revision: 4,
+        expected_phase: 'Initial',
+        expected_lifecycle: 'Running',
+        risk_amount: 125,
+      },
+    })
 })
 
 test('Hyperliquid protection edit validates against live mid and emits exact device command', async ({

@@ -24,6 +24,7 @@ import {
 } from '@/stores/accounts'
 import { createLogger } from '@/lib/utils'
 import {
+  hyperliquidLimitPriceReferenceError,
   isValidHyperliquidPerpSymbol,
   normalizeHyperliquidPerpSymbol,
 } from '@/lib/bybitOrderValidation'
@@ -55,8 +56,8 @@ const quantityMode = ref<OrderQuantityMode>('notional')
 const quantity = ref<number | null>(50)
 const price = ref<number | null>(null)
 const timeInForce = ref<LimitTimeInForce>('gtc')
-const takeProfit = ref<number | null>(null)
-const stopLoss = ref<number | null>(null)
+const takeProfit = ref<number | null | ''>(null)
+const stopLoss = ref<number | null | ''>(null)
 const overrideProtectionGuards = ref(false)
 const takeProfitGuardPercent = ref(1)
 const stopLossGuardPercent = ref(10)
@@ -103,6 +104,7 @@ const exitLevelError = computed(() => {
   if (!supportsAttachedExit.value || price.value === null || price.value <= 0) return null
   if (
     takeProfit.value !== null &&
+    takeProfit.value !== '' &&
     (takeProfit.value <= 0 ||
       (positionSide.value === PositionSide.Long
         ? takeProfit.value <= price.value
@@ -112,6 +114,7 @@ const exitLevelError = computed(() => {
   }
   if (
     stopLoss.value !== null &&
+    stopLoss.value !== '' &&
     (stopLoss.value <= 0 ||
       (positionSide.value === PositionSide.Long
         ? stopLoss.value >= price.value
@@ -121,6 +124,11 @@ const exitLevelError = computed(() => {
   }
   return null
 })
+const limitPriceReferenceError = computed(() =>
+  isHyperliquid.value
+    ? hyperliquidLimitPriceReferenceError(price.value, hyperliquidMid.price.value)
+    : null,
+)
 const accountExecutionGuards = computed(() =>
   resolveHyperliquidExecutionGuards(selectedAccount.value?.exchange_metadata),
 )
@@ -225,6 +233,8 @@ function validate(): boolean {
   if (quantity.value === null || !Number.isFinite(quantity.value) || quantity.value <= 0)
     return false
   if (price.value === null || !Number.isFinite(price.value) || price.value <= 0) return false
+  if (isHyperliquid.value && hyperliquidMid.price.value === null) return false
+  if (limitPriceReferenceError.value) return false
   if (exitLevelError.value) return false
   if (
     isHyperliquid.value &&
@@ -250,9 +260,12 @@ function submit() {
     logger.error('Limit order validation failed')
     return
   }
+  const normalizedTakeProfit = optionalPositivePrice(takeProfit.value)
+  const normalizedStopLoss = optionalPositivePrice(stopLoss.value)
   const attachedExitPlan =
-    supportsAttachedExit.value && (takeProfit.value !== null || stopLoss.value !== null)
-      ? { take_profit: takeProfit.value, stop_loss: stopLoss.value }
+    supportsAttachedExit.value &&
+    (normalizedTakeProfit !== null || normalizedStopLoss !== null)
+      ? { take_profit: normalizedTakeProfit, stop_loss: normalizedStopLoss }
       : null
   const executionGuardOverrides: HyperliquidExecutionGuardOverrides | null =
     isHyperliquid.value && supportsAttachedExit.value && overrideProtectionGuards.value
@@ -280,6 +293,12 @@ function submit() {
   }
   ws.sendUserCommand(payload)
   emit('close')
+}
+
+function optionalPositivePrice(value: number | null | ''): number | null {
+  if (value === null || value === '') return null
+  if (!Number.isFinite(value) || value <= 0) return null
+  return value
 }
 </script>
 
@@ -395,6 +414,9 @@ function submit() {
       </p>
       <p v-if="blocksOpeningOrder" class="m-0 text-xs text-error">
         Hyperliquid account setup or server trading mode does not permit new opens.
+      </p>
+      <p v-else-if="limitPriceReferenceError" class="m-0 text-xs text-error">
+        {{ limitPriceReferenceError }}
       </p>
       <p v-else-if="exitLevelError" class="m-0 text-xs text-error">{{ exitLevelError }}</p>
       <p v-else-if="!supportsLimitOrders" class="m-0 text-[11px] text-[var(--color-text-dim)]">

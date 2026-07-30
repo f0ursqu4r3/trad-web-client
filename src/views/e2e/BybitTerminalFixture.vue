@@ -4,11 +4,13 @@ import AccountsListPanel from '@/components/terminal/panels/AccountsListPanel.vu
 import CommandPanel from '@/components/terminal/panels/CommandPanel.vue'
 import DeviceDetailsPanel from '@/components/terminal/panels/DeviceDetailsPanel.vue'
 import DeviceTreePanel from '@/components/terminal/panels/DeviceTreePanel.vue'
+import ChartPanel from '@/components/terminal/panels/ChartPanel.vue'
 import MarketOrderModal from '@/components/terminal/modals/commands/MarketOrderModal.vue'
 import LimitOrderModal from '@/components/terminal/modals/commands/LimitOrderModal.vue'
 import ChaseOrderModal from '@/components/terminal/modals/commands/ChaseOrderModal.vue'
 import TrailingEntryOrderModal from '@/components/terminal/modals/commands/TrailingEntryOrderModal.vue'
 import CommandModalContainer from '@/components/terminal/modals/commands/CommandModalContainer.vue'
+import CommandInputModal from '@/components/terminal/modals/commands/CommandInputModal.vue'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import { useCommandStore } from '@/stores/command'
 import { useDeviceStore } from '@/stores/devices'
@@ -16,6 +18,7 @@ import { useWsStore } from '@/stores/ws'
 import { useSplitPreviewStore } from '@/stores/splitPreview'
 import { bybitProtocolFixtures } from '@/lib/bybitProtocolFixtures'
 import {
+  CommandEffectKind,
   CommandStatus,
   ExchangeType,
   MarketAction,
@@ -29,6 +32,7 @@ import {
   TrailingEntryLifecycle,
   TrailingEntryPhase,
   type CommandHistoryItem,
+  type CommandEffectRecord,
   type DeviceSnapshotLiteData,
   type DeviceChaseDeltaEvent,
   type DeviceNpDeltaEvent,
@@ -47,6 +51,7 @@ const continueMissedEntrySends = ref<string[]>([])
 const cancelCommandSends = ref<string[]>([])
 const closePositionSends = ref<string[]>([])
 const flattenSymbolSends = ref<string[]>([])
+const cancelAllSends = ref(0)
 const cancelRemainingEntrySends = ref<string[]>([])
 const commandSends = ref<unknown[]>([])
 const inspectCommandSends = ref<string[]>([])
@@ -57,6 +62,8 @@ const marketOrderOpen = ref(false)
 const limitOrderOpen = ref(false)
 const chaseOrderOpen = ref(false)
 const trailingEntryOpen = ref(false)
+const editableTeChartOpen = ref(false)
+const editableTeChart = ref<InstanceType<typeof ChartPanel> | null>(null)
 
 wsStore.sendContinueMissedTrailingEntry = (commandId: string) => {
   continueMissedEntrySends.value = [...continueMissedEntrySends.value, commandId]
@@ -100,6 +107,10 @@ wsStore.sendCancelCommandRemainingEntry = (commandId: string) => {
 wsStore.sendFlattenHyperliquidSymbol = (_marketContext: MarketContext, symbol: string) => {
   flattenSymbolSends.value = [...flattenSymbolSends.value, symbol]
   return '74747474-7474-4474-8474-747474747474'
+}
+wsStore.sendCancelAllDevices = () => {
+  cancelAllSends.value += 1
+  return '75757575-7575-4575-8575-757575757575'
 }
 wsStore.sendUserCommand = ((payload: unknown) => {
   const commandId = '19191919-1919-4919-8919-191919191919'
@@ -288,6 +299,21 @@ function publishHyperliquidOwnership(
               stop_loss: 60_000,
               last_reconciled_at: new Date().toISOString(),
             },
+            {
+              command_id: '99999999-9999-4999-8999-999999999999',
+              owner_device_ids: [],
+              command_kind: 'Market Order',
+              position_side: PositionSide.Long,
+              opened_quantity: 0.001,
+              explicitly_closed_quantity: 0.001,
+              protection_filled_quantity: 0,
+              remaining_quantity: 0,
+              entry_working: false,
+              protection_status: 'Flat',
+              take_profit: null,
+              stop_loss: null,
+              last_reconciled_at: new Date().toISOString(),
+            },
           ],
         },
       ],
@@ -295,6 +321,7 @@ function publishHyperliquidOwnership(
         ? {
             scope: 'account',
             stream_health: {
+              expected: true,
               connected: true,
               fresh: true,
               position_snapshot_seen: true,
@@ -362,6 +389,7 @@ declare global {
       getCancelCommandSends: () => string[]
       getClosePositionSends: () => string[]
       getFlattenSymbolSends: () => string[]
+      getCancelAllSends: () => number
       getCancelRemainingEntrySends: () => string[]
       getCommandSends: () => unknown[]
       getInspectCommandSends: () => string[]
@@ -369,6 +397,13 @@ declare global {
       getSelectedCommandId: () => string | null
       replayHyperliquidTeSnapshots: () => void
       setHyperliquidTeTriggerStartZero: () => void
+      setHyperliquidTeEditable: () => void
+      showEditableTeChart: () => void
+      hideEditableTeChart: () => void
+      getEditableTeChartState: () => {
+        height: number
+        lineCoordinates: Record<string, number | null>
+      } | null
       setChaseStale: () => void
       setChaseProtectionConsistent: () => void
       setHyperliquidTeEnabled: (enabled: boolean) => void
@@ -382,6 +417,7 @@ window.__tradBybitTerminalFixture = {
   getCancelCommandSends: () => [...cancelCommandSends.value],
   getClosePositionSends: () => [...closePositionSends.value],
   getFlattenSymbolSends: () => [...flattenSymbolSends.value],
+  getCancelAllSends: () => cancelAllSends.value,
   getCancelRemainingEntrySends: () => [...cancelRemainingEntrySends.value],
   getCommandSends: () => [...commandSends.value],
   getInspectCommandSends: () => [...inspectCommandSends.value],
@@ -406,6 +442,50 @@ window.__tradBybitTerminalFixture = {
     }
     useDeviceStore().handleDeviceUpdate('DeviceTeDelta', event)
   },
+  setHyperliquidTeEditable: () => {
+    const editable = structuredClone(hyperliquidTeDevice) as DeviceSnapshotLiteData
+    editable.children_devices = []
+    editable.failure_reason = null
+    if (editable.snapshot.kind === 'TrailingEntry') {
+      editable.snapshot.data.state_revision = 4
+      editable.snapshot.data.activation_price = 2_920
+      editable.snapshot.data.phase = TrailingEntryPhase.Initial
+      editable.snapshot.data.lifecycle = TrailingEntryLifecycle.Running
+      editable.snapshot.data.peak = 0
+      editable.snapshot.data.peak_index = 0
+      editable.snapshot.data.completed = false
+      editable.snapshot.data.cancelled = false
+      editable.snapshot.data.succeeded = false
+      editable.snapshot.data.start_trigger_index = null
+      editable.snapshot.data.end_trigger_index = null
+    }
+    const index = hyperliquidTeDevices.findIndex(
+      (device) => device.device_id === hyperliquidTeDeviceId,
+    )
+    if (index >= 0) hyperliquidTeDevices[index] = editable
+    const deviceStore = useDeviceStore()
+    deviceStore.handleDeviceSnapshotLite(editable)
+    deviceStore.handleDeviceUpdate('DeviceTeDelta', {
+      device_id: hyperliquidTeDeviceId,
+      ts: new Date().toISOString(),
+      seq: 20,
+      delta: {
+        kind: 'PointsInit',
+        data: {
+          start_idx: 0,
+          points: [2_890, 3_002, 3_200, 3_004, 3_003, 3_005],
+          total_len: 6,
+        },
+      },
+    })
+  },
+  showEditableTeChart: () => {
+    editableTeChartOpen.value = true
+  },
+  hideEditableTeChart: () => {
+    editableTeChartOpen.value = false
+  },
+  getEditableTeChartState: () => editableTeChart.value?.getChartDebugState() ?? null,
   setHyperliquidTeEnabled: (enabled: boolean) => {
     const key = `hyperliquid:${hyperliquidAccountId}`
     const current = wsStore.marketCapabilities[key]
@@ -523,6 +603,8 @@ const hyperliquidTeFilledOrderId = '64646464-6464-4464-8464-646464646464'
 const hyperliquidTeRejectedOrderId = '65656565-6565-4565-8565-656565656565'
 const hyperliquidTeProtectionId = '66666666-6666-4666-8666-666666666666'
 const hyperliquidMissedCommandId = '67676767-6767-4767-8767-676767676767'
+const hyperliquidFlattenAllCommandId = '69696969-6969-4969-8969-696969696969'
+const hyperliquidFlattenSymbolCommandId = '70707070-7070-4070-8070-707070707070'
 const hyperliquidMissedTeDeviceId = '68686868-6868-4868-8868-686868686868'
 const hyperliquidMissedOrderId = '69696969-6969-4969-8969-696969696969'
 const binanceContext = {
@@ -896,6 +978,68 @@ const hyperliquidMissedCommand = {
   status: CommandStatus.Running,
   created_at: '2026-06-19T00:08:00.000Z',
 } satisfies CommandHistoryItem
+
+const hyperliquidFlattenAllCommand = {
+  command_id: hyperliquidFlattenAllCommandId,
+  command: {
+    kind: 'FlattenHyperliquidAccount',
+    data: {
+      market_context: hyperliquidContext,
+    },
+  },
+  market_ref: hyperliquidMarketRef,
+  status: CommandStatus.Succeeded,
+  created_at: '2026-06-19T00:09:00.000Z',
+  result: 'Hyperliquid Flatten All: submitted [BTC 0.001 Long].',
+} satisfies CommandHistoryItem
+
+const hyperliquidFlattenSymbolCommand = {
+  command_id: hyperliquidFlattenSymbolCommandId,
+  command: {
+    kind: 'FlattenHyperliquidSymbol',
+    data: {
+      market_context: hyperliquidContext,
+      symbol: 'BTC',
+    },
+  },
+  market_ref: hyperliquidMarketRef,
+  status: CommandStatus.Succeeded,
+  created_at: '2026-06-19T00:10:00.000Z',
+  result: 'Hyperliquid BTC was already flat; protection cleanup requested.',
+} satisfies CommandHistoryItem
+
+const hyperliquidFlattenEffects = [
+  {
+    effect_id: '71717171-7171-4171-8171-717171717171',
+    owner_user_id: '72727272-7272-4272-8272-727272727272',
+    source_command_id: hyperliquidFlattenAllCommandId,
+    affected_command_id: hyperliquidLimitCommandId,
+    symbol: 'BTC',
+    effect: CommandEffectKind.PositionClosed,
+    close_order_device_id: '73737373-7373-4373-8373-737373737373',
+    created_at: '2026-06-19T00:09:02.000Z',
+  },
+  {
+    effect_id: '74747474-7474-4474-8474-747474747474',
+    owner_user_id: '72727272-7272-4272-8272-727272727272',
+    source_command_id: hyperliquidFlattenAllCommandId,
+    affected_command_id: hyperliquidTeCommandId,
+    symbol: 'ETH',
+    effect: CommandEffectKind.EntryCanceled,
+    close_order_device_id: null,
+    created_at: '2026-06-19T00:09:01.000Z',
+  },
+  {
+    effect_id: '75757575-7575-4575-8575-757575757575',
+    owner_user_id: '72727272-7272-4272-8272-727272727272',
+    source_command_id: hyperliquidFlattenSymbolCommandId,
+    affected_command_id: hyperliquidChaseCommandId,
+    symbol: 'BTC',
+    effect: CommandEffectKind.AlreadyFlat,
+    close_order_device_id: null,
+    created_at: '2026-06-19T00:10:01.000Z',
+  },
+] satisfies CommandEffectRecord[]
 
 const binanceOrderDevice = {
   device_id: binanceDeviceId,
@@ -1813,7 +1957,7 @@ const hyperliquidMissedOrderDevice = {
   },
 } satisfies DeviceSnapshotLiteData
 
-const hyperliquidTeDevices = [
+const hyperliquidTeDevices: DeviceSnapshotLiteData[] = [
   hyperliquidTeDevice,
   hyperliquidTeSplitDevice,
   hyperliquidTeFilledOrderDevice,
@@ -2086,7 +2230,10 @@ onMounted(async () => {
     hyperliquidChaseCommand,
     hyperliquidTeCommand,
     hyperliquidMissedCommand,
+    hyperliquidFlattenAllCommand,
+    hyperliquidFlattenSymbolCommand,
   ]
+  commandStore.commandEffects = hyperliquidFlattenEffects
   commandStore.commandFilters = {
     kind: [],
     status: [],
@@ -2132,6 +2279,16 @@ onMounted(async () => {
       nicknameColor: null,
       pinned: false,
     },
+    [hyperliquidFlattenAllCommandId]: {
+      nickname: 'Hyperliquid account flatten audit',
+      nicknameColor: null,
+      pinned: false,
+    },
+    [hyperliquidFlattenSymbolCommandId]: {
+      nickname: 'Hyperliquid BTC flatten audit',
+      nicknameColor: null,
+      pinned: false,
+    },
     [hyperliquidMissedCommandId]: {
       nickname: 'Hyperliquid missed SOL entry',
       nicknameColor: null,
@@ -2162,7 +2319,7 @@ onMounted(async () => {
 
 <template>
   <main class="e2e-shell">
-    <div class="fixed top-2 right-2 z-50 flex gap-2">
+    <div class="fixed bottom-2 right-2 z-50 flex gap-2">
       <button data-testid="open-hyperliquid-mo" type="button" @click="openHyperliquidMarketOrder">
         Open Hyperliquid MO
       </button>
@@ -2189,6 +2346,14 @@ onMounted(async () => {
       @close="trailingEntryOpen = false"
     />
     <CommandModalContainer />
+    <CommandInputModal />
+    <section
+      v-if="editableTeChartOpen"
+      class="fixed bottom-3 right-3 z-50 h-[45vh] w-[42vw] border border-[var(--border-color)] bg-[var(--color-panel)]"
+      aria-label="Editable TE chart fixture"
+    >
+      <ChartPanel ref="editableTeChart" />
+    </section>
     <section class="e2e-panel" data-testid="accounts-panel" aria-label="Trading Accounts">
       <AccountsListPanel />
     </section>

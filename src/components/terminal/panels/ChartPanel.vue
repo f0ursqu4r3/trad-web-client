@@ -17,6 +17,7 @@ import {
 import { storeToRefs } from 'pinia'
 import { useDeviceStore } from '@/stores/devices'
 import { useUiStore } from '@/stores/ui'
+import { useWsStore } from '@/stores/ws'
 import {
   createDraggablePriceLinesPlugin,
   type DraggablePriceLineDefinition,
@@ -29,9 +30,29 @@ import { formatNumberShort, formatUsdShort } from '@/lib/numberFormat'
 
 const store = useDeviceStore()
 const uiStore = useUiStore()
+const wsStore = useWsStore()
 
 const { selectedDeviceId, teDevice } = storeToRefs(store)
 const PRICE_AXIS_WHEEL_ZOOM_FACTOR = 1.12
+const OFF_SCALE_FOCUS_PADDING_RATIO = 0.05
+
+type OffScaleIndicator = {
+  id: string
+  edge: 'upper' | 'lower'
+  price: number
+  label: string
+  color: string
+}
+
+type PriceRange = {
+  from: number
+  to: number
+}
+
+type PriceScaleMargins = {
+  top: number
+  bottom: number
+}
 
 const emit = defineEmits<{
   (e: 'price-line-drag-start', payload: DraggablePriceLineDragEvent): void
@@ -52,6 +73,22 @@ let statusMarkersPlugin: ISeriesMarkersPluginApi<Time> | null = null
 let resizeObserver: ResizeObserver | null = null
 let themeObserver: MutationObserver | null = null
 const themeVersion = ref(0)
+const offScaleIndicators = ref<OffScaleIndicator[]>([])
+const rightPriceAxisWidth = ref(0)
+let offScaleFrame: number | null = null
+let offScaleDeferredFrame: number | null = null
+
+const upperOffScaleIndicators = computed(() =>
+  offScaleIndicators.value
+    .filter((indicator) => indicator.edge === 'upper')
+    .sort((a, b) => a.price - b.price || a.id.localeCompare(b.id)),
+)
+
+const lowerOffScaleIndicators = computed(() =>
+  offScaleIndicators.value
+    .filter((indicator) => indicator.edge === 'lower')
+    .sort((a, b) => b.price - a.price || a.id.localeCompare(b.id)),
+)
 
 // Get CSS variable value from the document
 function getCssVar(name: string, fallback: string): string {
@@ -178,7 +215,9 @@ const draggableLines = computed<DraggablePriceLineDefinition[]>(() => {
         axisLabelVisible: true,
         title: 'Act',
       },
-      draggable: teDeviceLifecycle.value === TrailingEntryLifecycle.Running,
+      draggable:
+        teDeviceLifecycle.value === TrailingEntryLifecycle.Running &&
+        te.phase === TrailingEntryPhase.Initial,
     },
     {
       id: 'stop_loss',
@@ -193,6 +232,20 @@ const draggableLines = computed<DraggablePriceLineDefinition[]>(() => {
       draggable: teDeviceLifecycle.value === TrailingEntryLifecycle.Running,
     },
   ]
+  if (te.take_profit != null) {
+    lines.push({
+      id: 'take_profit',
+      options: {
+        price: te.take_profit,
+        color: theme.jump,
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: 'TP',
+      },
+      draggable: teDeviceLifecycle.value === TrailingEntryLifecycle.Running,
+    })
+  }
 
   if (te.phase === TrailingEntryPhase.Triggered && te.peak > 0) {
     lines.push({
@@ -220,7 +273,7 @@ const draggableLines = computed<DraggablePriceLineDefinition[]>(() => {
           axisLabelVisible: true,
           title: jumpLabel ?? 'Jump',
         },
-        draggable: false,
+        draggable: teDeviceLifecycle.value === TrailingEntryLifecycle.Running,
       })
     }
   }
@@ -300,9 +353,134 @@ function syncChartSize() {
   const { clientWidth, clientHeight } = containerEl.value
   if (!clientWidth || !clientHeight) return
   chart.resize(clientWidth, clientHeight)
+  scheduleOffScaleIndicatorUpdate()
 }
 
-function isRightPriceAxisWheel(event: WheelEvent): boolean {
+function scheduleOffScaleIndicatorUpdate() {
+  if (offScaleFrame !== null) return
+  offScaleFrame = window.requestAnimationFrame(() => {
+    offScaleFrame = null
+    updateOffScaleIndicators()
+  })
+}
+
+function scheduleOffScaleIndicatorUpdateAfterLayout() {
+  if (offScaleDeferredFrame !== null) return
+  offScaleDeferredFrame = window.requestAnimationFrame(() => {
+    offScaleDeferredFrame = window.requestAnimationFrame(() => {
+      offScaleDeferredFrame = null
+      scheduleOffScaleIndicatorUpdate()
+    })
+  })
+}
+
+function updateOffScaleIndicators() {
+  if (!series || !containerEl.value) {
+    offScaleIndicators.value = []
+    return
+  }
+  const height = containerEl.value.clientHeight
+  if (height <= 0) return
+  rightPriceAxisWidth.value = chart?.priceScale('right').width() ?? 0
+
+  offScaleIndicators.value = draggableLines.value.flatMap((line) => {
+    const coordinate = series?.priceToCoordinate(line.options.price)
+    let edge: 'upper' | 'lower' | null = null
+    if (coordinate != null && Number.isFinite(coordinate)) {
+      if (coordinate < 0) {
+        edge = 'upper'
+      } else if (coordinate > height) {
+        edge = 'lower'
+      }
+    }
+    if (!edge) return []
+    return [
+      {
+        id: line.id,
+        edge,
+        price: line.options.price,
+        label: `${line.options.title || line.id} ${formatNumberShort(line.options.price, {
+          minDecimals: 2,
+          maxDecimals: 6,
+        })}`,
+        color: line.options.color ?? 'var(--color-text)',
+      },
+    ]
+  })
+}
+
+function renderedPriceRange(
+  internalRange: PriceRange,
+  margins: PriceScaleMargins,
+): PriceRange | null {
+  const usableRatio = 1 - margins.top - margins.bottom
+  if (usableRatio <= 0) return null
+  const renderedSpan = (internalRange.to - internalRange.from) / usableRatio
+  return {
+    from: internalRange.from - margins.bottom * renderedSpan,
+    to: internalRange.to + margins.top * renderedSpan,
+  }
+}
+
+function internalPriceRange(
+  renderedRange: PriceRange,
+  margins: PriceScaleMargins,
+): PriceRange {
+  const renderedSpan = renderedRange.to - renderedRange.from
+  return {
+    from: renderedRange.from + margins.bottom * renderedSpan,
+    to: renderedRange.to - margins.top * renderedSpan,
+  }
+}
+
+function focusOffScaleIndicator(indicator: OffScaleIndicator) {
+  if (!series) return
+  const priceScale = series.priceScale()
+  const currentRange = priceScale.getVisibleRange() ?? fallbackVisiblePriceRange()
+  if (!currentRange || currentRange.to <= currentRange.from) return
+
+  const margins = priceScale.options().scaleMargins
+  const currentRenderedRange = renderedPriceRange(currentRange, margins)
+  if (!currentRenderedRange) return
+
+  const paddingScale = OFF_SCALE_FOCUS_PADDING_RATIO / (1 - OFF_SCALE_FOCUS_PADDING_RATIO)
+  const nextRenderedRange =
+    indicator.edge === 'upper'
+      ? {
+          from: currentRenderedRange.from,
+          to:
+            indicator.price +
+            (indicator.price - currentRenderedRange.from) * paddingScale,
+        }
+      : {
+          from:
+            indicator.price -
+            (currentRenderedRange.to - indicator.price) * paddingScale,
+          to: currentRenderedRange.to,
+        }
+  const nextRange = internalPriceRange(nextRenderedRange, margins)
+
+  priceScale.setAutoScale(false)
+  priceScale.setVisibleRange(nextRange)
+  scheduleOffScaleIndicatorUpdateAfterLayout()
+}
+
+function getChartDebugState() {
+  const height = containerEl.value?.clientHeight ?? 0
+  return {
+    height,
+    lineCoordinates: Object.fromEntries(
+      draggableLines.value.map((line) => [
+        line.id,
+        series?.priceToCoordinate(line.options.price) ?? null,
+      ]),
+    ),
+  }
+}
+
+defineExpose({ getChartDebugState })
+
+function isRightPriceAxisPointer(event: MouseEvent): boolean {
   if (!chart || !containerEl.value) return false
   const rightAxisWidth = chart.priceScale('right').width()
   if (rightAxisWidth <= 0) return false
@@ -327,7 +505,7 @@ function fallbackVisiblePriceRange(): { from: number; to: number } | null {
 }
 
 function handlePriceAxisWheel(event: WheelEvent) {
-  if (!series || !containerEl.value || !isRightPriceAxisWheel(event)) return
+  if (!series || !containerEl.value || !isRightPriceAxisPointer(event)) return
   if (event.deltaY === 0) return
 
   const priceScale = series.priceScale()
@@ -357,6 +535,7 @@ function handlePriceAxisWheel(event: WheelEvent) {
 
   priceScale.setAutoScale(false)
   priceScale.setVisibleRange(nextRange)
+  scheduleOffScaleIndicatorUpdateAfterLayout()
 }
 
 function applySeriesData(data: AreaData[], reason: string) {
@@ -376,6 +555,18 @@ function applySeriesData(data: AreaData[], reason: string) {
   if (duration >= getPerfThreshold()) {
     recordPerfDuration('ChartPanel:setData', duration, { reason, points: data.length })
   }
+  scheduleOffScaleIndicatorUpdateAfterLayout()
+}
+
+function handleChartPointerMove(event: PointerEvent) {
+  if (event.buttons !== 0) scheduleOffScaleIndicatorUpdateAfterLayout()
+}
+
+function handleChartDoubleClick(event: MouseEvent) {
+  if (series && isRightPriceAxisPointer(event)) {
+    series.priceScale().setAutoScale(true)
+  }
+  scheduleOffScaleIndicatorUpdateAfterLayout()
 }
 
 function syncMarkerSeries() {
@@ -456,6 +647,8 @@ onMounted(() => {
     passive: false,
     capture: true,
   })
+  containerEl.value.addEventListener('pointermove', handleChartPointerMove)
+  containerEl.value.addEventListener('dblclick', handleChartDoubleClick)
   syncChartSize()
 
   // Add area series
@@ -507,11 +700,10 @@ onMounted(() => {
         emitPriceLineEvent('price-line-drag-start', event)
       },
       onDrag: (event) => {
-        handleTrackedLineUpdate(event)
         emitPriceLineEvent('price-line-drag', event)
       },
       onDragEnd: (event) => {
-        handleTrackedLineUpdate(event)
+        submitTrackedLineUpdate(event)
         emitPriceLineEvent('price-line-drag-end', event)
       },
       onClick: (event) => {
@@ -541,6 +733,7 @@ watch(
   (lines) => {
     if (!draggableLinesPlugin) return
     draggableLinesPlugin.setLines(lines)
+    scheduleOffScaleIndicatorUpdateAfterLayout()
   },
   { deep: true },
 )
@@ -580,6 +773,8 @@ onBeforeUnmount(() => {
   const initial = chartSeriesData.value
   applySeriesData(initial, 'unmount')
   containerEl.value?.removeEventListener('wheel', handlePriceAxisWheel, { capture: true })
+  containerEl.value?.removeEventListener('pointermove', handleChartPointerMove)
+  containerEl.value?.removeEventListener('dblclick', handleChartDoubleClick)
   resizeObserver?.disconnect()
   resizeObserver = null
 })
@@ -598,6 +793,14 @@ onBeforeUnmount(() => {
   series = null
   activationMarkerSeries = null
   statusMarkerSeries = null
+  if (offScaleFrame !== null) {
+    window.cancelAnimationFrame(offScaleFrame)
+    offScaleFrame = null
+  }
+  if (offScaleDeferredFrame !== null) {
+    window.cancelAnimationFrame(offScaleDeferredFrame)
+    offScaleDeferredFrame = null
+  }
 })
 
 type PriceLineEventName =
@@ -627,24 +830,171 @@ function emitPriceLineEvent(eventName: PriceLineEventName, event: DraggablePrice
   }
 }
 
-function handleTrackedLineUpdate(event: DraggablePriceLineDragEvent) {
-  if (!isTrackedLine(event.id)) return
-  store.setTePriceLine(event.id, event.price)
+function submitTrackedLineUpdate(event: DraggablePriceLineDragEvent) {
+  const te = teDevice.value
+  const deviceId = selectedDeviceId.value
+  if (!te || !deviceId || !isTrackedLine(event.id)) return
+
+  const data = {
+    device_id: deviceId,
+    expected_revision: te.state_revision,
+    expected_phase: te.phase,
+    expected_lifecycle: te.lifecycle,
+  }
+  if (event.id === 'activation_price') {
+    wsStore.sendUserCommand({
+      kind: 'AmendTrailingEntry',
+      data: { ...data, activation_price: event.price },
+    })
+  } else if (event.id === 'stop_loss') {
+    wsStore.sendUserCommand({
+      kind: 'AmendTrailingEntry',
+      data: { ...data, stop_loss: event.price },
+    })
+  } else if (event.id === 'take_profit') {
+    wsStore.sendUserCommand({
+      kind: 'AmendTrailingEntry',
+      data: { ...data, take_profit: event.price },
+    })
+  } else if (event.id === 'jump_trigger' && te.peak > 0) {
+    const jump =
+      te.position_side === PositionSide.Long
+        ? ((event.price / te.peak - 1) * 100)
+        : ((1 - event.price / te.peak) * 100)
+    wsStore.sendUserCommand({
+      kind: 'AmendTrailingEntry',
+      data: { ...data, jump_frac_threshold: Math.max(jump, 0.000001) },
+    })
+  }
+
+  const submittedRevision = te.state_revision
+  window.setTimeout(() => {
+    if (teDevice.value?.state_revision === submittedRevision) {
+      draggableLinesPlugin?.setLines(draggableLines.value)
+      scheduleOffScaleIndicatorUpdateAfterLayout()
+    }
+  }, 10_000)
 }
 
-function isTrackedLine(id: string): id is 'activation_price' | 'stop_loss' {
-  return id === 'activation_price' || id === 'stop_loss'
+function isTrackedLine(
+  id: string,
+): id is 'activation_price' | 'stop_loss' | 'take_profit' | 'jump_trigger' {
+  return (
+    id === 'activation_price' ||
+    id === 'stop_loss' ||
+    id === 'take_profit' ||
+    id === 'jump_trigger'
+  )
 }
 </script>
 
 <template>
-  <section class="relative flex flex-col min-h-0 w-full h-full">
+  <section data-testid="te-chart" class="relative flex flex-col min-h-0 w-full h-full">
     <div
       v-if="chartTitle"
-      class="absolute left-3 top-2 z-10 text-[10px] font-mono text-[var(--color-text-dim)]"
+      class="absolute left-3 top-2 z-10 max-w-[45%] truncate pr-2 text-[10px] font-mono text-[var(--color-text-dim)]"
     >
       {{ chartTitle }}
     </div>
     <div ref="containerEl" class="w-full h-full" />
+    <div
+      v-if="upperOffScaleIndicators.length"
+      data-testid="offscale-upper-tabs"
+      class="offscale-rail offscale-rail--upper"
+      :style="{ right: `${rightPriceAxisWidth + 4}px` }"
+      aria-label="Levels above the visible price range"
+    >
+      <button
+        v-for="indicator in upperOffScaleIndicators"
+        :key="indicator.id"
+        type="button"
+        class="offscale-tab offscale-tab--upper"
+        :style="{ color: indicator.color, borderColor: indicator.color }"
+        :title="`Show ${indicator.label}`"
+        :aria-label="`Show ${indicator.label}`"
+        @click.stop="focusOffScaleIndicator(indicator)"
+      >
+        ↑ {{ indicator.label }}
+      </button>
+    </div>
+    <div
+      v-if="lowerOffScaleIndicators.length"
+      data-testid="offscale-lower-tabs"
+      class="offscale-rail offscale-rail--lower"
+      :style="{ right: `${rightPriceAxisWidth + 4}px` }"
+      aria-label="Levels below the visible price range"
+    >
+      <button
+        v-for="indicator in lowerOffScaleIndicators"
+        :key="indicator.id"
+        type="button"
+        class="offscale-tab offscale-tab--lower"
+        :style="{ color: indicator.color, borderColor: indicator.color }"
+        :title="`Show ${indicator.label}`"
+        :aria-label="`Show ${indicator.label}`"
+        @click.stop="focusOffScaleIndicator(indicator)"
+      >
+        ↓ {{ indicator.label }}
+      </button>
+    </div>
   </section>
 </template>
+
+<style scoped>
+.offscale-rail {
+  pointer-events: none;
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  column-gap: 2px;
+  overflow: hidden;
+}
+
+.offscale-rail--upper {
+  left: 45%;
+  top: 0;
+  align-content: flex-start;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.offscale-rail--lower {
+  left: 4px;
+  bottom: 0;
+  align-content: flex-end;
+  justify-content: center;
+  flex-wrap: wrap-reverse;
+}
+
+.offscale-tab {
+  pointer-events: auto;
+  min-width: 0;
+  max-width: 260px;
+  overflow: hidden;
+  border: 1px solid;
+  background: var(--color-bg);
+  padding: 2px 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 35%);
+  cursor: pointer;
+}
+
+.offscale-tab:hover,
+.offscale-tab:focus-visible {
+  background: var(--color-bg-alt);
+  outline: 1px solid currentColor;
+  outline-offset: -2px;
+}
+
+.offscale-tab--upper {
+  border-top: 0;
+}
+
+.offscale-tab--lower {
+  border-bottom: 0;
+}
+</style>

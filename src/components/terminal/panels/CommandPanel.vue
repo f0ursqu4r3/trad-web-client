@@ -17,7 +17,15 @@ import type {
   MarketOrderPrefill,
   TrailingEntryPrefill,
 } from '../modals/commands/types'
-import type { MarketContext, PositionSide, UserCommandPayload } from '@/lib/ws/protocol'
+import {
+  TrailingEntryLifecycle,
+  TrailingEntryPhase,
+  type DeviceSnapshotLiteData,
+  type MarketContext,
+  type PositionSide,
+  type TrailingEntrySnapshot,
+  type UserCommandPayload,
+} from '@/lib/ws/protocol'
 import { interestingCommandKinds } from '@/stores/command'
 
 import CommandHistoryItem from '@/components/terminal/commands/CommandHistoryItem.vue'
@@ -33,6 +41,7 @@ import { NativeProtectionStatus } from '@/lib/ws/protocol'
 import EditHyperliquidProtectionModal from '@/components/terminal/modals/EditHyperliquidProtectionModal.vue'
 import PartialHyperliquidCommandCloseModal from '@/components/terminal/modals/PartialHyperliquidCommandCloseModal.vue'
 import ActionConfirmationModal from '@/components/terminal/modals/ActionConfirmationModal.vue'
+import EditTrailingEntryModal from '@/components/terminal/modals/EditTrailingEntryModal.vue'
 
 defineOptions({
   inheritAttrs: false,
@@ -64,6 +73,7 @@ const confirmation = ref<{
   disableFutureConfirmation?: boolean
   action: () => void
 } | null>(null)
+const editTeTarget = ref<{ deviceId: string; snapshot: TrailingEntrySnapshot } | null>(null)
 
 const showFilters = ref(false)
 
@@ -213,6 +223,8 @@ function getCommandComponent(command: UserCommandPayload): Component | string {
 }
 
 function getCommandLabel(command: UserCommandPayload): string {
+  if (command.kind === 'FlattenHyperliquidAccount') return 'Flatten All'
+  if (command.kind === 'FlattenHyperliquidSymbol') return 'Flatten Position'
   if (command.kind === 'LimitOrder') return 'Limit Order'
   if (command.kind === 'ChaseOrder') return 'Chase Order'
   if (command.kind === 'TrailingEntryOrder') return 'Trailing Entry'
@@ -222,6 +234,8 @@ function getCommandLabel(command: UserCommandPayload): string {
 }
 
 function getKindLabel(kind: string): string {
+  if (kind === 'FlattenHyperliquidAccount') return 'Flatten All'
+  if (kind === 'FlattenHyperliquidSymbol') return 'Flatten Position'
   if (kind === 'TrailingEntryOrder') return 'Trailing Entry'
   if (kind === 'SetHedgeMode') return 'Set Hedge Mode'
   if (kind === 'SetLeverage') return 'Set Leverage'
@@ -239,6 +253,10 @@ function getProductLabel(product: string): string {
 function getAccountLabel(accountId: string): string {
   const account = accountsStore.accounts.find((item) => item.id === accountId)
   return account ? `${account.label} (${account.exchange})` : `${accountId.slice(0, 8)}...`
+}
+
+function canDuplicateCommand(command: UserCommandPayload): boolean {
+  return !['FlattenHyperliquidAccount', 'FlattenHyperliquidSymbol'].includes(command.kind)
 }
 
 function handleDuplicate(command: UserCommandPayload): void {
@@ -304,6 +322,70 @@ function handleInspect(commandId: string): void {
 
 function handleRequestActionContext(commandId: string): void {
   wsStore.requestCommandActionContext(commandId)
+}
+
+function teActionDevice(commandId: string): DeviceSnapshotLiteData | null {
+  const devices = commandStore.commandActionContextDevices(commandId)
+  return (
+    devices?.find(
+      (device) =>
+        device.snapshot.kind === 'TrailingEntry' &&
+        !device.complete &&
+        !device.canceled &&
+        device.snapshot.data.lifecycle === TrailingEntryLifecycle.Running,
+    ) ?? null
+  )
+}
+
+function canEditTrailingEntry(commandId: string): boolean {
+  return teActionDevice(commandId) !== null
+}
+
+function canActivateTrailingEntry(commandId: string): boolean {
+  const device = teActionDevice(commandId)
+  return (
+    device?.snapshot.kind === 'TrailingEntry' &&
+    device.snapshot.data.phase === TrailingEntryPhase.Initial
+  )
+}
+
+function teImmediateActionData(commandId: string) {
+  const device = teActionDevice(commandId)
+  if (!device || device.snapshot.kind !== 'TrailingEntry') return null
+  const te = device.snapshot.data
+  return {
+    device_id: device.device_id,
+    expected_revision: te.state_revision ?? 0,
+    expected_phase: te.phase,
+    expected_lifecycle: te.lifecycle ?? TrailingEntryLifecycle.Running,
+  }
+}
+
+function handleActivateTrailingEntry(commandId: string): void {
+  const data = teImmediateActionData(commandId)
+  if (!data) return
+  wsStore.sendUserCommand({ kind: 'ActivateTrailingEntryNow', data })
+}
+
+function handleEnterTrailingEntry(commandId: string): void {
+  const data = teImmediateActionData(commandId)
+  if (!data) return
+  confirmation.value = {
+    title: 'Enter Now',
+    message:
+      'Bypass the remaining trailing wait and submit this TE entry through the normal order and protection pipeline at the latest authoritative stream price?',
+    confirmLabel: 'Enter Now',
+    action: () => wsStore.sendUserCommand({ kind: 'EnterTrailingEntryNow', data }),
+  }
+}
+
+function handleEditTrailingEntry(commandId: string): void {
+  const device = teActionDevice(commandId)
+  if (!device || device.snapshot.kind !== 'TrailingEntry') return
+  editTeTarget.value = {
+    deviceId: device.device_id,
+    snapshot: device.snapshot.data,
+  }
 }
 
 function handleCancel(commandId: string): void {
@@ -560,7 +642,7 @@ function saveRename() {
       aria-live="polite"
     >
       <div class="min-w-0">
-        <div class="notice-title">Command blocked</div>
+        <div class="notice-title">{{ wsStore.serverActionNotice.title ?? 'Command blocked' }}</div>
         <div class="notice-message">{{ wsStore.serverActionNotice.message }}</div>
       </div>
       <div class="notice-actions">
@@ -780,6 +862,10 @@ function saveRename() {
                           "
                           :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
                           :canEditProtection="canEditProtection(cmd.command_id)"
+                          :canEditTrailingEntry="canEditTrailingEntry(cmd.command_id)"
+                          :canActivateTrailingEntry="canActivateTrailingEntry(cmd.command_id)"
+                          :canEnterTrailingEntry="canEditTrailingEntry(cmd.command_id)"
+                          :canDuplicate="canDuplicateCommand(cmd.command)"
                           :actionContextStatus="
                             commandStore.commandActionContext(cmd.command_id).status
                           "
@@ -788,6 +874,8 @@ function saveRename() {
                           "
                           :createdAt="cmd.created_at"
                           :result="cmd.result"
+                          :flattenedByEffects="commandStore.flattenEffectsAffecting(cmd.command_id)"
+                          :flattenEffects="commandStore.flattenEffectsFrom(cmd.command_id)"
                           @duplicate="handleDuplicate(cmd.command)"
                           @cancel="handleCancel"
                           @inspect="handleInspect"
@@ -797,9 +885,13 @@ function saveRename() {
                           @continue-missed-entry="handleContinueMissedEntry"
                           @refresh-exchange-state="handleRefreshExchangeState"
                           @edit-protection="handleEditProtection"
+                          @edit-trailing-entry="handleEditTrailingEntry"
+                          @activate-trailing-entry="handleActivateTrailingEntry"
+                          @enter-trailing-entry="handleEnterTrailingEntry"
                           @rename="handleRename"
                           @pin="handlePin"
                           @request-action-context="handleRequestActionContext"
+                          @inspect-related="handleInspect"
                         >
                           <component
                             :is="getCommandComponent(cmd.command)"
@@ -858,12 +950,18 @@ function saveRename() {
                       :canContinueMissedEntry="commandStore.canContinueMissedEntry(cmd.command_id)"
                       :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
                       :canEditProtection="canEditProtection(cmd.command_id)"
+                      :canEditTrailingEntry="canEditTrailingEntry(cmd.command_id)"
+                      :canActivateTrailingEntry="canActivateTrailingEntry(cmd.command_id)"
+                      :canEnterTrailingEntry="canEditTrailingEntry(cmd.command_id)"
+                      :canDuplicate="canDuplicateCommand(cmd.command)"
                       :actionContextStatus="
                         commandStore.commandActionContext(cmd.command_id).status
                       "
                       :actionContextError="commandStore.commandActionContext(cmd.command_id).error"
                       :createdAt="cmd.created_at"
                       :result="cmd.result"
+                      :flattenedByEffects="commandStore.flattenEffectsAffecting(cmd.command_id)"
+                      :flattenEffects="commandStore.flattenEffectsFrom(cmd.command_id)"
                       @duplicate="handleDuplicate(cmd.command)"
                       @cancel="handleCancel"
                       @inspect="handleInspect"
@@ -873,9 +971,13 @@ function saveRename() {
                       @continue-missed-entry="handleContinueMissedEntry"
                       @refresh-exchange-state="handleRefreshExchangeState"
                       @edit-protection="handleEditProtection"
+                      @edit-trailing-entry="handleEditTrailingEntry"
+                      @activate-trailing-entry="handleActivateTrailingEntry"
+                      @enter-trailing-entry="handleEnterTrailingEntry"
                       @rename="handleRename"
                       @pin="handlePin"
                       @request-action-context="handleRequestActionContext"
+                      @inspect-related="handleInspect"
                     >
                       <component
                         :is="getCommandComponent(cmd.command)"
@@ -928,10 +1030,16 @@ function saveRename() {
               :canContinueMissedEntry="commandStore.canContinueMissedEntry(cmd.command_id)"
               :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
               :canEditProtection="canEditProtection(cmd.command_id)"
+              :canEditTrailingEntry="canEditTrailingEntry(cmd.command_id)"
+              :canActivateTrailingEntry="canActivateTrailingEntry(cmd.command_id)"
+              :canEnterTrailingEntry="canEditTrailingEntry(cmd.command_id)"
+              :canDuplicate="canDuplicateCommand(cmd.command)"
               :actionContextStatus="commandStore.commandActionContext(cmd.command_id).status"
               :actionContextError="commandStore.commandActionContext(cmd.command_id).error"
               :createdAt="cmd.created_at"
               :result="cmd.result"
+              :flattenedByEffects="commandStore.flattenEffectsAffecting(cmd.command_id)"
+              :flattenEffects="commandStore.flattenEffectsFrom(cmd.command_id)"
               @duplicate="handleDuplicate(cmd.command)"
               @cancel="handleCancel"
               @inspect="handleInspect"
@@ -941,9 +1049,13 @@ function saveRename() {
               @continue-missed-entry="handleContinueMissedEntry"
               @refresh-exchange-state="handleRefreshExchangeState"
               @edit-protection="handleEditProtection"
+              @edit-trailing-entry="handleEditTrailingEntry"
+              @activate-trailing-entry="handleActivateTrailingEntry"
+              @enter-trailing-entry="handleEnterTrailingEntry"
               @rename="handleRename"
               @pin="handlePin"
               @request-action-context="handleRequestActionContext"
+              @inspect-related="handleInspect"
             >
               <component
                 :is="getCommandComponent(cmd.command)"
@@ -1032,6 +1144,13 @@ function saveRename() {
       :device-id="editProtectionDevice.id"
       :device="editProtectionState"
       @close="editProtectionDevice = null"
+    />
+    <EditTrailingEntryModal
+      v-if="editTeTarget"
+      :open="true"
+      :device-id="editTeTarget.deviceId"
+      :device="editTeTarget.snapshot"
+      @close="editTeTarget = null"
     />
     <PartialHyperliquidCommandCloseModal
       v-if="partialCloseData"
