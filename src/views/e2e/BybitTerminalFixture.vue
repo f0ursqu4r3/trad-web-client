@@ -77,14 +77,25 @@ wsStore.sendCloseTrailingEntryPosition = (commandId: string) => {
   closePositionSends.value = [...closePositionSends.value, commandId]
   return commandId
 }
-wsStore.sendCloseCommandPosition = (commandId: string) => {
+wsStore.sendCloseCommandPosition = (
+  commandId: string,
+  execution: import('@/lib/ws/protocol').CloseExecutionPolicy = { kind: 'market' },
+) => {
   closePositionSends.value = [...closePositionSends.value, commandId]
+  commandSends.value = [
+    ...commandSends.value,
+    {
+      kind: 'CloseCommandPosition',
+      data: { command_id: commandId, execution },
+    },
+  ]
   return commandId
 }
 wsStore.sendPartialCloseCommandPosition = (
   commandId: string,
   quantity: number,
   expectedOwnedQuantity: number,
+  execution: import('@/lib/ws/protocol').CloseExecutionPolicy = { kind: 'market' },
 ) => {
   const requestId = '32323232-3232-4232-8232-323232323232'
   commandSends.value = [
@@ -95,6 +106,7 @@ wsStore.sendPartialCloseCommandPosition = (
         command_id: commandId,
         quantity,
         expected_owned_quantity: expectedOwnedQuantity,
+        execution,
       },
     },
   ]
@@ -220,10 +232,13 @@ wsStore.sendUserCommandPreview = ((payload: UserCommandPayload) => {
 }) as typeof wsStore.sendUserCommandPreview
 wsStore.requestHyperliquidPositionEffectPreview = (request) => {
   const requestId = crypto.randomUUID()
+  const referencePrice = request.reference_price || 50_000
   const requestedBaseQuantity =
     request.quantity_mode === 'notional'
-      ? request.quantity / (request.reference_price || 50_000)
-      : request.quantity
+      ? request.quantity / referencePrice
+      : request.quantity_mode === 'risk' && request.risk_stop_loss
+        ? request.quantity / Math.abs(referencePrice - request.risk_stop_loss)
+        : request.quantity
   const direction = request.position_side === PositionSide.Long ? 1 : -1
   const currentSignedQuantity =
     positionPreviewScenario.value === 'reverse' || request.symbol === 'REV' ? -0.0005 : 0
@@ -366,7 +381,12 @@ wsStore.sendRefreshHyperliquidReconciliation = (marketContext, scope) => {
   publishHyperliquidOwnership(marketContext, requestId, true)
   return requestId
 }
-wsStore.sendEditHyperliquidProtection = (deviceId, takeProfit, stopLoss) => {
+wsStore.sendEditHyperliquidProtection = (
+  deviceId,
+  takeProfit,
+  stopLoss,
+  takeProfitLadder = null,
+) => {
   const requestId = crypto.randomUUID()
   commandSends.value = [
     ...commandSends.value,
@@ -375,6 +395,7 @@ wsStore.sendEditHyperliquidProtection = (deviceId, takeProfit, stopLoss) => {
       data: {
         protection_device_id: deviceId,
         take_profit: takeProfit,
+        take_profit_ladder: takeProfitLadder,
         stop_loss: stopLoss,
       },
     },
@@ -406,6 +427,8 @@ declare global {
       } | null
       setChaseStale: () => void
       setChaseProtectionConsistent: () => void
+      setChaseProtectionLadder: () => void
+      getChaseProtectionLadderSize: () => number
       setHyperliquidTeEnabled: (enabled: boolean) => void
       setPositionPreviewScenario: (scenario: 'add' | 'reverse') => void
     }
@@ -547,6 +570,43 @@ window.__tradBybitTerminalFixture = {
     }
     useDeviceStore().handleDeviceUpdate('DeviceNpDelta', event)
   },
+  setChaseProtectionLadder: () => {
+    chaseProtectionContextConsistent.value = true
+    const snapshot = structuredClone(hyperliquidChaseProtection) as DeviceSnapshotLiteData
+    if (snapshot.snapshot.kind !== 'NativeProtection') return
+    snapshot.snapshot.data.take_profit = null
+    snapshot.snapshot.data.take_profit_ladder = {
+      version: 1,
+      legs: [
+        {
+          leg_id: '31313131-3131-4131-8131-313131313131',
+          trigger_price: 51_000,
+          allocation: { kind: 'fraction', value: 0.5 },
+        },
+        {
+          leg_id: '32323232-3232-4232-8232-323232323232',
+          trigger_price: 52_000,
+          allocation: { kind: 'fraction', value: 0.5 },
+        },
+      ],
+    }
+    snapshot.snapshot.data.observed_protection_orders = 3
+    snapshot.snapshot.data.ownership_status = 'consistent'
+    snapshot.snapshot.data.last_live_signed_position = 0.0005
+    snapshot.snapshot.data.aggregate_owned_qty = 0.0005
+    snapshot.snapshot.data.ownership_reason = null
+    snapshot.snapshot.data.last_update_seen_at = new Date().toISOString()
+    if (hyperliquidChaseProtection.snapshot.kind === 'NativeProtection') {
+      Object.assign(hyperliquidChaseProtection.snapshot.data, snapshot.snapshot.data)
+    }
+    useDeviceStore().handleDeviceSnapshotLite(snapshot)
+  },
+  getChaseProtectionLadderSize: () => {
+    const state = useDeviceStore().devices.find(
+      (device) => device.id === hyperliquidChaseProtectionId,
+    )?.state as { take_profit_ladder?: { legs?: unknown[] } | null } | undefined
+    return state?.take_profit_ladder?.legs?.length ?? 0
+  },
 }
 
 function openHyperliquidMarketOrder() {
@@ -607,6 +667,8 @@ const hyperliquidFlattenAllCommandId = '69696969-6969-4969-8969-696969696969'
 const hyperliquidFlattenSymbolCommandId = '70707070-7070-4070-8070-707070707070'
 const hyperliquidMissedTeDeviceId = '68686868-6868-4868-8868-686868686868'
 const hyperliquidMissedOrderId = '69696969-6969-4969-8969-696969696969'
+const feeManagerFixtureEnabled =
+  new URLSearchParams(window.location.search).get('fee_manager') !== '0'
 const binanceContext = {
   binance: { account_id: binanceAccountId },
 } satisfies MarketContext
@@ -668,7 +730,9 @@ const accounts = [
       builder_address: '0x3333333333333333333333333333333333333333',
       builder_config_version: 'test-fixture',
       builder_fee_tenths_bps: 10,
-      max_builder_fee_tenths_bps: 10,
+      builder_target_total_tenths_bps: 52,
+      builder_fee_manager: feeManagerFixtureEnabled,
+      max_builder_fee_tenths_bps: 100,
       builder_approved: true,
       builder_approval_network: NetworkType.Testnet,
       builder_approval_user_address: '0x1111111111111111111111111111111111111111',
@@ -811,7 +875,8 @@ const binanceCommand = {
     data: {
       action: MarketAction.Open,
       symbol: 'ETHUSDT',
-      quantity_usd: 125,
+      quantity: 125,
+      quantity_mode: 'notional',
       position_side: PositionSide.Long,
       market_context: binanceContext,
     },
@@ -828,7 +893,8 @@ const bybitRejectedCommand = {
     data: {
       action: MarketAction.Open,
       symbol: 'ADAUSDT',
-      quantity_usd: 50,
+      quantity: 50,
+      quantity_mode: 'notional',
       position_side: PositionSide.Long,
       market_context: bybitProtocolFixtures.bybitContext,
       attached_exit_plan: {

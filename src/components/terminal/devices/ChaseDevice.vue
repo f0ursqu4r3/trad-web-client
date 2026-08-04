@@ -128,6 +128,16 @@ function cancelChase() {
     cancelResetTimer = null
   }, 3_000)
 }
+
+function requestedUnit(): string {
+  if (props.device.quantity_mode === 'risk') return 'USDC risk'
+  if (props.device.quantity_mode === 'notional') return 'USDC'
+  return props.device.symbol
+}
+
+function formatBps(fraction: number): string {
+  return `${(fraction * 10_000).toLocaleString(undefined, { maximumFractionDigits: 4 })} bps`
+}
 </script>
 
 <template>
@@ -166,8 +176,7 @@ function cancelChase() {
         <div>
           <dt class="dt-label">Requested</dt>
           <dd class="m-0 font-mono text-primary">
-            {{ device.quantity }}
-            {{ device.quantity_mode === 'notional' ? 'USDC' : device.symbol }}
+            {{ device.quantity }} {{ requestedUnit() }}
           </dd>
         </div>
         <div>
@@ -190,6 +199,38 @@ function cancelChase() {
           <dt class="dt-label">Replacements</dt>
           <dd class="m-0 font-mono text-primary">{{ replacementCount }}</dd>
         </div>
+        <div v-if="device.builder_target_total_tenths_bps != null">
+          <dt class="dt-label">Target Total / Side</dt>
+          <dd class="m-0 font-mono text-primary">
+            {{ (device.builder_target_total_tenths_bps / 10).toFixed(1) }} bps
+          </dd>
+        </div>
+        <template v-if="device.risk_sizing">
+          <div>
+            <dt class="dt-label">Risk Stop</dt>
+            <dd class="m-0 font-mono text-primary">
+              ${{ formatPrice(device.risk_sizing.stop_loss_price) }}
+            </dd>
+          </div>
+          <div>
+            <dt class="dt-label">Quantity Step</dt>
+            <dd class="m-0 font-mono text-primary">
+              {{ formatQty(device.risk_sizing.quantity_step) }}
+            </dd>
+          </div>
+          <div>
+            <dt class="dt-label">Entry Cost Assumption</dt>
+            <dd class="m-0 font-mono text-primary">
+              {{ formatBps(device.risk_sizing.entry_fee_fraction) }}
+            </dd>
+          </div>
+          <div>
+            <dt class="dt-label">Exit Cost Assumption</dt>
+            <dd class="m-0 font-mono text-primary">
+              {{ formatBps(device.risk_sizing.exit_fee_fraction) }}
+            </dd>
+          </div>
+        </template>
       </div>
     </div>
 

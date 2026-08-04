@@ -313,7 +313,7 @@ test('Hyperliquid opposite-side order preview requires fresh economic confirmati
   await dialog.getByLabel(/Confirm reverse from/).check()
   await expect(submit).toBeEnabled()
 
-  await dialog.getByLabel('USD Amount').fill('60')
+  await dialog.getByLabel('USDC Amount').fill('60')
   await expect(submit).toBeDisabled()
   await dialog.getByLabel(/Confirm reverse from/).check()
   await expect(submit).toBeEnabled()
@@ -363,7 +363,7 @@ test('partially filled Hyperliquid command offers cancel-remaining-and-close, no
     .toContain('21212121-2121-4121-8121-212121212121')
 })
 
-test('Hyperliquid account panel shows and saves builder fee bps clearly', async ({ page }) => {
+test('Hyperliquid fee manager sees and saves target total cost clearly', async ({ page }) => {
   await page.route('**/auth/session', async (route) => {
     await route.fulfill({
       status: 200,
@@ -410,24 +410,46 @@ test('Hyperliquid account panel shows and saves builder fee bps clearly', async 
   await expect(accountPanel.getByText('Builder Address')).toBeVisible()
   await expect(accountPanel.getByText('0x3333333333333333333333333333333333333333')).toBeVisible()
   await expect(accountPanel.getByPlaceholder('0x builder wallet')).toHaveCount(0)
-  await expect(accountPanel.getByText('1.0 bps = 0.010%')).toBeVisible()
+  await expect(accountPanel.getByText('5.2 bps = 0.052%')).toBeVisible()
   await expect(accountPanel.getByText('Approved max:')).toBeVisible()
-  await expect(accountPanel.getByText('1.0 bps', { exact: true })).toBeVisible()
+  await expect(accountPanel.getByText('10.0 bps', { exact: true })).toBeVisible()
   await expect(accountPanel.getByText('approved', { exact: true }).last()).toBeVisible()
 
-  await accountPanel.getByRole('spinbutton', { name: /Fee/ }).fill('2.5')
+  await accountPanel.getByRole('spinbutton', { name: /Target total/ }).fill('2.5')
   await expect(accountPanel.getByText('2.5 bps = 0.025%')).toBeVisible()
   await accountPanel.getByRole('button', { name: 'Save', exact: true }).click()
 
   await expect.poll(() => metadataPayload).not.toBeNull()
   expect(metadataPayload).toEqual({
     exchange_metadata: {
-      builder_fee_tenths_bps: 25,
+      builder_target_total_tenths_bps: 25,
     },
   })
   await expect(
-    accountPanel.getByText('Saved Hyperliquid builder settings for Hyperliquid QA.'),
+    accountPanel.getByText('Saved Hyperliquid target total for Hyperliquid QA.'),
   ).toBeVisible()
+})
+
+test('ordinary Hyperliquid user sees target total as read-only', async ({ page }) => {
+  await page.goto('/e2e/bybit-terminal?fee_manager=0')
+
+  const accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
+  await expect(
+    accountPanel
+      .locator('label')
+      .filter({ hasText: 'Target total / side' })
+      .getByText('5.2 bps', { exact: true }),
+  ).toBeVisible()
+  await expect(accountPanel.getByRole('spinbutton', { name: /Target total/ })).toHaveCount(0)
+  await expect(accountPanel.getByRole('button', { name: 'Save', exact: true })).toHaveCount(0)
+
+  await page.getByTestId('open-hyperliquid-mo').click()
+  const dialog = page.getByRole('dialog', { name: 'Market Order' })
+  await expect(dialog.getByLabel('Target total cost per side')).toHaveText('5.2 bps')
+  await expect(
+    dialog.getByRole('spinbutton', { name: 'Target total cost per side in basis points' }),
+  ).toHaveCount(0)
 })
 
 test('Hyperliquid account panel shows and saves independent execution guards', async ({ page }) => {
@@ -600,6 +622,60 @@ test('Hyperliquid market order explains optional protection and rejects an inval
   })
 })
 
+test('Hyperliquid market order submits an exact multi-level take-profit ladder', async ({ page }) => {
+  await page.route('https://api.hyperliquid-testnet.xyz/info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ BTC: '50000' }),
+    })
+  })
+  await page.goto('/e2e/bybit-terminal')
+  await page.getByTestId('open-hyperliquid-mo').click()
+
+  const dialog = page.getByRole('dialog', { name: 'Market Order' })
+  await dialog.getByLabel('Use multiple take-profit levels').check()
+  const ladder = dialog.getByTestId('take-profit-ladder-editor')
+  await ladder.getByTitle('Add take-profit level').click()
+  const first = ladder.getByTestId('take-profit-ladder-row').first()
+  await first.locator('input').nth(0).fill('51000')
+  await first.locator('input').nth(1).fill('50')
+  await ladder.getByTitle('Add take-profit level').click()
+  const second = ladder.getByTestId('take-profit-ladder-row').last()
+  await second.locator('input').nth(0).fill('52000')
+  await second.locator('input').nth(1).fill('50')
+  await dialog.getByRole('spinbutton', { name: /^Stop Loss Price/ }).fill('49000')
+  await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled()
+  await dialog.getByRole('button', { name: 'Submit' }).click()
+
+  const sends = await page.evaluate(() => window.__tradBybitTerminalFixture?.getCommandSends())
+  expect(sends?.at(-1)).toMatchObject({
+    kind: 'MarketOrder',
+    data: {
+      symbol: 'BTC',
+      attached_exit_plan: {
+        take_profit: null,
+        take_profit_ladder: {
+          version: 1,
+          legs: [
+            {
+              leg_id: expect.any(String),
+              trigger_price: 51000,
+              allocation: { kind: 'fraction', value: 0.5 },
+            },
+            {
+              leg_id: expect.any(String),
+              trigger_price: 52000,
+              allocation: { kind: 'fraction', value: 0.5 },
+            },
+          ],
+        },
+        stop_loss: 49000,
+      },
+    },
+  })
+})
+
 test('Hyperliquid limit order rejects a price more than 80% from the live midpoint in the form', async ({
   page,
 }) => {
@@ -644,6 +720,70 @@ test('Hyperliquid limit order rejects a price more than 80% from the live midpoi
   })
 })
 
+test('Hyperliquid Market, Limit, and Chase remember the selected quantity mode', async ({
+  page,
+}) => {
+  await page.route('https://api.hyperliquid-testnet.xyz/info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ BTC: '50000' }),
+    })
+  })
+  await page.goto('/e2e/bybit-terminal')
+
+  await page.getByTestId('open-hyperliquid-mo').click()
+  const market = page.getByRole('dialog', { name: 'Market Order' })
+  await market.getByLabel('Amount Type').selectOption('base')
+  await expect(market.getByLabel('Amount Type')).toHaveValue('base')
+  await market.locator('header button').click()
+
+  await page.getByTestId('open-hyperliquid-limit').click()
+  const limit = page.getByRole('dialog', { name: 'Limit Order' })
+  await expect(limit.getByLabel('Amount Type')).toHaveValue('base')
+  await limit.locator('header button').click()
+
+  await page.getByTestId('open-hyperliquid-chase').click()
+  const chase = page.getByRole('dialog', { name: 'Chase Order' })
+  await expect(chase.getByLabel('Amount Type')).toHaveValue('base')
+  await chase.locator('header button').click()
+
+  await page.reload()
+  await page.getByTestId('open-hyperliquid-mo').click()
+  await expect(
+    page.getByRole('dialog', { name: 'Market Order' }).getByLabel('Amount Type'),
+  ).toHaveValue('base')
+})
+
+test('Hyperliquid risk-at-stop sizing requires a stop and previews backend base quantity', async ({
+  page,
+}) => {
+  await page.route('https://api.hyperliquid-testnet.xyz/info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ BTC: '50000' }),
+    })
+  })
+  await page.goto('/e2e/bybit-terminal')
+  await page.getByTestId('open-hyperliquid-mo').click()
+
+  const market = page.getByRole('dialog', { name: 'Market Order' })
+  await market.getByLabel('Amount Type').selectOption('risk')
+  await market.getByLabel('Risk at Stop (USDC)').fill('100')
+  await expect(market.getByRole('button', { name: 'Submit' })).toBeDisabled()
+  await market.getByRole('spinbutton', { name: /^Stop Loss Price/ }).fill('49000')
+  await expect(market.getByText('Requested base quantity')).toBeVisible()
+  await expect(market.getByText('0.1', { exact: true })).toBeVisible()
+  await expect(market.getByRole('button', { name: 'Submit' })).toBeEnabled()
+  await market.locator('header button').click()
+
+  await page.getByTestId('open-hyperliquid-chase').click()
+  const chase = page.getByRole('dialog', { name: 'Chase Order' })
+  await expect(chase.getByLabel('Amount Type')).toHaveValue('risk')
+  await expect(chase.getByRole('button', { name: 'Start Chase' })).toBeDisabled()
+})
+
 test('Hyperliquid TE is capability-gated, previewed, and submitted with native symbols', async ({
   page,
 }) => {
@@ -673,15 +813,19 @@ test('Hyperliquid TE is capability-gated, previewed, and submitted with native s
   await expect(dialog.getByText(/Hyperliquid public mid \$50.00k/)).toBeVisible()
   await dialog.getByRole('button', { name: 'One-way position behavior' }).click()
   const positionInfo = dialog.getByTestId('hyperliquid-te-position-info')
+  const sizingMode = dialog.getByRole('combobox', { name: 'One-way entry sizing' })
+  await expect(sizingMode).toHaveValue('delta')
   await expect(
     positionInfo.getByText('Hyperliquid maintains one net position per account and symbol.'),
   ).toBeVisible()
   await expect(
     positionInfo.getByText(
-      'Existing same-side exposure remains unowned. This TE protects and closes only fills created by this command.',
+      'Delta mode treats the requested quantity as an order quantity. Existing exposure remains unowned; this TE protects and closes only newly established target-side fills.',
     ),
   ).toBeVisible()
+  await sizingMode.selectOption('target_side_exposure')
   await expect(positionInfo.getByText(/including exposure created outside Trad/)).toBeVisible()
+  await sizingMode.selectOption('delta')
   await expect(
     positionInfo.getByText(
       'Long and short exposure cannot remain open simultaneously on the same symbol.',
@@ -726,6 +870,8 @@ test('Hyperliquid TE is capability-gated, previewed, and submitted with native s
       stop_loss: 49000,
       take_profit: 51000,
       risk_amount: 10,
+      one_way_open_semantics: 'delta',
+      builder_target_total_tenths_bps: 52,
       split_settings: {
         target_child_notional: 50,
         max_splits_cap: 2,
@@ -785,6 +931,8 @@ test('Hyperliquid short TE serializes side-correct exits and native symbols', as
       stop_loss: 3100,
       take_profit: 2800,
       risk_amount: 12,
+      one_way_open_semantics: 'delta',
+      builder_target_total_tenths_bps: 52,
     },
   })
 })
@@ -989,12 +1137,17 @@ test('Hyperliquid Chase form serializes post-only strategy controls and protecti
       },
       boundary: { kind: 'basis_points', value: 15 },
       expires_after_secs: 300,
-      attached_exit_plan: { take_profit: 51000, stop_loss: 49000 },
+      attached_exit_plan: {
+        take_profit: 51000,
+        stop_loss: 49000,
+        take_profit_ladder: null,
+      },
       execution_guard_overrides: {
         entry_market_tenths_bps: null,
         take_profit_market_tenths_bps: 2000,
         stop_loss_market_tenths_bps: 15000,
       },
+      builder_target_total_tenths_bps: 52,
     },
   })
 
@@ -1291,10 +1444,7 @@ test('editable TE exposes actions and clickable off-scale tabs synchronized with
     1,
   )
 
-  await page.mouse.dblclick(
-    chartBox!.x + chartBox!.width - 4,
-    chartBox!.y + chartBox!.height / 2,
-  )
+  await page.mouse.dblclick(chartBox!.x + chartBox!.width - 4, chartBox!.y + chartBox!.height / 2)
   await expect(upperTabs).toBeHidden()
   await expect(lowerTabs).toBeHidden()
 
@@ -1311,10 +1461,7 @@ test('editable TE exposes actions and clickable off-scale tabs synchronized with
     window.__tradBybitTerminalFixture?.getEditableTeChartState(),
   )
   expect(lowerFocusState).not.toBeNull()
-  expect(lowerFocusState!.lineCoordinates.stop_loss! / lowerFocusState!.height).toBeCloseTo(
-    0.95,
-    1,
-  )
+  expect(lowerFocusState!.lineCoordinates.stop_loss! / lowerFocusState!.height).toBeCloseTo(0.95, 1)
 
   await page.evaluate(() => window.__tradBybitTerminalFixture?.hideEditableTeChart())
 
@@ -1330,9 +1477,7 @@ test('editable TE exposes actions and clickable off-scale tabs synchronized with
 
   await expect
     .poll(async () => {
-      const sends = await page.evaluate(() =>
-        window.__tradBybitTerminalFixture?.getCommandSends(),
-      )
+      const sends = await page.evaluate(() => window.__tradBybitTerminalFixture?.getCommandSends())
       return (sends ?? []).findLast((payload: any) => payload?.kind === 'AmendTrailingEntry')
     })
     .toMatchObject({
@@ -1373,12 +1518,11 @@ test('Hyperliquid protection edit validates against live mid and emits exact dev
   const editButton = details.getByRole('button', { name: 'edit protection' })
   await expect(editButton).toBeEnabled()
   await editButton.click()
+  await expect(editButton).toHaveAttribute('aria-expanded', 'true')
 
   const dialog = page.getByRole('dialog', { name: 'Edit Hyperliquid protection' })
   await expect(dialog.getByText('Current mid: $50.00k', { exact: true })).toBeVisible()
-  await expect(
-    dialog.getByText('Protection gap: none expected for existing-leg repricing'),
-  ).toBeVisible()
+  await expect(dialog.getByText(/Existing legs: atomic batch modify by exact CLOID/)).toBeVisible()
   await expect(dialog.getByLabel('Take Profit')).toHaveValue('51000')
   await expect(dialog.getByLabel('Stop Loss')).toHaveValue('49000')
   await dialog.getByLabel('Take Profit').fill('52000')
@@ -1392,6 +1536,7 @@ test('Hyperliquid protection edit validates against live mid and emits exact dev
       data: {
         protection_device_id: '29292929-2929-4929-8929-292929292929',
         take_profit: 52000,
+        take_profit_ladder: null,
         stop_loss: 49000,
       },
     })
@@ -1402,6 +1547,76 @@ test('Hyperliquid protection edit validates against live mid and emits exact dev
     .filter({ hasText: '#25252525' })
   await commandRow.getByTitle('Menu').click()
   await expect(page.getByRole('menuitem', { name: 'Edit Protection' })).toBeVisible()
+})
+
+test('Hyperliquid protection edit can replace ladder legs while retaining the stop', async ({
+  page,
+}) => {
+  await page.route('https://api.hyperliquid-testnet.xyz/info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ BTC: '50000' }),
+    })
+  })
+  await page.goto('/e2e/bybit-terminal')
+  const protectionRow = page
+    .getByTestId('device-tree-panel')
+    .locator('.device-row')
+    .filter({ hasText: 'Native Protection' })
+    .filter({ hasText: 'BTC' })
+    .filter({ hasText: 'Hyperliquid' })
+  await expect(protectionRow).toBeVisible()
+  await page.evaluate(() => window.__tradBybitTerminalFixture?.setChaseProtectionLadder())
+  await expect
+    .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getChaseProtectionLadderSize()))
+    .toBe(2)
+  await protectionRow.click()
+  const details = page.getByTestId('device-details-panel')
+  await expect(details).toContainText('29292929-2929-4929-8929-292929292929')
+  const editButton = details.getByRole('button', { name: 'edit protection' })
+  await expect(editButton).toBeEnabled()
+  await editButton.click()
+
+  const dialog = page.getByRole('dialog', { name: 'Edit Hyperliquid protection' })
+  await expect(dialog).toBeVisible()
+  const ladder = dialog.getByTestId('take-profit-ladder-editor')
+  await expect(ladder).toBeVisible()
+  await expect(ladder.getByTitle('Remove take-profit level')).toHaveCount(2)
+  await ladder.getByTitle('Remove take-profit level').nth(1).click()
+  await ladder.getByTitle('Add take-profit level').click()
+  const rows = ladder.getByTestId('take-profit-ladder-row')
+  const replacement = rows.last()
+  await replacement.locator('input').nth(0).fill('53000')
+  await replacement.locator('input').nth(1).fill('50')
+  await dialog.getByRole('checkbox').check()
+  await dialog.getByRole('button', { name: 'apply protection' }).click()
+
+  await expect
+    .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getCommandSends()))
+    .toContainEqual({
+      kind: 'EditHyperliquidProtection',
+      data: {
+        protection_device_id: '29292929-2929-4929-8929-292929292929',
+        take_profit: null,
+        take_profit_ladder: {
+          version: 1,
+          legs: [
+            {
+              leg_id: '31313131-3131-4131-8131-313131313131',
+              trigger_price: 51000,
+              allocation: { kind: 'fraction', value: 0.5 },
+            },
+            {
+              leg_id: expect.any(String),
+              trigger_price: 53000,
+              allocation: { kind: 'fraction', value: 0.5 },
+            },
+          ],
+        },
+        stop_loss: 49000,
+      },
+    })
 })
 
 test('Hyperliquid partial close previews normalized remainder and emits stale-safe command', async ({
@@ -1448,8 +1663,126 @@ test('Hyperliquid partial close previews normalized remainder and emits stale-sa
         command_id: '25252525-2525-4525-8525-252525252525',
         quantity: 0.00026,
         expected_owned_quantity: 0.0005,
+        execution: { kind: 'market' },
       },
+  })
+})
+
+test('Hyperliquid command exposure supports partial limit/chase and full market/limit/chase closes', async ({
+  page,
+}) => {
+  await page.route('https://api.hyperliquid-testnet.xyz/info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ universe: [{ name: 'BTC', szDecimals: 5 }] }),
     })
+  })
+  await page.goto('/e2e/bybit-terminal')
+  await page.evaluate(() => window.__tradBybitTerminalFixture?.setChaseProtectionConsistent())
+
+  const commandRow = page
+    .getByTestId('command-panel')
+    .locator('.command-row')
+    .filter({ hasText: '#25252525' })
+  const sends = () =>
+    page.evaluate(() => window.__tradBybitTerminalFixture?.getCommandSends() ?? [])
+  const openClose = async (full: boolean) => {
+    const fullCloseLabel = 'Cancel Entry And Close Command Exposure'
+    await commandRow.getByTitle('Menu').click()
+    await page
+      .getByRole('menuitem', {
+        name: full ? /Close (Command Exposure|Position)/ : 'Close Part...',
+      })
+      .click()
+    const dialog = page.getByRole('dialog', {
+      name: full ? fullCloseLabel : 'Partially close Hyperliquid command',
+    })
+    await expect(dialog).toBeVisible()
+    if (!full) await dialog.getByLabel('Exact Quantity').fill('0.00026')
+    return dialog
+  }
+
+  let dialog = await openClose(false)
+  await dialog.getByRole('button', { name: 'limit' }).click()
+  await dialog.getByLabel('Limit price').fill('49950')
+  await dialog.getByLabel('Time in force').selectOption('alo')
+  await dialog.getByRole('button', { name: 'close part' }).click()
+  await expect.poll(sends).toContainEqual({
+    kind: 'PartialCloseCommandPosition',
+    data: {
+      command_id: '25252525-2525-4525-8525-252525252525',
+      quantity: 0.00026,
+      expected_owned_quantity: 0.0005,
+      execution: { kind: 'limit', price: 49950, time_in_force: 'alo' },
+    },
+  })
+
+  dialog = await openClose(false)
+  await dialog.getByRole('button', { name: 'chase' }).click()
+  await dialog.getByLabel('Boundary type').selectOption('price')
+  await dialog.getByLabel('Maximum adverse price').fill('49800')
+  await dialog.getByLabel('Expiry (minutes)').fill('2')
+  await dialog.getByRole('button', { name: 'close part' }).click()
+  await expect.poll(sends).toContainEqual({
+    kind: 'PartialCloseCommandPosition',
+    data: {
+      command_id: '25252525-2525-4525-8525-252525252525',
+      quantity: 0.00026,
+      expected_owned_quantity: 0.0005,
+      execution: {
+        kind: 'chase',
+        boundary: { kind: 'price', value: 49800 },
+        expires_after_secs: 120,
+      },
+    },
+  })
+
+  dialog = await openClose(true)
+  await dialog
+    .getByRole('button', { name: 'Cancel Entry And Close Command Exposure' })
+    .click()
+  await expect.poll(sends).toContainEqual({
+    kind: 'CloseCommandPosition',
+    data: {
+      command_id: '25252525-2525-4525-8525-252525252525',
+      execution: { kind: 'market' },
+    },
+  })
+
+  dialog = await openClose(true)
+  await dialog.getByRole('button', { name: 'limit' }).click()
+  await dialog.getByLabel('Limit price').fill('49900')
+  await dialog.getByLabel('Time in force').selectOption('gtc')
+  await dialog
+    .getByRole('button', { name: 'Cancel Entry And Close Command Exposure' })
+    .click()
+  await expect.poll(sends).toContainEqual({
+    kind: 'CloseCommandPosition',
+    data: {
+      command_id: '25252525-2525-4525-8525-252525252525',
+      execution: { kind: 'limit', price: 49900, time_in_force: 'gtc' },
+    },
+  })
+
+  dialog = await openClose(true)
+  await dialog.getByRole('button', { name: 'chase' }).click()
+  await dialog.getByLabel('Maximum distance (bps)').fill('35')
+  await dialog.getByLabel('Run until canceled').check()
+  await dialog
+    .getByRole('button', { name: 'Cancel Entry And Close Command Exposure' })
+    .click()
+  await expect.poll(sends).toContainEqual({
+    kind: 'CloseCommandPosition',
+    data: {
+      command_id: '25252525-2525-4525-8525-252525252525',
+      execution: {
+        kind: 'chase',
+        boundary: { kind: 'basis_points', value: 35 },
+        expires_after_secs: null,
+      },
+    },
+  })
 })
 
 test('working Hyperliquid limit order can be canceled from device details', async ({ page }) => {
@@ -1543,6 +1876,18 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
 
   await page.addInitScript(() => {
     const walletRequests: Array<{ method: string; params?: unknown[] }> = []
+    const requestedChainId = (params?: unknown[]): string => {
+      const request = params?.[0]
+      if (
+        typeof request !== 'object' ||
+        request === null ||
+        !('chainId' in request) ||
+        typeof request.chainId !== 'string'
+      ) {
+        throw new Error('wallet chain request is missing chainId')
+      }
+      return request.chainId
+    }
     let walletChainId = '0x1'
     let hasArbitrumSepolia = false
     Object.defineProperty(window, '__tradHyperliquidWalletRequests', {
@@ -1563,12 +1908,12 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
           if (!hasArbitrumSepolia) {
             throw Object.assign(new Error('Unrecognized chain.'), { code: 4902 })
           }
-          walletChainId = (args.params?.[0] as { chainId: string }).chainId
+          walletChainId = requestedChainId(args.params)
           return null
         }
         if (args.method === 'wallet_addEthereumChain') {
           hasArbitrumSepolia = true
-          walletChainId = (args.params?.[0] as { chainId: string }).chainId
+          walletChainId = requestedChainId(args.params)
           return null
         }
         if (args.method === 'eth_signTypedData_v4') {
@@ -1703,7 +2048,7 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
       v: 27,
     },
     builder_address: '0x3333333333333333333333333333333333333333',
-    builder_fee_tenths_bps: 10,
+    builder_fee_tenths_bps: 100,
   })
 
   const agentTypedDataRequests = await page.evaluate(() =>
@@ -2404,8 +2749,8 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
   await dialog.getByLabel('Default Leverage').fill('3')
   await dialog.getByLabel('Margin Mode').selectOption('isolated')
   await expect(dialog.getByText('Trad configured')).toBeVisible()
-  await dialog.getByLabel('Builder Fee').fill('1.5')
-  await expect(dialog.getByText('1.5 bps = 0.015%')).toBeVisible()
+  await expect(dialog.getByText('5.2 bps')).toBeVisible()
+  await expect(dialog.getByText('0.052%')).toBeVisible()
 
   await dialog.getByRole('button', { name: 'Check permissions' }).click()
   await expect(
@@ -2422,7 +2767,7 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
     product: 'usdc_perp',
     hedge_mode_only: false,
     vault_address: '0x4444444444444444444444444444444444444444',
-    builder_fee_tenths_bps: 15,
+    builder_target_total_tenths_bps: 52,
     builder_approved: false,
     agent_approved: false,
     default_leverage: 3,
@@ -2534,7 +2879,7 @@ test('Hyperliquid account creation accepts a pasted existing agent key', async (
   await dialog.getByPlaceholder('Account alias').fill('Existing Agent QA')
   await dialog.getByPlaceholder('0x...').fill('0x1111111111111111111111111111111111111111')
   await dialog.getByPlaceholder('32-byte hex private key').fill(existingSecret)
-  await dialog.getByLabel('Builder Fee').fill('0')
+  await expect(dialog.getByText('5.2 bps')).toBeVisible()
   await dialog.getByRole('button', { name: 'Check permissions' }).click()
   await expect(dialog.getByText('Existing agent key valid')).toBeVisible()
   await dialog.getByRole('button', { name: 'Create' }).click()

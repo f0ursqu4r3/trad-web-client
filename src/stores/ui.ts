@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useUserStore } from './user'
+import type { OrderQuantityMode } from '@/lib/ws/protocol'
 
 export type ThemeMode =
   | 'dark'
@@ -36,6 +37,7 @@ export const useUiStore = defineStore(
     const numberDisplayMode = ref<NumberDisplayMode>('compact')
     const newestCommandsFirst = ref(false)
     const confirmPositionCloses = ref(true)
+    const orderQuantityMode = ref<OrderQuantityMode>('notional')
     const systemPrefersDark = ref<boolean>(
       typeof window !== 'undefined'
         ? window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -82,6 +84,10 @@ export const useUiStore = defineStore(
       useUserStore().saveProfile()
     }
 
+    function setOrderQuantityMode(mode: OrderQuantityMode) {
+      orderQuantityMode.value = mode
+    }
+
     function getVar(name: string, fallback?: string | undefined): string {
       return getComputedStyle(document.documentElement).getPropertyValue(name).trim() ?? fallback
     }
@@ -108,6 +114,7 @@ export const useUiStore = defineStore(
       numberDisplayMode,
       newestCommandsFirst,
       confirmPositionCloses,
+      orderQuantityMode,
       effectiveTheme,
       systemPrefersDark,
       setTheme,
@@ -115,6 +122,7 @@ export const useUiStore = defineStore(
       setNumberDisplayMode,
       setNewestCommandsFirst,
       setConfirmPositionCloses,
+      setOrderQuantityMode,
       getVar,
       settingsOpen,
       openSettings,
@@ -132,6 +140,7 @@ export const useUiStore = defineStore(
         'numberDisplayMode',
         'newestCommandsFirst',
         'confirmPositionCloses',
+        'orderQuantityMode',
         'showInboundPanel',
       ],
     },

@@ -13,6 +13,7 @@ import {
   type HyperliquidPositionEffectPreviewRequest,
   type MarketContext,
   type OrderQuantityMode,
+  type TakeProfitLadder,
   type UserCommandPayload,
 } from '@/lib/ws/protocol'
 import { useWsStore } from '@/stores/ws'
@@ -36,9 +37,13 @@ import {
 } from '@/lib/hyperliquidExecutionGuards'
 import type { ChaseOrderPrefill } from './types'
 import HyperliquidPositionEffectPreview from './HyperliquidPositionEffectPreview.vue'
+import TakeProfitLadderEditor from './TakeProfitLadderEditor.vue'
 import { useHyperliquidPositionEffectPreview } from '@/composables/useHyperliquidPositionEffectPreview'
 import { useHyperliquidMidPrice } from '@/composables/useHyperliquidMidPrice'
+import { useUiStore } from '@/stores/ui'
 import { marketOrderExitLevelError } from '@/lib/bybitOrderValidation'
+import { hyperliquidTargetTotalTenthsBps } from '@/lib/accountMetadata'
+import HyperliquidTargetTotalField from './HyperliquidTargetTotalField.vue'
 
 const logger = createLogger('commands')
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
@@ -47,6 +52,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 const ws = useWsStore()
 const accounts = useAccountsStore()
 const modals = useModalStore()
+const ui = useUiStore()
 const selectedAccountId = ref('')
 const symbol = ref('BTC')
 const action = ref<MarketAction>(MarketAction.Open)
@@ -59,10 +65,15 @@ const boundaryPrice = ref<number | null>(null)
 const untilCanceled = ref(false)
 const expiryMinutes = ref<number | null>(5)
 const takeProfit = ref<number | null | ''>(null)
+const takeProfitLadderEnabled = ref(false)
+const takeProfitLadder = ref<TakeProfitLadder | null>(null)
+const takeProfitLadderValid = ref(true)
 const stopLoss = ref<number | null | ''>(null)
 const overrideProtectionGuards = ref(false)
 const takeProfitGuardPercent = ref(1)
 const stopLossGuardPercent = ref(10)
+const builderTargetTotalTenthsBps = ref(52)
+const presetAccountChangePending = ref(false)
 
 const hyperliquidAccounts = computed(() =>
   accounts.accounts.filter((account) => account.exchange === ExchangeType.Hyperliquid),
@@ -120,15 +131,37 @@ const accountProtectionGuardLabel = computed(() => {
     `SL ${formatExecutionGuardPercent(guards.stop_loss_market_tenths_bps)}`,
   ].join(' / ')
 })
+const quantityLabel = computed(() => {
+  if (quantityMode.value === 'base') return 'Base Quantity'
+  if (quantityMode.value === 'risk') return 'Risk at Stop (USDC)'
+  return 'USDC Amount'
+})
 const exitLevelError = computed(() => {
   if (!supportsAttachedExit.value) return null
-  return marketOrderExitLevelError(
+  const scalarError = marketOrderExitLevelError(
     'Hyperliquid Chase',
     positionSide.value,
-    takeProfit.value,
+    takeProfitLadderEnabled.value ? null : takeProfit.value,
     stopLoss.value,
     hyperliquidMid.price.value,
   )
+  if (scalarError) return scalarError
+  if (takeProfitLadderEnabled.value) {
+    if (!takeProfitLadderValid.value || !takeProfitLadder.value) {
+      return 'Complete every take-profit ladder level.'
+    }
+    for (const leg of takeProfitLadder.value.legs) {
+      const error = marketOrderExitLevelError(
+        'Hyperliquid Chase',
+        positionSide.value,
+        leg.trigger_price,
+        stopLoss.value,
+        hyperliquidMid.price.value,
+      )
+      if (error) return error
+    }
+  }
+  return null
 })
 const positionEffectRequest = computed<HyperliquidPositionEffectPreviewRequest | null>(() => {
   const marketContext = selectedMarketContext.value
@@ -137,7 +170,8 @@ const positionEffectRequest = computed<HyperliquidPositionEffectPreviewRequest |
     !isValidHyperliquidPerpSymbol(symbol.value) ||
     quantity.value === null ||
     !Number.isFinite(quantity.value) ||
-    quantity.value <= 0
+    quantity.value <= 0 ||
+    (quantityMode.value === 'risk' && optionalPositivePrice(stopLoss.value) === null)
   ) {
     return null
   }
@@ -149,6 +183,9 @@ const positionEffectRequest = computed<HyperliquidPositionEffectPreviewRequest |
     quantity: quantity.value,
     quantity_mode: quantityMode.value,
     reference_price: null,
+    risk_stop_loss: optionalPositivePrice(stopLoss.value),
+    risk_entry_is_maker: true,
+    risk_entry_slippage_fraction: 0,
   }
 })
 const positionEffect = useHyperliquidPositionEffectPreview(
@@ -170,7 +207,7 @@ function requestCapabilities() {
 function applyInitialValues() {
   const preset = (modals.modalValues['ChaseOrder'] as ChaseOrderPrefill | undefined) ?? null
   const selected = accounts.selectedAccount
-  selectedAccountId.value =
+  const initialAccountId =
     (preset?.account_id &&
     hyperliquidAccounts.value.some((account) => account.id === preset.account_id)
       ? preset.account_id
@@ -178,11 +215,13 @@ function applyInitialValues() {
     (selected?.exchange === ExchangeType.Hyperliquid ? selected.id : null) ??
     hyperliquidAccounts.value[0]?.id ??
     ''
+  presetAccountChangePending.value = initialAccountId !== selectedAccountId.value
+  selectedAccountId.value = initialAccountId
   symbol.value =
     preset?.symbol ?? accounts.getDefaultSymbolForAccount(selectedAccountId.value) ?? 'BTC'
   action.value = preset?.action ?? MarketAction.Open
   positionSide.value = preset?.position_side ?? PositionSide.Long
-  quantityMode.value = preset?.quantity_mode ?? 'notional'
+  quantityMode.value = preset?.quantity_mode ?? ui.orderQuantityMode
   quantity.value = preset?.quantity ?? 50
   boundaryMode.value = preset?.boundary.kind ?? 'basis_points'
   boundaryBps.value = preset?.boundary.kind === 'basis_points' ? preset.boundary.value : 20
@@ -191,7 +230,13 @@ function applyInitialValues() {
   expiryMinutes.value =
     preset?.expires_after_secs == null ? 5 : Math.max(preset.expires_after_secs / 60, 0.01)
   takeProfit.value = preset?.take_profit ?? null
+  takeProfitLadderEnabled.value = preset?.take_profit_ladder != null
+  takeProfitLadder.value = preset?.take_profit_ladder ?? null
+  takeProfitLadderValid.value = true
   stopLoss.value = preset?.stop_loss ?? null
+  builderTargetTotalTenthsBps.value =
+    preset?.builder_target_total_tenths_bps ??
+    hyperliquidTargetTotalTenthsBps(selectedAccount.value?.exchange_metadata)
   resetProtectionGuards()
   const overrides = preset?.execution_guard_overrides
   if (overrides) {
@@ -216,7 +261,14 @@ watch(
 )
 
 watch(selectedAccountId, () => {
+  if (presetAccountChangePending.value) {
+    presetAccountChangePending.value = false
+    return
+  }
   symbol.value = accounts.getDefaultSymbolForAccount(selectedAccountId.value) || 'BTC'
+  builderTargetTotalTenthsBps.value = hyperliquidTargetTotalTenthsBps(
+    selectedAccount.value?.exchange_metadata,
+  )
   resetProtectionGuards()
   requestCapabilities()
 })
@@ -224,7 +276,15 @@ watch(selectedAccountId, () => {
 watch(supportsAttachedExit, (supported) => {
   if (!supported) {
     takeProfit.value = null
+    takeProfitLadderEnabled.value = false
+    takeProfitLadder.value = null
     stopLoss.value = null
+  }
+})
+
+watch(action, (next) => {
+  if (next !== MarketAction.Open && quantityMode.value === 'risk') {
+    quantityMode.value = 'notional'
   }
 })
 
@@ -261,6 +321,15 @@ function validate(): boolean {
     return false
   }
   if (exitLevelError.value) return false
+  if (takeProfitLadderEnabled.value && (!takeProfitLadderValid.value || !takeProfitLadder.value)) {
+    return false
+  }
+  if (
+    quantityMode.value === 'risk' &&
+    (action.value !== MarketAction.Open || optionalPositivePrice(stopLoss.value) === null)
+  ) {
+    return false
+  }
   if (
     supportsAttachedExit.value &&
     (optionalPositivePrice(takeProfit.value) !== null ||
@@ -294,8 +363,14 @@ function submit() {
   const normalizedStopLoss = optionalPositivePrice(stopLoss.value)
   const attachedExitPlan =
     supportsAttachedExit.value &&
-    (normalizedTakeProfit !== null || normalizedStopLoss !== null)
-      ? { take_profit: normalizedTakeProfit, stop_loss: normalizedStopLoss }
+    ((takeProfitLadderEnabled.value && takeProfitLadder.value !== null) ||
+      normalizedTakeProfit !== null ||
+      normalizedStopLoss !== null)
+      ? {
+          take_profit: takeProfitLadderEnabled.value ? null : normalizedTakeProfit,
+          take_profit_ladder: takeProfitLadderEnabled.value ? takeProfitLadder.value : null,
+          stop_loss: normalizedStopLoss,
+        }
       : null
   const executionGuardOverrides: HyperliquidExecutionGuardOverrides | null =
     supportsAttachedExit.value && overrideProtectionGuards.value
@@ -318,6 +393,7 @@ function submit() {
       : Math.max(1, Math.round(expiryMinutes.value! * 60)),
     attached_exit_plan: attachedExitPlan,
     execution_guard_overrides: executionGuardOverrides,
+    builder_target_total_tenths_bps: builderTargetTotalTenthsBps.value,
   }
   const payload: Extract<UserCommandPayload, { kind: 'ChaseOrder' }> = {
     kind: 'ChaseOrder',
@@ -331,6 +407,10 @@ function optionalPositivePrice(value: number | null | ''): number | null {
   if (value === null || value === '') return null
   if (!Number.isFinite(value) || value <= 0) return null
   return value
+}
+
+function rememberQuantityMode() {
+  ui.setOrderQuantityMode(quantityMode.value)
 }
 </script>
 
@@ -372,13 +452,14 @@ function optionalPositivePrice(value: number | null | ''): number | null {
         </label>
         <label class="field">
           <span>Amount Type</span>
-          <select v-model="quantityMode" class="input">
+          <select v-model="quantityMode" class="input" @change="rememberQuantityMode">
             <option value="notional">USDC Notional</option>
             <option value="base">Base Quantity</option>
+            <option v-if="action === MarketAction.Open" value="risk">Risk at Stop</option>
           </select>
         </label>
         <label class="field">
-          <span>{{ quantityMode === 'notional' ? 'USDC Amount' : 'Base Quantity' }}</span>
+          <span>{{ quantityLabel }}</span>
           <input v-model.number="quantity" type="number" min="0" step="any" class="input" />
         </label>
         <label class="field">
@@ -421,7 +502,16 @@ function optionalPositivePrice(value: number | null | ''): number | null {
           boundary, or you cancel it.
         </p>
         <template v-if="supportsAttachedExit">
-          <label class="field">
+          <label class="field col-span-2 flex-row items-center gap-2">
+            <input v-model="takeProfitLadderEnabled" type="checkbox" />
+            <span>Use multiple take-profit levels</span>
+          </label>
+          <TakeProfitLadderEditor
+            v-if="takeProfitLadderEnabled"
+            v-model="takeProfitLadder"
+            @validity="takeProfitLadderValid = $event"
+          />
+          <label v-else class="field">
             <span>Take Profit Price (optional)</span>
             <input v-model.number="takeProfit" type="number" min="0" step="any" class="input" />
           </label>
@@ -469,6 +559,11 @@ function optionalPositivePrice(value: number | null | ''): number | null {
             }}
           </p>
         </template>
+        <HyperliquidTargetTotalField
+          v-if="selectedAccount"
+          v-model="builderTargetTotalTenthsBps"
+          :account="selectedAccount"
+        />
       </div>
       <p class="m-0 text-[11px] text-[var(--color-text-dim)]">
         {{ action }} {{ positionSide }} follows the {{ referenceLabel }} with post-only replacement

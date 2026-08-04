@@ -11,6 +11,8 @@ import {
   type Uuid,
   type LimitOrderCommand,
   type ChaseOrderCommand,
+  type CloseCommandPositionCommand,
+  type PartialCloseCommandPositionCommand,
   type MarketOrderCommand,
   type SetHedgeModeCommand,
   type SetLeverageCommand,
@@ -60,10 +62,12 @@ export interface CommandActionContextEntry {
 
 export enum interestingCommandKinds {
   ChaseOrder,
+  CloseCommandPosition,
   FlattenHyperliquidAccount,
   FlattenHyperliquidSymbol,
   LimitOrder,
   MarketOrder,
+  PartialCloseCommandPosition,
   SetHedgeMode,
   SetLeverage,
   SplitMarketOrder,
@@ -72,8 +76,10 @@ export enum interestingCommandKinds {
 
 export type InterestingCommand =
   | ChaseOrderCommand
+  | CloseCommandPositionCommand
   | LimitOrderCommand
   | MarketOrderCommand
+  | PartialCloseCommandPositionCommand
   | SetHedgeModeCommand
   | SetLeverageCommand
   | SplitMarketOrderCommand
@@ -381,6 +387,20 @@ export const useCommandStore = defineStore(
     }
 
     function canCancelRemainingEntry(commandId: string): boolean {
+      const commandKind = commandMap.value[commandId]?.command.kind
+      if (
+        commandKind === 'CloseCommandPosition' ||
+        commandKind === 'PartialCloseCommandPosition'
+      ) {
+        const effects = commandEffects.value.filter(
+          (effect) => effect.source_command_id === commandId,
+        )
+        const requested = effects.some((effect) => effect.effect === 'CloseRequested')
+        const settled = effects.some((effect) =>
+          ['PositionClosed', 'CloseRemainderCanceled', 'AlreadyFlat'].includes(effect.effect),
+        )
+        return requested && !settled
+      }
       if (!isHyperliquidPositionCommand(commandId)) return false
       const state = hyperliquidCommandActionState(commandId)
       return (
@@ -778,13 +798,16 @@ export const useCommandStore = defineStore(
       canceledCommandIds.value = new Set([...canceledCommandIds.value, commandId])
     }
 
-    function closePosition(commandId: string) {
+    function closePosition(
+      commandId: string,
+      execution: import('@/lib/ws/protocol').CloseExecutionPolicy = { kind: 'market' },
+    ) {
       if (!canClosePosition(commandId)) return
       const command = commandMap.value[commandId]?.command
       if (command?.kind === 'TrailingEntryOrder') {
         ws.sendCloseTrailingEntryPosition(commandId)
       } else {
-        ws.sendCloseCommandPosition(commandId)
+        ws.sendCloseCommandPosition(commandId, execution)
       }
     }
 
@@ -792,9 +815,10 @@ export const useCommandStore = defineStore(
       commandId: string,
       quantity: number,
       expectedOwnedQuantity: number,
+      execution: import('@/lib/ws/protocol').CloseExecutionPolicy = { kind: 'market' },
     ) {
       if (!canPartialClosePosition(commandId)) return
-      ws.sendPartialCloseCommandPosition(commandId, quantity, expectedOwnedQuantity)
+      ws.sendPartialCloseCommandPosition(commandId, quantity, expectedOwnedQuantity, execution)
     }
 
     function cancelRemainingEntry(commandId: string) {

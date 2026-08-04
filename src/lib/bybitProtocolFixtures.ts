@@ -35,7 +35,8 @@ const bybitMarketRef = {
 const bybitMarketOrderWithAttachedTpsl = {
   action: MarketAction.Open,
   symbol: 'BTCUSDT',
-  quantity_usd: 100,
+  quantity: 100,
+  quantity_mode: 'notional',
   position_side: PositionSide.Long,
   market_context: bybitContext,
   attached_exit_plan: {

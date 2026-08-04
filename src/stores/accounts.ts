@@ -109,6 +109,8 @@ export interface ExchangeAccountMetadata {
   builder_address?: string | null
   builder_config_version?: string | null
   builder_fee_tenths_bps?: number | null
+  builder_target_total_tenths_bps?: number | null
+  builder_fee_manager?: boolean | null
   max_builder_fee_tenths_bps?: number | null
   builder_approved?: boolean | null
   builder_approval_network?: NetworkType | null

@@ -64,6 +64,8 @@ const partialCloseData = ref<{
   positionSide: PositionSide
   ownedQuantity: number
   protectionCount: number
+  initialFull: boolean
+  actionLabel?: string
 } | null>(null)
 const confirmation = ref<{
   title: string
@@ -223,6 +225,8 @@ function getCommandComponent(command: UserCommandPayload): Component | string {
 }
 
 function getCommandLabel(command: UserCommandPayload): string {
+  if (command.kind === 'CloseCommandPosition') return 'Close Position'
+  if (command.kind === 'PartialCloseCommandPosition') return 'Partial Close'
   if (command.kind === 'FlattenHyperliquidAccount') return 'Flatten All'
   if (command.kind === 'FlattenHyperliquidSymbol') return 'Flatten Position'
   if (command.kind === 'LimitOrder') return 'Limit Order'
@@ -234,6 +238,8 @@ function getCommandLabel(command: UserCommandPayload): string {
 }
 
 function getKindLabel(kind: string): string {
+  if (kind === 'CloseCommandPosition') return 'Close Position'
+  if (kind === 'PartialCloseCommandPosition') return 'Partial Close'
   if (kind === 'FlattenHyperliquidAccount') return 'Flatten All'
   if (kind === 'FlattenHyperliquidSymbol') return 'Flatten Position'
   if (kind === 'TrailingEntryOrder') return 'Trailing Entry'
@@ -272,7 +278,9 @@ function handleDuplicate(command: UserCommandPayload): void {
         price: command.data.price,
         time_in_force: command.data.time_in_force,
         take_profit: command.data.attached_exit_plan?.take_profit ?? null,
+        take_profit_ladder: command.data.attached_exit_plan?.take_profit_ladder ?? null,
         stop_loss: command.data.attached_exit_plan?.stop_loss ?? null,
+        builder_target_total_tenths_bps: command.data.builder_target_total_tenths_bps ?? null,
       } as LimitOrderPrefill)
       break
     case 'ChaseOrder':
@@ -286,12 +294,15 @@ function handleDuplicate(command: UserCommandPayload): void {
         boundary: command.data.boundary,
         expires_after_secs: command.data.expires_after_secs,
         take_profit: command.data.attached_exit_plan?.take_profit ?? null,
+        take_profit_ladder: command.data.attached_exit_plan?.take_profit_ladder ?? null,
         stop_loss: command.data.attached_exit_plan?.stop_loss ?? null,
         execution_guard_overrides: command.data.execution_guard_overrides ?? null,
+        builder_target_total_tenths_bps: command.data.builder_target_total_tenths_bps ?? null,
       } as ChaseOrderPrefill)
       break
     case 'TrailingEntryOrder':
       modalStore.openModalWithValues('TrailingEntryOrder', {
+        account_id: marketContextAccountId(command.data.market_context),
         activation_price: command.data.activation_price,
         jump_frac_threshold: command.data.jump_frac_threshold,
         position_side: command.data.position_side,
@@ -299,16 +310,22 @@ function handleDuplicate(command: UserCommandPayload): void {
         stop_loss: command.data.stop_loss,
         take_profit: command.data.take_profit ?? null,
         symbol: command.data.symbol,
+        one_way_open_semantics: command.data.one_way_open_semantics,
+        builder_target_total_tenths_bps: command.data.builder_target_total_tenths_bps ?? null,
       } as TrailingEntryPrefill)
       break
     case 'MarketOrder':
       modalStore.openModalWithValues('MarketOrder', {
+        account_id: marketContextAccountId(command.data.market_context),
         symbol: command.data.symbol,
-        quantity_usd: command.data.quantity_usd,
+        quantity: command.data.quantity,
+        quantity_mode: command.data.quantity_mode,
         position_side: command.data.position_side,
         action: command.data.action,
         take_profit: command.data.attached_exit_plan?.take_profit ?? null,
+        take_profit_ladder: command.data.attached_exit_plan?.take_profit_ladder ?? null,
         stop_loss: command.data.attached_exit_plan?.stop_loss ?? null,
+        builder_target_total_tenths_bps: command.data.builder_target_total_tenths_bps ?? null,
       } as MarketOrderPrefill)
       break
     default:
@@ -393,6 +410,11 @@ function handleCancel(commandId: string): void {
 }
 
 function handleClosePosition(commandId: string): void {
+  const item = commandStore.commandMap[commandId]
+  if (item && ['MarketOrder', 'LimitOrder', 'ChaseOrder'].includes(item.command.kind)) {
+    openHyperliquidCommandClose(commandId, true)
+    return
+  }
   if (!uiStore.confirmPositionCloses) {
     commandStore.closePosition(commandId)
     return
@@ -409,6 +431,10 @@ function handleClosePosition(commandId: string): void {
 }
 
 function handlePartialClosePosition(commandId: string): void {
+  openHyperliquidCommandClose(commandId, false)
+}
+
+function openHyperliquidCommandClose(commandId: string, initialFull: boolean): void {
   const item = commandStore.commandMap[commandId]
   if (
     !item ||
@@ -421,7 +447,13 @@ function handlePartialClosePosition(commandId: string): void {
     return
   }
   const state = commandStore.hyperliquidCommandActionState(commandId)
-  if (!commandStore.canPartialClosePosition(commandId) || state.ownedQuantity <= 0) return
+  if (
+    (initialFull
+      ? !commandStore.canClosePosition(commandId)
+      : !commandStore.canPartialClosePosition(commandId)) ||
+    state.ownedQuantity <= 0
+  )
+    return
   partialCloseData.value = {
     commandId,
     symbol: item.command.data.symbol,
@@ -429,6 +461,9 @@ function handlePartialClosePosition(commandId: string): void {
     positionSide: item.command.data.position_side,
     ownedQuantity: state.ownedQuantity,
     protectionCount: state.protectionCount,
+    initialFull,
+    actionLabel:
+      initialFull && state.workingEntry ? commandStore.closePositionLabel(commandId) : undefined,
   }
 }
 
@@ -436,13 +471,19 @@ function submitPartialClose(data: {
   quantity: number
   expectedOwnedQuantity: number
   fullClose: boolean
+  execution: import('@/lib/ws/protocol').CloseExecutionPolicy
 }): void {
   const commandId = partialCloseData.value?.commandId
   if (!commandId) return
   if (data.fullClose) {
-    commandStore.closePosition(commandId)
+    commandStore.closePosition(commandId, data.execution)
   } else {
-    commandStore.partialClosePosition(commandId, data.quantity, data.expectedOwnedQuantity)
+    commandStore.partialClosePosition(
+      commandId,
+      data.quantity,
+      data.expectedOwnedQuantity,
+      data.execution,
+    )
   }
 }
 
@@ -1161,6 +1202,8 @@ function saveRename() {
       :position-side="partialCloseData.positionSide"
       :owned-quantity="partialCloseData.ownedQuantity"
       :protection-count="partialCloseData.protectionCount"
+      :initial-full="partialCloseData.initialFull"
+      :action-label="partialCloseData.actionLabel"
       @submit="submitPartialClose"
       @close="partialCloseData = null"
     />

@@ -280,6 +280,8 @@ export const useDeviceStore = defineStore('device', () => {
         te.take_profit = s.take_profit ?? null
         te.risk_amount = s.risk_amount
         te.split_settings = s.split_settings ?? te.split_settings ?? null
+        te.one_way_open_semantics = s.one_way_open_semantics ?? 'delta'
+        te.builder_target_total_tenths_bps = s.builder_target_total_tenths_bps ?? null
         te.phase = s.phase
         te.peak = s.peak
         te.peak_index = s.peak_index
@@ -318,6 +320,7 @@ export const useDeviceStore = defineStore('device', () => {
         order.one_way_position_effect = s.one_way_position_effect ?? null
         order.one_way_transition = s.one_way_transition ?? null
         order.execution_guards = s.execution_guards ?? null
+        order.builder_target_total_tenths_bps = s.builder_target_total_tenths_bps ?? null
         order.status = normalizeOrderStatus(s.status)
         order.filled_qty = s.filled_qty ?? null
         order.execution_fills = s.execution_fills ?? []
@@ -372,10 +375,12 @@ export const useDeviceStore = defineStore('device', () => {
         np.market_context = normalizeMarketContext(s.market_context as MarketContext)
         np.position_side = s.position_side
         np.take_profit = s.take_profit ?? null
+        np.take_profit_ladder = s.take_profit_ladder ?? null
         np.stop_loss = s.stop_loss ?? null
         np.expected_entries = s.expected_entries
         np.activation_policy = s.activation_policy ?? 'parent_attached'
         np.execution_guards = s.execution_guards ?? null
+        np.builder_target_total_tenths_bps = s.builder_target_total_tenths_bps ?? null
         np.observed_entries = s.observed_entries
         np.observed_protection_orders = s.observed_protection_orders
         np.observed_entry_order_ids = s.observed_entry_order_ids ?? []
@@ -508,6 +513,8 @@ export const useDeviceStore = defineStore('device', () => {
             take_profit,
             risk_amount,
             split_settings,
+            one_way_open_semantics,
+            builder_target_total_tenths_bps,
             phase,
             peak,
             peak_index,
@@ -526,6 +533,8 @@ export const useDeviceStore = defineStore('device', () => {
           te.take_profit = take_profit ?? null
           te.risk_amount = risk_amount
           te.split_settings = split_settings ?? te.split_settings ?? null
+          te.one_way_open_semantics = one_way_open_semantics ?? 'delta'
+          te.builder_target_total_tenths_bps = builder_target_total_tenths_bps ?? null
           te.phase = phase
           te.peak = peak
           te.peak_index = peak_index
@@ -678,6 +687,7 @@ export const useDeviceStore = defineStore('device', () => {
             one_way_position_effect,
             one_way_transition,
             execution_guards,
+            builder_target_total_tenths_bps,
             status,
             filled_qty,
             execution_fills,
@@ -698,6 +708,7 @@ export const useDeviceStore = defineStore('device', () => {
           order.one_way_position_effect = one_way_position_effect ?? null
           order.one_way_transition = one_way_transition ?? null
           order.execution_guards = execution_guards ?? null
+          order.builder_target_total_tenths_bps = builder_target_total_tenths_bps ?? null
           order.status = normalizeOrderStatus(status)
           order.filled_qty = filled_qty ?? null
           order.execution_fills = execution_fills ?? []
@@ -976,10 +987,12 @@ export const useDeviceStore = defineStore('device', () => {
           market_context,
           position_side,
           take_profit,
+          take_profit_ladder,
           stop_loss,
           expected_entries,
           activation_policy,
           execution_guards,
+          builder_target_total_tenths_bps,
           observed_entries,
           observed_protection_orders,
           observed_entry_order_ids,
@@ -1010,10 +1023,12 @@ export const useDeviceStore = defineStore('device', () => {
         np.market_context = normalizeMarketContext(market_context as MarketContext)
         np.position_side = position_side
         np.take_profit = take_profit ?? null
+        np.take_profit_ladder = take_profit_ladder ?? null
         np.stop_loss = stop_loss ?? null
         np.expected_entries = expected_entries
         np.activation_policy = activation_policy ?? 'parent_attached'
         np.execution_guards = execution_guards ?? null
+        np.builder_target_total_tenths_bps = builder_target_total_tenths_bps ?? null
         np.observed_entries = observed_entries
         np.observed_protection_orders = observed_protection_orders
         np.observed_entry_order_ids = observed_entry_order_ids ?? []
@@ -1069,7 +1084,7 @@ export const useDeviceStore = defineStore('device', () => {
         np.last_tpsl_mode = tpsl_mode ?? null
         np.last_update_seen_at = eventTime
         if (typeof cum_qty === 'number') {
-          if (is_protection_order) {
+          if (is_protection_order && np.take_profit_ladder == null) {
             np.protection_filled_qty = cum_qty
           } else {
             np.entry_filled_qty = cum_qty
@@ -1094,6 +1109,7 @@ export const useDeviceStore = defineStore('device', () => {
       case 'Coverage': {
         const {
           take_profit,
+          take_profit_ladder,
           stop_loss,
           observed_entries,
           observed_protection_orders,
@@ -1119,6 +1135,9 @@ export const useDeviceStore = defineStore('device', () => {
         } = delta.data
         if (take_profit !== undefined) {
           np.take_profit = take_profit
+        }
+        if (take_profit_ladder !== undefined) {
+          np.take_profit_ladder = take_profit_ladder
         }
         if (stop_loss !== undefined) {
           np.stop_loss = stop_loss
@@ -1279,6 +1298,8 @@ export interface TrailingEntryState {
   take_profit: number | null
   risk_amount: number
   split_settings?: SplitSettings | null
+  one_way_open_semantics: import('@/lib/ws/protocol').OneWayOpenSemantics
+  builder_target_total_tenths_bps: number | null
 
   // state
   phase: TrailingEntryPhase
@@ -1326,6 +1347,7 @@ export interface OrderState {
   one_way_position_effect: import('@/lib/ws/protocol').OneWayPositionEffect | null
   one_way_transition: import('@/lib/ws/protocol').OneWayOrderTransition | null
   execution_guards: import('@/lib/ws/protocol').HyperliquidExecutionGuards | null
+  builder_target_total_tenths_bps: number | null
 
   status: OrderStatus
   filled_qty: number | null
@@ -1380,10 +1402,12 @@ export interface NativeProtectionState {
   market_context: MarketContext
   position_side: PositionSide
   take_profit: number | null
+  take_profit_ladder: import('@/lib/ws/protocol').TakeProfitLadder | null
   stop_loss: number | null
   expected_entries: number
   activation_policy: import('@/lib/ws/protocol').ProtectionActivationPolicy
   execution_guards: import('@/lib/ws/protocol').HyperliquidExecutionGuards | null
+  builder_target_total_tenths_bps: number | null
   observed_entries: number
   observed_protection_orders: number
   observed_entry_order_ids: string[]
@@ -1475,6 +1499,8 @@ function newTrailingEntryState(): TrailingEntryState {
     take_profit: null,
     risk_amount: 0,
     split_settings: null,
+    one_way_open_semantics: 'delta',
+    builder_target_total_tenths_bps: null,
     phase: TrailingEntryPhase.Initial,
     peak: 0,
     peak_index: 0,
@@ -1524,6 +1550,7 @@ function newChaseState(): ChaseState {
     position_side: PositionSide.Long,
     quantity: 0,
     quantity_mode: 'base',
+    risk_sizing: null,
     total_base_qty: 0,
     filled_qty: 0,
     remaining_qty: 0,
@@ -1532,6 +1559,7 @@ function newChaseState(): ChaseState {
     expires_at: null,
     attached_exit_plan: null,
     execution_guards: null,
+    builder_target_total_tenths_bps: null,
     status: 'waiting_for_market',
     current_child_id: null,
     current_client_order_id: null,
@@ -1566,6 +1594,7 @@ function newOrderState(): OrderState {
     one_way_position_effect: null,
     one_way_transition: null,
     execution_guards: null,
+    builder_target_total_tenths_bps: null,
     status: OrderStatus.NotYetSent,
     filled_qty: null,
     execution_fills: [],
@@ -1620,10 +1649,12 @@ function newNativeProtectionState(): NativeProtectionState {
     market_context: { type: 'none' } as MarketContext,
     position_side: PositionSide.Long,
     take_profit: null,
+    take_profit_ladder: null,
     stop_loss: null,
     expected_entries: 0,
     activation_policy: 'parent_attached',
     execution_guards: null,
+    builder_target_total_tenths_bps: null,
     observed_entries: 0,
     observed_protection_orders: 0,
     observed_entry_order_ids: [],

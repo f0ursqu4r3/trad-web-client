@@ -241,7 +241,8 @@ async function cleanupPosition(symbol: string, accountId: string, quantityUsd: n
     data: {
       action: MarketAction.Close,
       symbol,
-      quantity_usd: Math.max(quantityUsd * 2, quantityUsd + 5),
+      quantity: Math.max(quantityUsd * 2, quantityUsd + 5),
+      quantity_mode: 'notional',
       position_side: PositionSide.Long,
       market_context: bybitMarketContext(accountId),
       attached_exit_plan: null,
@@ -301,7 +302,8 @@ async function startSmoke() {
       data: {
         action: MarketAction.Open,
         symbol,
-        quantity_usd: quantityUsd,
+        quantity: quantityUsd,
+        quantity_mode: 'notional',
         position_side: PositionSide.Long,
         market_context: bybitMarketContext(accountId),
         attached_exit_plan: {

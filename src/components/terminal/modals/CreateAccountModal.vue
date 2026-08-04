@@ -11,6 +11,7 @@ import {
   type AccountRecord,
 } from '@/stores/accounts'
 import { useWsStore } from '@/stores/ws'
+import { HYPERLIQUID_TARGET_TOTAL_DEFAULT_TENTHS_BPS } from '@/lib/accountMetadata'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -35,7 +36,6 @@ const apiKey = ref('')
 const secretKey = ref('')
 const hyperliquidAgentMode = ref<'generated' | 'existing'>('generated')
 const hyperliquidVaultAddress = ref('')
-const hyperliquidBuilderFeeBps = ref('1')
 const hyperliquidDefaultLeverage = ref('1')
 const hyperliquidMarginMode = ref<'cross' | 'isolated'>('cross')
 const formError = ref<string | null>(null)
@@ -77,11 +77,6 @@ const validationSuccess = computed(() =>
       : 'Wallet, existing agent key, and read-only Hyperliquid account-state access are valid.'
     : 'Key permissions are valid for Bybit USDT perpetual trading.',
 )
-const builderFeeTenthsBps = computed(() => {
-  const parsed = Number(hyperliquidBuilderFeeBps.value)
-  if (!Number.isFinite(parsed) || parsed < 0) return null
-  return Math.round(parsed * 10)
-})
 const defaultLeverage = computed(() => {
   const parsed = Number(hyperliquidDefaultLeverage.value)
   if (!Number.isInteger(parsed) || parsed < 1) return null
@@ -89,11 +84,7 @@ const defaultLeverage = computed(() => {
 })
 const isHyperliquidMetadataValid = computed(() => {
   if (!isHyperliquid.value) return true
-  return (
-    builderFeeTenthsBps.value !== null &&
-    builderFeeTenthsBps.value <= 100 &&
-    defaultLeverage.value !== null
-  )
+  return defaultLeverage.value !== null
 })
 
 const isSubmitDisabled = computed(() => {
@@ -127,7 +118,6 @@ function reset() {
   secretKey.value = ''
   hyperliquidAgentMode.value = 'generated'
   hyperliquidVaultAddress.value = ''
-  hyperliquidBuilderFeeBps.value = '1'
   hyperliquidDefaultLeverage.value = '1'
   hyperliquidMarginMode.value = 'cross'
   formError.value = null
@@ -230,7 +220,7 @@ function buildExchangeMetadata() {
     product: 'usdc_perp',
     hedge_mode_only: false,
     vault_address: hyperliquidVaultAddress.value.trim() || null,
-    builder_fee_tenths_bps: builderFeeTenthsBps.value,
+    builder_target_total_tenths_bps: HYPERLIQUID_TARGET_TOTAL_DEFAULT_TENTHS_BPS,
     builder_approved: false,
     agent_approved: false,
     default_leverage: defaultLeverage.value,
@@ -376,34 +366,17 @@ async function refreshCreatedBybitAccount(account: AccountRecord) {
             <span>Builder Recipient</span>
             <div class="readonly-value">Trad configured</div>
           </div>
-          <label class="field">
-            <span>Builder Fee</span>
-            <input
-              v-model.trim="hyperliquidBuilderFeeBps"
-              class="input"
-              :class="{
-                'input-invalid': builderFeeTenthsBps === null || builderFeeTenthsBps > 100,
-              }"
-              type="number"
-              min="0"
-              max="10"
-              step="0.1"
-              placeholder="1.0"
-            />
-          </label>
           <div class="field">
-            <span>Fee Equivalent</span>
+            <span>Target Total / Side</span>
             <div class="readonly-value">
-              {{
-                builderFeeTenthsBps === null
-                  ? 'Invalid'
-                  : `${(builderFeeTenthsBps / 10).toFixed(1)} bps = ${(builderFeeTenthsBps / 1000).toFixed(3)}%`
-              }}
+              {{ (HYPERLIQUID_TARGET_TOTAL_DEFAULT_TENTHS_BPS / 10).toFixed(1) }} bps =
+              {{ (HYPERLIQUID_TARGET_TOTAL_DEFAULT_TENTHS_BPS / 1000).toFixed(3) }}%
             </div>
           </div>
           <p class="col-span-2 text-[11px] text-[var(--color-text-dim)]">
-            The exact Trad builder address is shown read-only after account creation. A nonzero fee
-            requires approval from the account wallet before trading.
+            Exchange fee + Trad builder fee equals the target total. Trad calculates the builder
+            fee from the account's live exchange tier at order submission. The account wallet must
+            approve the configured Trad builder before trading.
           </p>
         </template>
         <p class="col-span-2 text-[11px] text-[var(--color-text-dim)] leading-relaxed">

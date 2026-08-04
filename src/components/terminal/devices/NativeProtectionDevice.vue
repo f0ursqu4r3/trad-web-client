@@ -184,6 +184,7 @@ function fmtDate(d?: Date | null): string {
           class="btn btn-sm"
           type="button"
           :disabled="!canEditProtection"
+          :aria-expanded="editProtectionOpen"
           title="Reprice the configured Hyperliquid TP/SL orders"
           @click="editProtectionOpen = true"
         >
@@ -195,7 +196,12 @@ function fmtDate(d?: Date | null): string {
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
             Take Profit
           </dt>
-          <dd class="m-0 font-mono text-[var(--color-text)]">
+          <dd v-if="device.take_profit_ladder" class="m-0 font-mono text-[var(--color-text)] space-y-1">
+            <div v-for="leg in device.take_profit_ladder.legs" :key="leg.leg_id">
+              ${{ formatPrice(leg.trigger_price) }} · {{ leg.allocation.kind === 'fraction' ? `${leg.allocation.value * 100}%` : `${leg.allocation.value} base` }}
+            </div>
+          </dd>
+          <dd v-else class="m-0 font-mono text-[var(--color-text)]">
             {{ device.take_profit == null ? '-' : `$${formatPrice(device.take_profit)}` }}
           </dd>
         </div>
@@ -229,6 +235,14 @@ function fmtDate(d?: Date | null): string {
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">
             {{ activationPolicyLabel }}
+          </dd>
+        </div>
+        <div v-if="device.builder_target_total_tenths_bps != null">
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Target Total / Side
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ (device.builder_target_total_tenths_bps / 10).toFixed(1) }} bps
           </dd>
         </div>
         <div>

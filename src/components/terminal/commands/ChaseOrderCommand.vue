@@ -20,7 +20,12 @@ function formatNumber(value?: number | null): string {
 }
 
 function formatAmount(): string {
-  const suffix = props.command.quantity_mode === 'notional' ? 'USDC' : props.command.symbol
+  const suffix =
+    props.command.quantity_mode === 'risk'
+      ? 'USDC risk'
+      : props.command.quantity_mode === 'notional'
+        ? 'USDC'
+        : props.command.symbol
   return `${formatNumber(props.command.quantity)} ${suffix}`
 }
 
@@ -84,7 +89,12 @@ function formatContext(): string {
     <template v-if="command.attached_exit_plan">
       <div>
         <dt class="dt-label">Take Profit</dt>
-        <dd class="m-0 text-[12px] font-mono">
+        <dd v-if="command.attached_exit_plan.take_profit_ladder" class="m-0 text-[12px] font-mono space-y-1">
+          <div v-for="leg in command.attached_exit_plan.take_profit_ladder.legs" :key="leg.leg_id">
+            ${{ formatNumber(leg.trigger_price) }} · {{ leg.allocation.kind === 'fraction' ? `${leg.allocation.value * 100}%` : `${leg.allocation.value} base` }}
+          </div>
+        </dd>
+        <dd v-else class="m-0 text-[12px] font-mono">
           {{
             command.attached_exit_plan.take_profit == null
               ? '-'

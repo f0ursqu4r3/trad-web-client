@@ -210,6 +210,26 @@ const networkLabel = computed(() => {
             ${{ formatPrice(device.risk_amount) }}
           </dd>
         </div>
+        <div v-if="device.market_context.type === 'hyperliquid'">
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            One-Way Sizing
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{
+              device.one_way_open_semantics === 'target_side_exposure'
+                ? 'Target final exposure'
+                : 'Order delta'
+            }}
+          </dd>
+        </div>
+        <div v-if="device.builder_target_total_tenths_bps != null">
+          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
+            Target Total / Side
+          </dt>
+          <dd class="m-0 font-mono text-[var(--color-text)]">
+            {{ (device.builder_target_total_tenths_bps / 10).toFixed(1) }} bps
+          </dd>
+        </div>
       </div>
     </div>
 

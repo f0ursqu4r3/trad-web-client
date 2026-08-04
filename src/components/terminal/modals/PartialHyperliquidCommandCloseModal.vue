@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useAccountsStore } from '@/stores/accounts'
 import { useWsStore } from '@/stores/ws'
-import type { MarketContext, PositionSide } from '@/lib/ws/protocol'
+import type { CloseExecutionPolicy, LimitTimeInForce, MarketContext, PositionSide } from '@/lib/ws/protocol'
 import { NetworkType } from '@/lib/ws/protocol'
 import { marketContextAccountId } from '@/lib/marketContext'
 import { formatQty } from '@/components/terminal/devices/utils'
@@ -15,13 +15,20 @@ const props = defineProps<{
   positionSide: PositionSide
   ownedQuantity: number
   protectionCount: number
+  initialFull?: boolean
+  actionLabel?: string
 }>()
 
 const emit = defineEmits<{
   (event: 'close'): void
   (
     event: 'submit',
-    data: { quantity: number; expectedOwnedQuantity: number; fullClose: boolean },
+    data: {
+      quantity: number
+      expectedOwnedQuantity: number
+      fullClose: boolean
+      execution: CloseExecutionPolicy
+    },
   ): void
 }>()
 
@@ -31,6 +38,13 @@ const quantity = ref(0)
 const sizeDecimals = ref<number | null>(null)
 const rulesError = ref<string | null>(null)
 const submitting = ref(false)
+const executionMode = ref<'market' | 'limit' | 'chase'>('market')
+const limitPrice = ref<number | null>(null)
+const limitTimeInForce = ref<LimitTimeInForce>('gtc')
+const chaseBoundaryMode = ref<'basis_points' | 'price'>('basis_points')
+const chaseBoundaryValue = ref<number | null>(20)
+const chaseUntilCanceled = ref(false)
+const chaseExpiryMinutes = ref<number | null>(5)
 let abort: AbortController | null = null
 
 const account = computed(
@@ -79,9 +93,36 @@ const validationError = computed(() => {
   ) {
     return 'The protected remainder is below one exchange size step.'
   }
+  if (
+    executionMode.value === 'limit' &&
+    (limitPrice.value == null || !Number.isFinite(limitPrice.value) || limitPrice.value <= 0)
+  ) {
+    return 'Limit close requires a positive price.'
+  }
+  if (
+    executionMode.value === 'chase' &&
+    (chaseBoundaryValue.value == null ||
+      !Number.isFinite(chaseBoundaryValue.value) ||
+      chaseBoundaryValue.value <= 0)
+  ) {
+    return 'Chase close requires a positive boundary.'
+  }
+  if (
+    executionMode.value === 'chase' &&
+    !chaseUntilCanceled.value &&
+    (chaseExpiryMinutes.value == null ||
+      !Number.isFinite(chaseExpiryMinutes.value) ||
+      chaseExpiryMinutes.value <= 0)
+  ) {
+    return 'Chase close requires a positive expiry or Run until canceled.'
+  }
   return null
 })
 const canSubmit = computed(() => !validationError.value && !submitting.value)
+const dialogLabel = computed(() => props.actionLabel ?? 'Partially close Hyperliquid command')
+const submitLabel = computed(
+  () => props.actionLabel ?? (fullClose.value ? 'close position' : 'close part'),
+)
 
 function choosePercent(percent: number) {
   quantity.value = props.ownedQuantity * percent
@@ -125,10 +166,26 @@ async function loadSizeRules() {
 function submit() {
   if (!canSubmit.value) return
   submitting.value = true
+  const execution: CloseExecutionPolicy =
+    executionMode.value === 'limit'
+      ? { kind: 'limit', price: limitPrice.value!, time_in_force: limitTimeInForce.value }
+      : executionMode.value === 'chase'
+        ? {
+            kind: 'chase',
+            boundary: {
+              kind: chaseBoundaryMode.value,
+              value: chaseBoundaryValue.value!,
+            },
+            expires_after_secs: chaseUntilCanceled.value
+              ? null
+              : Math.max(1, Math.round(chaseExpiryMinutes.value! * 60)),
+          }
+        : { kind: 'market' }
   emit('submit', {
     quantity: normalizedQuantity.value,
     expectedOwnedQuantity: props.ownedQuantity,
     fullClose: fullClose.value,
+    execution,
   })
   emit('close')
 }
@@ -137,7 +194,8 @@ watch(
   () => props.open,
   (open) => {
     if (!open) return
-    quantity.value = props.ownedQuantity * 0.25
+    quantity.value = props.initialFull ? props.ownedQuantity : props.ownedQuantity * 0.25
+    executionMode.value = 'market'
     submitting.value = false
     ws.requestHyperliquidPositionOwnership(props.marketContext, props.symbol)
     void loadSizeRules()
@@ -156,15 +214,15 @@ onBeforeUnmount(() => abort?.abort())
       @click.self="emit('close')"
     >
       <section
-        class="w-[min(560px,92vw)] bg-[var(--panel-bg)] border border-[var(--border-color)] shadow-2xl"
+        class="flex max-h-[84vh] w-[min(560px,92vw)] flex-col bg-[var(--panel-bg)] border border-[var(--border-color)] shadow-2xl"
         role="dialog"
         aria-modal="true"
-        aria-label="Partially close Hyperliquid command"
+        :aria-label="dialogLabel"
       >
-        <header class="flex items-center justify-between p-3 border-b border-[var(--border-color)]">
+        <header class="flex shrink-0 items-center justify-between p-3 border-b border-[var(--border-color)]">
           <div>
             <div class="text-[11px] uppercase text-[var(--accent-color)]">
-              Close Command Exposure
+              {{ actionLabel ?? 'Close Command Exposure' }}
             </div>
             <div class="text-[11px] font-mono text-[var(--color-text-dim)] mt-1">
               {{ symbol }} · {{ positionSide }} · {{ formatQty(ownedQuantity) }} command-owned
@@ -173,7 +231,7 @@ onBeforeUnmount(() => abort?.abort())
           <button class="btn btn-sm" type="button" @click="emit('close')">close</button>
         </header>
 
-        <div class="p-4 space-y-4 text-[12px]">
+        <div class="min-h-0 overflow-y-auto p-4 space-y-4 text-[12px]">
           <div class="grid grid-cols-4 gap-2" role="group" aria-label="Close percentage">
             <button
               v-for="percent in [0.25, 0.5, 0.75, 1]"
@@ -195,6 +253,41 @@ onBeforeUnmount(() => abort?.abort())
               step="any"
             />
           </label>
+
+          <fieldset class="space-y-3 border border-[var(--border-color)] p-3">
+            <legend class="px-1 text-[10px] uppercase text-[var(--color-text-dim)]">
+              Reduce-only execution
+            </legend>
+            <div class="grid grid-cols-3 gap-2">
+              <button
+                v-for="mode in ['market', 'limit', 'chase'] as const"
+                :key="mode"
+                type="button"
+                class="btn btn-sm"
+                :class="executionMode === mode ? 'btn-primary' : ''"
+                @click="executionMode = mode"
+              >
+                {{ mode }}
+              </button>
+            </div>
+            <template v-if="executionMode === 'limit'">
+              <div class="grid grid-cols-2 gap-2">
+                <label class="field"><span>Limit price</span><input v-model.number="limitPrice" type="number" min="0" step="any" class="input" /></label>
+                <label class="field"><span>Time in force</span><select v-model="limitTimeInForce" class="input"><option value="gtc">Good Till Canceled</option><option value="alo">Post Only (ALO)</option></select></label>
+              </div>
+            </template>
+            <template v-else-if="executionMode === 'chase'">
+              <div class="grid grid-cols-2 gap-2">
+                <label class="field"><span>Boundary type</span><select v-model="chaseBoundaryMode" class="input"><option value="basis_points">Distance (bps)</option><option value="price">Fixed price</option></select></label>
+                <label class="field"><span>{{ chaseBoundaryMode === 'basis_points' ? 'Maximum distance (bps)' : 'Maximum adverse price' }}</span><input v-model.number="chaseBoundaryValue" type="number" min="0" step="any" class="input" /></label>
+                <label class="field flex-row items-center gap-2"><input v-model="chaseUntilCanceled" type="checkbox" /><span>Run until canceled</span></label>
+                <label v-if="!chaseUntilCanceled" class="field"><span>Expiry (minutes)</span><input v-model.number="chaseExpiryMinutes" type="number" min="0" step="any" class="input" /></label>
+              </div>
+            </template>
+            <p class="m-0 text-[11px] text-[var(--color-text-dim)]">
+              Market exits immediately. Limit rests at your price. Chase follows the same-side top of book with post-only reduce-only orders.
+            </p>
+          </fieldset>
 
           <div
             class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 border-y border-[var(--border-color)] py-3 font-mono"
@@ -236,7 +329,7 @@ onBeforeUnmount(() => abort?.abort())
           </p>
         </div>
 
-        <footer class="flex justify-end gap-2 p-3 border-t border-[var(--border-color)]">
+        <footer class="flex shrink-0 justify-end gap-2 p-3 border-t border-[var(--border-color)]">
           <button class="btn btn-sm" type="button" @click="emit('close')">cancel</button>
           <button
             class="btn btn-sm btn-primary"
@@ -244,7 +337,7 @@ onBeforeUnmount(() => abort?.abort())
             :disabled="!canSubmit"
             @click="submit"
           >
-            {{ fullClose ? 'close position' : 'close part' }}
+            {{ submitLabel }}
           </button>
         </footer>
       </section>

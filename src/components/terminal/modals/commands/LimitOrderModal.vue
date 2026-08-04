@@ -13,6 +13,7 @@ import {
   type HyperliquidPositionEffectPreviewRequest,
   type MarketContext,
   type OrderQuantityMode,
+  type TakeProfitLadder,
   type UserCommandPayload,
 } from '@/lib/ws/protocol'
 import { useWsStore } from '@/stores/ws'
@@ -37,8 +38,12 @@ import {
 } from '@/lib/hyperliquidExecutionGuards'
 import type { LimitOrderPrefill } from './types'
 import HyperliquidPositionEffectPreview from './HyperliquidPositionEffectPreview.vue'
+import TakeProfitLadderEditor from './TakeProfitLadderEditor.vue'
 import { useHyperliquidPositionEffectPreview } from '@/composables/useHyperliquidPositionEffectPreview'
 import { useHyperliquidMidPrice } from '@/composables/useHyperliquidMidPrice'
+import { useUiStore } from '@/stores/ui'
+import { hyperliquidTargetTotalTenthsBps } from '@/lib/accountMetadata'
+import HyperliquidTargetTotalField from './HyperliquidTargetTotalField.vue'
 
 const logger = createLogger('commands')
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
@@ -47,6 +52,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 const ws = useWsStore()
 const accounts = useAccountsStore()
 const modals = useModalStore()
+const ui = useUiStore()
 const selectedAccountId = ref('')
 const lastAccountId = ref('')
 const symbol = ref('BTC')
@@ -57,10 +63,15 @@ const quantity = ref<number | null>(50)
 const price = ref<number | null>(null)
 const timeInForce = ref<LimitTimeInForce>('gtc')
 const takeProfit = ref<number | null | ''>(null)
+const takeProfitLadderEnabled = ref(false)
+const takeProfitLadder = ref<TakeProfitLadder | null>(null)
+const takeProfitLadderValid = ref(true)
 const stopLoss = ref<number | null | ''>(null)
 const overrideProtectionGuards = ref(false)
 const takeProfitGuardPercent = ref(1)
 const stopLossGuardPercent = ref(10)
+const builderTargetTotalTenthsBps = ref(52)
+const presetAccountChangePending = ref(false)
 
 const selectedMarketContext = computed<MarketContext | null>(() =>
   accounts.getMarketContextForAccount(selectedAccountId.value),
@@ -103,6 +114,7 @@ const derivedSide = computed(() => {
 const exitLevelError = computed(() => {
   if (!supportsAttachedExit.value || price.value === null || price.value <= 0) return null
   if (
+    !takeProfitLadderEnabled.value &&
     takeProfit.value !== null &&
     takeProfit.value !== '' &&
     (takeProfit.value <= 0 ||
@@ -111,6 +123,19 @@ const exitLevelError = computed(() => {
         : takeProfit.value >= price.value))
   ) {
     return `${positionSide.value} take profit must be ${positionSide.value === PositionSide.Long ? 'above' : 'below'} the limit price.`
+  }
+  if (takeProfitLadderEnabled.value) {
+    if (!takeProfitLadderValid.value || !takeProfitLadder.value) {
+      return 'Complete every take-profit ladder level.'
+    }
+    const invalid = takeProfitLadder.value.legs.find((leg) =>
+      positionSide.value === PositionSide.Long
+        ? leg.trigger_price <= price.value!
+        : leg.trigger_price >= price.value!,
+    )
+    if (invalid) {
+      return `${positionSide.value} take profit must be ${positionSide.value === PositionSide.Long ? 'above' : 'below'} the limit price.`
+    }
   }
   if (
     stopLoss.value !== null &&
@@ -139,6 +164,11 @@ const accountProtectionGuardLabel = computed(() => {
     `SL ${formatExecutionGuardPercent(guards.stop_loss_market_tenths_bps)}`,
   ].join(' / ')
 })
+const quantityLabel = computed(() => {
+  if (quantityMode.value === 'base') return 'Base Quantity'
+  if (quantityMode.value === 'risk') return 'Risk at Stop (USDC)'
+  return 'USDC Amount'
+})
 const positionEffectRequest = computed<HyperliquidPositionEffectPreviewRequest | null>(() => {
   const marketContext = selectedMarketContext.value
   if (
@@ -148,7 +178,8 @@ const positionEffectRequest = computed<HyperliquidPositionEffectPreviewRequest |
     quantity.value === null ||
     quantity.value <= 0 ||
     price.value === null ||
-    price.value <= 0
+    price.value <= 0 ||
+    (quantityMode.value === 'risk' && optionalPositivePrice(stopLoss.value) === null)
   ) {
     return null
   }
@@ -160,6 +191,9 @@ const positionEffectRequest = computed<HyperliquidPositionEffectPreviewRequest |
     quantity: quantity.value,
     quantity_mode: quantityMode.value,
     reference_price: price.value,
+    risk_stop_loss: optionalPositivePrice(stopLoss.value),
+    risk_entry_is_maker: timeInForce.value === 'alo',
+    risk_entry_slippage_fraction: 0,
   }
 })
 const positionEffect = useHyperliquidPositionEffectPreview(
@@ -181,20 +215,29 @@ function requestCapabilities() {
 function applyInitialValues() {
   const preset = (modals.modalValues['LimitOrder'] as LimitOrderPrefill | undefined) ?? null
   const presetAccountId = preset?.account_id
-  selectedAccountId.value =
+  const initialAccountId =
     (presetAccountId && accounts.accounts.some((account) => account.id === presetAccountId)
       ? presetAccountId
       : accounts.selectedAccount?.id) ?? ''
+  presetAccountChangePending.value = initialAccountId !== selectedAccountId.value
+  selectedAccountId.value = initialAccountId
   symbol.value = preset?.symbol ?? accounts.getDefaultSymbolForAccount(selectedAccountId.value)
   lastAccountId.value = selectedAccountId.value
   action.value = preset?.action ?? MarketAction.Open
   positionSide.value = preset?.position_side ?? PositionSide.Long
-  quantityMode.value = preset?.quantity_mode ?? (isHyperliquid.value ? 'notional' : 'base')
+  quantityMode.value =
+    preset?.quantity_mode ?? (isHyperliquid.value ? ui.orderQuantityMode : 'base')
   quantity.value = preset?.quantity ?? (isHyperliquid.value ? 50 : 0.001)
   price.value = preset?.price ?? null
   timeInForce.value = preset?.time_in_force ?? 'gtc'
   takeProfit.value = preset?.take_profit ?? null
+  takeProfitLadderEnabled.value = preset?.take_profit_ladder != null
+  takeProfitLadder.value = preset?.take_profit_ladder ?? null
+  takeProfitLadderValid.value = true
   stopLoss.value = preset?.stop_loss ?? null
+  builderTargetTotalTenthsBps.value =
+    preset?.builder_target_total_tenths_bps ??
+    hyperliquidTargetTotalTenthsBps(selectedAccount.value?.exchange_metadata)
   resetProtectionGuards()
 }
 
@@ -209,11 +252,18 @@ watch(
 )
 
 watch(selectedAccountId, (next, previous) => {
+  if (presetAccountChangePending.value) {
+    presetAccountChangePending.value = false
+    return
+  }
   const previousDefault = accounts.getDefaultSymbolForAccount(previous || lastAccountId.value)
   const nextDefault = accounts.getDefaultSymbolForAccount(next)
   if (!symbol.value || symbol.value === previousDefault) symbol.value = nextDefault
   lastAccountId.value = next
-  quantityMode.value = isHyperliquid.value ? 'notional' : 'base'
+  quantityMode.value = isHyperliquid.value ? ui.orderQuantityMode : 'base'
+  builderTargetTotalTenthsBps.value = hyperliquidTargetTotalTenthsBps(
+    selectedAccount.value?.exchange_metadata,
+  )
   resetProtectionGuards()
   requestCapabilities()
 })
@@ -221,7 +271,15 @@ watch(selectedAccountId, (next, previous) => {
 watch(supportsAttachedExit, (supported) => {
   if (!supported) {
     takeProfit.value = null
+    takeProfitLadderEnabled.value = false
+    takeProfitLadder.value = null
     stopLoss.value = null
+  }
+})
+
+watch(action, (next) => {
+  if (next !== MarketAction.Open && quantityMode.value === 'risk') {
+    quantityMode.value = isHyperliquid.value ? 'notional' : 'base'
   }
 })
 
@@ -236,6 +294,15 @@ function validate(): boolean {
   if (isHyperliquid.value && hyperliquidMid.price.value === null) return false
   if (limitPriceReferenceError.value) return false
   if (exitLevelError.value) return false
+  if (takeProfitLadderEnabled.value && (!takeProfitLadderValid.value || !takeProfitLadder.value)) {
+    return false
+  }
+  if (
+    quantityMode.value === 'risk' &&
+    (action.value !== MarketAction.Open || optionalPositivePrice(stopLoss.value) === null)
+  ) {
+    return false
+  }
   if (
     isHyperliquid.value &&
     supportsAttachedExit.value &&
@@ -264,8 +331,14 @@ function submit() {
   const normalizedStopLoss = optionalPositivePrice(stopLoss.value)
   const attachedExitPlan =
     supportsAttachedExit.value &&
-    (normalizedTakeProfit !== null || normalizedStopLoss !== null)
-      ? { take_profit: normalizedTakeProfit, stop_loss: normalizedStopLoss }
+    ((takeProfitLadderEnabled.value && takeProfitLadder.value !== null) ||
+      normalizedTakeProfit !== null ||
+      normalizedStopLoss !== null)
+      ? {
+          take_profit: takeProfitLadderEnabled.value ? null : normalizedTakeProfit,
+          take_profit_ladder: takeProfitLadderEnabled.value ? takeProfitLadder.value : null,
+          stop_loss: normalizedStopLoss,
+        }
       : null
   const executionGuardOverrides: HyperliquidExecutionGuardOverrides | null =
     isHyperliquid.value && supportsAttachedExit.value && overrideProtectionGuards.value
@@ -286,6 +359,9 @@ function submit() {
     market_context: marketContext,
     attached_exit_plan: attachedExitPlan,
     execution_guard_overrides: executionGuardOverrides,
+    builder_target_total_tenths_bps: isHyperliquid.value
+      ? builderTargetTotalTenthsBps.value
+      : null,
   }
   const payload: Extract<UserCommandPayload, { kind: 'LimitOrder' }> = {
     kind: 'LimitOrder',
@@ -299,6 +375,10 @@ function optionalPositivePrice(value: number | null | ''): number | null {
   if (value === null || value === '') return null
   if (!Number.isFinite(value) || value <= 0) return null
   return value
+}
+
+function rememberQuantityMode() {
+  if (isHyperliquid.value) ui.setOrderQuantityMode(quantityMode.value)
 }
 </script>
 
@@ -342,13 +422,21 @@ function optionalPositivePrice(value: number | null | ''): number | null {
         </label>
         <label class="field">
           <span>Amount Type</span>
-          <select v-model="quantityMode" class="input" :disabled="!isHyperliquid">
+          <select
+            v-model="quantityMode"
+            class="input"
+            :disabled="!isHyperliquid"
+            @change="rememberQuantityMode"
+          >
             <option value="notional">USDC Notional</option>
             <option value="base">Base Quantity</option>
+            <option v-if="isHyperliquid && action === MarketAction.Open" value="risk">
+              Risk at Stop
+            </option>
           </select>
         </label>
         <label class="field">
-          <span>{{ quantityMode === 'notional' ? 'USDC Amount' : 'Base Quantity' }}</span>
+          <span>{{ quantityLabel }}</span>
           <input v-model.number="quantity" type="number" step="any" class="input" />
         </label>
         <label class="field">
@@ -363,7 +451,16 @@ function optionalPositivePrice(value: number | null | ''): number | null {
           </select>
         </label>
         <template v-if="supportsAttachedExit">
-          <label class="field">
+          <label v-if="isHyperliquid" class="field col-span-2 flex-row items-center gap-2">
+            <input v-model="takeProfitLadderEnabled" type="checkbox" />
+            <span>Use multiple take-profit levels</span>
+          </label>
+          <TakeProfitLadderEditor
+            v-if="isHyperliquid && takeProfitLadderEnabled"
+            v-model="takeProfitLadder"
+            @validity="takeProfitLadderValid = $event"
+          />
+          <label v-else class="field">
             <span>Take Profit Price (optional)</span>
             <input v-model.number="takeProfit" type="number" step="any" class="input" />
           </label>
@@ -407,6 +504,11 @@ function optionalPositivePrice(value: number | null | ''): number | null {
             }}
           </p>
         </template>
+        <HyperliquidTargetTotalField
+          v-if="isHyperliquid && selectedAccount"
+          v-model="builderTargetTotalTenthsBps"
+          :account="selectedAccount"
+        />
       </div>
       <p class="m-0 text-[11px] text-[var(--color-text-dim)]">
         {{ action }} {{ positionSide }} submits {{ derivedSide

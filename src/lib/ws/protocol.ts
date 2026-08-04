@@ -5,7 +5,7 @@
 export type Uuid = string
 
 // Keep protocol version in sync with server (Rust constant)
-export const PROTOCOL_VERSION = 37
+export const PROTOCOL_VERSION = 40
 
 export const NULL_UUID = '00000000-0000-0000-0000-000000000000'
 
@@ -342,6 +342,9 @@ export type HyperliquidPositionEffectPreviewRequest = {
   quantity: number
   quantity_mode: OrderQuantityMode
   reference_price?: number | null
+  risk_stop_loss?: number | null
+  risk_entry_is_maker?: boolean
+  risk_entry_slippage_fraction?: number
   one_way_open_semantics?: OneWayOpenSemantics
 }
 
@@ -394,7 +397,20 @@ export type SetLeverageCommand = {
 }
 export type AttachedExitPlan = {
   take_profit?: number | null
+  take_profit_ladder?: TakeProfitLadder | null
   stop_loss?: number | null
+}
+export type TakeProfitAllocation =
+  | { kind: 'fraction'; value: number }
+  | { kind: 'base'; value: number }
+export type TakeProfitLeg = {
+  leg_id: Uuid
+  trigger_price: number
+  allocation: TakeProfitAllocation
+}
+export type TakeProfitLadder = {
+  version: 1
+  legs: TakeProfitLeg[]
 }
 export type HyperliquidExecutionGuards = {
   entry_market_tenths_bps: number
@@ -407,7 +423,15 @@ export type HyperliquidExecutionGuardOverrides = {
   stop_loss_market_tenths_bps?: number | null
 }
 export type LimitTimeInForce = 'gtc' | 'alo'
-export type OrderQuantityMode = 'base' | 'notional'
+export type OrderQuantityMode = 'base' | 'notional' | 'risk'
+export type RiskSizingBudget = {
+  risk_amount_usdc: number
+  stop_loss_price: number
+  entry_fee_fraction: number
+  exit_fee_fraction: number
+  entry_slippage_fraction: number
+  quantity_step: number
+}
 export type OrderExecution =
   | { kind: 'market' }
   | {
@@ -419,11 +443,13 @@ export type OrderExecution =
 export type MarketOrderCommand = {
   action: MarketAction
   symbol: string
-  quantity_usd: number
+  quantity: number
+  quantity_mode: OrderQuantityMode
   position_side: PositionSide
   market_context: MarketContext
   attached_exit_plan?: AttachedExitPlan | null
   execution_guard_overrides?: HyperliquidExecutionGuardOverrides | null
+  builder_target_total_tenths_bps?: number | null
 }
 export type SplitMarketOrderCommand = {
   num_splits: number
@@ -445,6 +471,7 @@ export type LimitOrderCommand = {
   market_context: MarketContext
   attached_exit_plan?: AttachedExitPlan | null
   execution_guard_overrides?: HyperliquidExecutionGuardOverrides | null
+  builder_target_total_tenths_bps?: number | null
 }
 export type ChaseBoundary =
   | { kind: 'price'; value: number }
@@ -461,6 +488,7 @@ export type ChaseOrderCommand = {
   expires_after_secs?: number | null
   attached_exit_plan?: AttachedExitPlan | null
   execution_guard_overrides?: HyperliquidExecutionGuardOverrides | null
+  builder_target_total_tenths_bps?: number | null
 }
 export type TrailingEntryOrderCommand = {
   position_side: PositionSide
@@ -472,6 +500,8 @@ export type TrailingEntryOrderCommand = {
   risk_amount: number
   market_context: MarketContext
   split_settings?: SplitSettings | null
+  one_way_open_semantics?: OneWayOpenSemantics
+  builder_target_total_tenths_bps?: number | null
 }
 export type AmendTrailingEntryCommand = {
   device_id: Uuid
@@ -503,11 +533,19 @@ export type SplitPreviewCommand = {
   split_settings?: SplitSettings | null
 }
 export type CloseTrailingEntryPositionCommand = { command_id: Uuid }
-export type CloseCommandPositionCommand = { command_id: Uuid }
+export type CloseExecutionPolicy =
+  | { kind: 'market' }
+  | { kind: 'limit'; price: number; time_in_force: LimitTimeInForce }
+  | { kind: 'chase'; boundary: ChaseBoundary; expires_after_secs?: number | null }
+export type CloseCommandPositionCommand = {
+  command_id: Uuid
+  execution?: CloseExecutionPolicy
+}
 export type PartialCloseCommandPositionCommand = {
   command_id: Uuid
   quantity: number
   expected_owned_quantity: number
+  execution?: CloseExecutionPolicy
 }
 export type CancelCommandRemainingEntryCommand = { command_id: Uuid }
 export type FlattenHyperliquidSymbolCommand = {
@@ -526,6 +564,7 @@ export type RefreshHyperliquidReconciliationCommand = {
 export type EditHyperliquidProtectionCommand = {
   protection_device_id: Uuid
   take_profit?: number | null
+  take_profit_ladder?: TakeProfitLadder | null
   stop_loss?: number | null
 }
 export type ContinueMissedTrailingEntryCommand = { command_id: Uuid }
@@ -948,8 +987,12 @@ export type CommandHistoryData = {
 
 export enum CommandEffectKind {
   EntryCanceled = 'EntryCanceled',
+  CloseRequested = 'CloseRequested',
+  PositionReduced = 'PositionReduced',
+  CloseRemainderCanceled = 'CloseRemainderCanceled',
   PositionClosed = 'PositionClosed',
   ProtectionCleared = 'ProtectionCleared',
+  ProtectionAmended = 'ProtectionAmended',
   AlreadyFlat = 'AlreadyFlat',
 }
 
@@ -961,6 +1004,10 @@ export type CommandEffectRecord = {
   symbol: string
   effect: CommandEffectKind
   close_order_device_id?: Uuid | null
+  requested_quantity?: string | null
+  filled_quantity?: string | null
+  execution?: CloseExecutionPolicy | null
+  protection_device_id?: Uuid | null
   created_at: string
 }
 
@@ -1036,6 +1083,8 @@ export type TrailingEntrySnapshot = {
   take_profit?: number | null
   risk_amount: number
   split_settings?: SplitSettings | null
+  one_way_open_semantics?: OneWayOpenSemantics
+  builder_target_total_tenths_bps?: number | null
   // state
   phase: TrailingEntryPhase
   peak: number
@@ -1100,6 +1149,8 @@ export type ChaseModifyIntent = {
   client_order_id: string
   from_price: number
   target_price: number
+  from_quantity: number
+  target_quantity: number
   created_at: string
 }
 
@@ -1112,6 +1163,7 @@ export type ChaseSnapshot = {
   position_side: PositionSide
   quantity: number
   quantity_mode: OrderQuantityMode
+  risk_sizing?: RiskSizingBudget | null
   total_base_qty: number
   filled_qty: number
   remaining_qty: number
@@ -1120,6 +1172,7 @@ export type ChaseSnapshot = {
   expires_at?: string | null
   attached_exit_plan?: AttachedExitPlan | null
   execution_guards?: HyperliquidExecutionGuards | null
+  builder_target_total_tenths_bps?: number | null
   status: ChaseStatus
   current_child_id?: Uuid | null
   current_client_order_id?: string | null
@@ -1190,6 +1243,7 @@ export type OrderSnapshot = {
   one_way_position_effect?: OneWayPositionEffect | null
   one_way_transition?: OneWayOrderTransition | null
   execution_guards?: HyperliquidExecutionGuards | null
+  builder_target_total_tenths_bps?: number | null
   status: OrderStatus
   filled_qty?: number | null
   execution_fills?: ExecutionFill[]
@@ -1230,10 +1284,12 @@ export type NativeProtectionSnapshot = {
   market_context: MarketContext
   position_side: PositionSide
   take_profit?: number | null
+  take_profit_ladder?: TakeProfitLadder | null
   stop_loss?: number | null
   expected_entries: number
   activation_policy?: ProtectionActivationPolicy
   execution_guards?: HyperliquidExecutionGuards | null
+  builder_target_total_tenths_bps?: number | null
   observed_entries: number
   observed_protection_orders: number
   observed_entry_order_ids?: string[]
@@ -1296,8 +1352,11 @@ export type DeviceTeDelta =
         jump_frac_threshold: number
         stop_loss: number
         take_profit?: number | null
+        take_profit_ladder?: TakeProfitLadder | null
         risk_amount: number
         split_settings?: SplitSettings | null
+        one_way_open_semantics?: OneWayOpenSemantics
+        builder_target_total_tenths_bps?: number | null
         phase: TrailingEntryPhase
         peak: number
         peak_index: number
@@ -1316,6 +1375,7 @@ export type DeviceTeDelta =
         jump_frac_threshold: number
         stop_loss: number
         take_profit?: number | null
+        take_profit_ladder?: TakeProfitLadder | null
         risk_amount: number
         split_settings?: SplitSettings | null
       }
@@ -1383,6 +1443,7 @@ export type DeviceOrderDelta =
         one_way_position_effect?: OneWayPositionEffect | null
         one_way_transition?: OneWayOrderTransition | null
         execution_guards?: HyperliquidExecutionGuards | null
+        builder_target_total_tenths_bps?: number | null
         status: OrderStatus
         filled_qty?: number | null
         execution_fills?: ExecutionFill[]
@@ -1503,10 +1564,12 @@ export type DeviceNpDelta =
         market_context: MarketContext
         position_side: PositionSide
         take_profit?: number | null
+        take_profit_ladder?: TakeProfitLadder | null
         stop_loss?: number | null
         expected_entries: number
         activation_policy?: ProtectionActivationPolicy
         execution_guards?: HyperliquidExecutionGuards | null
+        builder_target_total_tenths_bps?: number | null
         observed_entries: number
         observed_protection_orders: number
         observed_entry_order_ids?: string[]
@@ -1564,6 +1627,7 @@ export type DeviceNpDelta =
       kind: 'Coverage'
       data: {
         take_profit?: number | null
+        take_profit_ladder?: TakeProfitLadder | null
         stop_loss?: number | null
         observed_entries: number
         observed_protection_orders: number

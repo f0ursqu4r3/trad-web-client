@@ -16,6 +16,19 @@ function fmtUsd(n?: number) {
   return formatUsdShort(n)
 }
 
+function quantityLabel(command: MarketOrderCommand) {
+  if (command.quantity_mode === 'base') return 'Base Quantity'
+  if (command.quantity_mode === 'risk') return 'Risk at Stop'
+  return 'Notional'
+}
+
+function fmtQuantity(command: MarketOrderCommand) {
+  if (command.quantity_mode === 'base') {
+    return command.quantity.toLocaleString(undefined, { maximumFractionDigits: 12 })
+  }
+  return fmtUsd(command.quantity)
+}
+
 function fmtPrice(n?: number | null) {
   if (n == null || Number.isNaN(n)) return '—'
   return `$${n.toLocaleString(undefined, { maximumFractionDigits: 8 })}`
@@ -51,9 +64,9 @@ function fmtMarketContext(command: MarketOrderCommand) {
 
     <div>
       <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-        Quantity (USD)
+        {{ quantityLabel(command) }}
       </dt>
-      <dd class="m-0 text-[12px]">{{ fmtUsd(command.quantity_usd) }}</dd>
+      <dd class="m-0 text-[12px]">{{ fmtQuantity(command) }}</dd>
     </div>
 
     <div>
@@ -75,7 +88,13 @@ function fmtMarketContext(command: MarketOrderCommand) {
         <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
           Take Profit
         </dt>
-        <dd class="m-0 text-[12px]">{{ fmtPrice(command.attached_exit_plan.take_profit) }}</dd>
+        <dd v-if="command.attached_exit_plan.take_profit_ladder" class="m-0 text-[12px] space-y-1">
+          <div v-for="leg in command.attached_exit_plan.take_profit_ladder.legs" :key="leg.leg_id">
+            {{ fmtPrice(leg.trigger_price) }} ·
+            {{ leg.allocation.kind === 'fraction' ? `${leg.allocation.value * 100}%` : `${leg.allocation.value} base` }}
+          </div>
+        </dd>
+        <dd v-else class="m-0 text-[12px]">{{ fmtPrice(command.attached_exit_plan.take_profit) }}</dd>
       </div>
 
       <div>

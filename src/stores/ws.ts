@@ -274,10 +274,13 @@ export const useWsStore = defineStore('ws', () => {
     })
   }
 
-  function sendCloseCommandPosition(commandId: Uuid) {
+  function sendCloseCommandPosition(
+    commandId: Uuid,
+    execution: import('@/lib/ws/protocol').CloseExecutionPolicy = { kind: 'market' },
+  ) {
     return sendUserCommand({
       kind: 'CloseCommandPosition',
-      data: { command_id: commandId },
+      data: { command_id: commandId, execution },
     })
   }
 
@@ -285,6 +288,7 @@ export const useWsStore = defineStore('ws', () => {
     commandId: Uuid,
     quantity: number,
     expectedOwnedQuantity: number,
+    execution: import('@/lib/ws/protocol').CloseExecutionPolicy = { kind: 'market' },
   ) {
     return sendUserCommand({
       kind: 'PartialCloseCommandPosition',
@@ -292,6 +296,7 @@ export const useWsStore = defineStore('ws', () => {
         command_id: commandId,
         quantity,
         expected_owned_quantity: expectedOwnedQuantity,
+        execution,
       },
     })
   }
@@ -357,12 +362,14 @@ export const useWsStore = defineStore('ws', () => {
     protectionDeviceId: Uuid,
     takeProfit: number | null,
     stopLoss: number | null,
+    takeProfitLadder: import('@/lib/ws/protocol').TakeProfitLadder | null = null,
   ): Uuid {
     return sendUserCommandPreview({
       kind: 'EditHyperliquidProtection',
       data: {
         protection_device_id: protectionDeviceId,
         take_profit: takeProfit,
+        take_profit_ladder: takeProfitLadder,
         stop_loss: stopLoss,
       },
     })

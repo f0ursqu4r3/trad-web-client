@@ -8,6 +8,7 @@ import {
   NetworkType,
   type HyperliquidPositionEffectPreviewRequest,
   type MarketContext,
+  type OneWayOpenSemantics,
   type SplitMode,
   type TrailingEntryOrderCommand,
   type UserCommandPayload,
@@ -36,6 +37,8 @@ import {
   normalizeHyperliquidPerpSymbol,
   normalizeBybitUsdtSymbol,
 } from '@/lib/bybitOrderValidation'
+import { hyperliquidTargetTotalTenthsBps } from '@/lib/accountMetadata'
+import HyperliquidTargetTotalField from './HyperliquidTargetTotalField.vue'
 
 const logger = createLogger('commands')
 
@@ -60,6 +63,9 @@ const stop_loss = ref<number | null>(null)
 const take_profit = ref<number | null | ''>(null)
 const risk_amount = ref<number | null>(null)
 const position_side = ref<PositionSide>(PositionSide.Long)
+const oneWayOpenSemantics = ref<OneWayOpenSemantics>('delta')
+const builderTargetTotalTenthsBps = ref(52)
+const presetAccountChangePending = ref(false)
 const showHyperliquidPositionInfo = ref(false)
 const showHyperliquidSplitControls = ref(false)
 const split_target_notional = ref<number | null>(null)
@@ -223,7 +229,7 @@ const positionEffectRequest = computed<HyperliquidPositionEffectPreviewRequest |
     quantity: preview.value.total_qty_adj,
     quantity_mode: 'base',
     reference_price: preview.value.price_est,
-    one_way_open_semantics: 'target_side_exposure',
+    one_way_open_semantics: oneWayOpenSemantics.value,
   }
 })
 const positionEffect = useHyperliquidPositionEffectPreview(
@@ -239,10 +245,19 @@ function requestSelectedCapabilities() {
 
 function applyInitialValues() {
   const preset = (modals.modalValues['TrailingEntryOrder'] as TrailingEntryPrefill) ?? {}
-  selectedAccountId.value = accounts.selectedAccount?.id ?? ''
+  const initialAccountId =
+    (preset.account_id && accounts.accounts.some((account) => account.id === preset.account_id)
+      ? preset.account_id
+      : accounts.selectedAccount?.id) ?? ''
+  presetAccountChangePending.value = initialAccountId !== selectedAccountId.value
+  selectedAccountId.value = initialAccountId
   activation_price.value = preset.activation_price ?? null
   jump_frac_threshold.value = preset.jump_frac_threshold ?? null
   position_side.value = preset.position_side ?? PositionSide.Long
+  oneWayOpenSemantics.value = preset.one_way_open_semantics ?? 'delta'
+  builderTargetTotalTenthsBps.value =
+    preset.builder_target_total_tenths_bps ??
+    hyperliquidTargetTotalTenthsBps(selectedAccount.value?.exchange_metadata)
   risk_amount.value = preset.risk_amount ?? null
   stop_loss.value = preset.stop_loss ?? null
   take_profit.value = preset.take_profit ?? null
@@ -275,12 +290,20 @@ watch(
 applyInitialValues()
 
 watch(selectedAccountId, (next, prev) => {
+  if (presetAccountChangePending.value) {
+    presetAccountChangePending.value = false
+    return
+  }
   const prevDefault = accounts.getDefaultSymbolForAccount(prev || lastAccountId.value)
   const nextDefault = accounts.getDefaultSymbolForAccount(next)
   if (!symbol.value || symbol.value === prevDefault) {
     symbol.value = nextDefault
   }
   lastAccountId.value = next
+  oneWayOpenSemantics.value = 'delta'
+  builderTargetTotalTenthsBps.value = hyperliquidTargetTotalTenthsBps(
+    selectedAccount.value?.exchange_metadata,
+  )
   requestSelectedCapabilities()
 })
 
@@ -342,6 +365,10 @@ function submit() {
     stop_loss: stop_loss.value as number,
     take_profit: normalizedTakeProfit,
     symbol: normalizedSymbolForSubmit(),
+    one_way_open_semantics: isHyperliquidAccount.value ? oneWayOpenSemantics.value : 'delta',
+    builder_target_total_tenths_bps: isHyperliquidAccount.value
+      ? builderTargetTotalTenthsBps.value
+      : null,
   }
   const split_settings = {
     target_child_notional: split_target_notional.value ?? undefined,
@@ -739,6 +766,21 @@ function formatNumber(value: number, digits: number) {
       </div>
 
       <div v-if="isHyperliquidAccount" class="space-y-2">
+        <label class="field">
+          <span>One-way entry sizing</span>
+          <select v-model="oneWayOpenSemantics">
+            <option value="delta">Order delta (default)</option>
+            <option value="target_side_exposure">Target final exposure (advanced)</option>
+          </select>
+          <small v-if="oneWayOpenSemantics === 'delta'" class="form-hint">
+            The requested quantity is submitted as the order quantity. Hyperliquid nets it against
+            any opposite position; protection owns only newly established target-side exposure.
+          </small>
+          <small v-else class="form-hint">
+            At trigger, Trad recomputes the order needed to reach the requested final
+            {{ position_side.toLowerCase() }} exposure. Opposite exposure may be flattened first.
+          </small>
+        </label>
         <button
           type="button"
           class="btn btn-ghost btn-sm inline-flex items-center gap-2"
@@ -757,17 +799,22 @@ function formatNumber(value: number, digits: number) {
           class="position-info"
         >
           <p>Hyperliquid maintains one net position per account and symbol.</p>
-          <p>
-            Existing same-side exposure remains unowned. This TE protects and closes only fills
-            created by this command.
+          <p v-if="oneWayOpenSemantics === 'delta'">
+            Delta mode treats the requested quantity as an order quantity. Existing exposure
+            remains unowned; this TE protects and closes only newly established target-side fills.
           </p>
-          <p>
-            If this TE triggers against opposite exposure, Trad first closes the entire opposite
-            position, including exposure created outside Trad, confirms flat, and then opens the
-            full {{ position_side.toLowerCase() }} target.
+          <p v-else>
+            Target final exposure mode recomputes at trigger. Trad may close the entire opposite
+            position, including exposure created outside Trad, before opening the requested
+            {{ position_side.toLowerCase() }} target.
           </p>
           <p>Long and short exposure cannot remain open simultaneously on the same symbol.</p>
         </div>
+        <HyperliquidTargetTotalField
+          v-if="selectedAccount"
+          v-model="builderTargetTotalTenthsBps"
+          :account="selectedAccount"
+        />
       </div>
 
       <div class="space-y-2">

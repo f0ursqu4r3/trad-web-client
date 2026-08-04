@@ -24,6 +24,11 @@ import {
 } from '@/lib/hyperliquidBuilderApproval'
 import { createLogger } from '@/lib/utils'
 import {
+  HYPERLIQUID_TARGET_TOTAL_MAX_TENTHS_BPS,
+  hyperliquidTargetTotalTenthsBps,
+} from '@/lib/accountMetadata'
+import { HYPERLIQUID_MAX_BUILDER_FEE_TENTHS_BPS } from '@/lib/hyperliquidBuilderApproval'
+import {
   isValidExecutionGuardPercent,
   percentToTenthsBps,
   resolveHyperliquidExecutionGuards,
@@ -83,7 +88,7 @@ const leverageForms = reactive<
     }
   >
 >({})
-const builderForms = reactive<Record<string, { feeBps: string }>>({})
+const builderForms = reactive<Record<string, { targetTotalBps: string }>>({})
 const guardForms = reactive<
   Record<string, { entryPercent: number; takeProfitPercent: number; stopLossPercent: number }>
 >({})
@@ -218,7 +223,7 @@ function ensureBuilderForm(account: AccountRecord) {
   if (builderForms[account.id]) return
   const meta = account.exchange_metadata
   builderForms[account.id] = {
-    feeBps: ((meta?.builder_fee_tenths_bps ?? 10) / 10).toString(),
+    targetTotalBps: (hyperliquidTargetTotalTenthsBps(meta) / 10).toString(),
   }
 }
 
@@ -357,16 +362,16 @@ function canSetHedgeMode(account: AccountRecord): boolean {
   return ws.status === 'ready' && !!capabilities?.supports_hedge_mode
 }
 
-function builderFeeTenthsBps(account: AccountRecord): number | null {
-  const parsed = Number(builderForms[account.id]?.feeBps)
+function targetTotalTenthsBps(account: AccountRecord): number | null {
+  const parsed = Number(builderForms[account.id]?.targetTotalBps)
   if (!Number.isFinite(parsed) || parsed < 0) return null
   return Math.round(parsed * 10)
 }
 
-function builderFeeEquivalent(account: AccountRecord): string {
-  const fee = builderFeeTenthsBps(account)
-  if (fee == null || fee > 100) return 'Invalid'
-  return `${(fee / 10).toFixed(1)} bps = ${(fee / 1000).toFixed(3)}%`
+function targetTotalEquivalent(account: AccountRecord): string {
+  const target = targetTotalTenthsBps(account)
+  if (target == null || target > HYPERLIQUID_TARGET_TOTAL_MAX_TENTHS_BPS) return 'Invalid'
+  return `${(target / 10).toFixed(1)} bps = ${(target / 1000).toFixed(3)}%`
 }
 
 function approvedBuilderMaxLabel(account: AccountRecord): string {
@@ -377,15 +382,16 @@ function approvedBuilderMaxLabel(account: AccountRecord): string {
 
 function canSaveHyperliquidBuilder(account: AccountRecord): boolean {
   if (account.exchange !== ExchangeType.Hyperliquid) return false
-  const fee = builderFeeTenthsBps(account)
-  if (fee == null || fee > 100) return false
+  if (account.exchange_metadata?.builder_fee_manager !== true) return false
+  const target = targetTotalTenthsBps(account)
+  if (target == null || target > HYPERLIQUID_TARGET_TOTAL_MAX_TENTHS_BPS) return false
   return !savingBuilderAccountIds.value.has(account.id)
 }
 
 function canApproveHyperliquidBuilder(account: AccountRecord): boolean {
-  if (!canSaveHyperliquidBuilder(account)) return false
-  const fee = builderFeeTenthsBps(account)
-  if (!fee || fee <= 0) return false
+  if (account.exchange !== ExchangeType.Hyperliquid) return false
+  const target = hyperliquidTargetTotalTenthsBps(account.exchange_metadata)
+  if (target <= 0) return false
   return (
     Boolean(
       account.exchange_metadata?.user_address && account.exchange_metadata?.builder_address,
@@ -397,8 +403,8 @@ function canRefreshHyperliquidBuilder(account: AccountRecord): boolean {
   if (account.exchange !== ExchangeType.Hyperliquid) return false
   if (refreshingBuilderAccountIds.value.has(account.id)) return false
   if (!account.exchange_metadata?.user_address) return false
-  const fee = account.exchange_metadata?.builder_fee_tenths_bps ?? 0
-  if (fee <= 0) return true
+  const target = hyperliquidTargetTotalTenthsBps(account.exchange_metadata)
+  if (target <= 0) return true
   return Boolean(account.exchange_metadata?.builder_address)
 }
 
@@ -425,14 +431,14 @@ async function saveHyperliquidBuilder(account: AccountRecord) {
     controlError.value = 'Hyperliquid builder settings are invalid.'
     return
   }
-  const fee = builderFeeTenthsBps(account)
-  if (fee == null) return
+  const target = targetTotalTenthsBps(account)
+  if (target == null) return
   savingBuilderAccountIds.value = new Set([...savingBuilderAccountIds.value, account.id])
   try {
     await accounts.updateAccountMetadata(account.id, {
-      builder_fee_tenths_bps: fee,
+      builder_target_total_tenths_bps: target,
     })
-    controlMessage.value = `Saved Hyperliquid builder settings for ${account.label}.`
+    controlMessage.value = `Saved Hyperliquid target total for ${account.label}.`
   } catch (err) {
     controlError.value = err instanceof Error ? err.message : String(err)
   } finally {
@@ -532,10 +538,9 @@ async function approveHyperliquidBuilder(account: AccountRecord) {
     builderApprovalFeedback[account.id] = { kind: 'error', message }
     return
   }
-  const fee = builderFeeTenthsBps(account)
   const userAddress = account.exchange_metadata?.user_address
   const builderAddress = account.exchange_metadata?.builder_address
-  if (fee == null || !userAddress || !builderAddress) return
+  if (!userAddress || !builderAddress) return
   approvingBuilderAccountIds.value = new Set([...approvingBuilderAccountIds.value, account.id])
   try {
     const signed = await signHyperliquidBuilderApproval({
@@ -546,7 +551,7 @@ async function approveHyperliquidBuilder(account: AccountRecord) {
     const response = await accounts.approveHyperliquidBuilderFee(account.id, {
       ...signed,
       builder_address: builderAddress,
-      builder_fee_tenths_bps: fee,
+      builder_fee_tenths_bps: HYPERLIQUID_MAX_BUILDER_FEE_TENTHS_BPS,
     })
     const message = `Hyperliquid builder fee approved up to ${(response.max_builder_fee_tenths_bps / 10).toFixed(1)} bps for ${account.label}.`
     builderApprovalFeedback[account.id] = {
@@ -1233,21 +1238,31 @@ watch(
                   </span>
                 </div>
                 <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
-                  <span>Fee</span>
+                  <span>Target total / side</span>
                   <input
-                    v-model.trim="builderForms[account.id].feeBps"
+                    v-if="account.exchange_metadata?.builder_fee_manager === true"
+                    v-model.trim="builderForms[account.id].targetTotalBps"
                     class="input h-7 text-xs"
                     type="number"
                     min="0"
-                    max="10"
+                    :max="HYPERLIQUID_TARGET_TOTAL_MAX_TENTHS_BPS / 10"
                     step="0.1"
                     @focus="ensureBuilderForm(account)"
                   />
+                  <span v-else class="input flex h-7 items-center text-xs">
+                    {{
+                      (
+                        hyperliquidTargetTotalTenthsBps(account.exchange_metadata) / 10
+                      ).toFixed(1)
+                    }}
+                    bps
+                  </span>
                   <span class="normal-case tracking-normal text-[var(--color-text-dim)]">
-                    {{ builderFeeEquivalent(account) }}
+                    {{ targetTotalEquivalent(account) }}
                   </span>
                 </label>
                 <button
+                  v-if="account.exchange_metadata?.builder_fee_manager === true"
                   class="btn btn-secondary btn-xs self-end"
                   type="button"
                   :disabled="!canSaveHyperliquidBuilder(account)"
@@ -1277,6 +1292,9 @@ watch(
                 <p
                   class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)] md:col-span-5"
                 >
+                  Exchange fee + Trad builder fee equals the target total. The builder fee is
+                  calculated from the live account fee tier for each submitted order.
+                  <br />
                   Approved max:
                   <span class="font-mono text-primary">
                     {{ approvedBuilderMaxLabel(account) }}

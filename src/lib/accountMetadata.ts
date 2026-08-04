@@ -11,6 +11,8 @@ export interface ExchangeAccountMetadataLike {
   builder_address?: string | null
   builder_config_version?: string | null
   builder_fee_tenths_bps?: number | null
+  builder_target_total_tenths_bps?: number | null
+  builder_fee_manager?: boolean | null
   max_builder_fee_tenths_bps?: number | null
   builder_approved?: boolean | null
   builder_approval_network?: NetworkType | null
@@ -83,7 +85,7 @@ export function accountMetadataChips(account: AccountMetadataLike): string[] {
     else chips.push('Agent missing')
     if (meta?.agent_approved === true) chips.push('Agent approved')
     else chips.push('Agent unvalidated')
-    if (hyperliquidBuilderFeeTenthsBps(meta) === 0) chips.push('No builder fee')
+    if (hyperliquidTargetTotalTenthsBps(meta) === 0) chips.push('No builder fee')
     else if (meta?.builder_approved === true) chips.push('Builder approved')
     else chips.push('Builder unvalidated')
     if (meta?.vault_address) chips.push('Vault/subaccount')
@@ -108,7 +110,7 @@ export function isBybitMetadataVerified(account: AccountMetadataLike | null | un
 export function accountMetadataStatus(account: AccountMetadataLike): string | null {
   if (account.exchange === ExchangeType.Hyperliquid) {
     if (isHyperliquidMetadataReady(account)) return 'Hyperliquid account metadata is ready.'
-    return 'Hyperliquid account is not ready for live trading; approve the agent wallet and complete builder approval or set builder fee to 0.'
+    return 'Hyperliquid account is not ready for live trading; approve the agent wallet and authorize the configured Trad builder.'
   }
   if (account.exchange !== ExchangeType.Bybit) return null
   if (isBybitMetadataVerified(account)) {
@@ -122,7 +124,7 @@ export function isHyperliquidMetadataReady(
 ): boolean {
   if (!account || account.exchange !== ExchangeType.Hyperliquid) return true
   const meta = account.exchange_metadata
-  const builderFee = hyperliquidBuilderFeeTenthsBps(meta)
+  const builderFee = hyperliquidTargetTotalTenthsBps(meta)
   const hasBuilderReadiness =
     builderFee === 0 ||
     Boolean(
@@ -150,8 +152,11 @@ function normalizeAddress(value?: string | null): string | null {
   return normalized || null
 }
 
-function hyperliquidBuilderFeeTenthsBps(
+export const HYPERLIQUID_TARGET_TOTAL_DEFAULT_TENTHS_BPS = 52
+export const HYPERLIQUID_TARGET_TOTAL_MAX_TENTHS_BPS = 52
+
+export function hyperliquidTargetTotalTenthsBps(
   meta: ExchangeAccountMetadataLike | null | undefined,
 ): number {
-  return meta?.builder_fee_tenths_bps ?? 0
+  return meta?.builder_target_total_tenths_bps ?? HYPERLIQUID_TARGET_TOTAL_DEFAULT_TENTHS_BPS
 }
