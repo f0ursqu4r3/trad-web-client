@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
+    "test:projection": "node --experimental-strip-types --test src/lib/projection/__tests__/*.test.ts",
     "test:e2e": "playwright test",
     "smoke:bybit-filters": "node scripts/bybit_filter_smoke.mjs",
     "lint:oxlint": "oxlint . --fix -D correctness --ignore-path .gitignore",
