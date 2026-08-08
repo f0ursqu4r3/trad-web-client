@@ -54,6 +54,18 @@ export interface ProjectionCheckpoint {
   account_revision: number
   projection_revision: ProjectionRevision
   summary: AccountProjectionSummary
+  legacy_migration?: LegacyMigrationProjection
+}
+
+export interface LegacyMigrationProjection {
+  run_id: Uuid
+  source_fingerprint: string
+  commands: number
+  devices: number
+  active_unresolved: number
+  forensic_audit_events: number
+  unscoped_audit_events: number
+  blocks_new_risk: boolean
 }
 
 export type ProjectionNodeKind =

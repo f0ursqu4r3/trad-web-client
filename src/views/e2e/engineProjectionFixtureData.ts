@@ -342,7 +342,7 @@ function generation(orderId: string, filled: string): OrderGenerationProjection 
 
 function checkpoint(revision: number, commands: number): ProjectionCheckpoint {
   return {
-    schema_version: 19,
+    schema_version: 20,
     shard: { exchange: 'hyperliquid', network: 'testnet', account_id: ENGINE_ACCOUNT_ID },
     account_revision: revision,
     projection_revision: revision,

@@ -13,6 +13,9 @@ const ui = useProjectionUiStore()
 const query = ref('')
 const historyError = ref<string | null>(null)
 const loadingHistory = ref(false)
+const legacyMigration = computed(
+  () => projections.selected?.view?.live.checkpoint.legacy_migration ?? null,
+)
 
 const visibleCommands = computed(() => {
   const normalized = query.value.trim().toLowerCase()
@@ -75,6 +78,21 @@ function formatTime(value: number): string {
         <RefreshCw :size="12" :class="{ spinning: loadingHistory }" />
         Older
       </button>
+    </div>
+
+    <div
+      v-if="legacyMigration !== null"
+      class="legacy-migration-state"
+      data-testid="legacy-migration-state"
+    >
+      <strong>Imported account state</strong>
+      <span>
+        {{ legacyMigration.devices }} devices preserved ·
+        {{ legacyMigration.active_unresolved }} active awaiting reconciliation
+      </span>
+      <span v-if="legacyMigration.blocks_new_risk">
+        New exposure is blocked until exchange ownership and protection are proven.
+      </span>
     </div>
 
     <div
@@ -164,6 +182,15 @@ function formatTime(value: number): string {
   gap: 8px;
   padding: 5px 8px;
   color: var(--color-text-dim);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.legacy-migration-state {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 8px;
+  color: var(--color-warning);
   border-bottom: 1px solid var(--border-color);
 }
 

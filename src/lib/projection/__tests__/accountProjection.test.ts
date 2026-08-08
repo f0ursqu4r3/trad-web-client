@@ -240,7 +240,7 @@ function checkpoint(
   exchange: 'hyperliquid' | 'bybit' = 'hyperliquid',
 ): ProjectionCheckpoint {
   return {
-    schema_version: 19,
+    schema_version: 20,
     shard: { exchange, network: 'testnet', account_id: ACCOUNT_ID },
     account_revision: revision,
     projection_revision: revision,
