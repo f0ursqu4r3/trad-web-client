@@ -77,7 +77,11 @@ function formatTime(value: number): string {
       </button>
     </div>
 
-    <div v-if="projections.selected?.status !== 'ready'" class="projection-state">
+    <div
+      v-if="projections.selected?.status !== 'ready'"
+      class="projection-state"
+      data-testid="projection-account-state"
+    >
       <span>{{ projections.selected?.status ?? 'idle' }}</span>
       <span v-if="projections.selected?.error" class="error-text">
         {{ projections.selected.error }}

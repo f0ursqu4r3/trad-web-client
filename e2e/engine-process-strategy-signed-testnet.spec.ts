@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test'
+import { existsSync, rmSync, writeFileSync } from 'node:fs'
 
 const enabled = process.env.ENGINE_PROCESS_SIGNED_TESTNET_E2E === '1'
 const terminalBaseUrl = process.env.ENGINE_PROCESS_TERMINAL_BASE_URL || 'http://127.0.0.1:15173'
@@ -9,6 +10,17 @@ const walletAddress =
 const symbol = process.env.ENGINE_PROCESS_SYMBOL || 'BTC'
 const chaseNotional = process.env.ENGINE_PROCESS_NOTIONAL || '12'
 const commandTimeoutMs = Number(process.env.ENGINE_PROCESS_COMMAND_TIMEOUT_MS || '90000')
+const protectionRestartEnabled =
+  process.env.ENGINE_PROCESS_PROTECTION_RESTART_SIGNED_TESTNET_E2E === '1'
+const protectionRestartReadyPath =
+  process.env.ENGINE_PROCESS_PROTECTION_RESTART_READY_PATH ||
+  '/tmp/trad-engine-protection-restart-ready'
+const protectionRestartUnavailablePath =
+  process.env.ENGINE_PROCESS_PROTECTION_RESTART_UNAVAILABLE_PATH ||
+  '/tmp/trad-engine-protection-restart-unavailable'
+const protectionRestartResumedPath =
+  process.env.ENGINE_PROCESS_PROTECTION_RESTART_RESUMED_PATH ||
+  '/tmp/trad-engine-protection-restart-resumed'
 
 interface ExchangeState {
   signedQuantity: number
@@ -161,6 +173,92 @@ test.describe.serial('replacement strategy workflows through the production term
       throw new AggregateError(
         [primaryError, cleanupError],
         'qualification and cleanup both failed',
+      )
+    }
+    if (primaryError !== null) throw primaryError
+    if (cleanupError !== null) throw cleanupError
+  })
+
+  test('restores a live protected Trailing Entry across abrupt node restart', async ({
+    page,
+    request,
+  }) => {
+    test.skip(!protectionRestartEnabled, 'signed active-protection restart is separately gated')
+    test.setTimeout(8 * 60_000)
+    validateConfiguration()
+    clearProtectionRestartMarkers()
+    await expectExchangeFlat(request)
+
+    let commandId: string | null = null
+    let exposurePossible = false
+    let primaryError: unknown = null
+    let cleanupError: unknown = null
+    const commandFrames = observeCommandFrames(page)
+    try {
+      await loginAndSelectAccount(page)
+      const prices = trailingEntryPrices(await hyperliquidMid(request))
+      commandId = await submitTrailingEntry(page, prices)
+      await selectProjectedEntity(page, commandId, 'trailing_entry')
+      await expectDetailValueOtherThan(page, 'Points', '0')
+      await expectDetailValue(page, 'Market Stale', 'no')
+
+      exposurePossible = true
+      const enterId = await submitEnterNowWhenFresh(page, commandId, commandFrames)
+      await expectCommandLifecycle(page, enterId, 'succeeded')
+      await expectExchangeProtectedPosition(request)
+      await expectProjectedFilledOrder(page, commandId)
+      await expectProjectedProtection(page)
+
+      writeMarker(protectionRestartReadyPath)
+      const projectionState = page.getByTestId('projection-account-state')
+      await expect(projectionState).toContainText(/unavailable|connect|transport|error/i, {
+        timeout: 45_000,
+      })
+      writeMarker(protectionRestartUnavailablePath)
+      await expect
+        .poll(() => existsSync(protectionRestartResumedPath), { timeout: 90_000 })
+        .toBe(true)
+      await expect(page.locator('.ws-indicator-status')).toHaveText('[ready]', {
+        timeout: 90_000,
+      })
+      await expect(projectionState).toHaveCount(0, { timeout: 90_000 })
+
+      const entry = await selectProjectedEntity(page, commandId, 'trailing_entry')
+      await expect(entry).toContainText(/position_open/i, { timeout: commandTimeoutMs })
+      await expectProjectedFilledOrder(page, commandId)
+      await expectProjectedProtection(page)
+      await expectExchangeProtectedPosition(request)
+
+      await selectProjectedEntity(page, commandId, 'trailing_entry')
+      const closeId = await submitSelectedAction(page, 'Close Position')
+      await expectCommandLifecycle(page, closeId, 'succeeded')
+      const completedEntry = await selectProjectedEntity(page, commandId, 'trailing_entry')
+      await expect(completedEntry).toContainText(/completed/i, { timeout: commandTimeoutMs })
+      await expectExchangeFlat(request)
+      exposurePossible = false
+    } catch (error) {
+      primaryError = error
+    } finally {
+      if (exposurePossible && existsSync(protectionRestartResumedPath)) {
+        try {
+          await bestEffortCloseTrailingEntry(page, commandId)
+        } catch (error) {
+          cleanupError = error
+        }
+      }
+      if (existsSync(protectionRestartResumedPath)) {
+        try {
+          await expectExchangeFlat(request)
+        } catch (error) {
+          cleanupError = cleanupError ?? error
+        }
+      }
+    }
+
+    if (primaryError !== null && cleanupError !== null) {
+      throw new AggregateError(
+        [primaryError, cleanupError],
+        'active-protection restart and cleanup both failed',
       )
     }
     if (primaryError !== null) throw primaryError
@@ -573,4 +671,18 @@ function loginUrl(): string {
   login.searchParams.set('email', testEmail)
   login.searchParams.set('return_to', '/terminal')
   return login.toString()
+}
+
+function clearProtectionRestartMarkers(): void {
+  for (const path of [
+    protectionRestartReadyPath,
+    protectionRestartUnavailablePath,
+    protectionRestartResumedPath,
+  ]) {
+    rmSync(path, { force: true })
+  }
+}
+
+function writeMarker(path: string): void {
+  writeFileSync(path, `${new Date().toISOString()}\n`, { mode: 0o600 })
 }

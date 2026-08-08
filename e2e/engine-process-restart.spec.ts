@@ -28,7 +28,7 @@ test.describe.serial('replacement process restart recovery', () => {
     expect(retainedCommandId).not.toBeNull()
     writeMarker(readyPath)
 
-    const projectionState = page.getByTestId('projection-command-list').locator('.projection-state')
+    const projectionState = page.getByTestId('projection-account-state')
     await expect(projectionState).toContainText(/unavailable|connect|transport|error/i, {
       timeout: 45_000,
     })
@@ -56,9 +56,7 @@ async function loginAndSelectAccount(page: Page): Promise<void> {
   await expect(account).toContainText(accountLabel, { timeout: 30_000 })
   await expect(account).toContainText(/HYPERLIQUID/i)
   await expect(account).toContainText(/TESTNET/i)
-  await expect(
-    page.getByTestId('projection-command-list').locator('.projection-state'),
-  ).toHaveCount(0, { timeout: 30_000 })
+  await expect(page.getByTestId('projection-account-state')).toHaveCount(0, { timeout: 30_000 })
   await expect(
     page.locator('[data-testid="projection-command-list"] [data-command-id]').first(),
   ).toBeVisible({ timeout: 30_000 })
