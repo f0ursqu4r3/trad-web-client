@@ -24,30 +24,30 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useWsStore } from '@/stores/ws'
+import { useGatewayStore } from '@/stores/gateway'
 
 import StatusIndicator from './StatusIndicator.vue'
 
-const ws = useWsStore()
+const ws = useGatewayStore()
 
 const statusMap: Record<string, string> = {
   connecting: 'info',
+  authenticating: 'info',
+  reconnecting: 'warning',
   ready: 'success',
   error: 'error',
-  disconnected: 'warning',
+  idle: 'warning',
 }
 
 const authStatus = computed(() => {
-  if (ws.authAccepted === true) return 'success'
-  if (ws.authAccepted === false) return 'error'
+  if (ws.status === 'ready') return 'success'
+  if (ws.status === 'error') return 'error'
   return 'neutral'
 })
 
 const authTitle = computed(() => {
-  if (ws.authAccepted === true) return 'Auth: OK'
-  if (ws.authAccepted === false) {
-    return ws.authError ? `Auth: ${ws.authError}` : 'Auth: Failed'
-  }
+  if (ws.status === 'ready') return 'Auth: OK'
+  if (ws.status === 'error') return ws.lastError ? `Auth: ${ws.lastError}` : 'Auth: Failed'
   return 'Auth: Pending'
 })
 </script>

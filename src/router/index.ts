@@ -28,6 +28,11 @@ const routes: RouteRecordRaw[] = [
           meta: { layout: 'blank' },
         },
         {
+          path: '/e2e/engine-projection',
+          component: () => import('@/views/e2e/EngineProjectionFixture.vue'),
+          meta: { layout: 'blank' },
+        },
+        {
           path: '/e2e/bybit-live-smoke',
           component: () => import('@/views/e2e/BybitLiveSmoke.vue'),
           meta: { layout: 'blank' },

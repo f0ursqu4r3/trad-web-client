@@ -1,47 +1,35 @@
 <script setup lang="ts">
-import { computed, type Component, onBeforeUnmount, onMounted } from 'vue'
-import { useWsStore } from '@/stores/ws'
-import { useCommandStore } from '@/stores/command'
-import { getv } from '@/lib/utils'
+import { onBeforeUnmount, onMounted } from 'vue'
 
+import EngineOrdersColumn from '@/components/engine/EngineOrdersColumn.vue'
+import ProjectionDetails from '@/components/engine/ProjectionDetails.vue'
 import SplitView from '@/components/general/SplitView.vue'
-import OrdersColumn from '@/components/terminal/layout/OrdersColumn.vue'
+import { useAccountsStore } from '@/stores/accounts'
+import { useGatewayStore } from '@/stores/gateway'
 
-import TrailingEntryView from '@/components/terminal/views/TrailingEntryView.vue'
-import DeviceDetailsView from '@/components/terminal/views/DeviceDetailsView.vue'
+const accounts = useAccountsStore()
+const gateway = useGatewayStore()
 
-const ws = useWsStore()
-const commandStore = useCommandStore()
-
-const componentMap: Record<string, Component> = {
-  TrailingEntryOrder: TrailingEntryView,
-}
-
-const currentComponent = computed<Component | null>(() => {
-  if (!commandStore.selectedCommand) return null
-  return (
-    getv(componentMap, commandStore.selectedCommand?.command.kind, DeviceDetailsView) ||
-    DeviceDetailsView
-  )
-})
-
-onMounted(() => {
-  ws.connect()
+onMounted(async () => {
+  if (accounts.lastFetchedAt === null && !accounts.loading) {
+    await accounts.fetchAccounts()
+  }
+  gateway.connect()
 })
 
 onBeforeUnmount(() => {
-  ws.disconnect()
+  gateway.disconnect()
 })
 </script>
 
 <template>
   <SplitView storage-key="trading-terminal-split-horizontal">
     <template #left>
-      <OrdersColumn />
+      <EngineOrdersColumn />
     </template>
 
     <template #right>
-      <component :is="currentComponent" />
+      <ProjectionDetails />
     </template>
   </SplitView>
 </template>
