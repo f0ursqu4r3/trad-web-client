@@ -75,6 +75,35 @@ test.describe.serial('replacement engine through the production terminal', () =>
       await expectExchangeFlat(request)
     }
   })
+
+  test('places and cancels a resting Hyperliquid Testnet limit order', async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(4 * 60_000)
+    validateConfiguration()
+    await expectExchangeFlat(request)
+
+    let orderMayBeWorking = false
+    try {
+      await loginAndSelectAccount(page)
+      const mid = await hyperliquidMid(request)
+      const commandId = await submitLimitOpen(page, (mid * 0.5).toFixed(0))
+      orderMayBeWorking = true
+      await expectCommandLifecycle(page, commandId, 'running')
+      const order = await selectProjectedOrder(page, commandId)
+      await expect(order).toContainText(/working/i, { timeout: commandTimeoutMs })
+      await expectExchangeRestingOrder(request)
+
+      await cancelSelectedOrder(page)
+      await expect(order).toContainText(/canceled/i, { timeout: commandTimeoutMs })
+      await expectExchangeFlat(request)
+      orderMayBeWorking = false
+    } finally {
+      if (orderMayBeWorking) await bestEffortCancelSelectedOrder(page)
+      await expectExchangeFlat(request)
+    }
+  })
 })
 
 function validateConfiguration(): void {
@@ -141,6 +170,22 @@ async function submitSymbolFlatten(page: Page): Promise<string> {
   return await waitForNewCommandId(page, prior)
 }
 
+async function submitLimitOpen(page: Page, limitPrice: string): Promise<string> {
+  const prior = await commandIds(page)
+  await openCommand(page, 'lo', 'Limit Order')
+  const dialog = page.getByRole('dialog', { name: 'Limit Order' })
+  await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
+  await dialog.getByLabel('Position Side').selectOption('long')
+  await dialog.getByLabel('Amount Type').selectOption('quote_notional')
+  await dialog.getByLabel('Quote Amount').fill(notional)
+  await dialog.getByLabel('Limit Price').fill(limitPrice)
+  await dialog.getByLabel('Time In Force').selectOption('post_only')
+  await dialog.getByLabel('Execution Shape').selectOption('single')
+  await dialog.getByRole('button', { name: 'Submit' }).click()
+  await expect(dialog).toBeHidden({ timeout: 10_000 })
+  return await waitForNewCommandId(page, prior)
+}
+
 async function openCommand(page: Page, search: string, label: string): Promise<void> {
   await page.getByRole('button', { name: /Commands Ctrl\+K/i }).click()
   const palette = page.getByRole('dialog', { name: 'Commands' })
@@ -191,11 +236,8 @@ async function expectCommandLifecycle(
 }
 
 async function expectProjectedFilledOrder(page: Page, commandId: string): Promise<void> {
-  await page.locator(`[data-command-id="${commandId}"]`).click()
-  const order = page.locator('[data-node-kind="order"]').first()
-  await expect(order).toBeVisible({ timeout: commandTimeoutMs })
+  const order = await selectProjectedOrder(page, commandId)
   await expect(order).toContainText(/filled/i, { timeout: commandTimeoutMs })
-  await order.click()
 
   const details = page.getByTestId('projection-details')
   await expect(details).toContainText('Filled Quantity')
@@ -205,6 +247,22 @@ async function expectProjectedFilledOrder(page: Page, commandId: string): Promis
   await expect(details.getByText('Executions', { exact: true })).toBeVisible({
     timeout: commandTimeoutMs,
   })
+}
+
+async function selectProjectedOrder(page: Page, commandId: string) {
+  await page.locator(`[data-command-id="${commandId}"]`).click()
+  const order = page.locator('[data-node-kind="order"]').first()
+  await expect(order).toBeVisible({ timeout: commandTimeoutMs })
+  await order.click()
+  return order
+}
+
+async function cancelSelectedOrder(page: Page): Promise<void> {
+  await page.getByTestId('projection-actions').getByRole('button', { name: 'Cancel Order' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Cancel Order' })
+  await dialog.getByLabel('Confirm cancel order').check()
+  await dialog.getByRole('button', { name: 'Cancel Order' }).click()
+  await expect(dialog).toBeHidden({ timeout: 10_000 })
 }
 
 async function expectProjectedProtection(page: Page): Promise<void> {
@@ -225,6 +283,15 @@ async function bestEffortFlatten(page: Page): Promise<void> {
     await page.keyboard.press('Escape')
     const id = await submitSymbolFlatten(page)
     await expectCommandLifecycle(page, id, 'succeeded')
+  } catch {
+    // The final authoritative exchange assertion still fails loudly if cleanup did not complete.
+  }
+}
+
+async function bestEffortCancelSelectedOrder(page: Page): Promise<void> {
+  try {
+    await page.keyboard.press('Escape')
+    await cancelSelectedOrder(page)
   } catch {
     // The final authoritative exchange assertion still fails loudly if cleanup did not complete.
   }
@@ -282,6 +349,12 @@ async function expectExchangeProtectedPosition(request: APIRequestContext): Prom
     .poll(async () => await exchangeState(request), { timeout: commandTimeoutMs })
     .toMatchObject({ openOrders: 2 })
   await expectExchangePosition(request)
+}
+
+async function expectExchangeRestingOrder(request: APIRequestContext): Promise<void> {
+  await expect
+    .poll(async () => await exchangeState(request), { timeout: commandTimeoutMs })
+    .toEqual({ signedQuantity: 0, openOrders: 1 })
 }
 
 async function expectExchangeFlat(request: APIRequestContext): Promise<void> {
