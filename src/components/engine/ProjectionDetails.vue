@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import ProjectionActions from '@/components/engine/actions/ProjectionActions.vue'
+import type { CommandProjection, ProtectionProjection } from '@/lib/gateway'
 import { entityLabel, entityStatus } from '@/lib/projection/presentation'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useProjectionUiStore } from '@/stores/projectionUi'
@@ -126,17 +127,33 @@ const relatedExecutions = computed(() => {
 const relatedProtections = computed(() => {
   const entity = ui.selectedEntity
   if (entity?.kind !== 'order') return []
+  const command = (projections.selectedLive?.commands ?? []).find(
+    (candidate) => candidate.command_id === entity.row.command_id,
+  )
+  const scopeId = command === undefined ? null : commandProtectionScopeId(command)
   const clientIds = new Set<string>()
   for (const generation of Object.values(entity.row.generations)) {
     clientIds.add(generation.client_order_id)
   }
   return (projections.selectedLive?.protections ?? []).filter(
     (protection) =>
+      (scopeId !== null && protectionOwnerScopeId(protection) === scopeId) ||
       (protection.client_order_id !== null && clientIds.has(protection.client_order_id)) ||
       (protection.parent_client_order_id !== null &&
         clientIds.has(protection.parent_client_order_id)),
   )
 })
+
+function commandProtectionScopeId(command: CommandProjection): string | null {
+  const protection = objectValue(command.accepted.parameters.protection)
+  return stringValue(protection?.scope_id)
+}
+
+function protectionOwnerScopeId(protection: ProtectionProjection): string | null {
+  const classification = objectValue(protection.inventory_classification)
+  if (classification?.kind !== 'owned') return null
+  return stringValue(objectValue(classification.owner)?.scope_id)
+}
 
 function row(label: string, value: string): DetailRow {
   return { label, value }
@@ -183,6 +200,16 @@ function formatValue(value: unknown): string {
   }
   if (value === null || value === undefined) return '-'
   return JSON.stringify(value)
+}
+
+function objectValue(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === 'string' && value !== '' ? value : null
 }
 </script>
 

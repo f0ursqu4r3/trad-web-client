@@ -43,6 +43,7 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
     {
       request: { execution: { kind: 'market' } },
       position_intent: { Open: { scope_id: 'scope-filled' } },
+      protection: { scope_id: 'protection-scope-filled' },
     },
   )
   const chaseOrder = order(CHASE_ORDER_ID, CHASE_COMMAND_ID, '0.125', '0.025', '0.1', 'working')
@@ -183,7 +184,7 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
       {
         remote_order_id: 'protection-eth-stop',
         client_order_id: 'trad-protection-eth-stop',
-        parent_client_order_id: generation(FILLED_ORDER_ID, '0.00420001').client_order_id,
+        parent_client_order_id: null,
         symbol: 'ETH',
         order_side: 'sell',
         position_side: 'long',
@@ -199,7 +200,10 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
         status: 'working',
         failure_reason: null,
         present_on_exchange: true,
-        inventory_classification: 'owned',
+        inventory_classification: {
+          kind: 'owned',
+          owner: { scope_id: 'protection-scope-filled' },
+        },
         latest_event_id: 'protection-event-1',
         latest_revision: 77,
       },

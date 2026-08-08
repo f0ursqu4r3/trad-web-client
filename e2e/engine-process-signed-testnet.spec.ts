@@ -42,6 +42,39 @@ test.describe.serial('replacement engine through the production terminal', () =>
       await expectExchangeFlat(request)
     }
   })
+
+  test('installs and tears down native protection from a market fill', async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(4 * 60_000)
+    validateConfiguration()
+    await expectExchangeFlat(request)
+
+    let exposurePossible = false
+    try {
+      await loginAndSelectAccount(page)
+      const mid = await hyperliquidMid(request)
+
+      const openId = await submitMarketOpen(page, {
+        takeProfit: (mid * 1.05).toFixed(0),
+        stopLoss: (mid * 0.95).toFixed(0),
+      })
+      exposurePossible = true
+      await expectCommandLifecycle(page, openId, 'succeeded')
+      await expectProjectedFilledOrder(page, openId)
+      await expectProjectedProtection(page)
+      await expectExchangeProtectedPosition(request)
+
+      const flattenId = await submitSymbolFlatten(page)
+      await expectCommandLifecycle(page, flattenId, 'succeeded')
+      await expectExchangeFlat(request)
+      exposurePossible = false
+    } finally {
+      if (exposurePossible) await bestEffortFlatten(page)
+      await expectExchangeFlat(request)
+    }
+  })
 })
 
 function validateConfiguration(): void {
@@ -72,7 +105,10 @@ async function loginAndSelectAccount(page: Page): Promise<void> {
   await expect(page.getByTestId('projection-command-list')).toBeVisible()
 }
 
-async function submitMarketOpen(page: Page): Promise<string> {
+async function submitMarketOpen(
+  page: Page,
+  protection?: { takeProfit: string; stopLoss: string },
+): Promise<string> {
   const prior = await commandIds(page)
   await openCommand(page, 'mo', 'Market Order')
   const dialog = page.getByRole('dialog', { name: 'Market Order' })
@@ -81,8 +117,15 @@ async function submitMarketOpen(page: Page): Promise<string> {
   await dialog.getByLabel('Amount Type').selectOption('quote_notional')
   await dialog.getByLabel('Quote Amount').fill(notional)
   await dialog.getByLabel('Execution Shape').selectOption('single')
+  if (protection !== undefined) {
+    await dialog.getByRole('button', { name: /Take Profit/i }).click()
+    await dialog.getByRole('textbox', { name: 'TP 1 Trigger' }).fill(protection.takeProfit)
+    await dialog.getByRole('checkbox', { name: 'Stop loss' }).check()
+    await dialog.getByRole('textbox', { name: 'SL Trigger' }).fill(protection.stopLoss)
+  }
   await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled()
   await dialog.getByRole('button', { name: 'Submit' }).click()
+  await expect(dialog).toBeHidden({ timeout: 10_000 })
   return await waitForNewCommandId(page, prior)
 }
 
@@ -164,6 +207,19 @@ async function expectProjectedFilledOrder(page: Page, commandId: string): Promis
   })
 }
 
+async function expectProjectedProtection(page: Page): Promise<void> {
+  const details = page.getByTestId('projection-details')
+  await expect(details.getByText('Exchange Protection', { exact: true })).toBeVisible({
+    timeout: commandTimeoutMs,
+  })
+  await expect(
+    details.locator('.evidence-section').filter({ hasText: 'Exchange Protection' }),
+  ).toContainText(/take_profit/i)
+  await expect(
+    details.locator('.evidence-section').filter({ hasText: 'Exchange Protection' }),
+  ).toContainText(/stop_loss/i)
+}
+
 async function bestEffortFlatten(page: Page): Promise<void> {
   try {
     await page.keyboard.press('Escape')
@@ -202,12 +258,30 @@ async function exchangeState(request: APIRequestContext): Promise<{
   }
 }
 
+async function hyperliquidMid(request: APIRequestContext): Promise<number> {
+  const response = await request.post('https://api.hyperliquid-testnet.xyz/info', {
+    data: { type: 'allMids' },
+  })
+  if (!response.ok()) throw new Error(`Hyperliquid allMids failed: HTTP ${response.status()}`)
+  const mids = (await response.json()) as Record<string, string>
+  const mid = Number(mids[symbol])
+  if (!Number.isFinite(mid) || mid <= 0) throw new Error(`Hyperliquid omitted ${symbol} mid`)
+  return mid
+}
+
 async function expectExchangePosition(request: APIRequestContext): Promise<void> {
   await expect
     .poll(async () => Math.abs((await exchangeState(request)).signedQuantity), {
       timeout: commandTimeoutMs,
     })
     .toBeGreaterThan(0)
+}
+
+async function expectExchangeProtectedPosition(request: APIRequestContext): Promise<void> {
+  await expect
+    .poll(async () => await exchangeState(request), { timeout: commandTimeoutMs })
+    .toMatchObject({ openOrders: 2 })
+  await expectExchangePosition(request)
 }
 
 async function expectExchangeFlat(request: APIRequestContext): Promise<void> {
