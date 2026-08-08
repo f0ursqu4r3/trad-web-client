@@ -4,6 +4,11 @@ import type {
   BrowserAccountSnapshot,
   ClientCommandPage,
   CommandHistoryCursor,
+  LegacyCommandPage,
+  LegacyCommandEvidence,
+  LegacyDeviceEvidence,
+  LegacyHistoryCursor,
+  LegacyRelationshipEvidence,
   ProjectionGraph,
   Uuid,
 } from '../gateway/index.ts'
@@ -26,6 +31,7 @@ export type ProjectionStateErrorCode =
   | 'revision_gap'
   | 'history_revision_mismatch'
   | 'invalid_history_page'
+  | 'invalid_legacy_history_page'
 
 export class ProjectionStateError extends Error {
   readonly code: ProjectionStateErrorCode
@@ -42,14 +48,26 @@ export interface HistoricalCommandProjection extends ProjectionGraph {
   next_cursor: CommandHistoryCursor | null
 }
 
+export interface HistoricalLegacyProjection {
+  run_id: Uuid
+  source_fingerprint: string
+  root_command_ids: Uuid[]
+  commands: LegacyCommandEvidence[]
+  devices: LegacyDeviceEvidence[]
+  relationships: LegacyRelationshipEvidence[]
+  unresolved_active_entities: Uuid[]
+  next_cursor: LegacyHistoryCursor | null
+}
+
 export interface AccountProjectionView {
   live: BrowserAccountSnapshot
   history: HistoricalCommandProjection | null
+  legacyHistory: HistoricalLegacyProjection | null
 }
 
 export function installSnapshot(snapshot: BrowserAccountSnapshot): AccountProjectionView {
   validateRevision(snapshot.checkpoint.projection_revision)
-  return { live: cloneSnapshot(snapshot), history: null }
+  return { live: cloneSnapshot(snapshot), history: null, legacyHistory: null }
 }
 
 export function applyDelta(
@@ -80,7 +98,7 @@ export function applyDelta(
     protections: mergeRows(view.live.protections, delta.protections, (row) => row.remote_order_id),
   })
 
-  return { live, history: null }
+  return { live, history: null, legacyHistory: view.legacyHistory }
 }
 
 export function mergeHistoryPage(
@@ -103,7 +121,32 @@ export function mergeHistoryPage(
   const incoming = graphFromPage(page)
   const prior = view.history
   const history = prior === null ? incoming : mergeHistory(prior, incoming)
-  return { live: view.live, history }
+  return { live: view.live, history, legacyHistory: view.legacyHistory }
+}
+
+export function mergeLegacyHistoryPage(
+  view: AccountProjectionView,
+  page: LegacyCommandPage,
+): AccountProjectionView {
+  validateLegacyHistoryPage(page)
+  const migration = view.live.checkpoint.legacy_migration
+  if (
+    migration === undefined ||
+    migration.run_id !== page.run_id ||
+    migration.source_fingerprint !== page.source_fingerprint
+  ) {
+    invalidLegacyHistory('legacy history does not match the account migration checkpoint')
+  }
+
+  const prior = view.legacyHistory
+  if (
+    prior !== null &&
+    (prior.run_id !== page.run_id || prior.source_fingerprint !== page.source_fingerprint)
+  ) {
+    invalidLegacyHistory('legacy history source changed between pages')
+  }
+  const legacyHistory = prior === null ? cloneLegacyPage(page) : mergeLegacyHistory(prior, page)
+  return { live: view.live, history: view.history, legacyHistory }
 }
 
 export function combinedProjection(view: AccountProjectionView): ProjectionGraph {
@@ -139,6 +182,63 @@ function validateHistoryPage(page: ClientCommandPage): void {
   }
 }
 
+function validateLegacyHistoryPage(page: LegacyCommandPage): void {
+  if (!sha256(page.source_fingerprint) || page.run_id.length === 0) {
+    invalidLegacyHistory('legacy history source identity is invalid')
+  }
+  const commands = new Map(page.commands.map((command) => [command.command_id, command]))
+  const devices = new Map(page.devices.map((device) => [device.device_id, device]))
+  const roots = new Set(page.root_command_ids)
+  if (commands.size !== page.commands.length || roots.size !== page.root_command_ids.length) {
+    invalidLegacyHistory('legacy history has duplicate command identities')
+  }
+  if (devices.size !== page.devices.length) {
+    invalidLegacyHistory('legacy history has duplicate device identities')
+  }
+  for (const root of roots) {
+    if (!commands.has(root)) invalidLegacyHistory(`legacy history root ${root} is missing`)
+  }
+  for (const command of page.commands) {
+    if (!sha256(command.payload_sha256)) {
+      invalidLegacyHistory(`legacy command ${command.command_id} has an invalid digest`)
+    }
+  }
+  for (const device of page.devices) {
+    if (!sha256(device.device_payload_sha256) || !sha256(device.state_payload_sha256)) {
+      invalidLegacyHistory(`legacy device ${device.device_id} has an invalid digest`)
+    }
+  }
+
+  const reachable = new Set<Uuid>()
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const edge of page.relationships) {
+      const parentReachable =
+        (edge.parent_kind === 'command' && roots.has(edge.parent_id)) ||
+        (edge.parent_kind !== 'command' && reachable.has(edge.parent_id))
+      if (parentReachable && devices.has(edge.child_id) && !reachable.has(edge.child_id)) {
+        reachable.add(edge.child_id)
+        changed = true
+      }
+    }
+  }
+  if (reachable.size !== devices.size) {
+    invalidLegacyHistory('legacy history contains devices outside its command roots')
+  }
+  for (const edge of page.relationships) {
+    const parentPresent =
+      (edge.parent_kind === 'command' && roots.has(edge.parent_id)) ||
+      (edge.parent_kind !== 'command' && devices.has(edge.parent_id))
+    if (!parentPresent || !devices.has(edge.child_id)) {
+      invalidLegacyHistory('legacy history relationship references a missing endpoint')
+    }
+  }
+  if (page.unresolved_active_entities.some((id) => !devices.has(id))) {
+    invalidLegacyHistory('legacy unresolved identity is outside the page')
+  }
+}
+
 function mergeHistory(
   existing: HistoricalCommandProjection,
   incoming: HistoricalCommandProjection,
@@ -148,6 +248,41 @@ function mergeHistory(
     ...merged,
     root_command_ids: unique([...existing.root_command_ids, ...incoming.root_command_ids]),
     next_cursor: incoming.next_cursor,
+  }
+}
+
+function mergeLegacyHistory(
+  existing: HistoricalLegacyProjection,
+  incoming: LegacyCommandPage,
+): HistoricalLegacyProjection {
+  requireNoLegacyOverlap(existing.commands, incoming.commands, 'command_id')
+  requireNoLegacyOverlap(existing.devices, incoming.devices, 'device_id')
+  return {
+    run_id: existing.run_id,
+    source_fingerprint: existing.source_fingerprint,
+    root_command_ids: [...existing.root_command_ids, ...incoming.root_command_ids],
+    commands: [...existing.commands, ...incoming.commands],
+    devices: [...existing.devices, ...incoming.devices],
+    relationships: uniqueBy(
+      [...existing.relationships, ...incoming.relationships],
+      legacyRelationshipKey,
+    ),
+    unresolved_active_entities: unique([
+      ...existing.unresolved_active_entities,
+      ...incoming.unresolved_active_entities,
+    ]),
+    next_cursor: incoming.next_cursor,
+  }
+}
+
+function cloneLegacyPage(page: LegacyCommandPage): HistoricalLegacyProjection {
+  return {
+    ...page,
+    root_command_ids: [...page.root_command_ids],
+    commands: [...page.commands],
+    devices: [...page.devices],
+    relationships: [...page.relationships],
+    unresolved_active_entities: [...page.unresolved_active_entities],
   }
 }
 
@@ -230,6 +365,35 @@ function validateRevision(revision: number): void {
 
 function invalidHistory(message: string): never {
   throw new ProjectionStateError('invalid_history_page', message)
+}
+
+function invalidLegacyHistory(message: string): never {
+  throw new ProjectionStateError('invalid_legacy_history_page', message)
+}
+
+function sha256(value: string): boolean {
+  return /^[0-9a-f]{64}$/.test(value)
+}
+
+function requireNoLegacyOverlap<T>(existing: T[], incoming: T[], key: keyof T): void {
+  const identities = new Set(existing.map((row) => String(row[key])))
+  if (incoming.some((row) => identities.has(String(row[key])))) {
+    invalidLegacyHistory('legacy history pages overlap')
+  }
+}
+
+function legacyRelationshipKey(edge: LegacyRelationshipEvidence): string {
+  return [
+    edge.parent_kind,
+    edge.parent_id,
+    edge.child_kind,
+    edge.child_id,
+    edge.relationship_kind,
+  ].join(':')
+}
+
+function uniqueBy<T>(values: T[], key: (value: T) => string): T[] {
+  return Array.from(new Map(values.map((value) => [key(value), value])).values())
 }
 
 function equalSets(left: Set<string>, right: Set<string>): boolean {

@@ -9,6 +9,7 @@ import type {
   CommandLifecycle,
   CommandProjection,
   ExecutionProjection,
+  LegacyCommandPage,
   OrderProjection,
   PresentationRelationship,
   ProjectionCheckpoint,
@@ -19,6 +20,7 @@ import {
   combinedProjection,
   installSnapshot,
   mergeHistoryPage,
+  mergeLegacyHistoryPage,
 } from '../accountProjection.ts'
 
 const ACCOUNT_ID = '00000000-0000-0000-0000-000000000001'
@@ -140,6 +142,62 @@ test('an advancing live delta invalidates revision-pinned history', () => {
   assert.equal(next.history, null)
 })
 
+test('immutable legacy history remains separate and survives live deltas', () => {
+  const initial = snapshot(8, [command('recent', 30, 'succeeded')])
+  initial.checkpoint.legacy_migration = {
+    run_id: 'run-1',
+    source_fingerprint: digest('a'),
+    commands: 1,
+    devices: 1,
+    active_unresolved: 1,
+    forensic_audit_events: 2,
+    unscoped_audit_events: 0,
+    blocks_new_risk: true,
+  }
+  const current = mergeLegacyHistoryPage(view(initial), legacyPage())
+  const next = applyDelta(current, delta(initial, 9, []))
+
+  assert.equal(next.legacyHistory?.commands[0]?.command_id, 'legacy-command')
+  assert.deepEqual(
+    combinedProjection(next).commands.map((row) => row.command_id),
+    ['recent'],
+  )
+})
+
+test('legacy history rejects source drift, dangling graphs, and overlapping pages', () => {
+  const initial = snapshot(8, [])
+  initial.checkpoint.legacy_migration = {
+    run_id: 'run-1',
+    source_fingerprint: digest('a'),
+    commands: 2,
+    devices: 1,
+    active_unresolved: 1,
+    forensic_audit_events: 2,
+    unscoped_audit_events: 0,
+    blocks_new_risk: true,
+  }
+  const current = view(initial)
+  const wrongSource = legacyPage()
+  wrongSource.source_fingerprint = digest('b')
+  assert.throws(
+    () => mergeLegacyHistoryPage(current, wrongSource),
+    errorWithCode('invalid_legacy_history_page'),
+  )
+
+  const dangling = legacyPage()
+  dangling.relationships[0]!.child_id = 'missing'
+  assert.throws(
+    () => mergeLegacyHistoryPage(current, dangling),
+    errorWithCode('invalid_legacy_history_page'),
+  )
+
+  const installed = mergeLegacyHistoryPage(current, legacyPage())
+  assert.throws(
+    () => mergeLegacyHistoryPage(installed, legacyPage()),
+    errorWithCode('invalid_legacy_history_page'),
+  )
+})
+
 test('history rejects a nonterminal root and dangling relationships', () => {
   const current = view(snapshot(8, [command('recent', 30, 'succeeded')]))
   const nonterminal = historyPage(current.live, command('running', 20, 'running'))
@@ -234,6 +292,56 @@ function historyPage(current: BrowserAccountSnapshot, root: CommandProjection): 
   }
 }
 
+function legacyPage(): LegacyCommandPage {
+  return {
+    run_id: 'run-1',
+    source_fingerprint: digest('a'),
+    root_command_ids: ['legacy-command'],
+    commands: [
+      {
+        command_id: 'legacy-command',
+        kind: 'TrailingEntryOrder',
+        owner_user_id: null,
+        created_at: 1,
+        lifecycle: 'active',
+        payload_sha256: digest('b'),
+        redacted: false,
+      },
+    ],
+    devices: [
+      {
+        device_id: 'legacy-device',
+        command_id: 'legacy-command',
+        parent_id: null,
+        kind: 'trailing_entry',
+        symbol: 'BTCUSDT',
+        position_side: 'long',
+        started_at: 1,
+        completed_at: null,
+        lifecycle: 'active',
+        failure_reason: null,
+        client_order_ids: [],
+        remote_order_ids: [],
+        financial_values: {},
+        device_payload_sha256: digest('c'),
+        state_payload_sha256: digest('d'),
+      },
+    ],
+    relationships: [
+      {
+        parent_kind: 'command',
+        parent_id: 'legacy-command',
+        child_kind: 'trailing_entry',
+        child_id: 'legacy-device',
+        relationship_kind: 'command_root',
+        confidence: 'proven',
+      },
+    ],
+    unresolved_active_entities: ['legacy-device'],
+    next_cursor: null,
+  }
+}
+
 function checkpoint(
   revision: number,
   commandCount: number,
@@ -322,4 +430,8 @@ function ids<T>(rows: T[], key: keyof T): unknown[] {
 
 function errorWithCode(code: string): (error: unknown) => boolean {
   return (error) => error instanceof ProjectionStateError && error.code === code
+}
+
+function digest(character: string): string {
+  return character.repeat(64)
 }

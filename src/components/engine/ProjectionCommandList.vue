@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { Pin, RefreshCw } from 'lucide-vue-next'
 
 import { commandLabel, commandSymbol } from '@/lib/projection/presentation'
+import LegacyCommandHistory from '@/components/engine/LegacyCommandHistory.vue'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useGatewayStore } from '@/stores/gateway'
 import { useProjectionUiStore } from '@/stores/projectionUi'
@@ -13,9 +14,6 @@ const ui = useProjectionUiStore()
 const query = ref('')
 const historyError = ref<string | null>(null)
 const loadingHistory = ref(false)
-const legacyMigration = computed(
-  () => projections.selected?.view?.live.checkpoint.legacy_migration ?? null,
-)
 
 const visibleCommands = computed(() => {
   const normalized = query.value.trim().toLowerCase()
@@ -80,20 +78,7 @@ function formatTime(value: number): string {
       </button>
     </div>
 
-    <div
-      v-if="legacyMigration !== null"
-      class="legacy-migration-state"
-      data-testid="legacy-migration-state"
-    >
-      <strong>Imported account state</strong>
-      <span>
-        {{ legacyMigration.devices }} devices preserved ·
-        {{ legacyMigration.active_unresolved }} active awaiting reconciliation
-      </span>
-      <span v-if="legacyMigration.blocks_new_risk">
-        New exposure is blocked until exchange ownership and protection are proven.
-      </span>
-    </div>
+    <LegacyCommandHistory :query="query" />
 
     <div
       v-if="projections.selected?.status !== 'ready'"
@@ -182,15 +167,6 @@ function formatTime(value: number): string {
   gap: 8px;
   padding: 5px 8px;
   color: var(--color-text-dim);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.legacy-migration-state {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 7px 8px;
-  color: var(--color-warning);
   border-bottom: 1px solid var(--border-color);
 }
 

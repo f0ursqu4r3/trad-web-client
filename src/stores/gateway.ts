@@ -31,6 +31,7 @@ interface PendingCommand {
 
 interface PendingHistory {
   accountId: Uuid
+  kind: 'modern' | 'legacy'
   timer: number
   resolve: () => void
   reject: (error: Error) => void
@@ -160,11 +161,53 @@ export const useGatewayStore = defineStore('gateway', () => {
         updatePendingCounts()
         reject(new Error(`history request ${requestId} timed out`))
       }, HISTORY_RESULT_TIMEOUT_MS)
-      pendingHistories.set(requestId, { accountId, timer, resolve, reject })
+      pendingHistories.set(requestId, { accountId, kind: 'modern', timer, resolve, reject })
       updatePendingCounts()
       try {
         send({
           kind: 'request_command_history',
+          request_id: requestId,
+          account_id: accountId,
+          expected_projection_revision: expectedRevision,
+          before,
+          limit,
+        })
+      } catch (error) {
+        window.clearTimeout(timer)
+        pendingHistories.delete(requestId)
+        updatePendingCounts()
+        reject(error instanceof Error ? error : new Error(String(error)))
+      }
+    })
+  }
+
+  function requestLegacyHistory(
+    accountId = accounts.selectedAccountId,
+    limit = 100,
+  ): Promise<void> {
+    if (accountId === null) return Promise.reject(new Error('no trading account is selected'))
+    const entry = projections.byAccount[accountId]
+    if (entry?.view === null || entry?.view === undefined) {
+      return Promise.reject(new Error('account projection is not ready'))
+    }
+    if (entry.view.live.checkpoint.legacy_migration === undefined) {
+      return Promise.reject(new Error('account has no imported command history'))
+    }
+    const requestId = uuid()
+    const before = entry.view.legacyHistory?.next_cursor ?? null
+    const expectedRevision = entry.view.live.checkpoint.projection_revision
+
+    return new Promise((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        pendingHistories.delete(requestId)
+        updatePendingCounts()
+        reject(new Error(`imported history request ${requestId} timed out`))
+      }, HISTORY_RESULT_TIMEOUT_MS)
+      pendingHistories.set(requestId, { accountId, kind: 'legacy', timer, resolve, reject })
+      updatePendingCounts()
+      try {
+        send({
+          kind: 'request_legacy_command_history',
           request_id: requestId,
           account_id: accountId,
           expected_projection_revision: expectedRevision,
@@ -203,7 +246,13 @@ export const useGatewayStore = defineStore('gateway', () => {
         handleHistoryPage(message)
         return
       case 'command_history_error':
-        handleHistoryError(message.request_id, message.error)
+        handleHistoryError(message.request_id, message.error, 'modern')
+        return
+      case 'legacy_command_history_page':
+        handleLegacyHistoryPage(message)
+        return
+      case 'legacy_command_history_error':
+        handleHistoryError(message.request_id, message.error, 'legacy')
         return
       case 'pong':
         latencyMs.value = Math.max(0, Date.now() - message.nonce)
@@ -295,7 +344,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     window.clearTimeout(pending.timer)
     pendingHistories.delete(message.request_id)
     updatePendingCounts()
-    if (pending.accountId !== message.account_id) {
+    if (pending.kind !== 'modern' || pending.accountId !== message.account_id) {
       pending.reject(new Error('history response account does not match its request'))
       return
     }
@@ -307,13 +356,41 @@ export const useGatewayStore = defineStore('gateway', () => {
     }
   }
 
-  function handleHistoryError(requestId: Uuid, error: BrowserHistoryError): void {
+  function handleLegacyHistoryPage(
+    message: Extract<BrowserServerMessage, { kind: 'legacy_command_history_page' }>,
+  ): void {
+    const pending = pendingHistories.get(message.request_id)
+    if (pending === undefined) return
+    window.clearTimeout(pending.timer)
+    pendingHistories.delete(message.request_id)
+    updatePendingCounts()
+    if (pending.kind !== 'legacy' || pending.accountId !== message.account_id) {
+      pending.reject(new Error('imported history response does not match its request'))
+      return
+    }
+    try {
+      projections.mergeLegacyHistory(message.account_id, message.page)
+      pending.resolve()
+    } catch (error) {
+      pending.reject(error instanceof Error ? error : new Error(String(error)))
+    }
+  }
+
+  function handleHistoryError(
+    requestId: Uuid,
+    error: BrowserHistoryError,
+    kind: PendingHistory['kind'],
+  ): void {
     const pending = pendingHistories.get(requestId)
     if (pending === undefined) return
     window.clearTimeout(pending.timer)
     pendingHistories.delete(requestId)
     updatePendingCounts()
-    pending.reject(new Error(historyError(error)))
+    if (pending.kind !== kind) {
+      pending.reject(new Error('history error kind does not match its request'))
+      return
+    }
+    pending.reject(new Error(historyError(error, kind)))
   }
 
   function switchSelectedAccount(): void {
@@ -432,6 +509,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     disconnect,
     submitCommand,
     requestOlderHistory,
+    requestLegacyHistory,
   }
 })
 
@@ -447,16 +525,17 @@ function subscriptionError(
   }
 }
 
-function historyError(error: BrowserHistoryError): string {
+function historyError(error: BrowserHistoryError, kind: PendingHistory['kind']): string {
+  const label = kind === 'legacy' ? 'imported command history' : 'command history'
   switch (error.kind) {
     case 'unauthorized':
-      return 'command history is unauthorized'
+      return `${label} is unauthorized`
     case 'invalid_request':
     case 'routing_changed':
     case 'unavailable':
       return error.reason
     case 'revision_changed':
-      return `command history revision changed from ${error.expected} to ${error.actual}`
+      return `${label} revision changed from ${error.expected} to ${error.actual}`
   }
 }
 

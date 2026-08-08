@@ -6,6 +6,7 @@ import type {
   BrowserAccountSnapshot,
   BrowserSnapshotCause,
   ClientCommandPage,
+  LegacyCommandPage,
   ProjectionGraph,
   Uuid,
 } from '@/lib/gateway'
@@ -15,6 +16,7 @@ import {
   combinedProjection,
   installSnapshot,
   mergeHistoryPage,
+  mergeLegacyHistoryPage,
   type AccountProjectionView,
 } from '@/lib/projection'
 import { useAccountsStore } from '@/stores/accounts'
@@ -94,6 +96,17 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
     entry.view = mergeHistoryPage(entry.view, page)
   }
 
+  function mergeLegacyHistory(accountId: Uuid, page: LegacyCommandPage): void {
+    const entry = ensure(accountId)
+    if (entry.view === null) {
+      throw new ProjectionStateError(
+        'invalid_legacy_history_page',
+        'cannot install imported history before the live account snapshot',
+      )
+    }
+    entry.view = mergeLegacyHistoryPage(entry.view, page)
+  }
+
   function fail(accountId: Uuid, reason: string): void {
     const entry = ensure(accountId)
     entry.status = 'error'
@@ -151,6 +164,7 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
     install,
     apply,
     mergeHistory,
+    mergeLegacyHistory,
     fail,
     stale,
     markAllStale,

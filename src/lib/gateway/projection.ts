@@ -68,6 +68,78 @@ export interface LegacyMigrationProjection {
   blocks_new_risk: boolean
 }
 
+export type LegacyLifecycle = 'active' | 'succeeded' | 'failed' | 'canceled' | 'unknown'
+
+export type LegacyDeviceKind =
+  | 'trailing_entry'
+  | 'execution_group'
+  | 'order'
+  | 'native_protection'
+  | 'stop_guard'
+
+export type LegacyNumericOrigin = 'sqlite_real_json' | 'sqlite_integer_json'
+
+export type LegacyRelationshipConfidence = 'proven' | 'ambiguous' | 'unresolved'
+
+export interface LegacyCommandEvidence {
+  command_id: Uuid
+  kind: string
+  owner_user_id: Uuid | null
+  created_at: TimestampMillis | null
+  lifecycle: LegacyLifecycle
+  payload_sha256: string
+  redacted: boolean
+}
+
+export interface LegacyFinancialValue {
+  value: ExactDecimal
+  source_text: string
+  origin: LegacyNumericOrigin
+}
+
+export interface LegacyDeviceEvidence {
+  device_id: Uuid
+  command_id: Uuid | null
+  parent_id: Uuid | null
+  kind: LegacyDeviceKind
+  symbol: string | null
+  position_side: PositionSide | null
+  started_at: TimestampMillis
+  completed_at: TimestampMillis | null
+  lifecycle: LegacyLifecycle
+  failure_reason: string | null
+  client_order_ids: string[]
+  remote_order_ids: string[]
+  financial_values: Record<string, LegacyFinancialValue>
+  device_payload_sha256: string
+  state_payload_sha256: string
+}
+
+export interface LegacyRelationshipEvidence {
+  parent_kind: string
+  parent_id: Uuid
+  child_kind: string
+  child_id: Uuid
+  relationship_kind: string
+  confidence: LegacyRelationshipConfidence
+}
+
+export interface LegacyHistoryCursor {
+  accepted_at: TimestampMillis
+  command_id: Uuid
+}
+
+export interface LegacyCommandPage {
+  run_id: Uuid
+  source_fingerprint: string
+  root_command_ids: Uuid[]
+  commands: LegacyCommandEvidence[]
+  devices: LegacyDeviceEvidence[]
+  relationships: LegacyRelationshipEvidence[]
+  unresolved_active_entities: Uuid[]
+  next_cursor: LegacyHistoryCursor | null
+}
+
 export type ProjectionNodeKind =
   | 'command'
   | 'order'

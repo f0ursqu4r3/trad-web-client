@@ -6,6 +6,7 @@ import {
   type GatewayConnectionStatus,
   type GatewaySocket,
 } from '../client.ts'
+import { BROWSER_PROTOCOL_VERSION } from '../wire.ts'
 
 test('the ticket-auth frame is first and application messages wait for hello', async () => {
   const sockets: FakeSocket[] = []
@@ -22,10 +23,18 @@ test('the ticket-auth frame is first and application messages wait for hello', a
   )
   socket.open()
   assert.deepEqual(socket.sent, [
-    JSON.stringify({ kind: 'authenticate', protocol_version: 3, ticket: 'one-time-ticket' }),
+    JSON.stringify({
+      kind: 'authenticate',
+      protocol_version: BROWSER_PROTOCOL_VERSION,
+      ticket: 'one-time-ticket',
+    }),
   ])
 
-  socket.receive({ kind: 'hello', protocol_version: 3, session_valid_for_ms: 30_000 })
+  socket.receive({
+    kind: 'hello',
+    protocol_version: BROWSER_PROTOCOL_VERSION,
+    session_valid_for_ms: 30_000,
+  })
   client.send({ kind: 'subscribe_account', request_id: 'r', account_id: 'a' })
   assert.equal(JSON.parse(socket.sent[1] ?? '').kind, 'subscribe_account')
   assert.deepEqual(statuses, ['connecting', 'authenticating', 'ready'])
@@ -46,7 +55,7 @@ test('every reconnect acquires a fresh one-time ticket', async () => {
   requiredSocket(sockets, 0).open()
   requiredSocket(sockets, 0).receive({
     kind: 'hello',
-    protocol_version: 3,
+    protocol_version: BROWSER_PROTOCOL_VERSION,
     session_valid_for_ms: 30_000,
   })
   requiredSocket(sockets, 0).serverClose(1012, 'restart')

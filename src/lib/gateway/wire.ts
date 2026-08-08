@@ -5,10 +5,12 @@ import type {
   BrowserAccountSnapshot,
   ClientCommandPage,
   CommandHistoryCursor,
+  LegacyCommandPage,
+  LegacyHistoryCursor,
   ProjectionRevision,
 } from './projection.ts'
 
-export const BROWSER_PROTOCOL_VERSION = 3
+export const BROWSER_PROTOCOL_VERSION = 4
 
 export type BrowserClientMessage =
   | { kind: 'authenticate'; protocol_version: number; ticket: string }
@@ -26,6 +28,14 @@ export type BrowserClientMessage =
       account_id: Uuid
       expected_projection_revision: ProjectionRevision
       before: CommandHistoryCursor | null
+      limit: number
+    }
+  | {
+      kind: 'request_legacy_command_history'
+      request_id: Uuid
+      account_id: Uuid
+      expected_projection_revision: ProjectionRevision
+      before: LegacyHistoryCursor | null
       limit: number
     }
   | { kind: 'ping'; nonce: number }
@@ -107,6 +117,18 @@ export type BrowserServerMessage =
     }
   | {
       kind: 'command_history_error'
+      request_id: Uuid
+      account_id: Uuid
+      error: BrowserHistoryError
+    }
+  | {
+      kind: 'legacy_command_history_page'
+      request_id: Uuid
+      account_id: Uuid
+      page: LegacyCommandPage
+    }
+  | {
+      kind: 'legacy_command_history_error'
       request_id: Uuid
       account_id: Uuid
       error: BrowserHistoryError
