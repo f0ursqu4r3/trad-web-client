@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
+    "test:engine-client": "node --experimental-strip-types --test src/lib/gateway/__tests__/*.test.ts src/lib/projection/__tests__/*.test.ts",
     "test:projection": "node --experimental-strip-types --test src/lib/projection/__tests__/*.test.ts",
     "test:e2e": "playwright test",
     "smoke:bybit-filters": "node scripts/bybit_filter_smoke.mjs",
