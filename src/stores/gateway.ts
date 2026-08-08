@@ -19,6 +19,8 @@ import { useAccountsStore } from '@/stores/accounts'
 const logger = createLogger('gateway')
 const COMMAND_RESULT_TIMEOUT_MS = 30_000
 const HISTORY_RESULT_TIMEOUT_MS = 30_000
+const SUBSCRIPTION_RETRY_INITIAL_MS = 1_000
+const SUBSCRIPTION_RETRY_MAX_MS = 30_000
 
 interface PendingCommand {
   accountId: Uuid
@@ -56,6 +58,8 @@ export const useGatewayStore = defineStore('gateway', () => {
 
   const subscriptionRequests = new Map<Uuid, Uuid>()
   const subscriptionAccounts = new Map<Uuid, Uuid>()
+  const subscriptionRetryAttempts = new Map<Uuid, number>()
+  const subscriptionRetryTimers = new Map<Uuid, number>()
   const pendingCommands = new Map<Uuid, PendingCommand>()
   const pendingHistories = new Map<Uuid, PendingHistory>()
   let selectedSubscriptionId: Uuid | null = null
@@ -233,6 +237,7 @@ export const useGatewayStore = defineStore('gateway', () => {
       return
     }
     selectedSubscriptionId = message.subscription_id
+    clearSubscriptionRetry(accountId)
     projections.install(accountId, message.subscription_id, message.cause, message.snapshot)
   }
 
@@ -256,6 +261,7 @@ export const useGatewayStore = defineStore('gateway', () => {
       if (selectedSubscriptionId === message.subscription_id) selectedSubscriptionId = null
     }
     projections.fail(message.account_id, subscriptionError(message.error))
+    if (message.error.kind !== 'unauthorized') scheduleSubscriptionRetry(message.account_id)
   }
 
   function handleUnsubscribed(subscriptionId: Uuid): void {
@@ -311,6 +317,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   }
 
   function switchSelectedAccount(): void {
+    clearAllSubscriptionRetries()
     if (selectedSubscriptionId !== null) {
       const oldSubscription = selectedSubscriptionId
       selectedSubscriptionId = null
@@ -347,11 +354,48 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (accounts.selectedAccountId === accountId) subscribeSelectedAccount()
   }
 
+  function scheduleSubscriptionRetry(accountId: Uuid): void {
+    if (
+      status.value !== 'ready' ||
+      accounts.selectedAccountId !== accountId ||
+      subscriptionRetryTimers.has(accountId)
+    ) {
+      return
+    }
+    const attempt = subscriptionRetryAttempts.get(accountId) ?? 0
+    const delay = Math.min(
+      SUBSCRIPTION_RETRY_INITIAL_MS * 2 ** Math.min(attempt, 5),
+      SUBSCRIPTION_RETRY_MAX_MS,
+    )
+    subscriptionRetryAttempts.set(accountId, attempt + 1)
+    const timer = window.setTimeout(() => {
+      subscriptionRetryTimers.delete(accountId)
+      if (status.value === 'ready' && accounts.selectedAccountId === accountId) {
+        subscribeSelectedAccount()
+      }
+    }, delay)
+    subscriptionRetryTimers.set(accountId, timer)
+  }
+
+  function clearSubscriptionRetry(accountId: Uuid): void {
+    const timer = subscriptionRetryTimers.get(accountId)
+    if (timer !== undefined) window.clearTimeout(timer)
+    subscriptionRetryTimers.delete(accountId)
+    subscriptionRetryAttempts.delete(accountId)
+  }
+
+  function clearAllSubscriptionRetries(): void {
+    for (const timer of subscriptionRetryTimers.values()) window.clearTimeout(timer)
+    subscriptionRetryTimers.clear()
+    subscriptionRetryAttempts.clear()
+  }
+
   function send(message: BrowserClientMessage): void {
     client.send(message)
   }
 
   function resetSubscriptions(): void {
+    clearAllSubscriptionRetries()
     subscriptionRequests.clear()
     subscriptionAccounts.clear()
     selectedSubscriptionId = null
