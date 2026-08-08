@@ -145,7 +145,23 @@ const relatedProtections = computed(() => {
 })
 
 function commandProtectionScopeId(command: CommandProjection): string | null {
-  const protection = objectValue(command.accepted.parameters.protection)
+  const parameters = command.accepted.parameters
+  let protection: Record<string, unknown> | null
+  switch (command.accepted.kind) {
+    case 'place_order':
+    case 'place_execution_group':
+      protection = objectValue(parameters.protection)
+      break
+    case 'place_chase':
+      protection = objectValue(objectValue(parameters.plan)?.protection)
+      break
+    case 'place_trailing_entry':
+      protection = objectValue(objectValue(objectValue(parameters.plan)?.execution)?.protection)
+      break
+    default:
+      protection = null
+      break
+  }
   return stringValue(protection?.scope_id)
 }
 
