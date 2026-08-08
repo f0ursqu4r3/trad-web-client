@@ -39,16 +39,41 @@ test('loads revision-pinned history without replacing the live graph', async ({ 
     fixture.getByTestId('projection-command-list').getByText('Chase Order'),
   ).toBeVisible()
   await fixture.getByText('#40000000').click()
-  await expect(fixture.getByTestId('projection-details').getByText('insufficient margin')).toBeVisible()
+  await expect(
+    fixture.getByTestId('projection-details').getByText('insufficient margin'),
+  ).toBeVisible()
 })
 
 test('command selection drives details without a device resync request', async ({ page }) => {
   const fixture = page.getByTestId('engine-projection-fixture')
   await fixture.getByTestId('projection-command-list').getByText('Chase Order').click()
-  await fixture.getByTestId('projection-entity-tree').getByText('Limit Order', { exact: true }).click()
+  await fixture
+    .getByTestId('projection-entity-tree')
+    .getByText('Limit Order', { exact: true })
+    .click()
 
   const details = fixture.getByTestId('projection-details')
   await expect(details.getByText('64231.125', { exact: true })).toBeVisible()
   await expect(details.getByText('0.1', { exact: true })).toBeVisible()
   await expect(details.getByText('working', { exact: true }).first()).toBeVisible()
+})
+
+test('submits projected lifecycle actions with authoritative entity identity', async ({ page }) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await fixture.getByTestId('projection-command-list').getByText('Chase Order').click()
+  await fixture
+    .getByTestId('projection-actions')
+    .getByRole('button', { name: 'Cancel Chase' })
+    .click()
+
+  const modal = page.getByRole('dialog', { name: 'Cancel Chase' })
+  await modal.getByLabel('Confirm cancel chase').check()
+  await modal.getByRole('button', { name: 'Cancel Chase' }).click()
+  await expect(modal).not.toBeVisible()
+  await expect(fixture.getByTestId('latest-lifecycle-intent')).toContainText(
+    '"kind":"cancel_chase"',
+  )
+  await expect(fixture.getByTestId('latest-lifecycle-intent')).toContainText(
+    '"chase_id":"20000000-0000-4000-8000-000000000002"',
+  )
 })

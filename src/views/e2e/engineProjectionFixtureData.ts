@@ -27,7 +27,12 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
     'place_chase',
     'running',
     { kind: 'chase', id: CHASE_ID },
-    { plan: { symbol: 'BTC' } },
+    {
+      plan: {
+        symbol: 'BTC',
+        position_intent: { Open: { scope_id: 'scope-chase' } },
+      },
+    },
   )
   const filledCommand = command(
     FILLED_COMMAND_ID,
@@ -35,7 +40,10 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
     'place_order',
     'succeeded',
     { kind: 'order', id: FILLED_ORDER_ID },
-    { request: { execution: { kind: 'market' } } },
+    {
+      request: { execution: { kind: 'market' } },
+      position_intent: { Open: { scope_id: 'scope-filled' } },
+    },
   )
   const chaseOrder = order(CHASE_ORDER_ID, CHASE_COMMAND_ID, '0.125', '0.025', '0.1', 'working')
   const filledOrder = order(
@@ -101,7 +109,38 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
         latest_exchange_revision: 77,
         latest_long_exchange_revision: 77,
         latest_short_exchange_revision: 77,
-        owned_exposure: {},
+        owned_exposure: {
+          'scope-filled': {
+            scope_id: 'scope-filled',
+            side: 'long',
+            opened_quantity: '0.00420001',
+            reduced_quantity: '0',
+            remaining_quantity: '0.00420001',
+          },
+        },
+        unallocated_fills: {},
+      },
+      {
+        symbol: 'BTC',
+        mode: 'one_way',
+        status: 'consistent',
+        reconciliation_required: false,
+        exchange_quantity: { long: '0.025', short: '0' },
+        owned_quantity: { long: '0.025', short: '0' },
+        external_quantity: { long: '0', short: '0' },
+        deficit_quantity: { long: '0', short: '0' },
+        latest_exchange_revision: 78,
+        latest_long_exchange_revision: 78,
+        latest_short_exchange_revision: 78,
+        owned_exposure: {
+          'scope-chase': {
+            scope_id: 'scope-chase',
+            side: 'long',
+            opened_quantity: '0.025',
+            reduced_quantity: '0',
+            remaining_quantity: '0.025',
+          },
+        },
         unallocated_fills: {},
       },
     ],

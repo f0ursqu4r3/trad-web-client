@@ -66,3 +66,15 @@ test('opens chase and trailing-entry forms from their aliases', async ({ page })
   await page.keyboard.press('Enter')
   await expect(page.getByRole('dialog', { name: 'Trailing Entry' })).toBeVisible()
 })
+
+test('keeps an unknown-outcome command open and forbids blind resubmission', async ({ page }) => {
+  await page.getByRole('button', { name: 'Lose next outcome' }).click()
+  await page.getByRole('button', { name: /Commands/ }).click()
+  await page.getByRole('button', { name: /Market Order/ }).click()
+  const modal = page.getByRole('dialog', { name: 'Market Order' })
+  await modal.getByRole('button', { name: 'Submit' }).click()
+
+  await expect(modal).toBeVisible()
+  await expect(modal.getByText(/outcome is unknown/)).toBeVisible()
+  await expect(modal.getByText(/Do not resubmit until/)).toBeVisible()
+})

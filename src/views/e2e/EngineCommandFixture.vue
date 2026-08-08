@@ -6,12 +6,12 @@ import EngineCommandPalette from '@/components/engine/commands/EngineCommandPale
 import type { BrowserCommandIntent, BrowserCommandOutcome } from '@/lib/gateway'
 import { ExchangeType, NetworkType } from '@/lib/ws/protocol'
 import { useAccountsStore } from '@/stores/accounts'
-import { useGatewayStore } from '@/stores/gateway'
+import { CommandOutcomeUnknownError, useGatewayStore } from '@/stores/gateway'
 
 const accountId = '50000000-0000-4000-8000-000000000001'
 const accounts = useAccountsStore()
 const gateway = useGatewayStore()
-const outcomeMode = ref<'accepted' | 'rejected'>('accepted')
+const outcomeMode = ref<'accepted' | 'rejected' | 'unknown'>('accepted')
 const submissions = ref<Array<{ accountId: string; intent: BrowserCommandIntent }>>([])
 const latest = computed(() => submissions.value[submissions.value.length - 1] ?? null)
 
@@ -28,6 +28,12 @@ accounts.selectedAccountId = accountId
 gateway.status = 'ready'
 gateway.submitCommand = async (intent, submittedAccount): Promise<BrowserCommandOutcome> => {
   submissions.value.push({ accountId: submittedAccount ?? '', intent })
+  if (outcomeMode.value === 'unknown') {
+    throw new CommandOutcomeUnknownError(
+      '50000000-0000-4000-8000-000000000099',
+      'fixture connection interrupted',
+    )
+  }
   if (outcomeMode.value === 'rejected') {
     return {
       kind: 'rejected',
@@ -53,6 +59,7 @@ gateway.submitCommand = async (intent, submittedAccount): Promise<BrowserCommand
       <EngineCommandPalette />
       <button class="btn" type="button" @click="outcomeMode = 'accepted'">Accept next</button>
       <button class="btn" type="button" @click="outcomeMode = 'rejected'">Reject next</button>
+      <button class="btn" type="button" @click="outcomeMode = 'unknown'">Lose next outcome</button>
     </header>
     <pre data-testid="latest-command-intent">{{ latest ? JSON.stringify(latest) : 'none' }}</pre>
     <EngineCommandModalContainer />

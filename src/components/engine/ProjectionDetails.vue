@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import ProjectionActions from '@/components/engine/actions/ProjectionActions.vue'
 import { entityLabel, entityStatus } from '@/lib/projection/presentation'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useProjectionUiStore } from '@/stores/projectionUi'
@@ -199,6 +200,8 @@ function formatValue(value: unknown): string {
         <div class="entity-title">{{ entityLabel(ui.selectedEntity) }}</div>
         <div class="entity-id">{{ ui.selectedEntity.id }}</div>
       </div>
+
+      <ProjectionActions />
 
       <div class="detail-grid">
         <div v-for="item in details" :key="item.label" class="detail-cell">

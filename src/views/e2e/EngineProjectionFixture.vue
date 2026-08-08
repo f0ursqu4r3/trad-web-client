@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 import EngineOrdersColumn from '@/components/engine/EngineOrdersColumn.vue'
 import ProjectionDetails from '@/components/engine/ProjectionDetails.vue'
+import type { BrowserCommandIntent, BrowserCommandOutcome } from '@/lib/gateway'
 import { ExchangeType, NetworkType } from '@/lib/ws/protocol'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
@@ -15,6 +18,7 @@ import {
 const accounts = useAccountsStore()
 const projections = useAccountProjectionStore()
 const gateway = useGatewayStore()
+const latestAction = ref<{ accountId: string; intent: BrowserCommandIntent } | null>(null)
 
 accounts.accountsRaw = [
   {
@@ -36,12 +40,25 @@ projections.install(
 gateway.requestOlderHistory = async () => {
   projections.mergeHistory(ENGINE_ACCOUNT_ID, engineProjectionHistoryPage())
 }
+gateway.status = 'ready'
+gateway.submitCommand = async (intent, accountId): Promise<BrowserCommandOutcome> => {
+  latestAction.value = { accountId: accountId ?? '', intent }
+  return {
+    kind: 'accepted',
+    command_id: crypto.randomUUID(),
+    account_revision: 43,
+    duplicate: false,
+  }
+}
 </script>
 
 <template>
   <main class="engine-fixture" data-testid="engine-projection-fixture">
     <EngineOrdersColumn />
     <ProjectionDetails />
+    <pre class="action-evidence" data-testid="latest-lifecycle-intent">{{
+      latestAction ? JSON.stringify(latestAction) : 'none'
+    }}</pre>
   </main>
 </template>
 
@@ -54,6 +71,16 @@ gateway.requestOlderHistory = async () => {
   overflow: hidden;
   color: var(--color-text);
   background: var(--color-bg);
+}
+
+.action-evidence {
+  position: fixed;
+  right: 6px;
+  bottom: 6px;
+  z-index: -1;
+  max-width: 1px;
+  max-height: 1px;
+  overflow: hidden;
 }
 
 @media (max-width: 760px) {
