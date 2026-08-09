@@ -348,7 +348,7 @@ function checkpoint(
   exchange: 'hyperliquid' | 'bybit' = 'hyperliquid',
 ): ProjectionCheckpoint {
   return {
-    schema_version: 20,
+    schema_version: 21,
     shard: { exchange, network: 'testnet', account_id: ACCOUNT_ID },
     account_revision: revision,
     projection_revision: revision,
@@ -381,6 +381,7 @@ function summary(commands: number): AccountProjectionSummary {
     positions: 0,
     executions: 0,
     unmatched_executions: 0,
+    unresolved_external_orders: 0,
     balances: 0,
     protections: 0,
     active_protections: 0,

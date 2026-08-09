@@ -37,6 +37,7 @@ export interface AccountProjectionSummary {
   positions: number
   executions: number
   unmatched_executions: number
+  unresolved_external_orders: number
   balances: number
   protections: number
   active_protections: number
