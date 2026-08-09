@@ -32,7 +32,7 @@ export const useProjectionUiStore = defineStore(
     const newestSeen = new Map<Uuid, [number, Uuid]>()
 
     const graph = computed(() => projections.selectedGraph)
-    const commands = computed(() => graph.value?.commands ?? [])
+    const commands = computed(() => projections.selectedCommands)
     const orderedCommands = computed(() => {
       const rows = [...commands.value]
       rows.sort(compareCommands)

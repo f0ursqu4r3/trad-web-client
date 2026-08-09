@@ -40,6 +40,11 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
     return accountId === null ? null : (byAccount.value[accountId] ?? null)
   })
   const selectedLive = computed(() => selected.value?.view?.live ?? null)
+  const selectedCommands = computed(() => {
+    const view = selected.value?.view
+    if (view === null || view === undefined) return []
+    return view.history === null ? view.live.commands : combinedProjection(view).commands
+  })
   const selectedGraph = computed<ProjectionGraph | null>(() => {
     const view = selected.value?.view
     return view === null || view === undefined ? null : combinedProjection(view)
@@ -76,7 +81,10 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
       )
     }
     try {
-      entry.view = applyDelta(entry.view, delta)
+      const next = applyDelta(entry.view, delta)
+      Object.assign(entry.view.live, next.live)
+      entry.view.history = next.history
+      entry.view.legacyHistory = next.legacyHistory
       entry.status = 'ready'
       entry.error = null
     } catch (error) {
@@ -159,6 +167,7 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
     byAccount,
     selected,
     selectedLive,
+    selectedCommands,
     selectedGraph,
     beginSubscription,
     install,

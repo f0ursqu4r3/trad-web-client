@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { Pin, RefreshCw } from 'lucide-vue-next'
 
-import { commandLabel, commandSymbol } from '@/lib/projection/presentation'
+import { commandLabel, commandSymbolIndex } from '@/lib/projection/presentation'
 import LegacyCommandHistory from '@/components/engine/LegacyCommandHistory.vue'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useGatewayStore } from '@/stores/gateway'
@@ -14,14 +14,14 @@ const ui = useProjectionUiStore()
 const query = ref('')
 const historyError = ref<string | null>(null)
 const loadingHistory = ref(false)
+const symbols = computed(() => (ui.graph === null ? new Map() : commandSymbolIndex(ui.graph)))
 
 const visibleCommands = computed(() => {
   const normalized = query.value.trim().toLowerCase()
   if (normalized.length === 0) return ui.orderedCommands
-  const graph = ui.graph
   return ui.orderedCommands.filter((command) => {
     const label = commandLabel(command)
-    const symbol = graph === null ? null : commandSymbol(command, graph)
+    const symbol = symbols.value.get(command.command_id) ?? null
     return [label, symbol, command.command_id, command.lifecycle]
       .filter((value): value is string => value !== null)
       .some((value) => value.toLowerCase().includes(normalized))
@@ -110,7 +110,9 @@ function formatTime(value: number): string {
             {{ ui.meta(command.command_id).nickname || commandLabel(command) }}
           </span>
           <span class="command-facets">
-            <span v-if="ui.graph">{{ commandSymbol(command, ui.graph) }}</span>
+            <span v-if="symbols.has(command.command_id)">{{
+              symbols.get(command.command_id)
+            }}</span>
             <span>#{{ command.command_id.slice(0, 8) }}</span>
           </span>
         </span>
@@ -182,6 +184,8 @@ function formatTime(value: number): string {
 .command-row {
   position: relative;
   display: grid;
+  content-visibility: auto;
+  contain-intrinsic-size: 52px;
   width: 100%;
   min-height: 52px;
   grid-template-columns: 3px minmax(0, 1fr) auto 24px;

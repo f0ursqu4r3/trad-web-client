@@ -20,7 +20,9 @@ export function pruneLiveSnapshot(snapshot: BrowserAccountSnapshot): BrowserAcco
   )
   const selectedNodes = expandDescendants(snapshot.relationships, selectedCommands)
 
-  const commands = snapshot.commands.filter((command) => selectedCommands.has(command.command_id))
+  const commands = snapshot.commands
+    .filter((command) => selectedCommands.has(command.command_id))
+    .sort((left, right) => left.command_id.localeCompare(right.command_id))
   const executionGroups = snapshot.execution_groups.filter((row) =>
     selectedNodes.has(nodeKey({ kind: 'execution_group', id: row.group_id })),
   )
@@ -221,6 +223,7 @@ function commandId(command: CommandProjection): Uuid {
 }
 
 function mergeRows<T>(existing: T[], incoming: T[], identity: (row: T) => string): T[] {
+  if (incoming.length === 0) return existing
   const rows = new Map(existing.map((row) => [identity(row), row]))
   for (const row of incoming) {
     rows.set(identity(row), row)

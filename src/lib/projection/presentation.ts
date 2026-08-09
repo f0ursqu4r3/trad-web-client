@@ -138,8 +138,56 @@ export function commandSymbol(command: CommandProjection, graph: ProjectionGraph
   return findSymbol(tree)
 }
 
+export function commandSymbolIndex(graph: ProjectionGraph): Map<string, string | null> {
+  const entities = projectionEntities(graph)
+  const children = new Map<string, string[]>()
+  for (const edge of graph.relationships) {
+    const parent = nodeKey(edge.parent)
+    const rows = children.get(parent) ?? []
+    rows.push(nodeKey(edge.child))
+    children.set(parent, rows)
+  }
+
+  const symbols = new Map<string, string | null>()
+  const visiting = new Set<string>()
+  const resolve = (key: string): string | null => {
+    if (symbols.has(key)) return symbols.get(key) ?? null
+    if (visiting.has(key)) return null
+    visiting.add(key)
+
+    const entity = entities.get(key)
+    let symbol = entity === undefined ? null : directSymbol(entity)
+    if (symbol === null) {
+      for (const child of children.get(key) ?? []) {
+        symbol = resolve(child)
+        if (symbol !== null) break
+      }
+    }
+    visiting.delete(key)
+    symbols.set(key, symbol)
+    return symbol
+  }
+
+  return new Map(
+    graph.commands.map((command) => [
+      command.command_id,
+      resolve(nodeKey({ kind: 'command', id: command.command_id })),
+    ]),
+  )
+}
+
 function findSymbol(tree: ProjectionTreeNode): string | null {
   const entity = tree.entity
+  const direct = directSymbol(entity)
+  if (direct !== null) return direct
+  for (const child of tree.children) {
+    const symbol = findSymbol(child)
+    if (symbol !== null) return symbol
+  }
+  return null
+}
+
+function directSymbol(entity: ProjectionEntity): string | null {
   switch (entity.kind) {
     case 'order':
       return entity.row.current_request.symbol
@@ -148,17 +196,11 @@ function findSymbol(tree: ProjectionTreeNode): string | null {
     case 'trailing_entry':
     case 'chase': {
       const symbol = entity.row.plan.symbol
-      if (typeof symbol === 'string') return symbol
-      break
+      return typeof symbol === 'string' ? symbol : null
     }
     default:
-      break
+      return null
   }
-  for (const child of tree.children) {
-    const symbol = findSymbol(child)
-    if (symbol !== null) return symbol
-  }
-  return null
 }
 
 function buildTree(

@@ -89,14 +89,15 @@ export function applyDelta(
     )
   }
 
-  const graph = upsertSnapshotGraph(view.live, delta)
-  const live = pruneLiveSnapshot({
-    ...graph,
+  const merged = {
+    ...upsertSnapshotGraph(view.live, delta),
     checkpoint: delta.checkpoint,
     positions: mergeRows(view.live.positions, delta.positions, (row) => row.symbol),
     balances: mergeRows(view.live.balances, delta.balances, (row) => row.asset),
     protections: mergeRows(view.live.protections, delta.protections, (row) => row.remote_order_id),
-  })
+  }
+  const topologyChanged = delta.commands.length > 0 || delta.relationships.length > 0
+  const live = topologyChanged || exceedsTerminalWindow(merged) ? pruneLiveSnapshot(merged) : merged
 
   return { live, history: null, legacyHistory: view.legacyHistory }
 }
@@ -405,6 +406,7 @@ function unique<T>(values: T[]): T[] {
 }
 
 function mergeRows<T>(existing: T[], incoming: T[], identity: (row: T) => string): T[] {
+  if (incoming.length === 0) return existing
   const rows = new Map(existing.map((row) => [identity(row), row]))
   for (const row of incoming) {
     rows.set(identity(row), row)
@@ -412,4 +414,14 @@ function mergeRows<T>(existing: T[], incoming: T[], identity: (row: T) => string
   return Array.from(rows.entries())
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([, row]) => row)
+}
+
+function exceedsTerminalWindow(snapshot: BrowserAccountSnapshot): boolean {
+  const limit = snapshot.window.terminal_command_limit
+  if (limit < 0) return true
+  let terminal = 0
+  for (const command of snapshot.commands) {
+    if (isTerminalCommand(command.lifecycle) && ++terminal > limit) return true
+  }
+  return false
 }

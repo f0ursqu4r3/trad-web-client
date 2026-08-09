@@ -11,6 +11,7 @@ import type {
 import {
   commandKindLabel,
   commandSymbol,
+  commandSymbolIndex,
   commandTree,
   entityLabel,
   projectionEntities,
@@ -27,6 +28,7 @@ test('a command tree follows typed relationships instead of inferred ownership',
   assert.equal(tree?.children[0]?.children[0]?.entity.kind, 'order')
   assert.equal(tree?.children[0]?.children[0]?.relationship, 'chase_order')
   assert.equal(commandSymbol(graph.commands[0] as CommandProjection, graph), 'BTC')
+  assert.equal(commandSymbolIndex(graph).get('command-chase'), 'BTC')
 })
 
 test('a malformed relationship cycle terminates at the repeated ancestor', () => {
@@ -42,6 +44,7 @@ test('a malformed relationship cycle terminates at the repeated ancestor', () =>
 
   assert.notEqual(order, undefined)
   assert.deepEqual(order?.children, [])
+  assert.equal(commandSymbolIndex(graph).get('command-chase'), 'BTC')
 })
 
 test('presentation labels preserve strategy and execution distinctions', () => {
