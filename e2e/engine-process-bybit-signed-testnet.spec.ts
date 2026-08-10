@@ -1,0 +1,536 @@
+import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test'
+import { existsSync, rmSync, writeFileSync } from 'node:fs'
+import { bybitInstrument, bybitSymbolState, type BybitInstrument } from './support/bybitTestnet'
+
+const enabled = process.env.ENGINE_PROCESS_BYBIT_SIGNED_TESTNET_E2E === '1'
+const terminalBaseUrl = process.env.ENGINE_PROCESS_TERMINAL_BASE_URL || 'http://127.0.0.1:15173'
+const testEmail = process.env.ENGINE_PROCESS_TEST_EMAIL || 'replacement-qualification@trad.local'
+const accountLabel = process.env.ENGINE_PROCESS_BYBIT_ACCOUNT_LABEL || 'replacement-bybit-testnet'
+const apiKey = process.env.BYBIT_TESTNET_API_KEY || ''
+const apiSecret = process.env.BYBIT_TESTNET_API_SECRET || ''
+const symbol = (process.env.ENGINE_PROCESS_BYBIT_SYMBOL || 'BTCUSDT').toUpperCase()
+const configuredNotional = Number(process.env.ENGINE_PROCESS_BYBIT_NOTIONAL || '0')
+const commandTimeoutMs = Number(process.env.ENGINE_PROCESS_COMMAND_TIMEOUT_MS || '90000')
+const restartEnabled = process.env.ENGINE_PROCESS_BYBIT_PROTECTION_RESTART_E2E === '1'
+const restartReadyPath =
+  process.env.ENGINE_PROCESS_BYBIT_RESTART_READY_PATH || '/tmp/trad-bybit-restart-ready'
+const restartUnavailablePath =
+  process.env.ENGINE_PROCESS_BYBIT_RESTART_UNAVAILABLE_PATH || '/tmp/trad-bybit-restart-unavailable'
+const restartResumedPath =
+  process.env.ENGINE_PROCESS_BYBIT_RESTART_RESUMED_PATH || '/tmp/trad-bybit-restart-resumed'
+
+const credentials = { apiKey, apiSecret }
+
+test.describe.serial('Bybit replacement engine through the production terminal', () => {
+  test.skip(!enabled, 'signed Bybit Testnet qualification is explicitly gated')
+
+  test('opens protected Market exposure and flattens it', async ({ page, request }) => {
+    test.setTimeout(5 * 60_000)
+    validateConfiguration()
+    await expectExchangeFlat(request)
+
+    let exposurePossible = false
+    try {
+      await loginAndSelectAccount(page)
+      const instrument = await bybitInstrument(request, symbol)
+      const prices = protectionPrices(instrument)
+      const openId = await submitMarketOpen(page, safeNotional(instrument), prices)
+      exposurePossible = true
+
+      await expectCommandLifecycle(page, openId, 'succeeded')
+      await expectProjectedFilledOrder(page, openId)
+      await expectProjectedProtection(page)
+      await expectExchangeProtectedLong(request)
+
+      const flattenId = await submitSymbolFlatten(page)
+      await expectCommandLifecycle(page, flattenId, 'succeeded')
+      await expectExchangeFlat(request)
+      exposurePossible = false
+    } finally {
+      if (exposurePossible) await bestEffortFlatten(page)
+      await expectExchangeFlat(request)
+    }
+  })
+
+  test('places and cancels a resting Limit entry', async ({ page, request }) => {
+    test.setTimeout(5 * 60_000)
+    validateConfiguration()
+    await expectExchangeFlat(request)
+
+    let cleanupRequired = false
+    try {
+      await loginAndSelectAccount(page)
+      const instrument = await bybitInstrument(request, symbol)
+      const limitPrice = alignPrice(instrument.lastPrice * 0.7, instrument.tickSize)
+      const quantity = alignQuantity(safeNotional(instrument) / limitPrice, instrument.quantityStep)
+      const commandId = await submitLimitOpen(page, limitPrice, quantity)
+      cleanupRequired = true
+
+      await expectCommandLifecycle(page, commandId, 'running')
+      const order = await selectProjectedEntity(page, commandId, 'order')
+      await expect(order).toContainText(/working/i, { timeout: commandTimeoutMs })
+      await expectExchangeOrderCount(request, 1)
+
+      await cancelSelectedOrder(page)
+      await expect(order).toContainText(/canceled/i, { timeout: commandTimeoutMs })
+      await expectExchangeFlat(request)
+      cleanupRequired = false
+    } finally {
+      if (cleanupRequired) await bestEffortFlatten(page)
+      await expectExchangeFlat(request)
+    }
+  })
+
+  test('cancels a waiting Trailing Entry without creating exposure', async ({ page, request }) => {
+    test.setTimeout(5 * 60_000)
+    validateConfiguration()
+    await expectExchangeFlat(request)
+
+    let cleanupRequired = false
+    try {
+      await loginAndSelectAccount(page)
+      const instrument = await bybitInstrument(request, symbol)
+      const commandId = await submitTrailingEntry(page, instrument)
+      cleanupRequired = true
+
+      await expectCommandLifecycle(page, commandId, 'running')
+      const entry = await selectProjectedEntity(page, commandId, 'trailing_entry')
+      await expect(entry).toContainText(/running/i, { timeout: commandTimeoutMs })
+      await expect(page.getByTestId('projection-details')).toContainText('waiting_for_activation', {
+        timeout: commandTimeoutMs,
+      })
+      await expectExchangeFlat(request)
+
+      const cancelId = await submitSelectedAction(page, 'Cancel Entry')
+      await expectCommandLifecycle(page, cancelId, 'succeeded')
+      await expect(entry).toContainText(/canceled/i, { timeout: commandTimeoutMs })
+      await expectExchangeFlat(request)
+      cleanupRequired = false
+    } finally {
+      if (cleanupRequired) await bestEffortFlatten(page)
+      await expectExchangeFlat(request)
+    }
+  })
+
+  test('enters, protects, and closes a Trailing Entry', async ({ page, request }) => {
+    test.setTimeout(6 * 60_000)
+    validateConfiguration()
+    await expectExchangeFlat(request)
+
+    let commandId: string | null = null
+    let exposurePossible = false
+    try {
+      await loginAndSelectAccount(page)
+      const instrument = await bybitInstrument(request, symbol)
+      commandId = await submitTrailingEntry(page, instrument)
+      await selectProjectedEntity(page, commandId, 'trailing_entry')
+
+      exposurePossible = true
+      const enterId = await submitSelectedAction(page, 'Enter Now')
+      await expectCommandLifecycle(page, enterId, 'succeeded')
+      await expectExchangeProtectedLong(request)
+      await expectProjectedFilledOrder(page, commandId)
+      await expectProjectedProtection(page)
+
+      await selectProjectedEntity(page, commandId, 'trailing_entry')
+      const closeId = await submitSelectedAction(page, 'Close Position')
+      await expectCommandLifecycle(page, closeId, 'succeeded')
+      const completed = await selectProjectedEntity(page, commandId, 'trailing_entry')
+      await expect(completed).toContainText(/completed/i, { timeout: commandTimeoutMs })
+      await expectExchangeFlat(request)
+      exposurePossible = false
+    } finally {
+      if (exposurePossible) await bestEffortCloseTrailingEntry(page, commandId)
+      await expectExchangeFlat(request)
+    }
+  })
+
+  test('restores active native protection across abrupt node restart', async ({
+    page,
+    request,
+  }) => {
+    test.skip(!restartEnabled, 'signed Bybit active-protection restart is separately gated')
+    test.setTimeout(8 * 60_000)
+    validateConfiguration()
+    clearRestartMarkers()
+    await expectExchangeFlat(request)
+
+    let openId: string | null = null
+    let exposurePossible = false
+    try {
+      await loginAndSelectAccount(page)
+      const instrument = await bybitInstrument(request, symbol)
+      openId = await submitMarketOpen(page, safeNotional(instrument), protectionPrices(instrument))
+      exposurePossible = true
+      await expectCommandLifecycle(page, openId, 'succeeded')
+      await expectProjectedFilledOrder(page, openId)
+      await expectProjectedProtection(page)
+      await expectExchangeProtectedLong(request)
+
+      writeMarker(restartReadyPath)
+      const projectionState = page.getByTestId('projection-account-state')
+      await expect(projectionState).toContainText(/unavailable|connect|transport|error/i, {
+        timeout: 45_000,
+      })
+      writeMarker(restartUnavailablePath)
+      await expect.poll(() => existsSync(restartResumedPath), { timeout: 90_000 }).toBe(true)
+      await expect(page.locator('.ws-indicator-status')).toHaveText('[ready]', {
+        timeout: 90_000,
+      })
+      await expect(projectionState).toHaveCount(0, { timeout: 90_000 })
+
+      await expectProjectedFilledOrder(page, openId)
+      await expectProjectedProtection(page)
+      await expectExchangeProtectedLong(request)
+      const flattenId = await submitSymbolFlatten(page)
+      await expectCommandLifecycle(page, flattenId, 'succeeded')
+      await expectExchangeFlat(request)
+      exposurePossible = false
+    } finally {
+      if (exposurePossible && existsSync(restartResumedPath)) await bestEffortFlatten(page)
+      if (existsSync(restartResumedPath)) await expectExchangeFlat(request)
+      if (openId === null) clearRestartMarkers()
+    }
+  })
+})
+
+function validateConfiguration(): void {
+  if (!apiKey || !apiSecret) {
+    throw new Error('BYBIT_TESTNET_API_KEY and BYBIT_TESTNET_API_SECRET are required')
+  }
+  if (!/^[A-Z0-9]+USDT$/.test(symbol)) {
+    throw new Error('ENGINE_PROCESS_BYBIT_SYMBOL must be an uppercase USDT perpetual symbol')
+  }
+  if (
+    configuredNotional !== 0 &&
+    (!Number.isFinite(configuredNotional) || configuredNotional < 5 || configuredNotional > 250)
+  ) {
+    throw new Error('ENGINE_PROCESS_BYBIT_NOTIONAL must be between 5 and 250 USDT')
+  }
+}
+
+async function loginAndSelectAccount(page: Page): Promise<void> {
+  page.setDefaultTimeout(commandTimeoutMs)
+  await page.setViewportSize({ width: 1600, height: 1000 })
+  const login = new URL('/auth/test-login', terminalBaseUrl)
+  login.searchParams.set('email', testEmail)
+  login.searchParams.set('return_to', '/terminal')
+  await page.goto(login.toString())
+  await page.waitForURL(/\/terminal(?:\?|$)/, { timeout: 30_000 })
+  await expect(page.locator('.ws-indicator-status')).toHaveText('[ready]', { timeout: 30_000 })
+
+  const account = page.locator('.account-trigger')
+  if (
+    !(await account
+      .getByText(accountLabel, { exact: false })
+      .isVisible()
+      .catch(() => false))
+  ) {
+    await account.click()
+    await page.getByRole('menuitem', { name: new RegExp(escapeRegExp(accountLabel), 'i') }).click()
+  }
+  await expect(account).toContainText(accountLabel, { timeout: 30_000 })
+  await expect(account).toContainText(/BYBIT/i)
+  await expect(account).toContainText(/TESTNET/i)
+  await expect(account).toContainText(/HEDGE ONLY/i)
+  await expect(page.getByTestId('projection-command-list')).toBeVisible()
+}
+
+async function submitMarketOpen(
+  page: Page,
+  notional: number,
+  protection: { takeProfit: string; stopLoss: string },
+): Promise<string> {
+  const prior = await commandIds(page)
+  await openCommand(page, 'mo', 'Market Order')
+  const dialog = page.getByRole('dialog', { name: 'Market Order' })
+  await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
+  await dialog.getByLabel('Position Side').selectOption('Long')
+  await dialog.getByLabel('Amount Type').selectOption('notional')
+  await dialog.getByLabel('USDT Amount').fill(decimalString(notional))
+  await dialog
+    .getByRole('textbox', { name: 'Take Profit Price (optional)' })
+    .fill(protection.takeProfit)
+  await dialog
+    .getByRole('textbox', { name: 'Stop Loss Price (optional)' })
+    .fill(protection.stopLoss)
+  await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled()
+  await dialog.getByRole('button', { name: 'Submit' }).click()
+  await expect(dialog).toBeHidden({ timeout: 10_000 })
+  return await waitForNewCommandId(page, prior)
+}
+
+async function submitLimitOpen(page: Page, price: number, quantity: number): Promise<string> {
+  const prior = await commandIds(page)
+  await openCommand(page, 'lo', 'Limit Order')
+  const dialog = page.getByRole('dialog', { name: 'Limit Order' })
+  await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
+  await dialog.getByLabel('Position Side').selectOption('Long')
+  await dialog.getByLabel('Base Quantity').fill(decimalString(quantity))
+  await dialog.getByLabel('Limit Price').fill(decimalString(price))
+  await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled()
+  await dialog.getByRole('button', { name: 'Submit' }).click()
+  await expect(dialog).toBeHidden({ timeout: 10_000 })
+  return await waitForNewCommandId(page, prior)
+}
+
+async function submitTrailingEntry(page: Page, instrument: BybitInstrument): Promise<string> {
+  const activation = alignPrice(instrument.lastPrice * 0.9, instrument.tickSize)
+  const stopLoss = alignPrice(instrument.lastPrice * 0.8, instrument.tickSize)
+  const takeProfit = alignPrice(instrument.lastPrice * 1.05, instrument.tickSize)
+  const minimumEntryNotional = Math.max(
+    instrument.minimumNotional * 1.25,
+    instrument.quantityStep * activation * 1.25,
+  )
+  const riskFraction = (activation - stopLoss) / activation
+  const riskAmount = minimumEntryNotional * riskFraction
+
+  const prior = await commandIds(page)
+  await openCommand(page, 'te', 'Trailing Entry')
+  const dialog = page.getByRole('dialog', { name: 'Trailing Entry' })
+  await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
+  await dialog.getByLabel('Position Side').selectOption('Long')
+  await dialog.getByRole('textbox', { name: 'Activation Price' }).fill(decimalString(activation))
+  await dialog.getByRole('textbox', { name: 'Jump Threshold (%)' }).fill('0.1')
+  await dialog.getByRole('textbox', { name: 'Stop Loss Price' }).fill(decimalString(stopLoss))
+  await dialog.getByRole('textbox', { name: 'Take Profit Price' }).fill(decimalString(takeProfit))
+  await dialog.getByRole('textbox', { name: 'Risk Amount' }).fill(riskAmount.toFixed(4))
+  await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled({
+    timeout: commandTimeoutMs,
+  })
+  await dialog.getByRole('button', { name: 'Submit' }).click()
+  await expect(dialog).toBeHidden({ timeout: 10_000 })
+  return await waitForNewCommandId(page, prior)
+}
+
+async function submitSymbolFlatten(page: Page): Promise<string> {
+  const prior = await commandIds(page)
+  await openCommand(page, 'fl', 'Flatten Exposure')
+  const dialog = page.getByRole('dialog', { name: 'Flatten Exposure' })
+  await dialog.getByRole('combobox', { name: /Target/ }).selectOption('symbol')
+  await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
+  await dialog.getByRole('checkbox', { name: /Confirm flatten this symbol/i }).check()
+  await dialog.getByRole('button', { name: 'Flatten' }).click()
+  return await waitForNewCommandId(page, prior)
+}
+
+async function submitSelectedAction(page: Page, label: string): Promise<string> {
+  const prior = await commandIds(page)
+  await page.getByTestId('projection-actions').getByRole('button', { name: label }).click()
+  const dialog = page.getByRole('dialog', { name: label })
+  const confirmation = dialog.getByLabel(new RegExp(`Confirm ${label.toLowerCase()}`, 'i'))
+  if (await confirmation.count()) await confirmation.check()
+  await dialog.getByRole('button', { name: label }).click()
+  await expect(dialog).toBeHidden({ timeout: 10_000 })
+  return await waitForNewCommandId(page, prior)
+}
+
+async function cancelSelectedOrder(page: Page): Promise<void> {
+  await page.getByTestId('projection-actions').getByRole('button', { name: 'Cancel Order' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Cancel Order' })
+  await dialog.getByLabel('Confirm cancel order').check()
+  await dialog.getByRole('button', { name: 'Cancel Order' }).click()
+  await expect(dialog).toBeHidden({ timeout: 10_000 })
+}
+
+async function openCommand(page: Page, search: string, label: string): Promise<void> {
+  await page.getByRole('button', { name: /Commands Ctrl\+K/i }).click()
+  const palette = page.getByRole('dialog', { name: 'Commands' })
+  await palette.getByPlaceholder('Search commands').fill(search)
+  await palette
+    .getByRole('button', { name: new RegExp(label, 'i') })
+    .first()
+    .click()
+}
+
+async function commandIds(page: Page): Promise<Set<string>> {
+  const ids = await page
+    .locator('[data-testid="projection-command-list"] [data-command-id]')
+    .evaluateAll((nodes) =>
+      nodes
+        .map((node) => node.getAttribute('data-command-id'))
+        .filter((value): value is string => value !== null && value.length > 0),
+    )
+  return new Set(ids)
+}
+
+async function waitForNewCommandId(page: Page, prior: Set<string>): Promise<string> {
+  const handle = await page.waitForFunction(
+    (existing) => {
+      const known = new Set(existing)
+      return (
+        Array.from(document.querySelectorAll<HTMLElement>('[data-command-id]'))
+          .map((node) => node.dataset.commandId)
+          .find((id) => id !== undefined && !known.has(id)) ?? null
+      )
+    },
+    [...prior],
+    { timeout: commandTimeoutMs },
+  )
+  const id = await handle.jsonValue()
+  if (typeof id !== 'string') throw new Error('new projected command did not expose an id')
+  return id
+}
+
+async function expectCommandLifecycle(
+  page: Page,
+  commandId: string,
+  lifecycle: string,
+): Promise<void> {
+  const row = page.locator(`[data-command-id="${commandId}"]`)
+  await expect(row).toBeVisible({ timeout: commandTimeoutMs })
+  await expect(row).toContainText(new RegExp(lifecycle, 'i'), { timeout: commandTimeoutMs })
+}
+
+async function selectProjectedEntity(
+  page: Page,
+  commandId: string,
+  entityKind: string,
+): Promise<Locator> {
+  await page.locator(`[data-command-id="${commandId}"]`).click()
+  const entity = page.locator(`[data-node-kind="${entityKind}"]`).first()
+  await expect(entity).toBeVisible({ timeout: commandTimeoutMs })
+  await entity.click()
+  return entity
+}
+
+async function expectProjectedFilledOrder(page: Page, commandId: string): Promise<void> {
+  const order = await selectProjectedEntity(page, commandId, 'order')
+  await expect(order).toContainText(/filled/i, { timeout: commandTimeoutMs })
+  const details = page.getByTestId('projection-details')
+  await expect(details).toContainText('Filled Quantity')
+  await expect(details).toContainText('Reconciliation Required')
+  await expect(details).toContainText('no')
+}
+
+async function expectProjectedProtection(page: Page): Promise<void> {
+  const details = page.getByTestId('projection-details')
+  await expect(details.getByText('Logical Native Protection', { exact: true })).toBeVisible({
+    timeout: commandTimeoutMs,
+  })
+  await expect(details).toContainText(/tracking/i)
+  await expect(details).toContainText(/take_profit/i)
+  await expect(details).toContainText(/stop_loss/i)
+}
+
+async function expectExchangeProtectedLong(request: APIRequestContext): Promise<void> {
+  await expect
+    .poll(async () => await bybitSymbolState(request, credentials, symbol), {
+      timeout: commandTimeoutMs,
+    })
+    .toMatchObject({ shortQuantity: 0 })
+  await expect
+    .poll(async () => (await bybitSymbolState(request, credentials, symbol)).longQuantity, {
+      timeout: commandTimeoutMs,
+    })
+    .toBeGreaterThan(0)
+  await expect
+    .poll(async () => (await bybitSymbolState(request, credentials, symbol)).openOrders.length, {
+      timeout: commandTimeoutMs,
+    })
+    .toBeGreaterThanOrEqual(2)
+}
+
+async function expectExchangeOrderCount(
+  request: APIRequestContext,
+  expected: number,
+): Promise<void> {
+  await expect
+    .poll(async () => (await bybitSymbolState(request, credentials, symbol)).openOrders.length, {
+      timeout: commandTimeoutMs,
+    })
+    .toBe(expected)
+}
+
+async function expectExchangeFlat(request: APIRequestContext): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        const state = await bybitSymbolState(request, credentials, symbol)
+        return {
+          longQuantity: state.longQuantity,
+          shortQuantity: state.shortQuantity,
+          openOrders: state.openOrders.length,
+        }
+      },
+      { timeout: commandTimeoutMs },
+    )
+    .toEqual({ longQuantity: 0, shortQuantity: 0, openOrders: 0 })
+}
+
+async function bestEffortFlatten(page: Page): Promise<void> {
+  try {
+    await page.keyboard.press('Escape')
+    const id = await submitSymbolFlatten(page)
+    await expectCommandLifecycle(page, id, 'succeeded')
+  } catch {
+    // The final independent exchange assertion remains authoritative.
+  }
+}
+
+async function bestEffortCloseTrailingEntry(page: Page, commandId: string | null): Promise<void> {
+  try {
+    await page.keyboard.press('Escape')
+    if (commandId) {
+      await selectProjectedEntity(page, commandId, 'trailing_entry')
+      const closeId = await submitSelectedAction(page, 'Close Position')
+      await expectCommandLifecycle(page, closeId, 'succeeded')
+      return
+    }
+  } catch {
+    // Fall through to the account-authoritative flatten path.
+  }
+  await bestEffortFlatten(page)
+}
+
+function protectionPrices(instrument: BybitInstrument): {
+  takeProfit: string
+  stopLoss: string
+} {
+  return {
+    takeProfit: decimalString(alignPrice(instrument.lastPrice * 1.05, instrument.tickSize)),
+    stopLoss: decimalString(alignPrice(instrument.lastPrice * 0.95, instrument.tickSize)),
+  }
+}
+
+function safeNotional(instrument: BybitInstrument): number {
+  if (configuredNotional > 0) return configuredNotional
+  return Math.max(
+    instrument.minimumNotional * 1.25,
+    instrument.quantityStep * instrument.lastPrice * 1.25,
+  )
+}
+
+function alignPrice(value: number, tickSize: number): number {
+  return Number((Math.round(value / tickSize) * tickSize).toFixed(decimalPlaces(tickSize)))
+}
+
+function alignQuantity(value: number, quantityStep: number): number {
+  return Number(
+    (Math.ceil(value / quantityStep) * quantityStep).toFixed(decimalPlaces(quantityStep)),
+  )
+}
+
+function decimalPlaces(step: number): number {
+  const text = step.toString().toLowerCase()
+  if (text.includes('e-')) return Number(text.split('e-')[1])
+  return text.includes('.') ? text.length - text.indexOf('.') - 1 : 0
+}
+
+function decimalString(value: number): string {
+  return value.toLocaleString('en-US', { maximumFractionDigits: 12, useGrouping: false })
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function clearRestartMarkers(): void {
+  for (const path of [restartReadyPath, restartUnavailablePath, restartResumedPath]) {
+    rmSync(path, { force: true })
+  }
+}
+
+function writeMarker(path: string): void {
+  writeFileSync(path, `${Date.now()}\n`, { flag: 'w', mode: 0o600 })
+}

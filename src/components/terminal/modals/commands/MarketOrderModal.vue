@@ -181,6 +181,7 @@ const accountExecutionGuardLabel = computed(() => {
 const quantityLabel = computed(() => {
   if (quantityMode.value === 'base') return 'Base Quantity'
   if (quantityMode.value === 'risk') return 'Risk at Stop (USDC)'
+  if (isBybitAccount.value) return 'USDT Amount'
   return 'USDC Amount'
 })
 const riskEntrySlippageFraction = computed(() =>

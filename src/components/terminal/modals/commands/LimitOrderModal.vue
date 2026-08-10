@@ -167,6 +167,7 @@ const accountProtectionGuardLabel = computed(() => {
 const quantityLabel = computed(() => {
   if (quantityMode.value === 'base') return 'Base Quantity'
   if (quantityMode.value === 'risk') return 'Risk at Stop (USDC)'
+  if (selectedAccount.value?.exchange === ExchangeType.Bybit) return 'USDT Amount'
   return 'USDC Amount'
 })
 const positionEffectRequest = computed<HyperliquidPositionEffectPreviewRequest | null>(() => {
@@ -359,9 +360,7 @@ function submit() {
     market_context: marketContext,
     attached_exit_plan: attachedExitPlan,
     execution_guard_overrides: executionGuardOverrides,
-    builder_target_total_tenths_bps: isHyperliquid.value
-      ? builderTargetTotalTenthsBps.value
-      : null,
+    builder_target_total_tenths_bps: isHyperliquid.value ? builderTargetTotalTenthsBps.value : null,
   }
   const payload: Extract<UserCommandPayload, { kind: 'LimitOrder' }> = {
     kind: 'LimitOrder',
