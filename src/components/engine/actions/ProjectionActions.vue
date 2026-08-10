@@ -69,7 +69,11 @@ function close(): void {
       {{ action.label }}
     </button>
   </div>
-  <div v-if="selectedProtection" class="projection-actions protection-actions">
+  <div
+    v-if="selectedProtection"
+    class="projection-actions protection-actions"
+    data-testid="projection-protection-actions"
+  >
     <button
       class="btn btn-sm btn-ghost"
       type="button"

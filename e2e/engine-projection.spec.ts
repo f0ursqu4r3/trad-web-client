@@ -261,7 +261,10 @@ test('edits logical native protection without exposing exchange order identity',
 }) => {
   const fixture = page.getByTestId('engine-projection-fixture')
   await fixture.getByTestId('projection-command-list').getByText('Market Order').click()
-  await fixture.getByRole('button', { name: 'Edit Protection' }).click()
+  await fixture
+    .getByTestId('projection-protection-actions')
+    .getByRole('button', { name: 'Edit Protection' })
+    .click()
 
   const modal = page.getByRole('dialog', { name: 'Edit Native Protection' })
   await expect(modal.getByText('Plan revision 4')).toBeVisible()

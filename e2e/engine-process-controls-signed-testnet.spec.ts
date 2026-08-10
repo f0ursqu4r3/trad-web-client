@@ -116,6 +116,8 @@ test.describe.serial('replacement P0 controls through the production terminal', 
     await expectExchangeFlat(request)
 
     let exposurePossible = false
+    let stage = 'login and price discovery'
+    let primaryError: unknown = null
     try {
       await loginAndSelectAccount(page)
       const mid = await hyperliquidMid(request)
@@ -123,17 +125,22 @@ test.describe.serial('replacement P0 controls through the production terminal', 
       const amendedTakeProfit = (mid * 1.04).toFixed(0)
       const stopLoss = (mid * 0.95).toFixed(0)
 
+      stage = 'protected Market submission'
       const openCommandId = await submitMarketOpen(page, initialTakeProfit, stopLoss)
       exposurePossible = true
+      stage = 'protected Market projection'
       await expectCommandLifecycle(page, openCommandId, 'succeeded')
       await selectProjectedOrder(page, openCommandId)
       await expectProjectedProtection(page)
+      stage = 'protected Market exchange readback'
       await expectExchangeProtectedPosition(request)
 
+      stage = 'native protection amendment'
       const amendmentCommandId = await amendSelectedProtection(page, amendedTakeProfit)
       await expectCommandLifecycle(page, amendmentCommandId, 'succeeded')
       await expectExchangeProtection(request, amendedTakeProfit, stopLoss)
 
+      stage = 'reduce-only Limit close submission'
       await selectProjectedOrder(page, openCommandId)
       const closePrice = (mid * 1.2).toFixed(0)
       const closeCommandId = await submitSelectedLimitClose(page, closePrice)
@@ -142,17 +149,37 @@ test.describe.serial('replacement P0 controls through the production terminal', 
       await expect(closeOrder).toContainText(/working/i, { timeout: commandTimeoutMs })
       await expectExchangeReduceOnlyLimit(request, closePrice)
 
+      stage = 'reduce-only Limit close cancellation'
       await cancelSelectedOrder(page)
       await expect(closeOrder).toContainText(/canceled/i, { timeout: commandTimeoutMs })
       await expectExchangeOrderCount(request, 2)
 
+      stage = 'final symbol flatten'
       const flattenCommandId = await submitSymbolFlatten(page)
       await expectCommandLifecycle(page, flattenCommandId, 'succeeded')
       await expectExchangeFlat(request)
       exposurePossible = false
-    } finally {
-      if (exposurePossible) await bestEffortFlatten(page)
+    } catch (error) {
+      primaryError = new Error(`signed protection/close flow failed during ${stage}`, {
+        cause: error,
+      })
+    }
+
+    const failures = primaryError === null ? [] : [primaryError]
+    if (exposurePossible) {
+      try {
+        await bestEffortFlatten(page)
+      } catch (error) {
+        failures.push(new Error('signed protection/close cleanup command failed', { cause: error }))
+      }
+    }
+    try {
       await expectExchangeFlat(request)
+    } catch (error) {
+      failures.push(new Error('signed protection/close cleanup left exchange state', { cause: error }))
+    }
+    if (failures.length > 0) {
+      throw new AggregateError(failures, 'signed protection/close qualification failed')
     }
   })
 })
@@ -168,6 +195,7 @@ function validateConfiguration(): void {
 }
 
 async function loginAndSelectAccount(page: Page): Promise<void> {
+  page.setDefaultTimeout(commandTimeoutMs)
   await page.setViewportSize({ width: 1600, height: 1000 })
   await page.goto(loginUrl())
   await page.waitForURL(/\/terminal(?:\?|$)/, { timeout: 30_000 })
@@ -415,7 +443,7 @@ async function submitCancelEntryWork(page: Page): Promise<string> {
 async function amendSelectedProtection(page: Page, takeProfit: string): Promise<string> {
   const prior = await commandIds(page)
   await page
-    .getByTestId('projection-actions')
+    .getByTestId('projection-protection-actions')
     .getByRole('button', { name: 'Edit Protection' })
     .click()
   const dialog = page.getByRole('dialog', { name: 'Edit Native Protection' })
@@ -593,13 +621,19 @@ async function expectExchangeOrderCount(request: APIRequestContext, count: numbe
 
 async function expectExchangeProtectedPosition(request: APIRequestContext): Promise<void> {
   await expect
-    .poll(async () => await exchangeState(request), { timeout: commandTimeoutMs })
-    .toMatchObject({ openOrders: [{ isTrigger: true }, { isTrigger: true }] })
-  await expect
-    .poll(async () => Math.abs((await exchangeState(request)).signedQuantity), {
-      timeout: commandTimeoutMs,
-    })
-    .toBeGreaterThan(0)
+    .poll(
+      async () => {
+        const state = await exchangeState(request)
+        const triggers = state.openOrders.filter((order) => order.isTrigger)
+        return {
+          hasExposure: Math.abs(state.signedQuantity) > 0,
+          triggerCount: triggers.length,
+          allReduceOnly: triggers.every((order) => order.reduceOnly === true),
+        }
+      },
+      { timeout: commandTimeoutMs },
+    )
+    .toEqual({ hasExposure: true, triggerCount: 2, allReduceOnly: true })
 }
 
 async function expectExchangeProtection(
@@ -645,15 +679,11 @@ async function expectExchangeFlat(request: APIRequestContext): Promise<void> {
 }
 
 async function bestEffortFlatten(page: Page): Promise<void> {
-  try {
-    await page.goto(loginUrl())
-    await page.waitForURL(/\/terminal(?:\?|$)/, { timeout: 30_000 })
-    await expect(page.locator('.ws-indicator-status')).toHaveText('[ready]', { timeout: 30_000 })
-    const commandId = await submitSymbolFlatten(page)
-    await expectCommandLifecycle(page, commandId, 'succeeded')
-  } catch {
-    // The final authoritative exchange assertion still fails loudly if cleanup did not complete.
-  }
+  await page.goto(loginUrl())
+  await page.waitForURL(/\/terminal(?:\?|$)/, { timeout: 30_000 })
+  await expect(page.locator('.ws-indicator-status')).toHaveText('[ready]', { timeout: 30_000 })
+  const commandId = await submitSymbolFlatten(page)
+  await expectCommandLifecycle(page, commandId, 'succeeded')
 }
 
 function loginUrl(): string {
