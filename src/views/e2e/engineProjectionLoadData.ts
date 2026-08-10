@@ -56,6 +56,7 @@ export function loadSnapshot(count: number): BrowserAccountSnapshot {
     flatten_workflows: [],
     entry_cancellations: [],
     account_controls: [],
+    native_protections: [],
     orders: [],
     positions: [],
     executions: [],
@@ -79,6 +80,7 @@ export function loadDelta(count: number, revision: number): BrowserAccountDelta 
     flatten_workflows: [],
     entry_cancellations: [],
     account_controls: [],
+    native_protections: [],
     orders: [],
     positions: [],
     executions: [],
@@ -130,7 +132,7 @@ function trailingEntry(
 
 function checkpoint(revision: number, count: number): ProjectionCheckpoint {
   return {
-    schema_version: 24,
+    schema_version: 25,
     shard: { exchange: 'bifake', network: 'simulation', account_id: LOAD_ACCOUNT_ID },
     account_revision: revision,
     projection_revision: revision,

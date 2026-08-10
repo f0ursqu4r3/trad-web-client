@@ -94,6 +94,11 @@ export function applyDelta(
     checkpoint: delta.checkpoint,
     positions: mergeRows(view.live.positions, delta.positions, (row) => row.symbol),
     balances: mergeRows(view.live.balances, delta.balances, (row) => row.asset),
+    native_protections: mergeRows(
+      view.live.native_protections,
+      delta.native_protections,
+      (row) => row.protection_id,
+    ),
     protections: mergeRows(view.live.protections, delta.protections, (row) => row.remote_order_id),
   }
   const topologyChanged = delta.commands.length > 0 || delta.relationships.length > 0
@@ -333,6 +338,7 @@ function cloneSnapshot(snapshot: BrowserAccountSnapshot): BrowserAccountSnapshot
     flatten_workflows: [...snapshot.flatten_workflows],
     entry_cancellations: [...snapshot.entry_cancellations],
     account_controls: [...snapshot.account_controls],
+    native_protections: [...snapshot.native_protections],
     orders: [...snapshot.orders],
     positions: [...snapshot.positions],
     executions: [...snapshot.executions],

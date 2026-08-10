@@ -472,6 +472,72 @@ export interface ProtectionProjection {
   latest_revision: number
 }
 
+export type NativeProtectionStatus =
+  | 'pending'
+  | 'installing'
+  | 'resizing'
+  | 'canceling'
+  | 'tracking'
+  | 'triggered'
+  | 'flat'
+  | 'reconciliation_required'
+  | 'failed_unprotected'
+  | 'canceled'
+  | 'rejected'
+
+export type ProtectionKind = 'take_profit' | 'stop_loss' | 'trailing_stop'
+export type ProtectionTriggerSource = 'last_price' | 'mark_price' | 'index_price'
+
+export type ProtectionExecution =
+  | { kind: 'market' }
+  | { kind: 'bounded_market'; worst_price: ExactDecimal }
+  | { kind: 'limit'; price: ExactDecimal }
+
+export type ProtectionAllocation =
+  | { kind: 'full_remaining' }
+  | { kind: 'fraction'; value: ExactDecimal }
+  | { kind: 'exact'; value: ExactDecimal }
+
+export interface NativeProtectionChildPlan {
+  child_id: Uuid
+  client_order_id: string | null
+  protection_kind: ProtectionKind
+  trigger_price: ExactDecimal
+  trigger_source: ProtectionTriggerSource
+  execution: ProtectionExecution
+  allocation: ProtectionAllocation
+}
+
+export interface NativeProtectionPlan {
+  protection_id: Uuid
+  children: NativeProtectionChildPlan[]
+}
+
+export interface NativeProtectionChildProjection {
+  child_id: Uuid
+  target_quantity: ExactDecimal
+  confirmed_quantity: ExactDecimal
+  cumulative_filled_quantity: ExactDecimal
+  remote_order_ids: string[]
+  pending_operation_id: Uuid | null
+  failure_reason: string | null
+}
+
+export interface NativeProtectionProjection {
+  protection_id: Uuid
+  scope_id: Uuid
+  symbol: string
+  position_side: PositionSide
+  scope_revision: number
+  plan_revision: number
+  plan: NativeProtectionPlan
+  target_quantity: ExactDecimal
+  covered_quantity: ExactDecimal
+  status: NativeProtectionStatus
+  failure_reason: string | null
+  children: Record<Uuid, NativeProtectionChildProjection>
+}
+
 export interface BrowserProjectionWindow {
   total_commands: number
   included_commands: number
@@ -495,6 +561,7 @@ export interface ProjectionGraph {
 
 export interface BrowserAccountDelta extends ProjectionGraph {
   checkpoint: ProjectionCheckpoint
+  native_protections: NativeProtectionProjection[]
   positions: PositionProjection[]
   balances: BalanceProjection[]
   protections: ProtectionProjection[]

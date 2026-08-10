@@ -98,6 +98,7 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
     flatten_workflows: [],
     entry_cancellations: [],
     account_controls: [],
+    native_protections: [],
     orders: [chaseOrder, filledOrder],
     positions: [
       {
@@ -346,7 +347,7 @@ function generation(orderId: string, filled: string): OrderGenerationProjection 
 
 function checkpoint(revision: number, commands: number): ProjectionCheckpoint {
   return {
-    schema_version: 24,
+    schema_version: 25,
     shard: { exchange: 'hyperliquid', network: 'testnet', account_id: ENGINE_ACCOUNT_ID },
     account_revision: revision,
     projection_revision: revision,

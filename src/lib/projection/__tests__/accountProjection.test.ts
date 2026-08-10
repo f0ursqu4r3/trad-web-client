@@ -11,6 +11,7 @@ import type {
   CommandProjection,
   ExecutionProjection,
   LegacyCommandPage,
+  NativeProtectionProjection,
   OrderProjection,
   PresentationRelationship,
   ProjectionCheckpoint,
@@ -72,6 +73,20 @@ test('account configuration remains authoritative across projection deltas', () 
   assert.equal(next.live.account_controls[0]?.lifecycle, 'succeeded')
   assert.equal(next.live.account_controls[0]?.last_reason, 'exchange acknowledged')
   assert.equal(next.live.commands[0]?.lifecycle, 'succeeded')
+})
+
+test('logical native protection remains authoritative outside bounded command history', () => {
+  const initial = snapshot(4, [])
+  initial.native_protections = [nativeProtection('installing', 1, '0')]
+
+  const update = delta(initial, 5, [])
+  update.native_protections = [nativeProtection('tracking', 2, '0.125')]
+  const next = applyDelta(installSnapshot(initial), update)
+
+  assert.equal(next.live.native_protections.length, 1)
+  assert.equal(next.live.native_protections[0]?.status, 'tracking')
+  assert.equal(next.live.native_protections[0]?.plan_revision, 2)
+  assert.equal(next.live.native_protections[0]?.covered_quantity, '0.125')
 })
 
 test('a revision gap is rejected before any state changes', () => {
@@ -280,6 +295,7 @@ function snapshot(
     flatten_workflows: [],
     entry_cancellations: [],
     account_controls: [],
+    native_protections: [],
     orders,
     positions: [],
     executions,
@@ -308,6 +324,7 @@ function delta(
     flatten_workflows: [],
     entry_cancellations: [],
     account_controls: [],
+    native_protections: [],
     orders: [],
     positions: [],
     executions: [],
@@ -392,7 +409,7 @@ function checkpoint(
   exchange: 'hyperliquid' | 'bybit' = 'hyperliquid',
 ): ProjectionCheckpoint {
   return {
-    schema_version: 24,
+    schema_version: 25,
     shard: { exchange, network: 'testnet', account_id: ACCOUNT_ID },
     account_revision: revision,
     projection_revision: revision,
@@ -457,6 +474,52 @@ function command(id: string, acceptedAt: number, lifecycle: CommandLifecycle): C
 
 function order(id: string): OrderProjection {
   return { order_id: id } as OrderProjection
+}
+
+function nativeProtection(
+  status: NativeProtectionProjection['status'],
+  planRevision: number,
+  coveredQuantity: string,
+): NativeProtectionProjection {
+  const protectionId = 'native-protection'
+  const childId = 'native-stop'
+  return {
+    protection_id: protectionId,
+    scope_id: 'native-scope',
+    symbol: 'BTC',
+    position_side: 'long',
+    scope_revision: 1,
+    plan_revision: planRevision,
+    plan: {
+      protection_id: protectionId,
+      children: [
+        {
+          child_id: childId,
+          client_order_id: 'trad-native-stop',
+          protection_kind: 'stop_loss',
+          trigger_price: '62000',
+          trigger_source: 'mark_price',
+          execution: { kind: 'market' },
+          allocation: { kind: 'full_remaining' },
+        },
+      ],
+    },
+    target_quantity: '0.125',
+    covered_quantity: coveredQuantity,
+    status,
+    failure_reason: null,
+    children: {
+      [childId]: {
+        child_id: childId,
+        target_quantity: '0.125',
+        confirmed_quantity: coveredQuantity,
+        cumulative_filled_quantity: '0',
+        remote_order_ids: coveredQuantity === '0' ? [] : ['remote-stop'],
+        pending_operation_id: status === 'installing' ? 'install-operation' : null,
+        failure_reason: null,
+      },
+    },
+  }
 }
 
 function accountControl(
