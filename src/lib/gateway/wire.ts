@@ -1,4 +1,5 @@
 import type { BrowserCommandIntent, Uuid } from './intent.ts'
+import type { BrowserPreviewIntent, BrowserPreviewOutcome } from './preview.ts'
 import type {
   AccountRouteKey,
   BrowserAccountDelta,
@@ -10,7 +11,7 @@ import type {
   ProjectionRevision,
 } from './projection.ts'
 
-export const BROWSER_PROTOCOL_VERSION = 6
+export const BROWSER_PROTOCOL_VERSION = 7
 
 export type BrowserClientMessage =
   | { kind: 'authenticate'; protocol_version: number; ticket: string }
@@ -21,6 +22,12 @@ export type BrowserClientMessage =
       request_id: Uuid
       account_id: Uuid
       intent: BrowserCommandIntent
+    }
+  | {
+      kind: 'preview_command'
+      request_id: Uuid
+      account_id: Uuid
+      intent: BrowserPreviewIntent
     }
   | { kind: 'refresh_reconciliation'; request_id: Uuid; account_id: Uuid }
   | {
@@ -120,6 +127,12 @@ export type BrowserServerMessage =
       request_id: Uuid
       account_id: Uuid
       outcome: BrowserCommandOutcome
+    }
+  | {
+      kind: 'command_preview_result'
+      request_id: Uuid
+      account_id: Uuid
+      outcome: BrowserPreviewOutcome
     }
   | {
       kind: 'reconciliation_refresh_result'

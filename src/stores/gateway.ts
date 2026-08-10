@@ -7,6 +7,8 @@ import {
   type BrowserCommandIntent,
   type BrowserCommandOutcome,
   type BrowserHistoryError,
+  type BrowserPreviewIntent,
+  type BrowserPreviewOutcome,
   type BrowserReconciliationRefreshOutcome,
   type BrowserServerMessage,
   type GatewayConnectionStatus,
@@ -20,6 +22,7 @@ import { useAccountsStore } from '@/stores/accounts'
 const logger = createLogger('gateway')
 const COMMAND_RESULT_TIMEOUT_MS = 30_000
 const RECONCILIATION_RESULT_TIMEOUT_MS = 30_000
+const PREVIEW_RESULT_TIMEOUT_MS = 15_000
 const HISTORY_RESULT_TIMEOUT_MS = 30_000
 const SUBSCRIPTION_RETRY_INITIAL_MS = 1_000
 const SUBSCRIPTION_RETRY_MAX_MS = 30_000
@@ -36,6 +39,13 @@ interface PendingHistory {
   kind: 'modern' | 'legacy'
   timer: number
   resolve: () => void
+  reject: (error: Error) => void
+}
+
+interface PendingPreview {
+  accountId: Uuid
+  timer: number
+  resolve: (outcome: BrowserPreviewOutcome) => void
   reject: (error: Error) => void
 }
 
@@ -80,6 +90,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   const subscriptionRetryAttempts = new Map<Uuid, number>()
   const subscriptionRetryTimers = new Map<Uuid, number>()
   const pendingCommands = new Map<Uuid, PendingCommand>()
+  const pendingPreviews = new Map<Uuid, PendingPreview>()
   const pendingHistories = new Map<Uuid, PendingHistory>()
   const pendingReconciliationRefreshes = new Map<Uuid, PendingReconciliationRefresh>()
   let selectedSubscriptionId: Uuid | null = null
@@ -218,6 +229,31 @@ export const useGatewayStore = defineStore('gateway', () => {
     })
   }
 
+  function previewCommand(
+    intent: BrowserPreviewIntent,
+    accountId = accounts.selectedAccountId,
+    requestId = uuid(),
+  ): Promise<BrowserPreviewOutcome> {
+    if (accountId === null) return Promise.reject(new Error('no trading account is selected'))
+    if (pendingPreviews.has(requestId)) {
+      return Promise.reject(new Error(`planning request ${requestId} is already pending`))
+    }
+    return new Promise((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        pendingPreviews.delete(requestId)
+        reject(new Error(`planning request ${requestId} timed out`))
+      }, PREVIEW_RESULT_TIMEOUT_MS)
+      pendingPreviews.set(requestId, { accountId, timer, resolve, reject })
+      try {
+        send({ kind: 'preview_command', request_id: requestId, account_id: accountId, intent })
+      } catch (error) {
+        window.clearTimeout(timer)
+        pendingPreviews.delete(requestId)
+        reject(error instanceof Error ? error : new Error(String(error)))
+      }
+    })
+  }
+
   function requestOlderHistory(accountId = accounts.selectedAccountId, limit = 100): Promise<void> {
     if (accountId === null) return Promise.reject(new Error('no trading account is selected'))
     const entry = projections.byAccount[accountId]
@@ -315,6 +351,9 @@ export const useGatewayStore = defineStore('gateway', () => {
       case 'command_result':
         handleCommandResult(message)
         return
+      case 'command_preview_result':
+        handleCommandPreviewResult(message)
+        return
       case 'reconciliation_refresh_result':
         handleReconciliationRefreshResult(message)
         return
@@ -407,6 +446,20 @@ export const useGatewayStore = defineStore('gateway', () => {
     updatePendingCounts()
     if (pending.accountId !== message.account_id) {
       pending.reject(new Error('command result account does not match its request'))
+      return
+    }
+    pending.resolve(message.outcome)
+  }
+
+  function handleCommandPreviewResult(
+    message: Extract<BrowserServerMessage, { kind: 'command_preview_result' }>,
+  ): void {
+    const pending = pendingPreviews.get(message.request_id)
+    if (pending === undefined) return
+    window.clearTimeout(pending.timer)
+    pendingPreviews.delete(message.request_id)
+    if (pending.accountId !== message.account_id) {
+      pending.reject(new Error('planning result account does not match its request'))
       return
     }
     pending.resolve(message.outcome)
@@ -597,6 +650,11 @@ export const useGatewayStore = defineStore('gateway', () => {
       pending.reject(new CommandOutcomeUnknownError(requestId, reason))
     }
     pendingCommands.clear()
+    for (const [requestId, pending] of pendingPreviews) {
+      window.clearTimeout(pending.timer)
+      pending.reject(new Error(`planning request ${requestId} interrupted: ${reason}`))
+    }
+    pendingPreviews.clear()
     for (const pending of pendingHistories.values()) {
       window.clearTimeout(pending.timer)
       pending.reject(new Error(`history request interrupted: ${reason}`))
@@ -635,6 +693,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     connect,
     disconnect,
     submitCommand,
+    previewCommand,
     refreshReconciliation,
     requestOlderHistory,
     requestLegacyHistory,

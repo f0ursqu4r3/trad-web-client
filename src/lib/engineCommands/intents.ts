@@ -1,4 +1,9 @@
-import type { BrowserCommandIntent, PositionSideIntent, TimeInForceIntent } from '@/lib/gateway'
+import type {
+  BrowserCommandIntent,
+  BrowserPreviewIntent,
+  PositionSideIntent,
+  TimeInForceIntent,
+} from '@/lib/gateway'
 import {
   exactDecimal,
   normalizedSymbol,
@@ -120,6 +125,17 @@ export function buildPlaceTrailingEntryIntent(
       shape: shapeIntent(draft.shapeMode, draft.targetChildNotional, draft.maxChildren),
       one_way_semantics: draft.oneWaySemantics,
     },
+  }
+}
+
+export function previewIntent(intent: BrowserCommandIntent): BrowserPreviewIntent | null {
+  switch (intent.kind) {
+    case 'place_order':
+    case 'place_chase':
+    case 'place_trailing_entry':
+      return intent
+    default:
+      return null
   }
 }
 

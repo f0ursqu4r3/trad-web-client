@@ -37,6 +37,22 @@ test('submits an exact protocol-3 market intent and closes only after acceptance
   )
 })
 
+test('automatically replans order edits without submitting a command', async ({ page }) => {
+  await page.getByRole('button', { name: /Commands/ }).click()
+  await page.getByRole('button', { name: /Market Order/ }).click()
+  const modal = page.getByRole('dialog', { name: 'Market Order' })
+
+  await expect(modal.getByText('Execution Preview')).toBeVisible()
+  await modal.getByLabel('Quote Amount').fill('75')
+
+  await expect(modal.getByText('0.001 BTC', { exact: true })).toBeVisible()
+  await expect(modal.getByText('50.001', { exact: true })).toBeVisible()
+  await modal.getByText('Exchange rules', { exact: true }).click()
+  await expect(modal.getByText('Hyperliquid · size decimals 3', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('latest-preview-intent')).toContainText('"amount":"75"')
+  await expect(page.getByTestId('latest-command-intent')).toHaveText('none')
+})
+
 test('keeps a rejected limit command open with the authoritative reason', async ({ page }) => {
   await page.getByRole('button', { name: 'Reject next' }).click()
   await page.getByRole('button', { name: /Commands/ }).click()
@@ -67,7 +83,9 @@ test('opens chase and trailing-entry forms from their aliases', async ({ page })
   await expect(page.getByRole('dialog', { name: 'Trailing Entry' })).toBeVisible()
 })
 
-test('cancel entry work is distinct from flatten and submits an account target', async ({ page }) => {
+test('cancel entry work is distinct from flatten and submits an account target', async ({
+  page,
+}) => {
   await page.getByRole('button', { name: /Commands/ }).click()
   await page.getByPlaceholder('Search commands').fill('ca')
   await page.keyboard.press('Enter')

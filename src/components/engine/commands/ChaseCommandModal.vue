@@ -9,10 +9,11 @@ import {
   type ProtectionFormState,
   type SizingMode,
 } from '@/lib/engineCommands/form'
-import { buildPlaceChaseIntent } from '@/lib/engineCommands/intents'
+import { buildPlaceChaseIntent, previewIntent } from '@/lib/engineCommands/intents'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 import ProtectionFields from './ProtectionFields.vue'
+import ExecutionPreviewPanel from './ExecutionPreviewPanel.vue'
 import SizingFields from './SizingFields.vue'
 
 const props = defineProps<{ open: boolean }>()
@@ -35,6 +36,14 @@ const validationError = ref<string | null>(null)
 const canSubmit = computed(
   () => gateway.isConnected && selectedAccountId.value !== '' && !submission.submitting.value,
 )
+const planningIntent = computed(() => {
+  if (!props.open) return null
+  try {
+    return previewIntent(buildIntent())
+  } catch {
+    return null
+  }
+})
 
 watch(selectedAccountId, (accountId, prior) => {
   if (accountId !== '' && accountId !== prior)
@@ -66,21 +75,25 @@ watch(
 async function submit(): Promise<void> {
   validationError.value = null
   try {
-    const intent = buildPlaceChaseIntent({
-      symbol: symbol.value,
-      positionSide: positionSide.value,
-      sizingMode: sizingMode.value,
-      amount: amount.value,
-      boundaryKind: boundaryKind.value,
-      boundaryValue: boundaryValue.value,
-      expirySeconds: expirySeconds.value,
-      remainder: remainder.value,
-      protection: protection.value,
-    })
+    const intent = buildIntent()
     if (await submission.submit({ accountId: selectedAccountId.value, intent })) emit('close')
   } catch (error) {
     validationError.value = error instanceof Error ? error.message : String(error)
   }
+}
+
+function buildIntent() {
+  return buildPlaceChaseIntent({
+    symbol: symbol.value,
+    positionSide: positionSide.value,
+    sizingMode: sizingMode.value,
+    amount: amount.value,
+    boundaryKind: boundaryKind.value,
+    boundaryValue: boundaryValue.value,
+    expirySeconds: expirySeconds.value,
+    remainder: remainder.value,
+    protection: protection.value,
+  })
 }
 </script>
 
@@ -136,6 +149,11 @@ async function submit(): Promise<void> {
         </label>
       </div>
       <ProtectionFields v-model="protection" />
+      <ExecutionPreviewPanel
+        :account-id="selectedAccountId"
+        :intent="planningIntent"
+        :active="open"
+      />
       <p v-if="validationError || submission.submissionError.value" class="submission-error">
         {{ validationError || submission.submissionError.value }}
       </p>

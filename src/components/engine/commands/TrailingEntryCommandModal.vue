@@ -5,10 +5,11 @@ import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandM
 import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmission'
 import type { PositionSideIntent } from '@/lib/gateway'
 import { type ShapeMode } from '@/lib/engineCommands/form'
-import { buildPlaceTrailingEntryIntent } from '@/lib/engineCommands/intents'
+import { buildPlaceTrailingEntryIntent, previewIntent } from '@/lib/engineCommands/intents'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 import ShapeFields from './ShapeFields.vue'
+import ExecutionPreviewPanel from './ExecutionPreviewPanel.vue'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
@@ -37,6 +38,14 @@ const isHyperliquid = computed(() => selectedAccount.value?.exchange === 'hyperl
 const canSubmit = computed(
   () => gateway.isConnected && selectedAccountId.value !== '' && !submission.submitting.value,
 )
+const planningIntent = computed(() => {
+  if (!props.open) return null
+  try {
+    return previewIntent(buildIntent())
+  } catch {
+    return null
+  }
+})
 
 watch(
   () => props.open,
@@ -71,23 +80,27 @@ function reset(): void {
 async function submit(): Promise<void> {
   validationError.value = null
   try {
-    const intent = buildPlaceTrailingEntryIntent({
-      symbol: symbol.value,
-      positionSide: positionSide.value,
-      activationPrice: activationPrice.value,
-      jumpBasisPoints: jumpBasisPoints.value,
-      stopLossPrice: stopLossPrice.value,
-      takeProfitPrice: takeProfitPrice.value,
-      riskAmount: riskAmount.value,
-      shapeMode: shapeMode.value,
-      targetChildNotional: targetChildNotional.value,
-      maxChildren: maxChildren.value,
-      oneWaySemantics: isHyperliquid.value ? oneWaySemantics.value : 'delta',
-    })
+    const intent = buildIntent()
     if (await submission.submit({ accountId: selectedAccountId.value, intent })) emit('close')
   } catch (error) {
     validationError.value = error instanceof Error ? error.message : String(error)
   }
+}
+
+function buildIntent() {
+  return buildPlaceTrailingEntryIntent({
+    symbol: symbol.value,
+    positionSide: positionSide.value,
+    activationPrice: activationPrice.value,
+    jumpBasisPoints: jumpBasisPoints.value,
+    stopLossPrice: stopLossPrice.value,
+    takeProfitPrice: takeProfitPrice.value,
+    riskAmount: riskAmount.value,
+    shapeMode: shapeMode.value,
+    targetChildNotional: targetChildNotional.value,
+    maxChildren: maxChildren.value,
+    oneWaySemantics: isHyperliquid.value ? oneWaySemantics.value : 'delta',
+  })
 }
 </script>
 
@@ -151,6 +164,12 @@ async function submit(): Promise<void> {
           v-model:max-children="maxChildren"
         />
       </div>
+
+      <ExecutionPreviewPanel
+        :account-id="selectedAccountId"
+        :intent="planningIntent"
+        :active="open"
+      />
 
       <p v-if="validationError || submission.submissionError.value" class="submission-error">
         {{ validationError || submission.submissionError.value }}
