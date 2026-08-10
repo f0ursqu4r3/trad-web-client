@@ -7,6 +7,7 @@ import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandM
 import LifecycleActionModal from '@/components/engine/actions/LifecycleActionModal.vue'
 import ProjectionCommandFilters from '@/components/engine/ProjectionCommandFilters.vue'
 import { lifecycleActions, type LifecycleAction } from '@/lib/engineCommands/lifecycle'
+import { duplicateCommandPrefill } from '@/lib/engineCommands/prefill'
 import type { CommandProjection } from '@/lib/gateway'
 import { nodeKey } from '@/lib/projection'
 import { commandLabel, commandSymbolIndex } from '@/lib/projection/presentation'
@@ -15,11 +16,13 @@ import LegacyCommandHistory from '@/components/engine/LegacyCommandHistory.vue'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
+import { useModalStore } from '@/stores/modals'
 import { useProjectionUiStore } from '@/stores/projectionUi'
 
 const accounts = useAccountsStore()
 const projections = useAccountProjectionStore()
 const gateway = useGatewayStore()
+const modals = useModalStore()
 const ui = useProjectionUiStore()
 const query = ref('')
 const historyError = ref<string | null>(null)
@@ -64,8 +67,20 @@ const contextItems = computed<DropMenuItem[]>(() => {
   const command = contextCommand.value
   if (command === null) return []
   const meta = ui.meta(command.command_id)
+  const duplicate =
+    accounts.selectedAccountId === null
+      ? null
+      : duplicateCommandPrefill(command, accounts.selectedAccountId)
   return [
     { label: 'Inspect', action: () => ui.selectCommand(command.command_id) },
+    ...(duplicate === null
+      ? []
+      : [
+          {
+            label: 'Duplicate',
+            action: () => modals.openModalWithValues(duplicate.modal, duplicate.values),
+          },
+        ]),
     {
       label: meta.pinned ? 'Unpin' : 'Pin',
       action: () => ui.togglePinned(command.command_id),

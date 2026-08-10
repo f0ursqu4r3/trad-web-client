@@ -136,6 +136,31 @@ test('right-click exposes projected actions without changing the inspected comma
   await expect(commands.getByText('Protected ETH entry', { exact: true })).toBeVisible()
 })
 
+test('duplicates an accepted command into a fresh exact form without submitting it', async ({
+  page,
+}) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  const commands = fixture.getByTestId('projection-command-list')
+  const trailing = commands.locator('[data-command-id]').filter({ hasText: 'Trailing Entry' })
+
+  await trailing.click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Duplicate' }).click()
+
+  const modal = page.getByRole('dialog', { name: 'Trailing Entry' })
+  await expect(modal.getByLabel('Symbol')).toHaveValue('SOL')
+  await expect(modal.getByLabel('Position Side')).toHaveValue('long')
+  await expect(modal.getByLabel('Risk Amount')).toHaveValue('25')
+  await expect(modal.getByLabel('Activation Price')).toHaveValue('145.25')
+  await expect(modal.getByLabel('Jump Threshold (bps)')).toHaveValue('10')
+  await expect(modal.getByLabel('Stop Loss Price')).toHaveValue('140')
+  await expect(modal.getByLabel('Take Profit Price (optional)')).toHaveValue('155')
+  await expect(modal.getByLabel('Hyperliquid One-Way Behavior')).toHaveValue(
+    'target_side_exposure',
+  )
+  await expect(modal.getByLabel('Execution Shape')).toHaveValue('single')
+  await expect(fixture.getByTestId('latest-lifecycle-intent')).toHaveText('none')
+})
+
 test('projection-native command filters combine without polling device state', async ({ page }) => {
   const fixture = page.getByTestId('engine-projection-fixture')
   const commands = fixture.getByTestId('projection-command-list')

@@ -10,8 +10,10 @@ import {
   type SizingMode,
 } from '@/lib/engineCommands/form'
 import { buildPlaceChaseIntent, previewIntent } from '@/lib/engineCommands/intents'
+import type { ChaseCommandPrefill } from '@/lib/engineCommands/prefill'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
+import { useModalStore } from '@/stores/modals'
 import ProtectionFields from './ProtectionFields.vue'
 import ExecutionPreviewPanel from './ExecutionPreviewPanel.vue'
 import SizingFields from './SizingFields.vue'
@@ -21,6 +23,7 @@ const emit = defineEmits<{ (event: 'close'): void }>()
 
 const accounts = useAccountsStore()
 const gateway = useGatewayStore()
+const modals = useModalStore()
 const submission = useEngineCommandSubmission()
 const selectedAccountId = ref('')
 const symbol = ref('')
@@ -45,24 +48,25 @@ const planningIntent = computed(() => {
   }
 })
 
-watch(selectedAccountId, (accountId, prior) => {
-  if (accountId !== '' && accountId !== prior)
-    symbol.value = accounts.getDefaultSymbolForAccount(accountId)
-})
-
 function reset(): void {
-  selectedAccountId.value = accounts.selectedAccountId ?? accounts.accounts[0]?.id ?? ''
-  symbol.value = accounts.getDefaultSymbolForAccount(selectedAccountId.value)
-  positionSide.value = 'long'
-  sizingMode.value = 'quote_notional'
-  amount.value = '50'
-  boundaryKind.value = 'none'
-  boundaryValue.value = ''
-  expirySeconds.value = ''
-  remainder.value = 'cancel'
-  protection.value = newProtectionState()
+  const prefill = modals.modalValues.EngineChaseOrder as ChaseCommandPrefill | undefined
+  selectedAccountId.value =
+    prefill?.accountId ?? accounts.selectedAccountId ?? accounts.accounts[0]?.id ?? ''
+  symbol.value = prefill?.symbol ?? accounts.getDefaultSymbolForAccount(selectedAccountId.value)
+  positionSide.value = prefill?.positionSide ?? 'long'
+  sizingMode.value = prefill?.sizingMode ?? 'quote_notional'
+  amount.value = prefill?.amount ?? '50'
+  boundaryKind.value = prefill?.boundaryKind ?? 'none'
+  boundaryValue.value = prefill?.boundaryValue ?? ''
+  expirySeconds.value = prefill?.expirySeconds ?? ''
+  remainder.value = prefill?.remainder ?? 'cancel'
+  protection.value = structuredClone(prefill?.protection ?? newProtectionState())
   validationError.value = null
   submission.clearSubmissionError()
+}
+
+function applyAccountDefaultSymbol(): void {
+  symbol.value = accounts.getDefaultSymbolForAccount(selectedAccountId.value)
 }
 
 watch(
@@ -103,7 +107,7 @@ function buildIntent() {
       <div class="form-grid">
         <label class="field">
           <span>Account</span>
-          <select v-model="selectedAccountId" class="input">
+          <select v-model="selectedAccountId" class="input" @change="applyAccountDefaultSymbol">
             <option v-for="account in accounts.accounts" :key="account.id" :value="account.id">
               {{ account.label }} · {{ account.exchange }} · {{ account.network }}
             </option>

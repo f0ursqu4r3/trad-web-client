@@ -3,6 +3,7 @@ import { ref } from 'vue'
 
 import EngineOrdersColumn from '@/components/engine/EngineOrdersColumn.vue'
 import EngineWorkspace from '@/components/engine/EngineWorkspace.vue'
+import EngineCommandModalContainer from '@/components/engine/commands/EngineCommandModalContainer.vue'
 import type {
   BrowserCommandIntent,
   BrowserCommandOutcome,
@@ -112,6 +113,7 @@ gateway.refreshReconciliation = async (
   <main class="engine-fixture" data-testid="engine-projection-fixture">
     <EngineOrdersColumn />
     <EngineWorkspace />
+    <EngineCommandModalContainer />
     <pre class="action-evidence" data-testid="latest-lifecycle-intent">{{
       latestAction ? JSON.stringify(latestAction) : 'none'
     }}</pre>

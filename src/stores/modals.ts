@@ -20,7 +20,7 @@ export const useModalStore = defineStore('modals', () => {
     modalStack.value.push(name)
   }
 
-  function openModalWithValues(name: string, values: Record<string, unknown>) {
+  function openModalWithValues(name: string, values: unknown) {
     modalStack.value.push(name)
     modalValues.value[name] = values
   }

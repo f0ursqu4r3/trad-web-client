@@ -6,8 +6,10 @@ import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmis
 import type { PositionSideIntent } from '@/lib/gateway'
 import { type ShapeMode } from '@/lib/engineCommands/form'
 import { buildPlaceTrailingEntryIntent, previewIntent } from '@/lib/engineCommands/intents'
+import type { TrailingEntryCommandPrefill } from '@/lib/engineCommands/prefill'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
+import { useModalStore } from '@/stores/modals'
 import ShapeFields from './ShapeFields.vue'
 import ExecutionPreviewPanel from './ExecutionPreviewPanel.vue'
 
@@ -16,6 +18,7 @@ const emit = defineEmits<{ (event: 'close'): void }>()
 
 const accounts = useAccountsStore()
 const gateway = useGatewayStore()
+const modals = useModalStore()
 const submission = useEngineCommandSubmission()
 const selectedAccountId = ref('')
 const symbol = ref('')
@@ -54,27 +57,30 @@ watch(
   },
 )
 
-watch(selectedAccountId, (accountId, prior) => {
-  if (accountId === '' || accountId === prior) return
-  symbol.value = accounts.getDefaultSymbolForAccount(accountId)
-  oneWaySemantics.value = 'delta'
-})
-
 function reset(): void {
-  selectedAccountId.value = accounts.selectedAccountId ?? accounts.accounts[0]?.id ?? ''
-  symbol.value = accounts.getDefaultSymbolForAccount(selectedAccountId.value)
-  positionSide.value = 'long'
-  activationPrice.value = ''
-  jumpBasisPoints.value = '10'
-  stopLossPrice.value = ''
-  takeProfitPrice.value = ''
-  riskAmount.value = '50'
-  shapeMode.value = 'single'
-  targetChildNotional.value = ''
-  maxChildren.value = '20'
-  oneWaySemantics.value = 'delta'
+  const prefill = modals.modalValues.EngineTrailingEntry as
+    | TrailingEntryCommandPrefill
+    | undefined
+  selectedAccountId.value =
+    prefill?.accountId ?? accounts.selectedAccountId ?? accounts.accounts[0]?.id ?? ''
+  symbol.value = prefill?.symbol ?? accounts.getDefaultSymbolForAccount(selectedAccountId.value)
+  positionSide.value = prefill?.positionSide ?? 'long'
+  activationPrice.value = prefill?.activationPrice ?? ''
+  jumpBasisPoints.value = prefill?.jumpBasisPoints ?? '10'
+  stopLossPrice.value = prefill?.stopLossPrice ?? ''
+  takeProfitPrice.value = prefill?.takeProfitPrice ?? ''
+  riskAmount.value = prefill?.riskAmount ?? '50'
+  shapeMode.value = prefill?.shapeMode ?? 'single'
+  targetChildNotional.value = prefill?.targetChildNotional ?? ''
+  maxChildren.value = prefill?.maxChildren ?? '20'
+  oneWaySemantics.value = prefill?.oneWaySemantics ?? 'delta'
   validationError.value = null
   submission.clearSubmissionError()
+}
+
+function applyAccountDefaults(): void {
+  symbol.value = accounts.getDefaultSymbolForAccount(selectedAccountId.value)
+  oneWaySemantics.value = 'delta'
 }
 
 async function submit(): Promise<void> {
@@ -110,7 +116,7 @@ function buildIntent() {
       <div class="form-grid">
         <label class="field">
           <span>Account</span>
-          <select v-model="selectedAccountId" class="input">
+          <select v-model="selectedAccountId" class="input" @change="applyAccountDefaults">
             <option v-for="account in accounts.accounts" :key="account.id" :value="account.id">
               {{ account.label }} · {{ account.exchange }} · {{ account.network }}
             </option>

@@ -11,8 +11,10 @@ import {
   type SizingMode,
 } from '@/lib/engineCommands/form'
 import { buildPlaceOrderIntent, previewIntent } from '@/lib/engineCommands/intents'
+import type { OrderCommandPrefill } from '@/lib/engineCommands/prefill'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
+import { useModalStore } from '@/stores/modals'
 import ProtectionFields from './ProtectionFields.vue'
 import ExecutionPreviewPanel from './ExecutionPreviewPanel.vue'
 import ShapeFields from './ShapeFields.vue'
@@ -23,6 +25,7 @@ const emit = defineEmits<{ (event: 'close'): void }>()
 
 const accounts = useAccountsStore()
 const gateway = useGatewayStore()
+const modals = useModalStore()
 const submission = useEngineCommandSubmission()
 const selectedAccountId = ref('')
 const symbol = ref('')
@@ -57,25 +60,27 @@ watch(
   },
 )
 
-watch(selectedAccountId, (accountId, prior) => {
-  if (accountId === '' || accountId === prior) return
-  symbol.value = accounts.getDefaultSymbolForAccount(accountId)
-})
-
 function reset(): void {
-  selectedAccountId.value = accounts.selectedAccountId ?? accounts.accounts[0]?.id ?? ''
-  symbol.value = accounts.getDefaultSymbolForAccount(selectedAccountId.value)
-  positionSide.value = 'long'
-  sizingMode.value = 'quote_notional'
-  amount.value = '50'
-  limitPrice.value = ''
-  timeInForce.value = 'good_til_canceled'
-  shapeMode.value = 'single'
-  targetChildNotional.value = ''
-  maxChildren.value = '20'
-  protection.value = newProtectionState()
+  const modalName = props.executionKind === 'market' ? 'EngineMarketOrder' : 'EngineLimitOrder'
+  const prefill = modals.modalValues[modalName] as OrderCommandPrefill | undefined
+  selectedAccountId.value =
+    prefill?.accountId ?? accounts.selectedAccountId ?? accounts.accounts[0]?.id ?? ''
+  symbol.value = prefill?.symbol ?? accounts.getDefaultSymbolForAccount(selectedAccountId.value)
+  positionSide.value = prefill?.positionSide ?? 'long'
+  sizingMode.value = prefill?.sizingMode ?? 'quote_notional'
+  amount.value = prefill?.amount ?? '50'
+  limitPrice.value = prefill?.limitPrice ?? ''
+  timeInForce.value = prefill?.timeInForce ?? 'good_til_canceled'
+  shapeMode.value = prefill?.shapeMode ?? 'single'
+  targetChildNotional.value = prefill?.targetChildNotional ?? ''
+  maxChildren.value = prefill?.maxChildren ?? '20'
+  protection.value = structuredClone(prefill?.protection ?? newProtectionState())
   validationError.value = null
   submission.clearSubmissionError()
+}
+
+function applyAccountDefaultSymbol(): void {
+  symbol.value = accounts.getDefaultSymbolForAccount(selectedAccountId.value)
 }
 
 async function submit(): Promise<void> {
@@ -111,7 +116,7 @@ function buildIntent() {
       <div class="form-grid">
         <label class="field">
           <span>Account</span>
-          <select v-model="selectedAccountId" class="input">
+          <select v-model="selectedAccountId" class="input" @change="applyAccountDefaultSymbol">
             <option v-for="account in accounts.accounts" :key="account.id" :value="account.id">
               {{ account.label }} · {{ account.exchange }} · {{ account.network }}
             </option>

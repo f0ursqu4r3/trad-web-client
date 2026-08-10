@@ -35,7 +35,15 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
     {
       plan: {
         symbol: 'BTC',
+        order_side: 'buy',
+        position_side: 'long',
+        quantity: '0.125',
+        reduce_only: false,
         position_intent: { Open: { scope_id: 'scope-chase' } },
+        protection: null,
+        adverse_boundary: { kind: 'basis_points', value: '25.125' },
+        expires_at: ACCEPTED_AT + 62_000,
+        remainder_policy: 'cancel',
       },
     },
   )
@@ -46,7 +54,14 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
     'succeeded',
     { kind: 'order', id: FILLED_ORDER_ID },
     {
-      request: { execution: { kind: 'market' } },
+      request: {
+        symbol: 'ETH',
+        side: 'buy',
+        position_side: 'long',
+        quantity: '0.00420001',
+        execution: { kind: 'market' },
+        reduce_only: false,
+      },
       position_intent: { Open: { scope_id: 'scope-filled' } },
       protection: { scope_id: 'protection-scope-filled' },
     },
@@ -66,6 +81,28 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
         stop_loss: '140',
         take_profit: '155',
         risk_amount: '25',
+        instrument: {
+          quantity_step: '0.01',
+          minimum_order_quantity: '0.01',
+          minimum_order_notional: '10',
+        },
+        execution: {
+          exposure_scope_id: 'scope-trailing',
+          children: [
+            {
+              order_id: '35000000-0000-4000-8000-000000000010',
+              submission_operation_id: '35000000-0000-4000-8000-000000000011',
+              client_order_id: 'te-child-1',
+            },
+          ],
+        },
+        one_way: {
+          semantics: 'target_side_exposure',
+          close_workflow_id: '35000000-0000-4000-8000-000000000012',
+          close_order_id: '35000000-0000-4000-8000-000000000013',
+          close_submission_operation_id: '35000000-0000-4000-8000-000000000014',
+          close_client_order_id: 'te-close-1',
+        },
       },
     },
   )
