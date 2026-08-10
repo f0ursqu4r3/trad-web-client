@@ -6,7 +6,7 @@ import FlattenCommandModal from '@/components/engine/commands/FlattenCommandModa
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import { isExactZero } from '@/lib/exactDecimalMath'
 import type { PositionProjection } from '@/lib/gateway'
-import { commandOwnershipScopeIds } from '@/lib/projection/presentation'
+import { commandOwnershipScopeIds } from '@/lib/projection/ownership'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'

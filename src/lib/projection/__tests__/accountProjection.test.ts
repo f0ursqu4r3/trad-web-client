@@ -13,6 +13,7 @@ import type {
   LegacyCommandPage,
   NativeProtectionProjection,
   OrderProjection,
+  PositionProjection,
   PresentationRelationship,
   ProtectionAmendmentProjection,
   ProjectionCheckpoint,
@@ -181,6 +182,19 @@ test('terminal pruning retains running roots, newest terminals, and their descen
   assert.equal(next.live.window.included_commands, 2)
   assert.equal(next.live.window.total_commands, 3)
   assert.equal(next.live.window.older_terminal_commands_available, true)
+})
+
+test('terminal pruning retains a command that still owns live exposure', () => {
+  const owner = command('owner', 10, 'succeeded')
+  owner.accepted.parameters = {
+    position_intent: { kind: 'open', scope_id: 'scope-live' },
+  }
+  const initial = snapshot(1, [owner], 'hyperliquid', 0)
+  initial.positions = [positionWithOwnedExposure('scope-live', '0.125')]
+  const next = applyDelta(view(initial), delta(initial, 2, []))
+
+  assert.deepEqual(ids(next.live.commands, 'command_id'), ['owner'])
+  assert.equal(next.live.window.included_commands, 1)
 })
 
 test('equal-time terminal pruning follows the server command-id tie break', () => {
@@ -510,6 +524,32 @@ function command(id: string, acceptedAt: number, lifecycle: CommandLifecycle): C
     operation_ids: [],
     lifecycle,
     failure_reason: null,
+  }
+}
+
+function positionWithOwnedExposure(scopeId: string, remaining: string): PositionProjection {
+  return {
+    symbol: 'BTC',
+    mode: 'one_way',
+    status: 'consistent',
+    reconciliation_required: false,
+    exchange_quantity: { long: remaining, short: '0' },
+    owned_quantity: { long: remaining, short: '0' },
+    external_quantity: { long: '0', short: '0' },
+    deficit_quantity: { long: '0', short: '0' },
+    latest_exchange_revision: 1,
+    latest_long_exchange_revision: 1,
+    latest_short_exchange_revision: null,
+    owned_exposure: {
+      [scopeId]: {
+        scope_id: scopeId,
+        side: 'long',
+        opened_quantity: remaining,
+        reduced_quantity: '0',
+        remaining_quantity: remaining,
+      },
+    },
+    unallocated_fills: {},
   }
 }
 

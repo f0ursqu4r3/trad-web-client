@@ -4,7 +4,8 @@ import type {
   PositionProjection,
   ProjectionGraph,
 } from '../gateway/index.ts'
-import { commandOwnershipScopeIds, commandSymbolIndex } from './presentation.ts'
+import { commandOwnershipScopeIds } from './ownership.ts'
+import { commandSymbolIndex } from './presentation.ts'
 
 export type ProjectionCommandPosition = 'open' | 'closed' | 'not_applicable'
 export type ProjectionCommandRecent = 'any' | '12h' | 'day' | 'week' | 'month'

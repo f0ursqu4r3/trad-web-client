@@ -8,6 +8,7 @@ import type {
   ProjectionNodeId,
   Uuid,
 } from '../gateway/index.ts'
+import { commandOwnershipScopeIds, liveOwnedExposureScopeIds } from './ownership.ts'
 
 export function isTerminalCommand(lifecycle: CommandLifecycle): boolean {
   return lifecycle === 'succeeded' || lifecycle === 'failed' || lifecycle === 'canceled'
@@ -17,6 +18,7 @@ export function pruneLiveSnapshot(snapshot: BrowserAccountSnapshot): BrowserAcco
   const selectedCommands = selectRecentCommands(
     snapshot.commands,
     snapshot.window.terminal_command_limit,
+    liveOwnedExposureScopeIds(snapshot.positions),
   )
   const selectedNodes = expandDescendants(snapshot.relationships, selectedCommands)
 
@@ -250,9 +252,21 @@ export function validateExecutionReferences(
   )
 }
 
-function selectRecentCommands(commands: CommandProjection[], terminalLimit: number): Set<Uuid> {
+function selectRecentCommands(
+  commands: CommandProjection[],
+  terminalLimit: number,
+  liveOwnedScopes: Set<string>,
+): Set<Uuid> {
   const selected = new Set(
-    commands.filter((command) => !isTerminalCommand(command.lifecycle)).map(commandId),
+    commands
+      .filter(
+        (command) =>
+          !isTerminalCommand(command.lifecycle) ||
+          Array.from(commandOwnershipScopeIds(command)).some((scopeId) =>
+            liveOwnedScopes.has(scopeId),
+          ),
+      )
+      .map(commandId),
   )
   const terminal =
     terminalLimit === 0
