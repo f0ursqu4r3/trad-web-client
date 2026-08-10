@@ -18,6 +18,7 @@ import { getWebSocketToken } from '@/lib/auth'
 import { createLogger } from '@/lib/utils'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
+import { marketKey, useMarketStore } from '@/stores/market'
 
 const logger = createLogger('gateway')
 const COMMAND_RESULT_TIMEOUT_MS = 30_000
@@ -56,6 +57,12 @@ interface PendingReconciliationRefresh {
   reject: (error: Error) => void
 }
 
+interface MarketDemand {
+  accountId: Uuid
+  symbol: string
+  limit: number
+}
+
 export interface ReconciliationRefreshState {
   requestId: Uuid
   cycleId: Uuid | null
@@ -76,6 +83,7 @@ export class CommandOutcomeUnknownError extends Error {
 export const useGatewayStore = defineStore('gateway', () => {
   const accounts = useAccountsStore()
   const projections = useAccountProjectionStore()
+  const markets = useMarketStore()
   const status = ref<GatewayConnectionStatus>('idle')
   const lastError = ref<string | null>(null)
   const latencyMs = ref<number | null>(null)
@@ -89,6 +97,11 @@ export const useGatewayStore = defineStore('gateway', () => {
   const subscriptionAccounts = new Map<Uuid, Uuid>()
   const subscriptionRetryAttempts = new Map<Uuid, number>()
   const subscriptionRetryTimers = new Map<Uuid, number>()
+  const marketDemands = new Map<string, MarketDemand>()
+  const marketRequests = new Map<Uuid, MarketDemand>()
+  const marketSubscriptions = new Map<Uuid, MarketDemand>()
+  const marketRetryAttempts = new Map<string, number>()
+  const marketRetryTimers = new Map<string, number>()
   const pendingCommands = new Map<Uuid, PendingCommand>()
   const pendingPreviews = new Map<Uuid, PendingPreview>()
   const pendingHistories = new Map<Uuid, PendingHistory>()
@@ -114,6 +127,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     lastError.value = error
     if (wasReady && next !== 'ready') {
       projections.markAllStale(error ?? 'gateway connection interrupted')
+      markets.disconnected(error ?? 'gateway connection interrupted')
       losePendingRequests(error ?? 'gateway connection interrupted')
       resetSubscriptions()
     }
@@ -122,6 +136,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     sessionValidUntil.value = Date.now() + validForMs
     resetSubscriptions()
     subscribeSelectedAccount()
+    subscribeMarketDemands()
   })
   client.setMessageHandler(handleMessage)
 
@@ -143,6 +158,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     started = false
     client.disconnect()
     projections.markAllStale('gateway disconnected')
+    markets.disconnected('gateway disconnected')
     losePendingRequests('gateway disconnected')
     resetSubscriptions()
   }
@@ -332,6 +348,31 @@ export const useGatewayStore = defineStore('gateway', () => {
     })
   }
 
+  function subscribeMarket(accountId: Uuid, symbol: string, limit = 1_024): void {
+    const demand = normalizeMarketDemand(accountId, symbol, limit)
+    const key = marketKey(demand.accountId, demand.symbol)
+    marketDemands.set(key, demand)
+    subscribeMarketDemand(demand)
+  }
+
+  function unsubscribeMarket(accountId: Uuid, symbol: string): void {
+    const key = marketKey(accountId, symbol)
+    marketDemands.delete(key)
+    clearMarketRetry(key)
+    for (const [subscriptionId, demand] of marketSubscriptions) {
+      if (marketKey(demand.accountId, demand.symbol) !== key) continue
+      marketSubscriptions.delete(subscriptionId)
+      if (status.value === 'ready') {
+        try {
+          send({ kind: 'unsubscribe_market', subscription_id: subscriptionId })
+        } catch (error) {
+          logger.debug('Market unsubscribe raced a gateway disconnect', error)
+        }
+      }
+    }
+    markets.remove(accountId, symbol)
+  }
+
   function handleMessage(message: BrowserServerMessage): void {
     switch (message.kind) {
       case 'hello':
@@ -347,6 +388,18 @@ export const useGatewayStore = defineStore('gateway', () => {
         return
       case 'account_unsubscribed':
         handleUnsubscribed(message.subscription_id)
+        return
+      case 'market_window':
+        handleMarketWindow(message)
+        return
+      case 'market_samples':
+        handleMarketSamples(message)
+        return
+      case 'market_error':
+        handleMarketError(message)
+        return
+      case 'market_unsubscribed':
+        marketSubscriptions.delete(message.subscription_id)
         return
       case 'command_result':
         handleCommandResult(message)
@@ -434,6 +487,80 @@ export const useGatewayStore = defineStore('gateway', () => {
     projections.clearSubscription(subscriptionId)
     if (selectedSubscriptionId === subscriptionId) selectedSubscriptionId = null
     if (accountId === accounts.selectedAccountId) subscribeSelectedAccount()
+  }
+
+  function handleMarketWindow(
+    message: Extract<BrowserServerMessage, { kind: 'market_window' }>,
+  ): void {
+    const demand =
+      message.request_id === null
+        ? marketSubscriptions.get(message.subscription_id)
+        : marketRequests.get(message.request_id)
+    if (message.request_id !== null) marketRequests.delete(message.request_id)
+    if (
+      demand === undefined ||
+      demand.accountId !== message.account_id ||
+      demand.symbol !== message.window.symbol.toUpperCase()
+    ) {
+      send({ kind: 'unsubscribe_market', subscription_id: message.subscription_id })
+      return
+    }
+    const key = marketKey(demand.accountId, demand.symbol)
+    if (!marketDemands.has(key)) {
+      send({ kind: 'unsubscribe_market', subscription_id: message.subscription_id })
+      return
+    }
+    marketSubscriptions.set(message.subscription_id, demand)
+    try {
+      markets.install(
+        message.account_id,
+        message.request_id,
+        message.subscription_id,
+        message.window,
+      )
+      clearMarketRetry(key)
+    } catch (error) {
+      logger.warn('Market window rejected; requesting a fresh window', error)
+      resubscribeMarket(message.subscription_id, demand)
+    }
+  }
+
+  function handleMarketSamples(
+    message: Extract<BrowserServerMessage, { kind: 'market_samples' }>,
+  ): void {
+    const demand = marketSubscriptions.get(message.subscription_id)
+    if (
+      demand === undefined ||
+      demand.accountId !== message.account_id ||
+      demand.symbol !== message.symbol.toUpperCase()
+    ) {
+      return
+    }
+    try {
+      markets.append(message.account_id, message.subscription_id, message.symbol, message.samples)
+    } catch (error) {
+      logger.warn('Market samples rejected; requesting a fresh window', error)
+      resubscribeMarket(message.subscription_id, demand)
+    }
+  }
+
+  function handleMarketError(
+    message: Extract<BrowserServerMessage, { kind: 'market_error' }>,
+  ): void {
+    const demand =
+      message.request_id === null
+        ? message.subscription_id === null
+          ? undefined
+          : marketSubscriptions.get(message.subscription_id)
+        : marketRequests.get(message.request_id)
+    if (message.request_id !== null) marketRequests.delete(message.request_id)
+    if (message.subscription_id !== null) marketSubscriptions.delete(message.subscription_id)
+    if (demand === undefined) return
+    const reason = marketError(message.error)
+    markets.fail(demand.accountId, demand.symbol, reason)
+    if (message.error.kind === 'unavailable' && message.error.retryable) {
+      scheduleMarketRetry(demand)
+    }
   }
 
   function handleCommandResult(
@@ -597,6 +724,81 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (accounts.selectedAccountId === accountId) subscribeSelectedAccount()
   }
 
+  function subscribeMarketDemand(demand: MarketDemand): void {
+    if (status.value !== 'ready') return
+    const key = marketKey(demand.accountId, demand.symbol)
+    if (
+      Array.from(marketRequests.values()).some(
+        (current) => marketKey(current.accountId, current.symbol) === key,
+      ) ||
+      Array.from(marketSubscriptions.values()).some(
+        (current) => marketKey(current.accountId, current.symbol) === key,
+      )
+    ) {
+      return
+    }
+    const requestId = uuid()
+    marketRequests.set(requestId, demand)
+    markets.begin(demand.accountId, demand.symbol, requestId)
+    try {
+      send({
+        kind: 'subscribe_market',
+        request_id: requestId,
+        account_id: demand.accountId,
+        symbol: demand.symbol,
+        limit: demand.limit,
+      })
+    } catch (error) {
+      marketRequests.delete(requestId)
+      markets.fail(demand.accountId, demand.symbol, 'gateway disconnected before subscription')
+      logger.debug('Market subscribe raced a gateway disconnect', error)
+      scheduleMarketRetry(demand)
+    }
+  }
+
+  function subscribeMarketDemands(): void {
+    for (const demand of marketDemands.values()) subscribeMarketDemand(demand)
+  }
+
+  function resubscribeMarket(subscriptionId: Uuid, demand: MarketDemand): void {
+    marketSubscriptions.delete(subscriptionId)
+    try {
+      send({ kind: 'unsubscribe_market', subscription_id: subscriptionId })
+    } catch {
+      return
+    }
+    scheduleMarketRetry(demand, 0)
+  }
+
+  function scheduleMarketRetry(demand: MarketDemand, minimumDelay?: number): void {
+    const key = marketKey(demand.accountId, demand.symbol)
+    if (status.value !== 'ready' || !marketDemands.has(key) || marketRetryTimers.has(key)) return
+    const attempt = marketRetryAttempts.get(key) ?? 0
+    const delay =
+      minimumDelay ??
+      Math.min(SUBSCRIPTION_RETRY_INITIAL_MS * 2 ** Math.min(attempt, 5), SUBSCRIPTION_RETRY_MAX_MS)
+    marketRetryAttempts.set(key, attempt + 1)
+    const timer = window.setTimeout(() => {
+      marketRetryTimers.delete(key)
+      const current = marketDemands.get(key)
+      if (current !== undefined) subscribeMarketDemand(current)
+    }, delay)
+    marketRetryTimers.set(key, timer)
+  }
+
+  function clearMarketRetry(key: string): void {
+    const timer = marketRetryTimers.get(key)
+    if (timer !== undefined) window.clearTimeout(timer)
+    marketRetryTimers.delete(key)
+    marketRetryAttempts.delete(key)
+  }
+
+  function clearAllMarketRetries(): void {
+    for (const timer of marketRetryTimers.values()) window.clearTimeout(timer)
+    marketRetryTimers.clear()
+    marketRetryAttempts.clear()
+  }
+
   function scheduleSubscriptionRetry(accountId: Uuid): void {
     if (
       status.value !== 'ready' ||
@@ -639,8 +841,11 @@ export const useGatewayStore = defineStore('gateway', () => {
 
   function resetSubscriptions(): void {
     clearAllSubscriptionRetries()
+    clearAllMarketRetries()
     subscriptionRequests.clear()
     subscriptionAccounts.clear()
+    marketRequests.clear()
+    marketSubscriptions.clear()
     selectedSubscriptionId = null
   }
 
@@ -697,6 +902,8 @@ export const useGatewayStore = defineStore('gateway', () => {
     refreshReconciliation,
     requestOlderHistory,
     requestLegacyHistory,
+    subscribeMarket,
+    unsubscribeMarket,
   }
 })
 
@@ -724,6 +931,27 @@ function historyError(error: BrowserHistoryError, kind: PendingHistory['kind']):
     case 'revision_changed':
       return `${label} revision changed from ${error.expected} to ${error.actual}`
   }
+}
+
+function marketError(
+  error: Extract<BrowserServerMessage, { kind: 'market_error' }>['error'],
+): string {
+  switch (error.kind) {
+    case 'unauthorized':
+      return 'market subscription is unauthorized'
+    case 'invalid_request':
+    case 'unavailable':
+      return error.reason
+  }
+}
+
+function normalizeMarketDemand(accountId: Uuid, symbol: string, limit: number): MarketDemand {
+  const normalized = symbol.trim().toUpperCase()
+  if (normalized.length === 0) throw new Error('market symbol is required')
+  if (!Number.isInteger(limit) || limit < 1 || limit > 1_024) {
+    throw new Error('market sample limit must be between 1 and 1024')
+  }
+  return { accountId, symbol: normalized, limit }
 }
 
 function uuid(): Uuid {

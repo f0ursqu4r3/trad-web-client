@@ -1,5 +1,6 @@
 import type { BrowserCommandIntent, Uuid } from './intent.ts'
 import type { BrowserPreviewIntent, BrowserPreviewOutcome } from './preview.ts'
+import type { BrowserMarketError, BrowserMarketSample, BrowserMarketWindow } from './market.ts'
 import type {
   AccountRouteKey,
   BrowserAccountDelta,
@@ -11,12 +12,20 @@ import type {
   ProjectionRevision,
 } from './projection.ts'
 
-export const BROWSER_PROTOCOL_VERSION = 9
+export const BROWSER_PROTOCOL_VERSION = 10
 
 export type BrowserClientMessage =
   | { kind: 'authenticate'; protocol_version: number; ticket: string }
   | { kind: 'subscribe_account'; request_id: Uuid; account_id: Uuid }
   | { kind: 'unsubscribe_account'; subscription_id: Uuid }
+  | {
+      kind: 'subscribe_market'
+      request_id: Uuid
+      account_id: Uuid
+      symbol: string
+      limit: number
+    }
+  | { kind: 'unsubscribe_market'; subscription_id: Uuid }
   | {
       kind: 'submit_command'
       request_id: Uuid
@@ -122,6 +131,28 @@ export type BrowserServerMessage =
       error: BrowserSubscriptionError
     }
   | { kind: 'account_unsubscribed'; subscription_id: Uuid }
+  | {
+      kind: 'market_window'
+      request_id: Uuid | null
+      subscription_id: Uuid
+      account_id: Uuid
+      window: BrowserMarketWindow
+    }
+  | {
+      kind: 'market_samples'
+      subscription_id: Uuid
+      account_id: Uuid
+      symbol: string
+      samples: BrowserMarketSample[]
+    }
+  | {
+      kind: 'market_error'
+      request_id: Uuid | null
+      subscription_id: Uuid | null
+      account_id: Uuid
+      error: BrowserMarketError
+    }
+  | { kind: 'market_unsubscribed'; subscription_id: Uuid }
   | {
       kind: 'command_result'
       request_id: Uuid
