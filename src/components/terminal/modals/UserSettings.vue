@@ -220,6 +220,7 @@ const returnToOrigin = window.location.origin
         class="fixed inset-0 z-[500] flex items-start justify-center overflow-auto bg-black/60 p-6 backdrop-blur-sm"
         aria-modal="true"
         role="dialog"
+        data-testid="user-settings-dialog"
         @click.self="close"
       >
         <div

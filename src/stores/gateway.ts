@@ -25,6 +25,7 @@ const COMMAND_RESULT_TIMEOUT_MS = 30_000
 const RECONCILIATION_RESULT_TIMEOUT_MS = 30_000
 const PREVIEW_RESULT_TIMEOUT_MS = 15_000
 const HISTORY_RESULT_TIMEOUT_MS = 30_000
+const PROJECTION_CONFIRM_TIMEOUT_MS = 3_000
 const SUBSCRIPTION_RETRY_INITIAL_MS = 1_000
 const SUBSCRIPTION_RETRY_MAX_MS = 30_000
 
@@ -575,6 +576,9 @@ export const useGatewayStore = defineStore('gateway', () => {
       pending.reject(new Error('command result account does not match its request'))
       return
     }
+    if (message.outcome.kind === 'accepted') {
+      confirmProjectionRevision(message.account_id, message.outcome.account_revision)
+    }
     pending.resolve(message.outcome)
   }
 
@@ -626,7 +630,45 @@ export const useGatewayStore = defineStore('gateway', () => {
             duplicate: false,
             error: message.outcome.rejection.reason,
           }
+    if (message.outcome.kind === 'accepted') {
+      confirmReconciliationCycle(message.account_id, message.outcome.cycle_id)
+    }
     pending.resolve(message.outcome)
+  }
+
+  function confirmProjectionRevision(accountId: Uuid, expectedRevision: number): void {
+    window.setTimeout(() => {
+      const actual =
+        projections.byAccount[accountId]?.view?.live.checkpoint.projection_revision ?? null
+      if (actual !== null && actual >= expectedRevision) return
+      recoverSelectedProjection(
+        accountId,
+        `accepted command revision ${expectedRevision} was not observed; current revision is ${actual ?? 'unavailable'}`,
+      )
+    }, PROJECTION_CONFIRM_TIMEOUT_MS)
+  }
+
+  function confirmReconciliationCycle(accountId: Uuid, expectedCycleId: Uuid): void {
+    window.setTimeout(() => {
+      const actual =
+        projections.byAccount[accountId]?.view?.live.checkpoint.summary.reconciliation_cycle_id ??
+        null
+      if (actual === expectedCycleId) return
+      recoverSelectedProjection(
+        accountId,
+        `accepted reconciliation cycle ${expectedCycleId} was not observed; current cycle is ${actual ?? 'unavailable'}`,
+      )
+    }, PROJECTION_CONFIRM_TIMEOUT_MS)
+  }
+
+  function recoverSelectedProjection(accountId: Uuid, reason: string): void {
+    if (status.value !== 'ready' || accounts.selectedAccountId !== accountId) return
+    logger.warn('Projection acknowledgement missed; requesting an authoritative snapshot', reason)
+    if (selectedSubscriptionId !== null) {
+      resubscribe(accountId, selectedSubscriptionId)
+      return
+    }
+    subscribeSelectedAccount()
   }
 
   function handleHistoryPage(

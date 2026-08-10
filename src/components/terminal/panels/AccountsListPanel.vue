@@ -722,10 +722,7 @@ watch(
         {{ controlMessage }}
       </p>
 
-      <p
-        v-else-if="accounts.loading && accounts.accounts.length === 0"
-        class="text-center text-xs dim"
-      >
+      <p v-if="accounts.loading && accounts.accounts.length === 0" class="text-center text-xs dim">
         Loading accounts...
       </p>
 
@@ -744,6 +741,8 @@ watch(
         <li
           v-for="account in sortedAccounts"
           :key="account.id"
+          :data-account-id="account.id"
+          data-testid="trading-account-row"
           :class="[
             'flex items-center gap-2 border border-[var(--panel-border-inner)] bg-[color-mix(in_srgb,var(--panel-bg)_95%,transparent)] transition-colors',
             {
@@ -787,6 +786,7 @@ watch(
               <div
                 v-if="showAccountDetails(account)"
                 class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(132px,1fr)_96px_auto_auto_auto]"
+                data-testid="account-leverage-controls"
               >
                 <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
                   <span>{{ account.exchange === ExchangeType.Bybit ? 'Symbols' : 'Symbol' }}</span>
@@ -889,6 +889,9 @@ watch(
                   v-for="control in projectedAccountControls(account)"
                   :key="control.control_id"
                   class="flex items-start justify-between gap-3"
+                  :data-account-control-id="control.control_id"
+                  :data-control-lifecycle="control.lifecycle"
+                  data-testid="account-control-row"
                 >
                   <span class="font-mono text-primary">{{ controlLabel(control) }}</span>
                   <span class="text-right" :class="controlStatusClass(control.lifecycle)">

@@ -244,7 +244,10 @@ async function expectProjectedFilledOrder(page: Page, commandId: string): Promis
   await expect(details).toContainText('Remaining Quantity')
   await expect(details).toContainText('Reconciliation Required')
   await expect(details).toContainText('no')
-  await expect(details.getByText('Executions', { exact: true })).toBeVisible({
+  await expect(details.getByText('Execution Economics', { exact: true })).toBeVisible({
+    timeout: commandTimeoutMs,
+  })
+  await expect(details.getByText(/^Fills \([1-9][0-9]*\)$/)).toBeVisible({
     timeout: commandTimeoutMs,
   })
 }
@@ -267,15 +270,12 @@ async function cancelSelectedOrder(page: Page): Promise<void> {
 
 async function expectProjectedProtection(page: Page): Promise<void> {
   const details = page.getByTestId('projection-details')
-  await expect(details.getByText('Exchange Protection', { exact: true })).toBeVisible({
+  await expect(details.getByText('Logical Native Protection', { exact: true })).toBeVisible({
     timeout: commandTimeoutMs,
   })
-  await expect(
-    details.locator('.evidence-section').filter({ hasText: 'Exchange Protection' }),
-  ).toContainText(/take_profit/i)
-  await expect(
-    details.locator('.evidence-section').filter({ hasText: 'Exchange Protection' }),
-  ).toContainText(/stop_loss/i)
+  await expect(details).toContainText(/tracking/i)
+  await expect(details).toContainText(/take_profit/i)
+  await expect(details).toContainText(/stop_loss/i)
 }
 
 async function bestEffortFlatten(page: Page): Promise<void> {
