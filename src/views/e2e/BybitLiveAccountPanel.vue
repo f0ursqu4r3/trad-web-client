@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive } from 'vue'
-import AccountsListPanel from '@/components/terminal/panels/AccountsListPanel.vue'
+import AccountsListPanel from '@/components/terminal/panels/LegacyAccountsListPanel.vue'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import { useWsStore } from '@/stores/ws'
 import {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from 'vue'
-import AccountsListPanel from '@/components/terminal/panels/AccountsListPanel.vue'
+import AccountsListPanel from '@/components/terminal/panels/LegacyAccountsListPanel.vue'
 import CommandPanel from '@/components/terminal/panels/CommandPanel.vue'
 import DeviceDetailsPanel from '@/components/terminal/panels/DeviceDetailsPanel.vue'
 import DeviceTreePanel from '@/components/terminal/panels/DeviceTreePanel.vue'
