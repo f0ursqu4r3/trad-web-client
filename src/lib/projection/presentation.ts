@@ -9,7 +9,6 @@ import type {
   OrderProjection,
   ProtectionAmendmentProjection,
   ProjectionGraph,
-  ProjectionNodeId,
   TrailingEntryProjection,
 } from '../gateway/index.ts'
 import { nodeKey } from './graph.ts'
@@ -202,6 +201,10 @@ export function commandProtectionScopeId(command: CommandProjection): string | n
   return typeof scopeId === 'string' && scopeId !== '' ? scopeId : null
 }
 
+export function commandOwnershipScopeIds(command: CommandProjection): Set<string> {
+  return collectScopeIds(command.accepted.parameters)
+}
+
 export function commandSymbolIndex(graph: ProjectionGraph): Map<string, string | null> {
   const entities = projectionEntities(graph)
   const children = new Map<string, string[]>()
@@ -311,4 +314,17 @@ function objectValue(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null
+}
+
+function collectScopeIds(value: unknown, found = new Set<string>()): Set<string> {
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectScopeIds(item, found))
+    return found
+  }
+  if (value === null || typeof value !== 'object') return found
+  for (const [key, child] of Object.entries(value)) {
+    if (key === 'scope_id' && typeof child === 'string' && child !== '') found.add(child)
+    else collectScopeIds(child, found)
+  }
+  return found
 }

@@ -4,7 +4,7 @@ import type {
   PositionProjection,
   ProjectionGraph,
 } from '../gateway/index.ts'
-import { commandSymbolIndex } from './presentation.ts'
+import { commandOwnershipScopeIds, commandSymbolIndex } from './presentation.ts'
 
 export type ProjectionCommandPosition = 'open' | 'closed' | 'not_applicable'
 export type ProjectionCommandRecent = 'any' | '12h' | 'day' | 'week' | 'month'
@@ -46,7 +46,7 @@ export function commandPosition(
   command: CommandProjection,
   positions: PositionProjection[],
 ): ProjectionCommandPosition {
-  const scopeIds = collectScopeIds(command.accepted.parameters)
+  const scopeIds = commandOwnershipScopeIds(command)
   if (scopeIds.size === 0) return 'not_applicable'
   let found = false
   for (const position of positions) {
@@ -58,19 +58,6 @@ export function commandPosition(
     }
   }
   return found ? 'closed' : 'not_applicable'
-}
-
-function collectScopeIds(value: unknown, found = new Set<string>()): Set<string> {
-  if (Array.isArray(value)) {
-    value.forEach((item) => collectScopeIds(item, found))
-    return found
-  }
-  if (value === null || typeof value !== 'object') return found
-  for (const [key, child] of Object.entries(value)) {
-    if (key === 'scope_id' && typeof child === 'string' && child !== '') found.add(child)
-    else collectScopeIds(child, found)
-  }
-  return found
 }
 
 function isExactZero(value: string): boolean {

@@ -7,7 +7,15 @@ import { buildFlattenIntent } from '@/lib/engineCommands/intents'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 
-const props = defineProps<{ open: boolean }>()
+const props = withDefaults(
+  defineProps<{
+    open: boolean
+    initialAccountId?: string
+    initialTarget?: 'symbol' | 'account'
+    initialSymbol?: string
+  }>(),
+  { initialAccountId: '', initialTarget: 'symbol', initialSymbol: '' },
+)
 const emit = defineEmits<{ (event: 'close'): void }>()
 const accounts = useAccountsStore()
 const gateway = useGatewayStore()
@@ -33,14 +41,20 @@ watch(
 )
 
 watch(selectedAccountId, (accountId, prior) => {
-  if (accountId !== '' && accountId !== prior)
+  const isInitialContext =
+    props.open &&
+    props.initialSymbol !== '' &&
+    accountId === props.initialAccountId &&
+    symbol.value === props.initialSymbol
+  if (accountId !== '' && accountId !== prior && !isInitialContext)
     symbol.value = accounts.getDefaultSymbolForAccount(accountId)
 })
 
 function reset(): void {
-  selectedAccountId.value = accounts.selectedAccountId ?? accounts.accounts[0]?.id ?? ''
-  targetKind.value = 'symbol'
-  symbol.value = accounts.getDefaultSymbolForAccount(selectedAccountId.value)
+  selectedAccountId.value =
+    props.initialAccountId || accounts.selectedAccountId || accounts.accounts[0]?.id || ''
+  targetKind.value = props.initialTarget
+  symbol.value = props.initialSymbol || accounts.getDefaultSymbolForAccount(selectedAccountId.value)
   confirmed.value = false
   validationError.value = null
   submission.clearSubmissionError()

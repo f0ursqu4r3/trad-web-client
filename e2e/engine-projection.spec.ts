@@ -123,6 +123,29 @@ test('refreshes account reconciliation and follows projected completion', async 
   await expect(control).toContainText('reconciled')
 })
 
+test('inspects authoritative account positions and pre-fills typed flatten controls', async ({
+  page,
+}) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await fixture.getByRole('button', { name: 'Inspect account positions' }).click()
+
+  const inspector = page.getByTestId('account-position-inspector')
+  await expect(inspector).toBeVisible()
+  await expect(inspector.getByText('connected', { exact: true })).toBeVisible()
+  const eth = inspector.locator('[data-symbol="ETH"]')
+  await expect(eth.getByText('0.00420001', { exact: true }).first()).toBeVisible()
+
+  await eth.getByRole('button', { name: 'Flatten symbol' }).click()
+  const flatten = page.getByRole('dialog', { name: 'Flatten Exposure' })
+  await expect(flatten.getByRole('combobox', { name: 'Target' })).toHaveValue('symbol')
+  await expect(flatten.getByRole('textbox', { name: 'Symbol' })).toHaveValue('ETH')
+  await flatten.getByRole('button', { name: 'Cancel' }).click()
+
+  await eth.getByRole('button', { name: 'scope-filled' }).click()
+  await expect(page.getByTestId('account-position-inspector')).not.toBeVisible()
+  await expect(fixture.getByTestId('projection-details').getByTestId('order-details')).toBeVisible()
+})
+
 test('submits projected lifecycle actions with authoritative entity identity', async ({ page }) => {
   const fixture = page.getByTestId('engine-projection-fixture')
   await fixture.getByTestId('projection-command-list').getByText('Chase Order').click()

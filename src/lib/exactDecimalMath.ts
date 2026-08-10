@@ -7,6 +7,10 @@ interface DecimalParts {
 
 const DECIMAL_PATTERN = /^([+-]?)(\d+)(?:\.(\d+))?$/
 
+export function isExactZero(value: ExactDecimal): boolean {
+  return /^[+-]?0+(?:\.0+)?$/.test(value.trim())
+}
+
 export function addExact(left: ExactDecimal, right: ExactDecimal): ExactDecimal {
   const lhs = parseExact(left)
   const rhs = parseExact(right)
