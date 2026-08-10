@@ -36,6 +36,8 @@ export interface AccountProjectionSummary {
   active_entry_cancellations: number
   account_controls: number
   active_account_controls: number
+  protection_amendments: number
+  active_protection_amendments: number
   orders: number
   active_orders: number
   positions: number
@@ -156,6 +158,7 @@ export type ProjectionNodeKind =
   | 'flatten_workflow'
   | 'entry_cancellation'
   | 'account_control'
+  | 'protection_amendment'
 
 export interface ProjectionNodeId {
   kind: ProjectionNodeKind
@@ -330,6 +333,38 @@ export interface AccountControlProjection {
     | { kind: 'set_position_mode'; mode: 'hedge' | 'one_way' }
   lifecycle: 'applying' | 'succeeded' | 'failed' | 'reconciliation_required'
   last_reason: string | null
+}
+
+export type ProtectionAmendmentLifecycle =
+  | 'applying'
+  | 'stopping'
+  | 'succeeded'
+  | 'failed'
+  | 'reconciliation_required'
+
+export type ProtectionAmendmentStep =
+  | { kind: 'install'; child: NativeProtectionChildPlan; operation_id: Uuid }
+  | {
+      kind: 'modify'
+      prior: NativeProtectionChildPlan
+      desired: NativeProtectionChildPlan
+      operation_id: Uuid
+    }
+  | { kind: 'cancel'; child: NativeProtectionChildPlan; operation_id: Uuid }
+
+export interface ProtectionAmendmentProjection {
+  amendment_id: Uuid
+  command_id: Uuid
+  protection_id: Uuid
+  expected_plan_revision: number
+  prior_plan: NativeProtectionPlan
+  desired_plan: NativeProtectionPlan
+  steps: ProtectionAmendmentStep[]
+  completed_steps: number
+  active_operation_id: Uuid | null
+  lifecycle: ProtectionAmendmentLifecycle
+  last_reason: string | null
+  created_at: TimestampMillis
 }
 
 export interface OrderRequestProjection {
@@ -554,6 +589,7 @@ export interface ProjectionGraph {
   flatten_workflows: FlattenWorkflowProjection[]
   entry_cancellations: EntryCancellationProjection[]
   account_controls: AccountControlProjection[]
+  protection_amendments: ProtectionAmendmentProjection[]
   orders: OrderProjection[]
   executions: ExecutionProjection[]
   relationships: PresentationRelationship[]

@@ -193,6 +193,7 @@ function trailingEntryGraph(): ProjectionGraph {
     flatten_workflows: [],
     entry_cancellations: [],
     account_controls: [],
+    protection_amendments: [],
     orders: [],
     executions: [],
     relationships: [

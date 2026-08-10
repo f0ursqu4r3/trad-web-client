@@ -1,5 +1,6 @@
 import type {
   BrowserCommandIntent,
+  AmendProtectionIntent,
   ExecutionShapeIntent,
   OrderSizingIntent,
   ProtectionExecutionIntent,
@@ -25,6 +26,7 @@ export interface ProtectionFormState {
 
 export interface TakeProfitFormState {
   id: string
+  childId?: Uuid
   triggerPrice: string
   triggerSource: TriggerSourceIntent
   executionKind: 'market' | 'limit'
@@ -34,6 +36,7 @@ export interface TakeProfitFormState {
 }
 
 export interface StopLossFormState {
+  childId?: Uuid
   enabled: boolean
   triggerPrice: string
   triggerSource: TriggerSourceIntent
@@ -114,7 +117,38 @@ export function protectionIntent(state: ProtectionFormState): ProtectionIntent |
   return { take_profits: takeProfits, ...(stopLoss === undefined ? {} : { stop_loss: stopLoss }) }
 }
 
-export function newTakeProfit(id = crypto.randomUUID()): TakeProfitFormState {
+export function protectionAmendmentIntent(
+  protectionId: Uuid,
+  expectedPlanRevision: number,
+  state: ProtectionFormState,
+): BrowserCommandIntent {
+  if (!Number.isInteger(expectedPlanRevision) || expectedPlanRevision < 1) {
+    throw new Error('protection plan revision is invalid')
+  }
+  const protection = protectionIntent(state)
+  if (protection === undefined) throw new Error('at least one protection leg is required')
+  const parameters: AmendProtectionIntent = {
+    protection_id: protectionId,
+    expected_plan_revision: expectedPlanRevision,
+    take_profits: protection.take_profits.map((takeProfit, index) => ({
+      ...(state.takeProfits[index]?.childId === undefined
+        ? {}
+        : { child_id: state.takeProfits[index]!.childId }),
+      ...takeProfit,
+    })),
+    ...(protection.stop_loss === undefined
+      ? {}
+      : {
+          stop_loss: {
+            ...(state.stopLoss.childId === undefined ? {} : { child_id: state.stopLoss.childId }),
+            ...protection.stop_loss,
+          },
+        }),
+  }
+  return { kind: 'amend_protection', parameters }
+}
+
+export function newTakeProfit(id: string = crypto.randomUUID()): TakeProfitFormState {
   return {
     id,
     triggerPrice: '',

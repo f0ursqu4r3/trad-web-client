@@ -6,10 +6,12 @@ import {
   newProtectionState,
   newTakeProfit,
   normalizedSymbol,
+  protectionAmendmentIntent,
   protectionIntent,
   shapeIntent,
   sizingIntent,
 } from '../form.ts'
+import { protectionForm } from '../protectionAmendment.ts'
 import {
   buildCancelEntryWorkIntent,
   buildFlattenIntent,
@@ -58,6 +60,75 @@ test('take-profit percentages convert to exact fractions without floating point'
   })
   first.allocationValue = '100.001'
   assert.throws(() => protectionIntent(protection), /cannot exceed 100%/)
+})
+
+test('projected protection plans round-trip exact values and retained child identities', () => {
+  const protectionId = '00000000-0000-0000-0000-000000000100'
+  const takeProfitId = '00000000-0000-0000-0000-000000000101'
+  const stopLossId = '00000000-0000-0000-0000-000000000102'
+  const form = protectionForm({
+    protection_id: protectionId,
+    children: [
+      {
+        child_id: takeProfitId,
+        client_order_id: 'trad-take-profit',
+        protection_kind: 'take_profit',
+        trigger_price: '65000.1250',
+        trigger_source: 'mark_price',
+        execution: { kind: 'bounded_market', worst_price: '64990.5000' },
+        allocation: { kind: 'fraction', value: '0.5' },
+      },
+      {
+        child_id: stopLossId,
+        client_order_id: 'trad-stop-loss',
+        protection_kind: 'stop_loss',
+        trigger_price: '62000.2500',
+        trigger_source: 'mark_price',
+        execution: { kind: 'bounded_market', worst_price: '61950.0000' },
+        allocation: { kind: 'full_remaining' },
+      },
+    ],
+  })
+
+  assert.equal(form.takeProfits[0]?.childId, takeProfitId)
+  assert.equal(form.takeProfits[0]?.allocationValue, '50')
+  assert.equal(form.takeProfits[0]?.executionKind, 'market')
+  assert.equal(form.stopLoss.childId, stopLossId)
+  form.takeProfits.push({
+    ...newTakeProfit('new-take-profit'),
+    triggerPrice: '66000.0000',
+    allocationKind: 'fraction',
+    allocationValue: '25',
+  })
+
+  assert.deepEqual(protectionAmendmentIntent(protectionId, 7, form), {
+    kind: 'amend_protection',
+    parameters: {
+      protection_id: protectionId,
+      expected_plan_revision: 7,
+      take_profits: [
+        {
+          child_id: takeProfitId,
+          trigger_price: '65000.1250',
+          trigger_source: 'mark_price',
+          execution: { kind: 'market' },
+          allocation: { kind: 'fraction', fraction: '0.5' },
+        },
+        {
+          trigger_price: '66000.0000',
+          trigger_source: 'mark_price',
+          execution: { kind: 'market' },
+          allocation: { kind: 'fraction', fraction: '0.25' },
+        },
+      ],
+      stop_loss: {
+        child_id: stopLossId,
+        trigger_price: '62000.2500',
+        trigger_source: 'mark_price',
+        execution: { kind: 'market' },
+      },
+    },
+  })
 })
 
 test('symbols are normalized but never exchange-guessed', () => {

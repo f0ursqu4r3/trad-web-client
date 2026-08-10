@@ -44,6 +44,9 @@ export function pruneLiveSnapshot(snapshot: BrowserAccountSnapshot): BrowserAcco
   const accountControls = snapshot.account_controls.filter((row) =>
     selectedNodes.has(nodeKey({ kind: 'account_control', id: row.control_id })),
   )
+  const protectionAmendments = snapshot.protection_amendments.filter((row) =>
+    selectedNodes.has(nodeKey({ kind: 'protection_amendment', id: row.amendment_id })),
+  )
   const orders = snapshot.orders.filter((row) =>
     selectedNodes.has(nodeKey({ kind: 'order', id: row.order_id })),
   )
@@ -67,6 +70,7 @@ export function pruneLiveSnapshot(snapshot: BrowserAccountSnapshot): BrowserAcco
     flatten_workflows: flattenWorkflows,
     entry_cancellations: entryCancellations,
     account_controls: accountControls,
+    protection_amendments: protectionAmendments,
     orders,
     executions,
     relationships,
@@ -113,6 +117,11 @@ export function mergeGraph(preferred: ProjectionGraph, fallback: ProjectionGraph
       preferred.account_controls,
       (row) => row.control_id,
     ),
+    protection_amendments: mergeRows(
+      fallback.protection_amendments,
+      preferred.protection_amendments,
+      (row) => row.amendment_id,
+    ),
     orders: mergeRows(fallback.orders, preferred.orders, (row) => row.order_id),
     executions: mergeRows(fallback.executions, preferred.executions, (row) => row.event_id),
     relationships: mergeRelationships(fallback.relationships, preferred.relationships),
@@ -157,6 +166,11 @@ export function upsertSnapshotGraph(
       delta.account_controls,
       (row) => row.control_id,
     ),
+    protection_amendments: mergeRows(
+      snapshot.protection_amendments,
+      delta.protection_amendments,
+      (row) => row.amendment_id,
+    ),
     orders: mergeRows(snapshot.orders, delta.orders, (row) => row.order_id),
     executions: mergeRows(snapshot.executions, delta.executions, (row) => row.event_id),
     relationships: mergeRelationships(snapshot.relationships, delta.relationships),
@@ -190,6 +204,10 @@ export function graphNodes(graph: ProjectionGraph): Set<string> {
   addNodes(nodes, graph.account_controls, (row) => ({
     kind: 'account_control',
     id: row.control_id,
+  }))
+  addNodes(nodes, graph.protection_amendments, (row) => ({
+    kind: 'protection_amendment',
+    id: row.amendment_id,
   }))
   addNodes(nodes, graph.orders, (row) => ({ kind: 'order', id: row.order_id }))
   return nodes

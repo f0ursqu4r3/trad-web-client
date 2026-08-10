@@ -47,6 +47,21 @@ export interface ProtectionIntent {
   stop_loss?: StopLossIntent
 }
 
+export interface ProtectionTakeProfitAmendmentIntent extends TakeProfitIntent {
+  child_id?: Uuid
+}
+
+export interface ProtectionStopLossAmendmentIntent extends StopLossIntent {
+  child_id?: Uuid
+}
+
+export interface AmendProtectionIntent {
+  protection_id: Uuid
+  expected_plan_revision: number
+  take_profits: ProtectionTakeProfitAmendmentIntent[]
+  stop_loss?: ProtectionStopLossAmendmentIntent
+}
+
 export interface PlaceOrderIntent {
   symbol: string
   position_side: PositionSideIntent
@@ -146,3 +161,4 @@ export type BrowserCommandIntent =
   | { kind: 'flatten'; parameters: { target: FlattenTargetIntent } }
   | { kind: 'set_leverage'; parameters: SetLeverageIntent }
   | { kind: 'set_position_mode'; parameters: { mode: PositionModeIntent } }
+  | { kind: 'amend_protection'; parameters: AmendProtectionIntent }

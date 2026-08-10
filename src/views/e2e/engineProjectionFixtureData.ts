@@ -16,6 +16,9 @@ const CHASE_ID = '20000000-0000-4000-8000-000000000002'
 const CHASE_ORDER_ID = '20000000-0000-4000-8000-000000000003'
 const FILLED_COMMAND_ID = '30000000-0000-4000-8000-000000000001'
 const FILLED_ORDER_ID = '30000000-0000-4000-8000-000000000002'
+const PROTECTION_ID = '30000000-0000-4000-8000-000000000003'
+const TAKE_PROFIT_ID = '30000000-0000-4000-8000-000000000004'
+const STOP_LOSS_ID = '30000000-0000-4000-8000-000000000005'
 const HISTORY_COMMAND_ID = '40000000-0000-4000-8000-000000000001'
 const HISTORY_ORDER_ID = '40000000-0000-4000-8000-000000000002'
 const ACCEPTED_AT = 1_786_200_000_000
@@ -98,7 +101,64 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
     flatten_workflows: [],
     entry_cancellations: [],
     account_controls: [],
-    native_protections: [],
+    protection_amendments: [],
+    native_protections: [
+      {
+        protection_id: PROTECTION_ID,
+        scope_id: 'protection-scope-filled',
+        symbol: 'ETH',
+        position_side: 'long',
+        scope_revision: 3,
+        plan_revision: 4,
+        plan: {
+          protection_id: PROTECTION_ID,
+          children: [
+            {
+              child_id: TAKE_PROFIT_ID,
+              client_order_id: 'trad-native-take-profit',
+              protection_kind: 'take_profit',
+              trigger_price: '2100.125',
+              trigger_source: 'mark_price',
+              execution: { kind: 'bounded_market', worst_price: '2090.125' },
+              allocation: { kind: 'fraction', value: '0.5' },
+            },
+            {
+              child_id: STOP_LOSS_ID,
+              client_order_id: 'trad-native-stop-loss',
+              protection_kind: 'stop_loss',
+              trigger_price: '1800.125',
+              trigger_source: 'mark_price',
+              execution: { kind: 'bounded_market', worst_price: '1790.125' },
+              allocation: { kind: 'full_remaining' },
+            },
+          ],
+        },
+        target_quantity: '0.00420001',
+        covered_quantity: '0.00420001',
+        status: 'tracking',
+        failure_reason: null,
+        children: {
+          [TAKE_PROFIT_ID]: {
+            child_id: TAKE_PROFIT_ID,
+            target_quantity: '0.002100005',
+            confirmed_quantity: '0.002100005',
+            cumulative_filled_quantity: '0',
+            remote_order_ids: ['native-take-profit-remote'],
+            pending_operation_id: null,
+            failure_reason: null,
+          },
+          [STOP_LOSS_ID]: {
+            child_id: STOP_LOSS_ID,
+            target_quantity: '0.00420001',
+            confirmed_quantity: '0.00420001',
+            cumulative_filled_quantity: '0',
+            remote_order_ids: ['native-stop-loss-remote'],
+            pending_operation_id: null,
+            failure_reason: null,
+          },
+        },
+      },
+    ],
     orders: [chaseOrder, filledOrder],
     positions: [
       {
@@ -254,6 +314,7 @@ export function engineProjectionHistoryPage(): ClientCommandPage {
     flatten_workflows: [],
     entry_cancellations: [],
     account_controls: [],
+    protection_amendments: [],
     orders: [oldOrder],
     executions: [],
     relationships: [
@@ -347,7 +408,7 @@ function generation(orderId: string, filled: string): OrderGenerationProjection 
 
 function checkpoint(revision: number, commands: number): ProjectionCheckpoint {
   return {
-    schema_version: 25,
+    schema_version: 26,
     shard: { exchange: 'hyperliquid', network: 'testnet', account_id: ENGINE_ACCOUNT_ID },
     account_revision: revision,
     projection_revision: revision,
@@ -379,6 +440,8 @@ function summary(commands: number): AccountProjectionSummary {
     active_entry_cancellations: 0,
     account_controls: 0,
     active_account_controls: 0,
+    protection_amendments: 0,
+    active_protection_amendments: 0,
     orders: 2,
     active_orders: 1,
     positions: 1,

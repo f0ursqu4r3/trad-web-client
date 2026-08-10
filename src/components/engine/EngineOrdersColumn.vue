@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import SplitView from '@/components/general/SplitView.vue'
+import ActiveProtectionList from './ActiveProtectionList.vue'
 import ProjectionCommandList from './ProjectionCommandList.vue'
 import ProjectionEntityTree from './ProjectionEntityTree.vue'
 import ReconciliationControl from './ReconciliationControl.vue'
@@ -13,6 +14,7 @@ import ReconciliationControl from './ReconciliationControl.vue'
           <span class="panel-title">Commands</span>
           <ReconciliationControl />
         </header>
+        <ActiveProtectionList />
         <ProjectionCommandList />
       </section>
     </template>

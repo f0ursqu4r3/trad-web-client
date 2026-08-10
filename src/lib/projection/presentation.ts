@@ -7,6 +7,7 @@ import type {
   EntryCancellationProjection,
   FlattenWorkflowProjection,
   OrderProjection,
+  ProtectionAmendmentProjection,
   ProjectionGraph,
   ProjectionNodeId,
   TrailingEntryProjection,
@@ -47,6 +48,11 @@ export type ProjectionEntity =
       id: string
       row: AccountControlProjection
     }
+  | {
+      kind: 'protection_amendment'
+      id: string
+      row: ProtectionAmendmentProjection
+    }
 
 export interface ProjectionTreeNode {
   entity: ProjectionEntity
@@ -77,6 +83,9 @@ export function projectionEntities(graph: ProjectionGraph): Map<string, Projecti
   for (const row of graph.account_controls) {
     put(entities, { kind: 'account_control', id: row.control_id, row })
   }
+  for (const row of graph.protection_amendments) {
+    put(entities, { kind: 'protection_amendment', id: row.amendment_id, row })
+  }
   return entities
 }
 
@@ -97,6 +106,7 @@ export function entityStatus(entity: ProjectionEntity): string {
     case 'flatten_workflow':
     case 'entry_cancellation':
     case 'account_control':
+    case 'protection_amendment':
       return entity.row.lifecycle
   }
 }
@@ -121,6 +131,8 @@ export function entityLabel(entity: ProjectionEntity): string {
       return 'Cancel Entry Work'
     case 'account_control':
       return entity.row.request.kind === 'set_leverage' ? 'Set Leverage' : 'Set Position Mode'
+    case 'protection_amendment':
+      return 'Protection Amendment'
   }
 }
 
@@ -154,6 +166,7 @@ export function commandKindLabel(kind: string): string {
     cancel_chase: 'Cancel Chase',
     cancel_trailing_entry: 'Cancel Trailing Entry',
     configure_account: 'Account Configuration',
+    amend_protection: 'Edit Protection',
   }
   return labels[kind] ?? title(kind)
 }
@@ -162,6 +175,31 @@ export function commandSymbol(command: CommandProjection, graph: ProjectionGraph
   const tree = commandTree(graph, command.command_id)
   if (tree === null) return null
   return findSymbol(tree)
+}
+
+export function entityCommandId(entity: ProjectionEntity): string {
+  return entity.row.command_id
+}
+
+export function commandProtectionScopeId(command: CommandProjection): string | null {
+  const parameters = command.accepted.parameters
+  let protection: Record<string, unknown> | null
+  switch (command.accepted.kind) {
+    case 'place_order':
+    case 'place_execution_group':
+      protection = objectValue(parameters.protection)
+      break
+    case 'place_chase':
+      protection = objectValue(objectValue(parameters.plan)?.protection)
+      break
+    case 'place_trailing_entry':
+      protection = objectValue(objectValue(objectValue(parameters.plan)?.execution)?.protection)
+      break
+    default:
+      protection = null
+  }
+  const scopeId = protection?.scope_id
+  return typeof scopeId === 'string' && scopeId !== '' ? scopeId : null
 }
 
 export function commandSymbolIndex(graph: ProjectionGraph): Map<string, string | null> {

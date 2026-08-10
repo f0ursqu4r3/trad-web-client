@@ -14,6 +14,7 @@ import type {
   NativeProtectionProjection,
   OrderProjection,
   PresentationRelationship,
+  ProtectionAmendmentProjection,
   ProjectionCheckpoint,
 } from '../../gateway/index.ts'
 import {
@@ -87,6 +88,41 @@ test('logical native protection remains authoritative outside bounded command hi
   assert.equal(next.live.native_protections[0]?.status, 'tracking')
   assert.equal(next.live.native_protections[0]?.plan_revision, 2)
   assert.equal(next.live.native_protections[0]?.covered_quantity, '0.125')
+})
+
+test('protection amendment deltas remain attached to their retained command root', () => {
+  const accepted = amendmentCommand('amend-command', 20, 'running')
+  const initial = snapshot(4, [accepted])
+  initial.native_protections = [nativeProtection('tracking', 1, '0.125')]
+  initial.protection_amendments = [protectionAmendment('applying', 0)]
+  initial.relationships = [amendmentRelationship(accepted.command_id)]
+  initial.checkpoint.summary.protection_amendments = 1
+  initial.checkpoint.summary.active_protection_amendments = 1
+
+  const update = delta(initial, 5, [{ ...accepted, lifecycle: 'succeeded' }])
+  update.protection_amendments = [protectionAmendment('succeeded', 1)]
+  update.native_protections = [nativeProtection('tracking', 2, '0.125')]
+  update.checkpoint.summary.protection_amendments = 1
+  update.checkpoint.summary.active_protection_amendments = 0
+  const next = applyDelta(installSnapshot(initial), update)
+
+  assert.equal(next.live.protection_amendments[0]?.lifecycle, 'succeeded')
+  assert.equal(next.live.protection_amendments[0]?.completed_steps, 1)
+  assert.equal(next.live.native_protections[0]?.plan_revision, 2)
+  assert.equal(next.live.commands[0]?.lifecycle, 'succeeded')
+})
+
+test('terminal pruning retains a protection amendment descendant with its command', () => {
+  const old = command('old', 10, 'failed')
+  const amended = amendmentCommand('amend-command', 20, 'succeeded')
+  const initial = snapshot(4, [old, amended], 'hyperliquid', 1)
+  initial.protection_amendments = [protectionAmendment('succeeded', 1)]
+  initial.relationships = [amendmentRelationship(amended.command_id)]
+  initial.checkpoint.summary.protection_amendments = 1
+  const next = applyDelta(installSnapshot(initial), delta(initial, 5, []))
+
+  assert.deepEqual(ids(next.live.commands, 'command_id'), ['amend-command'])
+  assert.deepEqual(ids(next.live.protection_amendments, 'amendment_id'), ['protection-amendment'])
 })
 
 test('a revision gap is rejected before any state changes', () => {
@@ -295,6 +331,7 @@ function snapshot(
     flatten_workflows: [],
     entry_cancellations: [],
     account_controls: [],
+    protection_amendments: [],
     native_protections: [],
     orders,
     positions: [],
@@ -324,6 +361,7 @@ function delta(
     flatten_workflows: [],
     entry_cancellations: [],
     account_controls: [],
+    protection_amendments: [],
     native_protections: [],
     orders: [],
     positions: [],
@@ -346,6 +384,7 @@ function historyPage(current: BrowserAccountSnapshot, root: CommandProjection): 
     flatten_workflows: [],
     entry_cancellations: [],
     account_controls: [],
+    protection_amendments: [],
     orders: [],
     executions: [],
     relationships: [],
@@ -409,7 +448,7 @@ function checkpoint(
   exchange: 'hyperliquid' | 'bybit' = 'hyperliquid',
 ): ProjectionCheckpoint {
   return {
-    schema_version: 25,
+    schema_version: 26,
     shard: { exchange, network: 'testnet', account_id: ACCOUNT_ID },
     account_revision: revision,
     projection_revision: revision,
@@ -441,6 +480,8 @@ function summary(commands: number): AccountProjectionSummary {
     active_entry_cancellations: 0,
     account_controls: 0,
     active_account_controls: 0,
+    protection_amendments: 0,
+    active_protection_amendments: 0,
     orders: 0,
     active_orders: 0,
     positions: 0,
@@ -467,6 +508,28 @@ function command(id: string, acceptedAt: number, lifecycle: CommandLifecycle): C
     accepted: { kind: 'place_order', parameters: {} },
     root: { kind: 'order', id: `order-${id}` },
     operation_ids: [],
+    lifecycle,
+    failure_reason: null,
+  }
+}
+
+function amendmentCommand(
+  id: string,
+  acceptedAt: number,
+  lifecycle: CommandLifecycle,
+): CommandProjection {
+  return {
+    command_id: id,
+    accepted_at: acceptedAt,
+    accepted: {
+      kind: 'amend_protection',
+      parameters: {
+        protection_id: 'native-protection',
+        expected_plan_revision: 1,
+      },
+    },
+    root: { kind: 'protection_amendment', id: 'protection-amendment' },
+    operation_ids: ['amend-operation'],
     lifecycle,
     failure_reason: null,
   }
@@ -533,6 +596,42 @@ function accountControl(
     request: { kind: 'set_leverage', symbol: 'BTC', leverage: 5, margin_mode: 'cross' },
     lifecycle,
     last_reason: lastReason,
+  }
+}
+
+function protectionAmendment(
+  lifecycle: ProtectionAmendmentProjection['lifecycle'],
+  completedSteps: number,
+): ProtectionAmendmentProjection {
+  const plan = nativeProtection('tracking', 1, '0.125').plan
+  return {
+    amendment_id: 'protection-amendment',
+    command_id: 'amend-command',
+    protection_id: plan.protection_id,
+    expected_plan_revision: 1,
+    prior_plan: plan,
+    desired_plan: plan,
+    steps: [
+      {
+        kind: 'modify',
+        prior: plan.children[0]!,
+        desired: plan.children[0]!,
+        operation_id: 'amend-operation',
+      },
+    ],
+    completed_steps: completedSteps,
+    active_operation_id: lifecycle === 'applying' ? 'amend-operation' : null,
+    lifecycle,
+    last_reason: null,
+    created_at: 20,
+  }
+}
+
+function amendmentRelationship(commandId: string): PresentationRelationship {
+  return {
+    parent: { kind: 'command', id: commandId },
+    child: { kind: 'protection_amendment', id: 'protection-amendment' },
+    relationship: 'command_root',
   }
 }
 

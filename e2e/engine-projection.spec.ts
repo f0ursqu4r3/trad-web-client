@@ -27,7 +27,7 @@ test('renders the typed command graph and exact execution evidence', async ({ pa
   await expect(details.getByText('0.00420001', { exact: true }).first()).toBeVisible()
   await expect(details.getByText('0.00420001 @ 1918.90000001', { exact: true })).toBeVisible()
   await expect(details.getByText('Fee 0.003223456789 USDC', { exact: true })).toBeVisible()
-  await expect(details.getByText('stop_loss @ 1800.125', { exact: true })).toBeVisible()
+  await expect(details.getByText('stop_loss @ 1800.125', { exact: true }).first()).toBeVisible()
 })
 
 test('loads revision-pinned history without replacing the live graph', async ({ page }) => {
@@ -87,4 +87,46 @@ test('submits projected lifecycle actions with authoritative entity identity', a
   await expect(fixture.getByTestId('latest-lifecycle-intent')).toContainText(
     '"chase_id":"20000000-0000-4000-8000-000000000002"',
   )
+})
+
+test('edits logical native protection without exposing exchange order identity', async ({
+  page,
+}) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await fixture.getByTestId('projection-command-list').getByText('Market Order').click()
+  await fixture.getByRole('button', { name: 'Edit Protection' }).click()
+
+  const modal = page.getByRole('dialog', { name: 'Edit Native Protection' })
+  await expect(modal.getByText('Plan revision 4')).toBeVisible()
+  await expect(modal.getByText('Mark Price').first()).toBeVisible()
+  await modal.getByLabel('TP 1 Trigger').fill('2110.5000')
+  await modal.getByLabel(/Apply this complete TP\/SL plan/).check()
+  await modal.getByRole('button', { name: 'Apply Protection' }).click()
+
+  await expect(modal).not.toBeVisible()
+  const evidence = fixture.getByTestId('latest-lifecycle-intent')
+  await expect(evidence).toContainText('"kind":"amend_protection"')
+  await expect(evidence).toContainText('"expected_plan_revision":4')
+  await expect(evidence).toContainText('"child_id":"30000000-0000-4000-8000-000000000004"')
+  await expect(evidence).toContainText('"trigger_price":"2110.5000"')
+  await expect(evidence).not.toContainText('native-take-profit-remote')
+})
+
+test('opens account-current protection without selecting its source command', async ({ page }) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await expect(
+    fixture.getByTestId('projection-command-list').getByText('Chase Order'),
+  ).toBeVisible()
+
+  const protection = fixture
+    .getByTestId('active-protection-list')
+    .locator('[data-protection-id="30000000-0000-4000-8000-000000000003"]')
+  await expect(protection).toContainText('ETH · long')
+  await expect(protection).toContainText('0.00420001 / 0.00420001 covered')
+  await protection.getByRole('button', { name: 'Edit' }).click()
+
+  const modal = page.getByRole('dialog', { name: 'Edit Native Protection' })
+  await expect(modal.getByText('Plan revision 4')).toBeVisible()
+  await modal.getByRole('button', { name: 'Back' }).click()
+  await expect(modal).not.toBeVisible()
 })

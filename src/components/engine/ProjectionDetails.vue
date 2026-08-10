@@ -3,7 +3,16 @@ import { computed } from 'vue'
 
 import ProjectionActions from '@/components/engine/actions/ProjectionActions.vue'
 import type { CommandProjection, ProtectionProjection } from '@/lib/gateway'
-import { entityLabel, entityStatus } from '@/lib/projection/presentation'
+import {
+  activeProtectionAmendment,
+  commandNativeProtection,
+} from '@/lib/engineCommands/protectionAmendment'
+import {
+  commandProtectionScopeId,
+  entityCommandId,
+  entityLabel,
+  entityStatus,
+} from '@/lib/projection/presentation'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useProjectionUiStore } from '@/stores/projectionUi'
 
@@ -14,6 +23,24 @@ interface DetailRow {
 
 const projections = useAccountProjectionStore()
 const ui = useProjectionUiStore()
+const selectedCommand = computed<CommandProjection | null>(() => {
+  const entity = ui.selectedEntity
+  if (entity === null || ui.graph === null) return null
+  const commandId = entityCommandId(entity)
+  return ui.graph.commands.find((command) => command.command_id === commandId) ?? null
+})
+const selectedNativeProtection = computed(() => {
+  const command = selectedCommand.value
+  const live = projections.selectedLive
+  if (command === null || live === null) return null
+  return commandNativeProtection(command, live.native_protections)
+})
+const selectedProtectionAmendment = computed(() =>
+  activeProtectionAmendment(
+    selectedNativeProtection.value,
+    projections.selectedLive?.protection_amendments ?? [],
+  ),
+)
 
 const details = computed<DetailRow[]>(() => {
   const entity = ui.selectedEntity
@@ -130,6 +157,14 @@ const details = computed<DetailRow[]>(() => {
         optionalRecordRow('Position Mode', entity.row.request, 'mode'),
         optionalRow('Last Reason', entity.row.last_reason),
       ])
+    case 'protection_amendment':
+      return compact([
+        row('Lifecycle', entity.row.lifecycle),
+        row('Expected Plan Revision', String(entity.row.expected_plan_revision)),
+        row('Completed Steps', `${entity.row.completed_steps} / ${entity.row.steps.length}`),
+        optionalRow('Active Operation', entity.row.active_operation_id),
+        optionalRow('Last Reason', entity.row.last_reason),
+      ])
   }
   return []
 })
@@ -161,27 +196,6 @@ const relatedProtections = computed(() => {
         clientIds.has(protection.parent_client_order_id)),
   )
 })
-
-function commandProtectionScopeId(command: CommandProjection): string | null {
-  const parameters = command.accepted.parameters
-  let protection: Record<string, unknown> | null
-  switch (command.accepted.kind) {
-    case 'place_order':
-    case 'place_execution_group':
-      protection = objectValue(parameters.protection)
-      break
-    case 'place_chase':
-      protection = objectValue(objectValue(parameters.plan)?.protection)
-      break
-    case 'place_trailing_entry':
-      protection = objectValue(objectValue(objectValue(parameters.plan)?.execution)?.protection)
-      break
-    default:
-      protection = null
-      break
-  }
-  return stringValue(protection?.scope_id)
-}
 
 function protectionOwnerScopeId(protection: ProtectionProjection): string | null {
   const classification = objectValue(protection.inventory_classification)
@@ -309,6 +323,38 @@ function stringValue(value: unknown): string | null {
           >
         </div>
       </section>
+
+      <section v-if="selectedNativeProtection" class="evidence-section">
+        <h3>Logical Native Protection</h3>
+        <div class="protection-summary">
+          <span>{{ selectedNativeProtection.status }}</span>
+          <span>Plan r{{ selectedNativeProtection.plan_revision }}</span>
+          <span>
+            {{ selectedNativeProtection.covered_quantity }} /
+            {{ selectedNativeProtection.target_quantity }} covered
+          </span>
+        </div>
+        <div
+          v-for="child in selectedNativeProtection.plan.children"
+          :key="child.child_id"
+          class="evidence-row"
+        >
+          <span>{{ child.protection_kind }} @ {{ child.trigger_price }}</span>
+          <span>{{ child.execution.kind }}</span>
+          <span>{{ child.allocation.kind }}</span>
+        </div>
+        <div v-if="selectedProtectionAmendment" class="amendment-state">
+          Edit {{ selectedProtectionAmendment.lifecycle }} ·
+          {{ selectedProtectionAmendment.completed_steps }} /
+          {{ selectedProtectionAmendment.steps.length }} steps
+          <span v-if="selectedProtectionAmendment.last_reason">
+            · {{ selectedProtectionAmendment.last_reason }}
+          </span>
+        </div>
+        <div v-if="selectedNativeProtection.failure_reason" class="amendment-state error-text">
+          {{ selectedNativeProtection.failure_reason }}
+        </div>
+      </section>
     </div>
     <div v-else class="empty-state">Select a command or execution entity</div>
   </section>
@@ -397,6 +443,19 @@ function stringValue(value: unknown): string | null {
   padding: 5px 0;
   color: var(--color-text-dim);
   border-top: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+}
+
+.protection-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 6px;
+  color: var(--color-text-dim);
+}
+
+.amendment-state {
+  padding-top: 7px;
+  color: var(--color-warning);
 }
 
 .empty-state {

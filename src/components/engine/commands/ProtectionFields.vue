@@ -8,6 +8,7 @@ import {
 } from '@/lib/engineCommands/form'
 
 const model = defineModel<ProtectionFormState>({ required: true })
+defineProps<{ markPriceOnly?: boolean }>()
 
 function addTakeProfit(): void {
   if (model.value.takeProfits.length >= 20) return
@@ -71,7 +72,8 @@ function removeTakeProfit(row: TakeProfitFormState): void {
       </label>
       <label class="field">
         <span>Trigger Source</span>
-        <select v-model="takeProfit.triggerSource" class="input">
+        <span v-if="markPriceOnly" class="readonly-value">Mark Price</span>
+        <select v-else v-model="takeProfit.triggerSource" class="input">
           <option value="mark_price">Mark Price</option>
           <option value="last_price">Last Price</option>
           <option value="index_price">Index Price</option>
@@ -115,7 +117,8 @@ function removeTakeProfit(row: TakeProfitFormState): void {
       </label>
       <label class="field">
         <span>Trigger Source</span>
-        <select v-model="model.stopLoss.triggerSource" class="input">
+        <span v-if="markPriceOnly" class="readonly-value">Mark Price</span>
+        <select v-else v-model="model.stopLoss.triggerSource" class="input">
           <option value="mark_price">Mark Price</option>
           <option value="last_price">Last Price</option>
           <option value="index_price">Index Price</option>
@@ -183,6 +186,13 @@ function removeTakeProfit(row: TakeProfitFormState): void {
 
 .remove-button {
   align-self: end;
+}
+
+.readonly-value {
+  min-height: 28px;
+  padding: 5px 7px;
+  color: var(--color-text-dim);
+  border: 1px solid var(--border-color);
 }
 
 @media (max-width: 640px) {
