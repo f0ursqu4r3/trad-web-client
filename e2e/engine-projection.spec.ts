@@ -58,6 +58,46 @@ test('command selection drives details without a device resync request', async (
   await expect(details.getByText('working', { exact: true }).first()).toBeVisible()
 })
 
+test('right-click exposes projected actions without changing the inspected command', async ({
+  page,
+}) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  const commands = fixture.getByTestId('projection-command-list')
+  const chase = commands.locator('[data-command-id]').filter({ hasText: 'Chase Order' })
+  const market = commands.locator('[data-command-id]').filter({ hasText: 'Market Order' })
+  await expect(chase).toHaveClass(/selected/)
+
+  await market.click({ button: 'right' })
+  await expect(page.getByRole('menuitem', { name: 'Inspect' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Close Exposure' })).toBeVisible()
+  await expect(chase).toHaveClass(/selected/)
+  await expect(market).not.toHaveClass(/selected/)
+
+  await page.getByRole('menuitem', { name: 'Nickname / Color...' }).click()
+  const modal = page.getByRole('dialog', { name: 'Command Nickname' })
+  await modal.getByLabel('Nickname').fill('Protected ETH entry')
+  await modal.getByRole('button', { name: 'Red' }).click()
+  await modal.getByRole('button', { name: 'Save' }).click()
+  await expect(commands.getByText('Protected ETH entry', { exact: true })).toBeVisible()
+})
+
+test('projection-native command filters combine without polling device state', async ({ page }) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  const commands = fixture.getByTestId('projection-command-list')
+  const rows = commands.locator('.command-rows')
+  await commands.getByRole('button', { name: 'Command filters' }).click()
+  const filters = commands.getByTestId('projection-command-filters')
+
+  await filters.getByRole('button', { name: 'succeeded', exact: true }).click()
+  await expect(rows.getByText('Market Order', { exact: true })).toBeVisible()
+  await expect(rows.getByText('Chase Order', { exact: true })).not.toBeVisible()
+
+  await filters.getByRole('button', { name: 'Reset' }).click()
+  await filters.getByRole('button', { name: 'BTC' }).click()
+  await expect(rows.getByText('Chase Order', { exact: true })).toBeVisible()
+  await expect(rows.getByText('Market Order', { exact: true })).not.toBeVisible()
+})
+
 test('refreshes account reconciliation and follows projected completion', async ({ page }) => {
   const fixture = page.getByTestId('engine-projection-fixture')
   const control = fixture.getByTestId('reconciliation-control')

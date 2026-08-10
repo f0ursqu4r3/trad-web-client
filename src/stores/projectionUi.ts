@@ -9,6 +9,11 @@ import {
   type ProjectionTreeNode,
 } from '@/lib/projection/presentation'
 import { nodeKey } from '@/lib/projection'
+import {
+  defaultProjectionCommandFilters,
+  filterProjectionCommands,
+  type ProjectionCommandFilters,
+} from '@/lib/projection/commandFilters'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
 import { useUiStore } from '@/stores/ui'
@@ -29,6 +34,8 @@ export const useProjectionUiStore = defineStore(
     const selectedNode = ref<ProjectionNodeId | null>(null)
     const autoSelectNewCommands = ref(true)
     const commandMeta = ref<Record<Uuid, ProjectionCommandMeta>>({})
+    const commandFilters = ref<ProjectionCommandFilters>(defaultProjectionCommandFilters())
+    const showCommandFilters = ref(false)
     const newestSeen = new Map<Uuid, [number, Uuid]>()
 
     const graph = computed(() => projections.selectedGraph)
@@ -43,6 +50,14 @@ export const useProjectionUiStore = defineStore(
       )
       return rows
     })
+    const filteredCommands = computed(() =>
+      filterProjectionCommands(
+        orderedCommands.value,
+        graph.value,
+        projections.selectedLive?.positions ?? [],
+        commandFilters.value,
+      ),
+    )
     const selectedCommand = computed(
       () => commands.value.find((row) => row.command_id === selectedCommandId.value) ?? null,
     )
@@ -110,6 +125,10 @@ export const useProjectionUiStore = defineStore(
       }
     }
 
+    function resetCommandFilters(): void {
+      commandFilters.value = defaultProjectionCommandFilters()
+    }
+
     function meta(commandId: Uuid): ProjectionCommandMeta {
       return (
         commandMeta.value[commandId] ?? {
@@ -125,9 +144,12 @@ export const useProjectionUiStore = defineStore(
       selectedNode,
       autoSelectNewCommands,
       commandMeta,
+      commandFilters,
+      showCommandFilters,
       graph,
       commands,
       orderedCommands,
+      filteredCommands,
       selectedCommand,
       selectedTree,
       selectedEntity,
@@ -135,13 +157,14 @@ export const useProjectionUiStore = defineStore(
       selectEntity,
       togglePinned,
       setNickname,
+      resetCommandFilters,
       meta,
     }
   },
   {
     persist: {
       key: 'trad-engine-projection-ui',
-      pick: ['autoSelectNewCommands', 'commandMeta'],
+      pick: ['autoSelectNewCommands', 'commandMeta', 'commandFilters'],
     },
   },
 )
