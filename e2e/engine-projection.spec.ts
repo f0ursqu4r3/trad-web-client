@@ -58,6 +58,17 @@ test('command selection drives details without a device resync request', async (
   await expect(details.getByText('working', { exact: true }).first()).toBeVisible()
 })
 
+test('refreshes account reconciliation and follows projected completion', async ({ page }) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  const control = fixture.getByTestId('reconciliation-control')
+  await expect(control).toContainText('reconciled')
+
+  await control.getByTestId('refresh-reconciliation').click()
+
+  await expect(control).toContainText('reconciling')
+  await expect(control).toContainText('reconciled')
+})
+
 test('submits projected lifecycle actions with authoritative entity identity', async ({ page }) => {
   const fixture = page.getByTestId('engine-projection-fixture')
   await fixture.getByTestId('projection-command-list').getByText('Chase Order').click()

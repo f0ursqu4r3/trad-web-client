@@ -2,13 +2,17 @@
 import SplitView from '@/components/general/SplitView.vue'
 import ProjectionCommandList from './ProjectionCommandList.vue'
 import ProjectionEntityTree from './ProjectionEntityTree.vue'
+import ReconciliationControl from './ReconciliationControl.vue'
 </script>
 
 <template>
   <SplitView orientation="vertical" storage-key="engine-terminal-orders-column">
     <template #commands>
       <section class="panel-section">
-        <header class="panel-header"><span class="panel-title">Commands</span></header>
+        <header class="panel-header">
+          <span class="panel-title">Commands</span>
+          <ReconciliationControl />
+        </header>
         <ProjectionCommandList />
       </section>
     </template>

@@ -10,7 +10,7 @@ import type {
   ProjectionRevision,
 } from './projection.ts'
 
-export const BROWSER_PROTOCOL_VERSION = 5
+export const BROWSER_PROTOCOL_VERSION = 6
 
 export type BrowserClientMessage =
   | { kind: 'authenticate'; protocol_version: number; ticket: string }
@@ -22,6 +22,7 @@ export type BrowserClientMessage =
       account_id: Uuid
       intent: BrowserCommandIntent
     }
+  | { kind: 'refresh_reconciliation'; request_id: Uuid; account_id: Uuid }
   | {
       kind: 'request_command_history'
       request_id: Uuid
@@ -79,6 +80,17 @@ export type BrowserCommandOutcome =
       }
     }
 
+export type BrowserReconciliationRefreshOutcome =
+  | { kind: 'accepted'; cycle_id: Uuid; duplicate: boolean }
+  | {
+      kind: 'rejected'
+      rejection: {
+        code: 'invalid_request' | 'unauthorized' | 'account_unavailable' | 'routing_changed'
+        reason: string
+        retryable: boolean
+      }
+    }
+
 export type BrowserServerMessage =
   | { kind: 'hello'; protocol_version: number; session_valid_for_ms: number }
   | {
@@ -108,6 +120,12 @@ export type BrowserServerMessage =
       request_id: Uuid
       account_id: Uuid
       outcome: BrowserCommandOutcome
+    }
+  | {
+      kind: 'reconciliation_refresh_result'
+      request_id: Uuid
+      account_id: Uuid
+      outcome: BrowserReconciliationRefreshOutcome
     }
   | {
       kind: 'command_history_page'

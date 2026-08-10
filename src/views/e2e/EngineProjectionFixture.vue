@@ -3,7 +3,11 @@ import { ref } from 'vue'
 
 import EngineOrdersColumn from '@/components/engine/EngineOrdersColumn.vue'
 import ProjectionDetails from '@/components/engine/ProjectionDetails.vue'
-import type { BrowserCommandIntent, BrowserCommandOutcome } from '@/lib/gateway'
+import type {
+  BrowserCommandIntent,
+  BrowserCommandOutcome,
+  BrowserReconciliationRefreshOutcome,
+} from '@/lib/gateway'
 import { ExchangeType, NetworkType } from '@/lib/ws/protocol'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
@@ -49,6 +53,32 @@ gateway.submitCommand = async (intent, accountId): Promise<BrowserCommandOutcome
     account_revision: 43,
     duplicate: false,
   }
+}
+gateway.refreshReconciliation = async (
+  accountId = accounts.selectedAccountId,
+  requestId = crypto.randomUUID(),
+): Promise<BrowserReconciliationRefreshOutcome> => {
+  if (accountId === null) throw new Error('no account selected')
+  const cycleId = crypto.randomUUID()
+  gateway.reconciliationRefreshByAccount[accountId] = {
+    requestId,
+    cycleId,
+    duplicate: false,
+    error: null,
+  }
+  const summary = projections.selectedLive?.checkpoint.summary
+  if (summary !== undefined) {
+    projections.byAccount[accountId]!.status = 'ready'
+    summary.reconciliation_cycle_id = cycleId
+    summary.reconciliation_status = 'reconciling'
+    summary.reconciliation_ready = false
+    window.setTimeout(() => {
+      projections.byAccount[accountId]!.status = 'ready'
+      summary.reconciliation_status = 'ready'
+      summary.reconciliation_ready = true
+    }, 500)
+  }
+  return { kind: 'accepted', cycle_id: cycleId, duplicate: false }
 }
 </script>
 
