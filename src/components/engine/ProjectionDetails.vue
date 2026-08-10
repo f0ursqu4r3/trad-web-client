@@ -120,6 +120,16 @@ const details = computed<DetailRow[]>(() => {
         row('Entry Orders', String(entity.row.source_order_ids.length)),
         optionalRow('Last Reason', entity.row.last_reason),
       ])
+    case 'account_control':
+      return compact([
+        row('Control', entity.row.request.kind),
+        row('Lifecycle', entity.row.lifecycle),
+        optionalRecordRow('Symbol', entity.row.request, 'symbol'),
+        optionalRecordRow('Leverage', entity.row.request, 'leverage'),
+        optionalRecordRow('Margin Mode', entity.row.request, 'margin_mode'),
+        optionalRecordRow('Position Mode', entity.row.request, 'mode'),
+        optionalRow('Last Reason', entity.row.last_reason),
+      ])
   }
   return []
 })

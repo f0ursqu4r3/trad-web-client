@@ -1,4 +1,5 @@
 import type {
+  AccountControlProjection,
   ChaseProjection,
   CloseWorkflowProjection,
   CommandProjection,
@@ -41,6 +42,11 @@ export type ProjectionEntity =
       id: string
       row: EntryCancellationProjection
     }
+  | {
+      kind: 'account_control'
+      id: string
+      row: AccountControlProjection
+    }
 
 export interface ProjectionTreeNode {
   entity: ProjectionEntity
@@ -68,6 +74,9 @@ export function projectionEntities(graph: ProjectionGraph): Map<string, Projecti
   for (const row of graph.entry_cancellations) {
     put(entities, { kind: 'entry_cancellation', id: row.cancellation_id, row })
   }
+  for (const row of graph.account_controls) {
+    put(entities, { kind: 'account_control', id: row.control_id, row })
+  }
   return entities
 }
 
@@ -87,6 +96,7 @@ export function entityStatus(entity: ProjectionEntity): string {
     case 'close_workflow':
     case 'flatten_workflow':
     case 'entry_cancellation':
+    case 'account_control':
       return entity.row.lifecycle
   }
 }
@@ -109,6 +119,8 @@ export function entityLabel(entity: ProjectionEntity): string {
       return 'Flatten'
     case 'entry_cancellation':
       return 'Cancel Entry Work'
+    case 'account_control':
+      return entity.row.request.kind === 'set_leverage' ? 'Set Leverage' : 'Set Position Mode'
   }
 }
 
@@ -141,6 +153,7 @@ export function commandKindLabel(kind: string): string {
     cancel_order: 'Cancel Order',
     cancel_chase: 'Cancel Chase',
     cancel_trailing_entry: 'Cancel Trailing Entry',
+    configure_account: 'Account Configuration',
   }
   return labels[kind] ?? title(kind)
 }
@@ -211,6 +224,8 @@ function directSymbol(entity: ProjectionEntity): string | null {
       const symbol = entity.row.plan.symbol
       return typeof symbol === 'string' ? symbol : null
     }
+    case 'account_control':
+      return entity.row.request.kind === 'set_leverage' ? entity.row.request.symbol : null
     default:
       return null
   }

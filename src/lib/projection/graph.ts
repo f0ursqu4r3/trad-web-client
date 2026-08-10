@@ -41,6 +41,9 @@ export function pruneLiveSnapshot(snapshot: BrowserAccountSnapshot): BrowserAcco
   const entryCancellations = snapshot.entry_cancellations.filter((row) =>
     selectedNodes.has(nodeKey({ kind: 'entry_cancellation', id: row.cancellation_id })),
   )
+  const accountControls = snapshot.account_controls.filter((row) =>
+    selectedNodes.has(nodeKey({ kind: 'account_control', id: row.control_id })),
+  )
   const orders = snapshot.orders.filter((row) =>
     selectedNodes.has(nodeKey({ kind: 'order', id: row.order_id })),
   )
@@ -63,6 +66,7 @@ export function pruneLiveSnapshot(snapshot: BrowserAccountSnapshot): BrowserAcco
     close_workflows: closeWorkflows,
     flatten_workflows: flattenWorkflows,
     entry_cancellations: entryCancellations,
+    account_controls: accountControls,
     orders,
     executions,
     relationships,
@@ -104,6 +108,11 @@ export function mergeGraph(preferred: ProjectionGraph, fallback: ProjectionGraph
       preferred.entry_cancellations,
       (row) => row.cancellation_id,
     ),
+    account_controls: mergeRows(
+      fallback.account_controls,
+      preferred.account_controls,
+      (row) => row.control_id,
+    ),
     orders: mergeRows(fallback.orders, preferred.orders, (row) => row.order_id),
     executions: mergeRows(fallback.executions, preferred.executions, (row) => row.event_id),
     relationships: mergeRelationships(fallback.relationships, preferred.relationships),
@@ -143,6 +152,11 @@ export function upsertSnapshotGraph(
       delta.entry_cancellations,
       (row) => row.cancellation_id,
     ),
+    account_controls: mergeRows(
+      snapshot.account_controls,
+      delta.account_controls,
+      (row) => row.control_id,
+    ),
     orders: mergeRows(snapshot.orders, delta.orders, (row) => row.order_id),
     executions: mergeRows(snapshot.executions, delta.executions, (row) => row.event_id),
     relationships: mergeRelationships(snapshot.relationships, delta.relationships),
@@ -172,6 +186,10 @@ export function graphNodes(graph: ProjectionGraph): Set<string> {
   addNodes(nodes, graph.entry_cancellations, (row) => ({
     kind: 'entry_cancellation',
     id: row.cancellation_id,
+  }))
+  addNodes(nodes, graph.account_controls, (row) => ({
+    kind: 'account_control',
+    id: row.control_id,
   }))
   addNodes(nodes, graph.orders, (row) => ({ kind: 'order', id: row.order_id }))
   return nodes

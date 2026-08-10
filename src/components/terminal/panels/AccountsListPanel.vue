@@ -9,6 +9,8 @@ import {
   type AccountRecord,
 } from '@/stores/accounts'
 import { useWsStore } from '@/stores/ws'
+import { useGatewayStore } from '@/stores/gateway'
+import { useAccountProjectionStore } from '@/stores/accountProjection'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 import HyperliquidPositionOwnershipModal from '@/components/terminal/modals/HyperliquidPositionOwnershipModal.vue'
 import { X } from 'lucide-vue-next'
@@ -38,7 +40,6 @@ import {
   ExchangeType,
   type MarketCapabilitiesData,
   type OrderThrottleSnapshotData,
-  type UserCommandPayload,
 } from '@/lib/ws/protocol'
 
 const logger = createLogger('accounts')
@@ -59,6 +60,8 @@ const emit = defineEmits<{
 
 const accounts = useAccountsStore()
 const ws = useWsStore()
+const gateway = useGatewayStore()
+const projections = useAccountProjectionStore()
 
 const isCreateModalOpen = ref(false)
 const positionAccount = ref<AccountRecord | null>(null)
@@ -328,14 +331,21 @@ function capabilityStatus(account: AccountRecord): string {
 }
 
 function validateLeverage(account: AccountRecord): boolean {
-  const capabilities = capabilitiesForAccount(account)
   const form = leverageForms[account.id]
-  if (!capabilities?.supports_leverage) return false
+  if (!supportsLeverageControl(account)) return false
   if (!form) return false
   const symbols = parseLeverageSymbols(account, form.symbols)
   if (symbols.length === 0) return false
-  if (!Number.isFinite(form.leverage) || form.leverage <= 0) return false
-  return ws.status === 'ready'
+  if (!Number.isInteger(form.leverage) || form.leverage <= 0) return false
+  return gateway.isConnected
+}
+
+function supportsLeverageControl(account: AccountRecord): boolean {
+  return (
+    account.exchange === ExchangeType.Binance ||
+    account.exchange === ExchangeType.Bybit ||
+    account.exchange === ExchangeType.Hyperliquid
+  )
 }
 
 function canSaveHyperliquidLeveragePrefs(account: AccountRecord): boolean {
@@ -358,8 +368,10 @@ function canCheckLeverage(account: AccountRecord): boolean {
 }
 
 function canSetHedgeMode(account: AccountRecord): boolean {
-  const capabilities = capabilitiesForAccount(account)
-  return ws.status === 'ready' && !!capabilities?.supports_hedge_mode
+  return (
+    gateway.isConnected &&
+    (account.exchange === ExchangeType.Binance || account.exchange === ExchangeType.Bybit)
+  )
 }
 
 function targetTotalTenthsBps(account: AccountRecord): number | null {
@@ -614,33 +626,39 @@ function approvalErrorMessage(error: unknown): string {
   return message
 }
 
-function setLeverage(account: AccountRecord) {
+async function setLeverage(account: AccountRecord) {
   controlError.value = null
   controlMessage.value = null
-  const marketContext = marketContextForAccount(account)
   const form = leverageForms[account.id]
-  if (!marketContext || !form || !validateLeverage(account)) {
+  if (!form || !validateLeverage(account)) {
     controlError.value = 'Leverage settings are unavailable for this account.'
     return
   }
   const symbols = parseLeverageSymbols(account, form.symbols)
-  for (const symbol of symbols) {
-    const payload: Extract<UserCommandPayload, { kind: 'SetLeverage' }> = {
-      kind: 'SetLeverage',
-      data: {
-        symbol,
-        leverage: form.leverage,
-        market_context: marketContext,
-        margin_mode: account.exchange === ExchangeType.Hyperliquid ? form.marginMode : null,
-      },
+  try {
+    for (const symbol of symbols) {
+      const outcome = await gateway.submitCommand(
+        {
+          kind: 'set_leverage',
+          parameters: {
+            symbol,
+            leverage: form.leverage,
+            ...(account.exchange === ExchangeType.Hyperliquid
+              ? { margin_mode: form.marginMode }
+              : {}),
+          },
+        },
+        account.id,
+      )
+      if (outcome.kind === 'rejected') throw new Error(outcome.rejection.reason)
     }
-    ws.sendUserCommand(payload)
+    controlMessage.value =
+      symbols.length === 1
+        ? `Applying leverage update for ${symbols[0]}.`
+        : `Applying leverage updates for ${symbols.length} symbols: ${summarizeSymbols(symbols)}.`
+  } catch (error) {
+    controlError.value = error instanceof Error ? error.message : String(error)
   }
-  window.setTimeout(() => requestAccountLeverage(account), 2500)
-  controlMessage.value =
-    symbols.length === 1
-      ? `Submitted leverage update for ${symbols[0]}.`
-      : `Submitted leverage updates for ${symbols.length} symbols: ${summarizeSymbols(symbols)}.`
 }
 
 function requestAccountLeverage(account: AccountRecord) {
@@ -805,23 +823,55 @@ function formatSymbolLeverage(account: AccountRecord): string {
   return parts.length > 0 ? parts.join(' | ') : 'Unknown'
 }
 
-function enableHedgeMode(account: AccountRecord) {
+async function enableHedgeMode(account: AccountRecord) {
   controlError.value = null
   controlMessage.value = null
-  const marketContext = marketContextForAccount(account)
-  if (!marketContext || !canSetHedgeMode(account)) {
+  if (!canSetHedgeMode(account)) {
     controlError.value = 'Hedge mode is unavailable for this account.'
     return
   }
-  const payload: Extract<UserCommandPayload, { kind: 'SetHedgeMode' }> = {
-    kind: 'SetHedgeMode',
-    data: {
-      enabled: true,
-      market_context: marketContext,
-    },
+  try {
+    const outcome = await gateway.submitCommand(
+      { kind: 'set_position_mode', parameters: { mode: 'hedge' } },
+      account.id,
+    )
+    if (outcome.kind === 'rejected') throw new Error(outcome.rejection.reason)
+    controlMessage.value = `Applying hedge-mode enable for ${account.label}.`
+  } catch (error) {
+    controlError.value = error instanceof Error ? error.message : String(error)
   }
-  ws.sendUserCommand(payload)
-  controlMessage.value = `Submitted hedge-mode enable for ${account.label}.`
+}
+
+function projectedAccountControls(account: AccountRecord) {
+  if (accounts.selectedAccountId !== account.id) return []
+  const acceptedAt = new Map(
+    (projections.selectedLive?.commands ?? []).map((command) => [
+      command.command_id,
+      command.accepted_at,
+    ]),
+  )
+  return (projections.selectedLive?.account_controls ?? [])
+    .slice()
+    .sort((left, right) => {
+      const timestamp =
+        (acceptedAt.get(right.command_id) ?? 0) - (acceptedAt.get(left.command_id) ?? 0)
+      return timestamp || right.control_id.localeCompare(left.control_id)
+    })
+    .slice(0, 5)
+}
+
+function controlLabel(control: ReturnType<typeof projectedAccountControls>[number]): string {
+  if (control.request.kind === 'set_position_mode') {
+    return `Position mode: ${control.request.mode}`
+  }
+  const margin = control.request.margin_mode ? ` ${control.request.margin_mode}` : ''
+  return `${control.request.symbol}: ${control.request.leverage}x${margin}`
+}
+
+function controlStatusClass(lifecycle: string): string {
+  if (lifecycle === 'succeeded') return 'text-[var(--color-success)]'
+  if (lifecycle === 'applying') return 'text-warning'
+  return 'text-error'
 }
 
 onMounted(() => {
@@ -984,7 +1034,7 @@ watch(
                         ? 'BTC, ETH, SOL'
                         : account.exchange === ExchangeType.Hyperliquid
                           ? 'BTC'
-                          : 'BTCUSDT or ALL'
+                          : 'BTCUSDT'
                     "
                     @focus="ensureLeverageForm(account)"
                   />
@@ -1076,6 +1126,24 @@ watch(
                 >
                   Enable Hedge
                 </button>
+              </div>
+              <div
+                v-if="showAccountDetails(account) && projectedAccountControls(account).length > 0"
+                class="grid gap-1 border-t border-[var(--panel-border-inner)] pt-2 text-[11px]"
+              >
+                <div
+                  v-for="control in projectedAccountControls(account)"
+                  :key="control.control_id"
+                  class="flex items-start justify-between gap-3"
+                >
+                  <span class="font-mono text-primary">{{ controlLabel(control) }}</span>
+                  <span class="text-right" :class="controlStatusClass(control.lifecycle)">
+                    {{ control.lifecycle }}
+                    <span v-if="control.last_reason" class="block max-w-[42rem] normal-case">
+                      {{ control.last_reason }}
+                    </span>
+                  </span>
+                </div>
               </div>
               <p
                 v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
@@ -1251,9 +1319,7 @@ watch(
                   />
                   <span v-else class="input flex h-7 items-center text-xs">
                     {{
-                      (
-                        hyperliquidTargetTotalTenthsBps(account.exchange_metadata) / 10
-                      ).toFixed(1)
+                      (hyperliquidTargetTotalTenthsBps(account.exchange_metadata) / 10).toFixed(1)
                     }}
                     bps
                   </span>

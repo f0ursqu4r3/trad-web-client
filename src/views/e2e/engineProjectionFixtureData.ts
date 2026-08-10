@@ -97,6 +97,7 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
     close_workflows: [],
     flatten_workflows: [],
     entry_cancellations: [],
+    account_controls: [],
     orders: [chaseOrder, filledOrder],
     positions: [
       {
@@ -251,6 +252,7 @@ export function engineProjectionHistoryPage(): ClientCommandPage {
     close_workflows: [],
     flatten_workflows: [],
     entry_cancellations: [],
+    account_controls: [],
     orders: [oldOrder],
     executions: [],
     relationships: [
@@ -344,7 +346,7 @@ function generation(orderId: string, filled: string): OrderGenerationProjection 
 
 function checkpoint(revision: number, commands: number): ProjectionCheckpoint {
   return {
-    schema_version: 21,
+    schema_version: 24,
     shard: { exchange: 'hyperliquid', network: 'testnet', account_id: ENGINE_ACCOUNT_ID },
     account_revision: revision,
     projection_revision: revision,
@@ -374,11 +376,14 @@ function summary(commands: number): AccountProjectionSummary {
     active_flatten_workflows: 0,
     entry_cancellations: 0,
     active_entry_cancellations: 0,
+    account_controls: 0,
+    active_account_controls: 0,
     orders: 2,
     active_orders: 1,
     positions: 1,
     executions: 1,
     unmatched_executions: 0,
+    unresolved_legacy_entities: 0,
     unresolved_external_orders: 0,
     balances: 1,
     protections: 1,

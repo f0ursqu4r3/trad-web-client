@@ -34,11 +34,14 @@ export interface AccountProjectionSummary {
   active_flatten_workflows: number
   entry_cancellations: number
   active_entry_cancellations: number
+  account_controls: number
+  active_account_controls: number
   orders: number
   active_orders: number
   positions: number
   executions: number
   unmatched_executions: number
+  unresolved_legacy_entities: number
   unresolved_external_orders: number
   balances: number
   protections: number
@@ -152,6 +155,7 @@ export type ProjectionNodeKind =
   | 'close_workflow'
   | 'flatten_workflow'
   | 'entry_cancellation'
+  | 'account_control'
 
 export interface ProjectionNodeId {
   kind: ProjectionNodeKind
@@ -312,6 +316,22 @@ export interface EntryCancellationProjection {
   created_at: TimestampMillis
 }
 
+export interface AccountControlProjection {
+  control_id: Uuid
+  command_id: Uuid
+  operation_id: Uuid
+  request:
+    | {
+        kind: 'set_leverage'
+        symbol: string
+        leverage: number
+        margin_mode?: 'cross' | 'isolated'
+      }
+    | { kind: 'set_position_mode'; mode: 'hedge' | 'one_way' }
+  lifecycle: 'applying' | 'succeeded' | 'failed' | 'reconciliation_required'
+  last_reason: string | null
+}
+
 export interface OrderRequestProjection {
   symbol: string
   side: OrderSide
@@ -467,6 +487,7 @@ export interface ProjectionGraph {
   close_workflows: CloseWorkflowProjection[]
   flatten_workflows: FlattenWorkflowProjection[]
   entry_cancellations: EntryCancellationProjection[]
+  account_controls: AccountControlProjection[]
   orders: OrderProjection[]
   executions: ExecutionProjection[]
   relationships: PresentationRelationship[]

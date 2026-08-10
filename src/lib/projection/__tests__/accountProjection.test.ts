@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import type {
+  AccountControlProjection,
   AccountProjectionSummary,
   BrowserAccountDelta,
   BrowserAccountSnapshot,
@@ -34,6 +35,43 @@ test('a contiguous delta advances authority without mutating its input', () => {
   assert.equal(next.live.commands[0]?.lifecycle, 'succeeded')
   assert.equal(view.live.checkpoint.projection_revision, 4)
   assert.equal(view.live.commands[0]?.lifecycle, 'running')
+})
+
+test('account configuration remains authoritative across projection deltas', () => {
+  const accepted: CommandProjection = {
+    command_id: 'configure-leverage',
+    accepted_at: 10,
+    accepted: {
+      kind: 'set_leverage',
+      parameters: { symbol: 'BTC', leverage: 5, margin_mode: 'cross' },
+    },
+    root: { kind: 'account_control', id: 'leverage-control' },
+    operation_ids: ['leverage-operation'],
+    lifecycle: 'running',
+    failure_reason: null,
+  }
+  const applying = accountControl('applying', null)
+  const initial = snapshot(4, [accepted])
+  initial.account_controls = [applying]
+  initial.relationships = [
+    {
+      parent: { kind: 'command', id: accepted.command_id },
+      child: { kind: 'account_control', id: applying.control_id },
+      relationship: 'command_root',
+    },
+  ]
+  initial.checkpoint.summary.account_controls = 1
+  initial.checkpoint.summary.active_account_controls = 1
+
+  const update = delta(initial, 5, [{ ...accepted, lifecycle: 'succeeded' }])
+  update.account_controls = [accountControl('succeeded', 'exchange acknowledged')]
+  update.checkpoint.summary.account_controls = 1
+  update.checkpoint.summary.active_account_controls = 0
+  const next = applyDelta(installSnapshot(initial), update)
+
+  assert.equal(next.live.account_controls[0]?.lifecycle, 'succeeded')
+  assert.equal(next.live.account_controls[0]?.last_reason, 'exchange acknowledged')
+  assert.equal(next.live.commands[0]?.lifecycle, 'succeeded')
 })
 
 test('a revision gap is rejected before any state changes', () => {
@@ -241,6 +279,7 @@ function snapshot(
     close_workflows: [],
     flatten_workflows: [],
     entry_cancellations: [],
+    account_controls: [],
     orders,
     positions: [],
     executions,
@@ -268,6 +307,7 @@ function delta(
     close_workflows: [],
     flatten_workflows: [],
     entry_cancellations: [],
+    account_controls: [],
     orders: [],
     positions: [],
     executions: [],
@@ -288,6 +328,7 @@ function historyPage(current: BrowserAccountSnapshot, root: CommandProjection): 
     close_workflows: [],
     flatten_workflows: [],
     entry_cancellations: [],
+    account_controls: [],
     orders: [],
     executions: [],
     relationships: [],
@@ -351,7 +392,7 @@ function checkpoint(
   exchange: 'hyperliquid' | 'bybit' = 'hyperliquid',
 ): ProjectionCheckpoint {
   return {
-    schema_version: 21,
+    schema_version: 24,
     shard: { exchange, network: 'testnet', account_id: ACCOUNT_ID },
     account_revision: revision,
     projection_revision: revision,
@@ -381,11 +422,14 @@ function summary(commands: number): AccountProjectionSummary {
     active_flatten_workflows: 0,
     entry_cancellations: 0,
     active_entry_cancellations: 0,
+    account_controls: 0,
+    active_account_controls: 0,
     orders: 0,
     active_orders: 0,
     positions: 0,
     executions: 0,
     unmatched_executions: 0,
+    unresolved_legacy_entities: 0,
     unresolved_external_orders: 0,
     balances: 0,
     protections: 0,
@@ -413,6 +457,20 @@ function command(id: string, acceptedAt: number, lifecycle: CommandLifecycle): C
 
 function order(id: string): OrderProjection {
   return { order_id: id } as OrderProjection
+}
+
+function accountControl(
+  lifecycle: AccountControlProjection['lifecycle'],
+  lastReason: string | null,
+): AccountControlProjection {
+  return {
+    control_id: 'leverage-control',
+    command_id: 'configure-leverage',
+    operation_id: 'leverage-operation',
+    request: { kind: 'set_leverage', symbol: 'BTC', leverage: 5, margin_mode: 'cross' },
+    lifecycle,
+    last_reason: lastReason,
+  }
 }
 
 function execution(eventId: string, orderId: string | null): ExecutionProjection {
