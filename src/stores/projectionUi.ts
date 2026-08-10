@@ -105,7 +105,9 @@ export const useProjectionUiStore = defineStore(
 
     function selectCommand(commandId: Uuid): void {
       selectedCommandId.value = commandId
-      selectedNode.value = { kind: 'command', id: commandId }
+      selectedNode.value =
+        commands.value.find((command) => command.command_id === commandId)?.root ??
+        ({ kind: 'command', id: commandId } as const)
     }
 
     function selectEntity(node: ProjectionNodeId): void {

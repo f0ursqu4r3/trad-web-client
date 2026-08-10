@@ -19,6 +19,8 @@ const FILLED_ORDER_ID = '30000000-0000-4000-8000-000000000002'
 const PROTECTION_ID = '30000000-0000-4000-8000-000000000003'
 const TAKE_PROFIT_ID = '30000000-0000-4000-8000-000000000004'
 const STOP_LOSS_ID = '30000000-0000-4000-8000-000000000005'
+const TRAILING_COMMAND_ID = '35000000-0000-4000-8000-000000000001'
+const TRAILING_ENTRY_ID = '35000000-0000-4000-8000-000000000002'
 const HISTORY_COMMAND_ID = '40000000-0000-4000-8000-000000000001'
 const HISTORY_ORDER_ID = '40000000-0000-4000-8000-000000000002'
 const ACCEPTED_AT = 1_786_200_000_000
@@ -49,6 +51,24 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
       protection: { scope_id: 'protection-scope-filled' },
     },
   )
+  const trailingCommand = command(
+    TRAILING_COMMAND_ID,
+    ACCEPTED_AT + 1_500,
+    'place_trailing_entry',
+    'running',
+    { kind: 'trailing_entry', id: TRAILING_ENTRY_ID },
+    {
+      plan: {
+        symbol: 'SOL',
+        position_side: 'long',
+        activation_price: '145.25',
+        jump_threshold: '10',
+        stop_loss: '140',
+        take_profit: '155',
+        risk_amount: '25',
+      },
+    },
+  )
   const chaseOrder = order(CHASE_ORDER_ID, CHASE_COMMAND_ID, '0.125', '0.025', '0.1', 'working')
   const filledOrder = order(
     FILLED_ORDER_ID,
@@ -60,14 +80,14 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
   )
 
   return {
-    checkpoint: checkpoint(42, 2),
+    checkpoint: checkpoint(42, 3, { trailing_entries: 1, active_trailing_entries: 1 }),
     window: {
-      total_commands: 3,
-      included_commands: 2,
+      total_commands: 4,
+      included_commands: 3,
       terminal_command_limit: 1,
       older_terminal_commands_available: true,
     },
-    commands: [filledCommand, chaseCommand],
+    commands: [filledCommand, trailingCommand, chaseCommand],
     execution_groups: [],
     chases: [
       {
@@ -96,7 +116,41 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
         last_reason: 'resting at best bid',
       },
     ],
-    trailing_entries: [],
+    trailing_entries: [
+      {
+        trailing_entry_id: TRAILING_ENTRY_ID,
+        command_id: TRAILING_COMMAND_ID,
+        state_revision: 12,
+        mutation_command_ids: [],
+        plan: {
+          symbol: 'SOL',
+          position_side: 'long',
+          activation_price: '145.25',
+          jump_threshold: '10',
+          stop_loss: '140',
+          take_profit: '155',
+          risk_amount: '25',
+        },
+        phase: 'tracking',
+        lifecycle: 'running',
+        market_generation: 31,
+        market_stale: false,
+        cursor: { trade_id: 'sol-trade-31' },
+        latest_trade: { price: '144.8', quantity: '2.1' },
+        latest_trade_received_at: ACCEPTED_AT + 2_500,
+        point_count: 128,
+        actual_activation_price: '145.2',
+        activation_point_index: 12,
+        peak: '143.9',
+        peak_point_index: 119,
+        trigger: null,
+        continuations: [],
+        entry_cancel_requested: false,
+        close_workflow_id: null,
+        last_reason: 'tracking rebound from peak',
+        created_at: ACCEPTED_AT + 1_500,
+      },
+    ],
     close_workflows: [],
     flatten_workflows: [],
     entry_cancellations: [],
@@ -287,6 +341,11 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
         child: { kind: 'order', id: FILLED_ORDER_ID },
         relationship: 'command_root',
       },
+      {
+        parent: { kind: 'command', id: TRAILING_COMMAND_ID },
+        child: { kind: 'trailing_entry', id: TRAILING_ENTRY_ID },
+        relationship: 'command_root',
+      },
     ],
   }
 }
@@ -406,13 +465,17 @@ function generation(orderId: string, filled: string): OrderGenerationProjection 
   }
 }
 
-function checkpoint(revision: number, commands: number): ProjectionCheckpoint {
+function checkpoint(
+  revision: number,
+  commands: number,
+  overrides: Partial<AccountProjectionSummary> = {},
+): ProjectionCheckpoint {
   return {
     schema_version: 26,
     shard: { exchange: 'hyperliquid', network: 'testnet', account_id: ENGINE_ACCOUNT_ID },
     account_revision: revision,
     projection_revision: revision,
-    summary: summary(commands),
+    summary: { ...summary(commands), ...overrides },
   }
 }
 

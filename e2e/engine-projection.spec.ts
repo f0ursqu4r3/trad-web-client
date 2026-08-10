@@ -27,6 +27,8 @@ test('renders the typed command graph and exact execution evidence', async ({ pa
   await expect(details.getByText('0.00420001', { exact: true }).first()).toBeVisible()
   await expect(details.getByText('0.00420001 @ 1918.90000001', { exact: true })).toBeVisible()
   await expect(details.getByText('Fee 0.003223456789 USDC', { exact: true })).toBeVisible()
+  await expect(details.getByText('0.002112345678 USDC', { exact: true })).toBeVisible()
+  await expect(details.getByText('-0.003223456789 USDC', { exact: true })).toBeVisible()
   await expect(details.getByText('stop_loss @ 1800.125', { exact: true }).first()).toBeVisible()
 })
 
@@ -47,6 +49,7 @@ test('loads revision-pinned history without replacing the live graph', async ({ 
 test('command selection drives details without a device resync request', async ({ page }) => {
   const fixture = page.getByTestId('engine-projection-fixture')
   await fixture.getByTestId('projection-command-list').getByText('Chase Order').click()
+  await expect(fixture.getByTestId('projection-details').getByTestId('chase-details')).toBeVisible()
   await fixture
     .getByTestId('projection-entity-tree')
     .getByText('Limit Order', { exact: true })
@@ -56,6 +59,17 @@ test('command selection drives details without a device resync request', async (
   await expect(details.getByText('64231.125', { exact: true })).toBeVisible()
   await expect(details.getByText('0.1', { exact: true })).toBeVisible()
   await expect(details.getByText('working', { exact: true }).first()).toBeVisible()
+})
+
+test('renders domain-specific Trailing Entry state from the projection', async ({ page }) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await fixture.getByTestId('projection-command-list').getByText('Trailing Entry').click()
+
+  const details = fixture.getByTestId('projection-details')
+  await expect(details.getByTestId('trailing-entry-details')).toBeVisible()
+  await expect(details.getByText('145.25', { exact: true })).toBeVisible()
+  await expect(details.getByText('128', { exact: true })).toBeVisible()
+  await expect(details.getByText('tracking rebound from peak', { exact: true })).toBeVisible()
 })
 
 test('right-click exposes projected actions without changing the inspected command', async ({
