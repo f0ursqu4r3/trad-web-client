@@ -450,8 +450,20 @@ async function amendSelectedProtection(page: Page, takeProfit: string): Promise<
   await dialog.getByLabel('TP 1 Trigger').fill(takeProfit)
   await dialog.getByLabel(/Apply this complete TP\/SL plan/).check()
   await dialog.getByRole('button', { name: 'Apply Protection' }).click()
-  await expect(dialog).toBeHidden({ timeout: 10_000 })
+  await expectAcceptedDialogClose(dialog, 'protection amendment')
   return await waitForNewCommandId(page, prior)
+}
+
+async function expectAcceptedDialogClose(dialog: Locator, action: string): Promise<void> {
+  const deadline = Date.now() + 10_000
+  while (Date.now() < deadline) {
+    if (!(await dialog.isVisible().catch(() => false))) return
+    const errors = await dialog.locator('.submission-error').allTextContents()
+    const reason = errors.map((value) => value.trim()).find(Boolean)
+    if (reason) throw new Error(`${action} rejected: ${reason}`)
+    await dialog.page().waitForTimeout(100)
+  }
+  throw new Error(`${action} did not close after acceptance`)
 }
 
 async function submitSelectedLimitClose(page: Page, limitPrice: string): Promise<string> {
