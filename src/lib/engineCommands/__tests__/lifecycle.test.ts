@@ -183,6 +183,29 @@ test('standalone live limits expose cancel, modify, and source-owned close', () 
   })
 })
 
+test('a selected close-workflow child remains directly cancelable', () => {
+  const snapshot = engineProjectionSnapshot()
+  const command = snapshot.commands.find((row) => row.accepted.kind === 'place_order')!
+  const order = snapshot.orders.find((row) => row.command_id === command.command_id)!
+  command.accepted = { kind: 'close_exposure', parameters: {} }
+  command.root = { kind: 'close_workflow', id: 'close-workflow-1' }
+  order.terminal = false
+  order.lifecycle = 'working'
+  order.current_request.execution = {
+    kind: 'limit',
+    price: '1920.25',
+    time_in_force: 'post_only',
+  }
+
+  const entity = projectionEntities(snapshot).get(`order:${order.order_id}`)!
+  const actions = lifecycleActions(entity, snapshot, snapshot.positions)
+
+  assert.deepEqual(
+    actions.map((action) => action.kind),
+    ['cancel_order', 'modify_order'],
+  )
+})
+
 function trailingEntryGraph(): ProjectionGraph {
   const command: CommandProjection = {
     command_id: 'command-1',

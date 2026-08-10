@@ -646,11 +646,11 @@ async function expectExchangeProtection(
       async () =>
         (await exchangeState(request)).openOrders
           .filter((order) => order.isTrigger)
-          .map((order) => order.triggerPx)
-          .sort(),
+          .map((order) => Number(order.triggerPx))
+          .sort((left, right) => left - right),
       { timeout: commandTimeoutMs },
     )
-    .toEqual([stopLoss, takeProfit].sort())
+    .toEqual([Number(stopLoss), Number(takeProfit)].sort((left, right) => left - right))
 }
 
 async function expectExchangeReduceOnlyLimit(
@@ -659,11 +659,17 @@ async function expectExchangeReduceOnlyLimit(
 ): Promise<void> {
   await expect
     .poll(
-      async () =>
-        (await exchangeState(request)).openOrders.find((order) => order.isTrigger === false),
+      async () => {
+        const order = (await exchangeState(request)).openOrders.find(
+          (candidate) => candidate.isTrigger === false,
+        )
+        return order === undefined
+          ? null
+          : { limitPrice: Number(order.limitPx), reduceOnly: order.reduceOnly, side: order.side }
+      },
       { timeout: commandTimeoutMs },
     )
-    .toMatchObject({ limitPx: price, reduceOnly: true, side: 'A' })
+    .toEqual({ limitPrice: Number(price), reduceOnly: true, side: 'A' })
 }
 
 async function expectExchangeFlat(request: APIRequestContext): Promise<void> {

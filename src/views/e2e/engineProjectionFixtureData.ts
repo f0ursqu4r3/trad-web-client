@@ -39,7 +39,7 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
         position_side: 'long',
         quantity: '0.125',
         reduce_only: false,
-        position_intent: { Open: { scope_id: 'scope-chase' } },
+        position_intent: { kind: 'open', scope_id: 'scope-chase' },
         protection: null,
         adverse_boundary: { kind: 'basis_points', value: '25.125' },
         expires_at: ACCEPTED_AT + 62_000,
@@ -62,7 +62,7 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
         execution: { kind: 'market' },
         reduce_only: false,
       },
-      position_intent: { Open: { scope_id: 'scope-filled' } },
+      position_intent: { kind: 'open', scope_id: 'scope-filled' },
       protection: { scope_id: 'protection-scope-filled' },
     },
   )

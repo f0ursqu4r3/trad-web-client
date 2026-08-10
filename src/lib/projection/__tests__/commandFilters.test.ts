@@ -90,7 +90,9 @@ function command(
     accepted: {
       kind,
       parameters:
-        scopeId === null ? {} : { plan: { position_intent: { open: { scope_id: scopeId } } } },
+        scopeId === null
+          ? {}
+          : { plan: { position_intent: { kind: 'open', scope_id: scopeId } } },
     },
     root: kind === 'place_order' ? { kind: 'order', id: 'order-open' } : { kind: 'command', id },
     operation_ids: [],

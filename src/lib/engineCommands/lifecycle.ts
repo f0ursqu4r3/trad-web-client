@@ -294,13 +294,7 @@ function actionTarget(
 ): ProjectionEntity | null {
   if (
     selected.kind !== 'command' &&
-    ![
-      'place_chase',
-      'place_trailing_entry',
-      'close_exposure',
-      'close_trailing_entry',
-      'flatten',
-    ].includes(command.accepted.kind)
+    !['place_chase', 'place_trailing_entry'].includes(command.accepted.kind)
   ) {
     return selected
   }
@@ -342,9 +336,8 @@ function sourceScopeId(command: CommandProjection): string | null {
 
 function positionIntentScope(value: unknown): string | null {
   const intent = objectValue(value)
-  if (intent === null) return null
-  const open = objectValue(intent.Open ?? intent.open)
-  return stringValue(open?.scope_id)
+  if (intent === null || intent.kind !== 'open') return null
+  return stringValue(intent.scope_id)
 }
 
 function objectValue(value: unknown): Record<string, unknown> | null {
