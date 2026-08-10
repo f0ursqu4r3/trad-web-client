@@ -5,6 +5,7 @@ const baseUrl = 'https://api-testnet.bybit.com'
 const receiveWindow = '5000'
 
 export interface BybitPosition {
+  leverage: string
   positionIdx: number
   side: '' | 'Buy' | 'Sell'
   size: string
@@ -15,10 +16,19 @@ export interface BybitOpenOrder {
   orderId: string
   orderLinkId: string
   orderStatus: string
+  orderType: string
+  positionIdx: number
+  price: string
   reduceOnly: boolean
+  side: 'Buy' | 'Sell'
   stopOrderType: string
   symbol: string
   triggerPrice: string
+}
+
+export interface BybitAccountInfo {
+  marginMode: 'ISOLATED_MARGIN' | 'REGULAR_MARGIN' | 'PORTFOLIO_MARGIN'
+  unifiedMarginStatus: number
 }
 
 export interface BybitSymbolState {
@@ -120,6 +130,13 @@ export async function bybitSymbolState(
     positions,
     openOrders,
   }
+}
+
+export async function bybitAccountInfo(
+  request: APIRequestContext,
+  credentials: { apiKey: string; apiSecret: string },
+): Promise<BybitAccountInfo> {
+  return await signedGet<BybitAccountInfo>(request, credentials, '/v5/account/info', {})
 }
 
 async function signedGet<T>(

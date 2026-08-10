@@ -1,6 +1,12 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test'
 import { existsSync, rmSync, writeFileSync } from 'node:fs'
-import { bybitInstrument, bybitSymbolState, type BybitInstrument } from './support/bybitTestnet'
+import {
+  bybitAccountInfo,
+  bybitInstrument,
+  bybitSymbolState,
+  type BybitInstrument,
+  type BybitOpenOrder,
+} from './support/bybitTestnet'
 import { runSignedQualification } from './support/signedQualification'
 
 const enabled = process.env.ENGINE_PROCESS_BYBIT_SIGNED_TESTNET_E2E === '1'
@@ -24,6 +30,73 @@ const credentials = { apiKey, apiSecret }
 
 test.describe.serial('Bybit replacement engine through the production terminal', () => {
   test.skip(!enabled, 'signed Bybit Testnet qualification is explicitly gated')
+
+  test('refreshes and applies exchange-confirmed hedge mode and leverage', async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(3 * 60_000)
+    validateConfiguration()
+    await expectExchangeFlat(request)
+
+    await loginAndSelectAccount(page)
+    await refreshAuthoritativeExchangeState(page)
+    await expectLiveExecutionPreview(page, request)
+    await openManagedAccount(page)
+    await enableHedgeMode(page)
+    await expectHedgeMode(request)
+
+    const accountInfo = await bybitAccountInfo(request, credentials)
+    expect(accountInfo.marginMode).toBe('REGULAR_MARGIN')
+    expect(accountInfo.unifiedMarginStatus).toBeGreaterThan(0)
+
+    try {
+      await setLeverage(page, 1)
+      await expectLeverage(request, 1)
+      await setLeverage(page, 2)
+      await expectLeverage(request, 2)
+    } finally {
+      if (!page.isClosed()) {
+        await ensureManagedAccountOpen(page)
+        await setLeverage(page, 1)
+        await expectLeverage(request, 1)
+      }
+    }
+
+    await expectExchangeFlat(request)
+  })
+
+  test('cancels all remaining Bybit entry work account-wide', async ({ page, request }) => {
+    test.setTimeout(4 * 60_000)
+    validateConfiguration()
+    await expectExchangeFlat(request)
+
+    await runSignedQualification({
+      label: 'Bybit account-wide entry cancellation',
+      run: async (risk) => {
+        await loginAndSelectAccount(page)
+        const instrument = await bybitInstrument(request, symbol)
+        const limitPrice = alignPrice(instrument.lastPrice * 0.7, instrument.tickSize)
+        const quantity = alignQuantity(
+          safeNotional(instrument) / limitPrice,
+          instrument.quantityStep,
+        )
+        risk.markUncertain()
+        const entryId = await submitLimitOpen(page, limitPrice, quantity)
+        await expectCommandLifecycle(page, entryId, 'running')
+        await expectExchangeOrderCount(request, 1)
+
+        const cancelId = await submitCancelEntryWork(page)
+        await expectCommandLifecycle(page, cancelId, 'succeeded')
+        const order = await selectProjectedEntity(page, entryId, 'order')
+        await expect(order).toContainText(/canceled/i, { timeout: commandTimeoutMs })
+        await expectExchangeFlat(request)
+        risk.markResolved()
+      },
+      cleanup: () => bestEffortFlatten(page),
+      verifyFinalState: () => expectExchangeFlat(request),
+    })
+  })
 
   test('opens protected Market exposure and flattens it', async ({ page, request }) => {
     test.setTimeout(5 * 60_000)
@@ -79,6 +152,50 @@ test.describe.serial('Bybit replacement engine through the production terminal',
 
         await cancelSelectedOrder(page)
         await expect(order).toContainText(/canceled/i, { timeout: commandTimeoutMs })
+        await expectExchangeFlat(request)
+        risk.markResolved()
+      },
+      cleanup: () => bestEffortFlatten(page),
+      verifyFinalState: () => expectExchangeFlat(request),
+    })
+  })
+
+  test('creates and cancels a reduce-only Limit close without dropping protection', async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(6 * 60_000)
+    validateConfiguration()
+    await expectExchangeFlat(request)
+
+    await runSignedQualification({
+      label: 'Bybit reduce-only Limit close lifecycle',
+      run: async (risk) => {
+        await loginAndSelectAccount(page)
+        const instrument = await bybitInstrument(request, symbol)
+        risk.markUncertain()
+        const openId = await submitMarketOpen(
+          page,
+          safeNotional(instrument),
+          protectionPrices(instrument),
+        )
+        await expectCommandLifecycle(page, openId, 'succeeded')
+        await expectExchangeProtectedLong(request)
+        await selectProjectedEntity(page, openId, 'order')
+
+        const closePrice = alignPrice(instrument.lastPrice * 1.3, instrument.tickSize)
+        const closeId = await submitSelectedLimitClose(page, closePrice)
+        await expectCommandLifecycle(page, closeId, 'running')
+        const closeOrder = await selectProjectedEntity(page, closeId, 'order')
+        await expect(closeOrder).toContainText(/working/i, { timeout: commandTimeoutMs })
+        await expectExchangeReduceOnlyLimit(request, closePrice)
+
+        await cancelSelectedOrder(page)
+        await expect(closeOrder).toContainText(/canceled/i, { timeout: commandTimeoutMs })
+        await expectExchangeProtectionOrderCount(request, 2)
+
+        const flattenId = await submitSymbolFlatten(page)
+        await expectCommandLifecycle(page, flattenId, 'succeeded')
         await expectExchangeFlat(request)
         risk.markResolved()
       },
@@ -247,6 +364,115 @@ async function loginAndSelectAccount(page: Page): Promise<void> {
   await expect(page.getByTestId('projection-command-list')).toBeVisible()
 }
 
+async function refreshAuthoritativeExchangeState(page: Page): Promise<void> {
+  const control = page.getByTestId('reconciliation-control')
+  const state = control.locator('.reconciliation-state')
+  await expect(state).toHaveAttribute('data-phase', 'ready', { timeout: commandTimeoutMs })
+  const priorCycle = await control.getAttribute('title')
+  await control.getByRole('button', { name: 'Refresh authoritative exchange state' }).click()
+  await expect
+    .poll(() => control.getAttribute('title'), { timeout: commandTimeoutMs })
+    .not.toBe(priorCycle)
+  await expect(state).toHaveAttribute('data-phase', 'ready', { timeout: commandTimeoutMs })
+  await expect(state).toHaveText('reconciled')
+}
+
+async function expectLiveExecutionPreview(page: Page, request: APIRequestContext): Promise<void> {
+  const instrument = await bybitInstrument(request, symbol)
+  await openCommand(page, 'mo', 'Market Order')
+  const dialog = page.getByRole('dialog', { name: 'Market Order' })
+  await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
+  await dialog.getByLabel('Amount Type').selectOption('quote_notional')
+  await dialog.getByLabel('Quote Amount').fill(decimalString(safeNotional(instrument)))
+  const preview = dialog.locator('.execution-preview')
+  await expect(preview).toContainText('Ready', { timeout: commandTimeoutMs })
+  await expect(preview).toContainText(symbol)
+  await expect(preview).toContainText('Final submission replans against current exchange evidence.')
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+}
+
+async function openManagedAccount(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('button', { name: 'Manage', exact: true }).click()
+  await expect(page.getByText('Account Settings', { exact: true })).toBeVisible()
+  await expect(page.getByText(`( ${accountLabel} )`, { exact: true })).toBeVisible()
+}
+
+async function ensureManagedAccountOpen(page: Page): Promise<void> {
+  if (
+    await page
+      .getByText('Account Settings', { exact: true })
+      .isVisible()
+      .catch(() => false)
+  ) {
+    return
+  }
+  await page.keyboard.press('Escape')
+  await openManagedAccount(page)
+}
+
+async function enableHedgeMode(page: Page): Promise<void> {
+  const controls = page.getByTestId('account-leverage-controls')
+  const row = await triggerAccountControl(
+    page,
+    () => controls.getByRole('button', { name: 'Enable Hedge' }).click(),
+    `Applying hedge-mode enable for ${accountLabel}.`,
+  )
+  await expect(row).toContainText('Position mode: hedge')
+  await expect(row).toHaveAttribute('data-control-lifecycle', 'succeeded', {
+    timeout: commandTimeoutMs,
+  })
+}
+
+async function setLeverage(page: Page, leverage: number): Promise<void> {
+  const controls = page.getByTestId('account-leverage-controls')
+  await controls.getByRole('textbox', { name: /Symbols/ }).fill(symbol)
+  await controls.getByRole('spinbutton', { name: 'Lev', exact: true }).fill(String(leverage))
+  const row = await triggerAccountControl(
+    page,
+    () => controls.getByRole('button', { name: 'Set Leverage' }).click(),
+    `Applying leverage update for ${symbol}.`,
+  )
+  await expect(row).toContainText(`${symbol}: ${leverage}x`)
+  await expect(row).toHaveAttribute('data-control-lifecycle', 'succeeded', {
+    timeout: commandTimeoutMs,
+  })
+}
+
+async function triggerAccountControl(
+  page: Page,
+  trigger: () => Promise<void>,
+  acceptedMessage: string,
+): Promise<Locator> {
+  const dialog = page.getByTestId('user-settings-dialog')
+  const priorIds = new Set(
+    await dialog
+      .getByTestId('account-control-row')
+      .evaluateAll((rows) => rows.map((row) => row.getAttribute('data-account-control-id') ?? '')),
+  )
+  await trigger()
+  await expect(page.getByText(acceptedMessage, { exact: true })).toBeVisible({
+    timeout: commandTimeoutMs,
+  })
+
+  let controlId = ''
+  await expect
+    .poll(
+      async () => {
+        const ids = await dialog
+          .getByTestId('account-control-row')
+          .evaluateAll((rows) =>
+            rows.map((row) => row.getAttribute('data-account-control-id') ?? ''),
+          )
+        controlId = ids.find((id) => id !== '' && !priorIds.has(id)) ?? ''
+        return controlId
+      },
+      { timeout: commandTimeoutMs },
+    )
+    .not.toBe('')
+  return dialog.locator(`[data-account-control-id="${controlId}"]`)
+}
+
 async function submitMarketOpen(
   page: Page,
   notional: number,
@@ -327,6 +553,33 @@ async function submitSymbolFlatten(page: Page): Promise<string> {
   await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
   await dialog.getByRole('checkbox', { name: /Confirm flatten this symbol/i }).check()
   await dialog.getByRole('button', { name: 'Flatten' }).click()
+  return await waitForNewCommandId(page, prior)
+}
+
+async function submitCancelEntryWork(page: Page): Promise<string> {
+  const prior = await commandIds(page)
+  await openCommand(page, 'ca', 'Cancel Entry Work')
+  const dialog = page.getByRole('dialog', { name: 'Cancel Entry Work' })
+  await dialog.getByLabel('Target').selectOption('account')
+  await dialog.getByText(/Confirm cancellation/).click()
+  await dialog.getByRole('button', { name: 'Cancel Entry Work' }).click()
+  await expect(dialog).toBeHidden({ timeout: 10_000 })
+  return await waitForNewCommandId(page, prior)
+}
+
+async function submitSelectedLimitClose(page: Page, limitPrice: number): Promise<string> {
+  const prior = await commandIds(page)
+  await page
+    .getByTestId('projection-actions')
+    .getByRole('button', { name: 'Close Exposure' })
+    .click()
+  const dialog = page.getByRole('dialog', { name: 'Close Exposure' })
+  await dialog.getByLabel('Execution').selectOption('limit')
+  await dialog.getByLabel('Limit Price').fill(decimalString(limitPrice))
+  await dialog.getByLabel('Time in Force').selectOption('post_only')
+  await dialog.getByLabel('Confirm close exposure').check()
+  await dialog.getByRole('button', { name: 'Close Exposure' }).click()
+  await expect(dialog).toBeHidden({ timeout: 10_000 })
   return await waitForNewCommandId(page, prior)
 }
 
@@ -456,6 +709,76 @@ async function expectExchangeOrderCount(
       timeout: commandTimeoutMs,
     })
     .toBe(expected)
+}
+
+async function expectHedgeMode(request: APIRequestContext): Promise<void> {
+  await expect
+    .poll(
+      async () =>
+        (await bybitSymbolState(request, credentials, symbol)).positions
+          .map((position) => position.positionIdx)
+          .sort(),
+      { timeout: commandTimeoutMs },
+    )
+    .toEqual([1, 2])
+}
+
+async function expectLeverage(request: APIRequestContext, expected: number): Promise<void> {
+  await expect
+    .poll(
+      async () =>
+        (await bybitSymbolState(request, credentials, symbol)).positions.map((position) =>
+          Number(position.leverage),
+        ),
+      { timeout: commandTimeoutMs },
+    )
+    .toEqual([expected, expected])
+}
+
+async function expectExchangeReduceOnlyLimit(
+  request: APIRequestContext,
+  expectedPrice: number,
+): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        const state = await bybitSymbolState(request, credentials, symbol)
+        const order = state.openOrders.find(isPlainLimitOrder)
+        return order === undefined
+          ? null
+          : {
+              positionIdx: order.positionIdx,
+              price: Number(order.price),
+              reduceOnly: order.reduceOnly,
+              side: order.side,
+            }
+      },
+      { timeout: commandTimeoutMs },
+    )
+    .toEqual({ positionIdx: 1, price: expectedPrice, reduceOnly: true, side: 'Sell' })
+}
+
+async function expectExchangeProtectionOrderCount(
+  request: APIRequestContext,
+  expected: number,
+): Promise<void> {
+  await expect
+    .poll(
+      async () =>
+        (await bybitSymbolState(request, credentials, symbol)).openOrders.filter(
+          (order) => !isPlainLimitOrder(order),
+        ).length,
+      { timeout: commandTimeoutMs },
+    )
+    .toBe(expected)
+}
+
+function isPlainLimitOrder(order: BybitOpenOrder): boolean {
+  return (
+    order.orderType === 'Limit' &&
+    Number(order.triggerPrice || 0) === 0 &&
+    order.stopOrderType === ''
+  )
 }
 
 async function expectExchangeFlat(request: APIRequestContext): Promise<void> {
