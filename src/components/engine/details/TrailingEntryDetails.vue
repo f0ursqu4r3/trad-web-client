@@ -3,26 +3,19 @@ import { computed } from 'vue'
 
 import type { TrailingEntryProjection } from '@/lib/gateway'
 import DetailGrid from './DetailGrid.vue'
-import {
-  compactDetails,
-  detail,
-  formatTimestamp,
-  optionalDetail,
-  recordDetail,
-  yesNo,
-} from './model'
+import { compactDetails, detail, formatTimestamp, optionalDetail, yesNo } from './model'
 
 const props = defineProps<{ trailingEntry: TrailingEntryProjection }>()
 
 const planRows = computed(() =>
   compactDetails([
-    recordDetail('Symbol', props.trailingEntry.plan, 'symbol'),
-    recordDetail('Position Side', props.trailingEntry.plan, 'position_side'),
-    recordDetail('Activation Price', props.trailingEntry.plan, 'activation_price'),
-    recordDetail('Jump Threshold (bps)', props.trailingEntry.plan, 'jump_threshold'),
-    recordDetail('Stop Loss', props.trailingEntry.plan, 'stop_loss'),
-    recordDetail('Take Profit', props.trailingEntry.plan, 'take_profit'),
-    recordDetail('Risk Amount', props.trailingEntry.plan, 'risk_amount'),
+    detail('Symbol', props.trailingEntry.plan.symbol),
+    detail('Position Side', props.trailingEntry.plan.position_side),
+    detail('Activation Price', props.trailingEntry.plan.activation_price),
+    detail('Jump Threshold (bps)', props.trailingEntry.plan.jump_threshold),
+    detail('Stop Loss', props.trailingEntry.plan.stop_loss),
+    optionalDetail('Take Profit', props.trailingEntry.plan.take_profit ?? null),
+    detail('Risk Amount', props.trailingEntry.plan.risk_amount),
   ]),
 )
 const stateRows = computed(() =>

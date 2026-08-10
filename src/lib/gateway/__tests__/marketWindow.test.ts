@@ -25,6 +25,16 @@ test('market windows retain exact decimal text and replace prior history', () =>
   )
   assert.equal(replacement.oldestSequence, 20)
   assert.equal(replacement.nextSequence, 21)
+  assert.throws(
+    () =>
+      installMarketWindow({
+        symbol: 'BTC',
+        oldest_sequence: 19,
+        next_sequence: 21,
+        samples: [sample(20, '49999')],
+      }),
+    /oldest sequence/,
+  )
 })
 
 test('global sequence gaps are accepted but overlap and reordering are rejected', () => {

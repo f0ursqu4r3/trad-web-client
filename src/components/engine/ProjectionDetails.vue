@@ -26,6 +26,8 @@ import {
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useProjectionUiStore } from '@/stores/projectionUi'
 
+withDefaults(defineProps<{ showActions?: boolean }>(), { showActions: true })
+
 type OperationalEntity = Extract<
   ProjectionEntity,
   {
@@ -150,7 +152,7 @@ function isOperational(value: ProjectionEntity): value is OperationalEntity {
         <div class="entity-id">{{ entity.id }}</div>
       </div>
 
-      <ProjectionActions />
+      <ProjectionActions v-if="showActions" />
 
       <CommandDetails v-if="entity.kind === 'command'" :command="entity.row" />
       <OrderDetails v-else-if="entity.kind === 'order'" :order="entity.row" />

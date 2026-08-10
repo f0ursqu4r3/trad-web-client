@@ -242,25 +242,55 @@ export interface ChaseProjection {
   last_reason: string | null
 }
 
+export interface TrailingEntryPlanProjection {
+  symbol: string
+  position_side: PositionSide
+  activation_price: ExactDecimal
+  jump_threshold: ExactDecimal
+  stop_loss: ExactDecimal
+  take_profit?: ExactDecimal | null
+  risk_amount: ExactDecimal
+  instrument: Record<string, unknown>
+  execution: Record<string, unknown>
+  one_way?: Record<string, unknown> | null
+}
+
+export interface TrailingEntryTradeProjection {
+  generation: number
+  exchange_time: TimestampMillis
+  trade_id: string
+  price: ExactDecimal
+}
+
+export interface TrailingEntryTriggerProjection {
+  decision_trade: TrailingEntryTradeProjection
+  point_index: number
+  entry_price: ExactDecimal
+  risk_distance: ExactDecimal
+  raw_quantity: ExactDecimal
+  normalized_quantity: ExactDecimal
+  execution: Record<string, unknown>
+}
+
 export interface TrailingEntryProjection {
   trailing_entry_id: Uuid
   command_id: Uuid
   state_revision: number
   mutation_command_ids: Uuid[]
-  plan: Record<string, unknown>
+  plan: TrailingEntryPlanProjection
   phase: string
   lifecycle: string
   market_generation: number | null
   market_stale: boolean
   cursor: Record<string, unknown> | null
-  latest_trade: Record<string, unknown> | null
+  latest_trade: TrailingEntryTradeProjection | null
   latest_trade_received_at: TimestampMillis | null
   point_count: number
   actual_activation_price: ExactDecimal | null
   activation_point_index: number | null
   peak: ExactDecimal | null
   peak_point_index: number | null
-  trigger: Record<string, unknown> | null
+  trigger: TrailingEntryTriggerProjection | null
   one_way_transition?: Record<string, unknown>
   continuations: Record<string, unknown>[]
   entry_cancel_requested: boolean

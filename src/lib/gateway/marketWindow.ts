@@ -10,7 +10,11 @@ export interface MarketSampleWindow {
 
 export function installMarketWindow(window: BrowserMarketWindow): MarketSampleWindow {
   validateSamples(window.samples, null)
+  const first = window.samples[0]
   const last = window.samples[window.samples.length - 1]
+  if ((first?.sequence ?? null) !== window.oldest_sequence) {
+    throw new Error('market window has an invalid oldest sequence')
+  }
   if (last !== undefined && window.next_sequence !== last.sequence + 1) {
     throw new Error('market window has an invalid next sequence')
   }

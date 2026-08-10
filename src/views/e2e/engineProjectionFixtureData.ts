@@ -23,7 +23,7 @@ const TRAILING_COMMAND_ID = '35000000-0000-4000-8000-000000000001'
 const TRAILING_ENTRY_ID = '35000000-0000-4000-8000-000000000002'
 const HISTORY_COMMAND_ID = '40000000-0000-4000-8000-000000000001'
 const HISTORY_ORDER_ID = '40000000-0000-4000-8000-000000000002'
-const ACCEPTED_AT = 1_786_200_000_000
+export const ACCEPTED_AT = 1_786_200_000_000
 
 export function engineProjectionSnapshot(): BrowserAccountSnapshot {
   const chaseCommand = command(
@@ -130,13 +130,20 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
           stop_loss: '140',
           take_profit: '155',
           risk_amount: '25',
+          instrument: {},
+          execution: {},
         },
         phase: 'tracking',
         lifecycle: 'running',
         market_generation: 31,
         market_stale: false,
-        cursor: { trade_id: 'sol-trade-31' },
-        latest_trade: { price: '144.8', quantity: '2.1' },
+        cursor: { generation: 31, exchange_time: ACCEPTED_AT + 2_000, trade_ids: ['sol-trade-31'] },
+        latest_trade: {
+          generation: 31,
+          exchange_time: ACCEPTED_AT + 2_000,
+          trade_id: 'sol-trade-31',
+          price: '144.8',
+        },
         latest_trade_received_at: ACCEPTED_AT + 2_500,
         point_count: 128,
         actual_activation_price: '145.2',

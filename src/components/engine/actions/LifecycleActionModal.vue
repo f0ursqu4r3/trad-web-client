@@ -14,6 +14,7 @@ const props = defineProps<{
   open: boolean
   accountId: string
   action: LifecycleAction | null
+  initialTrailingEntry?: Partial<TrailingEntryAmendmentDraft> | null
 }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
 const gateway = useGatewayStore()
@@ -48,7 +49,7 @@ const canSubmit = computed(
 )
 
 watch(
-  () => [props.open, props.action] as const,
+  () => [props.open, props.action, props.initialTrailingEntry] as const,
   ([open]) => {
     if (open) reset()
   },
@@ -108,13 +109,14 @@ function trailingEntryAmendment(): TrailingEntryAmendmentDraft {
   if (props.action?.target.kind !== 'trailing_entry') return emptyAmendment()
   const plan = props.action.target.row.plan
   const takeProfit = primitiveString(plan.take_profit)
+  const initial = props.initialTrailingEntry
   return {
-    activationPrice: primitiveString(plan.activation_price),
-    jumpBasisPoints: primitiveString(plan.jump_threshold),
-    stopLossPrice: primitiveString(plan.stop_loss),
-    takeProfitMode: takeProfit === '' ? 'unchanged' : 'set',
-    takeProfitPrice: takeProfit,
-    riskAmount: primitiveString(plan.risk_amount),
+    activationPrice: initial?.activationPrice ?? primitiveString(plan.activation_price),
+    jumpBasisPoints: initial?.jumpBasisPoints ?? primitiveString(plan.jump_threshold),
+    stopLossPrice: initial?.stopLossPrice ?? primitiveString(plan.stop_loss),
+    takeProfitMode: initial?.takeProfitMode ?? (takeProfit === '' ? 'unchanged' : 'set'),
+    takeProfitPrice: initial?.takeProfitPrice ?? takeProfit,
+    riskAmount: initial?.riskAmount ?? primitiveString(plan.risk_amount),
   }
 }
 
@@ -183,7 +185,9 @@ function primitiveString(value: unknown): string {
             </select>
           </label>
           <label v-if="closeChaseBoundaryEnabled" class="field">
-            <span>{{ closeChaseBoundaryMode === 'basis_points' ? 'Maximum Distance' : 'Boundary Price' }}</span>
+            <span>{{
+              closeChaseBoundaryMode === 'basis_points' ? 'Maximum Distance' : 'Boundary Price'
+            }}</span>
             <input
               v-model="closeChaseBoundaryValue"
               class="input"

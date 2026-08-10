@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted } from 'vue'
 
 import EngineOrdersColumn from '@/components/engine/EngineOrdersColumn.vue'
-import ProjectionDetails from '@/components/engine/ProjectionDetails.vue'
+import EngineWorkspace from '@/components/engine/EngineWorkspace.vue'
 import SplitView from '@/components/general/SplitView.vue'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
@@ -29,7 +29,7 @@ onBeforeUnmount(() => {
     </template>
 
     <template #right>
-      <ProjectionDetails />
+      <EngineWorkspace />
     </template>
   </SplitView>
 </template>

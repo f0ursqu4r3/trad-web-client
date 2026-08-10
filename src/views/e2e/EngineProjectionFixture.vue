@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 
 import EngineOrdersColumn from '@/components/engine/EngineOrdersColumn.vue'
-import ProjectionDetails from '@/components/engine/ProjectionDetails.vue'
+import EngineWorkspace from '@/components/engine/EngineWorkspace.vue'
 import type {
   BrowserCommandIntent,
   BrowserCommandOutcome,
@@ -12,7 +12,9 @@ import { ExchangeType, NetworkType } from '@/lib/ws/protocol'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
+import { useMarketStore } from '@/stores/market'
 import {
+  ACCEPTED_AT,
   ENGINE_ACCOUNT_ID,
   ENGINE_SUBSCRIPTION_ID,
   engineProjectionHistoryPage,
@@ -22,6 +24,7 @@ import {
 const accounts = useAccountsStore()
 const projections = useAccountProjectionStore()
 const gateway = useGatewayStore()
+const markets = useMarketStore()
 const latestAction = ref<{ accountId: string; intent: BrowserCommandIntent } | null>(null)
 
 accounts.accountsRaw = [
@@ -44,6 +47,29 @@ projections.install(
 gateway.requestOlderHistory = async () => {
   projections.mergeHistory(ENGINE_ACCOUNT_ID, engineProjectionHistoryPage())
 }
+gateway.subscribeMarket = (accountId, symbol) => {
+  const requestId = '50000000-0000-4000-8000-000000000001'
+  markets.begin(accountId, symbol, requestId)
+  markets.install(accountId, requestId, '50000000-0000-4000-8000-000000000002', {
+    symbol,
+    oldest_sequence: 100,
+    next_sequence: 355,
+    samples: Array.from({ length: 128 }, (_, index) => {
+      const price = index < 108 ? 145.4 - index * 0.014 : 143.888 + (index - 108) * 0.048
+      const latest = index === 127
+      return {
+        sequence: 100 + index * 2,
+        update_id: `market-update-${index}`,
+        generation: 31,
+        received_at_ms: ACCEPTED_AT + 1_873 + index,
+        exchange_time_ms: latest ? ACCEPTED_AT + 2_000 : ACCEPTED_AT + 1_873 + index,
+        price: latest ? '144.8' : price.toFixed(4),
+        trade_id: latest ? 'sol-trade-31' : `sol-trade-${index}`,
+      }
+    }),
+  })
+}
+gateway.unsubscribeMarket = (accountId, symbol) => markets.remove(accountId, symbol)
 gateway.status = 'ready'
 gateway.submitCommand = async (intent, accountId): Promise<BrowserCommandOutcome> => {
   latestAction.value = { accountId: accountId ?? '', intent }
@@ -85,7 +111,7 @@ gateway.refreshReconciliation = async (
 <template>
   <main class="engine-fixture" data-testid="engine-projection-fixture">
     <EngineOrdersColumn />
-    <ProjectionDetails />
+    <EngineWorkspace />
     <pre class="action-evidence" data-testid="latest-lifecycle-intent">{{
       latestAction ? JSON.stringify(latestAction) : 'none'
     }}</pre>

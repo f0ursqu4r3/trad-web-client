@@ -72,6 +72,47 @@ test('renders domain-specific Trailing Entry state from the projection', async (
   await expect(details.getByText('tracking rebound from peak', { exact: true })).toBeVisible()
 })
 
+test('renders the projection-native Trailing Entry market workspace and typed controls', async ({
+  page,
+}) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await fixture.getByTestId('projection-command-list').getByText('Trailing Entry').click()
+
+  const workspace = fixture.getByTestId('engine-te-workspace')
+  const chart = workspace.getByTestId('engine-te-chart')
+  await expect(chart).toBeVisible()
+  await expect(chart).toContainText('Recent node history · 128 trades')
+  await expect(chart).toContainText('144.80')
+  await expect(workspace.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
+  await expect(workspace.getByRole('button', { name: 'Enter Now' })).toBeVisible()
+  await expect(workspace.getByRole('button', { name: 'Cancel Entry' })).toBeVisible()
+
+  const takeProfitTab = chart.getByRole('button', { name: /TP 155/ })
+  await expect(takeProfitTab).toBeVisible()
+  await takeProfitTab.click()
+  await expect(takeProfitTab).not.toBeVisible()
+
+  await workspace.getByRole('button', { name: 'Edit', exact: true }).click()
+  const modal = page.getByRole('dialog', { name: 'Edit' })
+  await expect(modal.getByLabel('Activation Price')).toHaveValue('145.25')
+  await expect(modal.getByLabel('Jump Threshold (bps)')).toHaveValue('10')
+  await expect(modal.getByLabel('Stop Loss Price')).toHaveValue('140')
+  await modal.getByRole('button', { name: 'Back' }).click()
+})
+
+test('keeps the Trailing Entry workspace usable at a narrow viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await fixture.getByTestId('projection-command-list').getByText('Trailing Entry').click()
+
+  const chart = fixture.getByTestId('engine-te-chart')
+  await expect(chart).toBeVisible()
+  const bounds = await chart.boundingBox()
+  expect(bounds).not.toBeNull()
+  expect(bounds?.width ?? 0).toBeLessThanOrEqual(390)
+  expect(bounds?.height ?? 0).toBeGreaterThan(200)
+})
+
 test('right-click exposes projected actions without changing the inspected command', async ({
   page,
 }) => {
