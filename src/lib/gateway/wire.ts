@@ -10,7 +10,7 @@ import type {
   ProjectionRevision,
 } from './projection.ts'
 
-export const BROWSER_PROTOCOL_VERSION = 4
+export const BROWSER_PROTOCOL_VERSION = 5
 
 export type BrowserClientMessage =
   | { kind: 'authenticate'; protocol_version: number; ticket: string }

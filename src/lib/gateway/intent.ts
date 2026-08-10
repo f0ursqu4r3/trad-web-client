@@ -115,6 +115,7 @@ export interface ModifyOrderIntent {
 export type CloseQuantityIntent = { kind: 'full' } | { kind: 'base'; quantity: ExactDecimal }
 
 export type FlattenTargetIntent = { kind: 'symbol'; symbol: string } | { kind: 'account' }
+export type CancelEntryWorkTargetIntent = FlattenTargetIntent
 
 export type BrowserCommandIntent =
   | { kind: 'place_order'; parameters: PlaceOrderIntent }
@@ -133,4 +134,5 @@ export type BrowserCommandIntent =
       parameters: { source_command_id: Uuid; quantity: CloseQuantityIntent }
     }
   | { kind: 'close_trailing_entry'; parameters: { trailing_entry_id: Uuid } }
+  | { kind: 'cancel_entry_work'; parameters: { target: CancelEntryWorkTargetIntent } }
   | { kind: 'flatten'; parameters: { target: FlattenTargetIntent } }

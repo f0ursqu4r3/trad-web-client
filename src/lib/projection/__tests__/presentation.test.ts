@@ -109,6 +109,7 @@ function chaseGraph(): ProjectionGraph {
     trailing_entries: [],
     close_workflows: [],
     flatten_workflows: [],
+    entry_cancellations: [],
     orders: [order],
     executions: [],
     relationships,

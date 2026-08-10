@@ -11,6 +11,7 @@ import {
   sizingIntent,
 } from '../form.ts'
 import {
+  buildCancelEntryWorkIntent,
   buildFlattenIntent,
   buildPlaceChaseIntent,
   buildPlaceOrderIntent,
@@ -164,5 +165,9 @@ test('trailing-entry and flatten drafts map directly to public intents', () => {
   assert.deepEqual(buildFlattenIntent('symbol', 'eth'), {
     kind: 'flatten',
     parameters: { target: { kind: 'symbol', symbol: 'ETH' } },
+  })
+  assert.deepEqual(buildCancelEntryWorkIntent('account', ''), {
+    kind: 'cancel_entry_work',
+    parameters: { target: { kind: 'account' } },
   })
 })

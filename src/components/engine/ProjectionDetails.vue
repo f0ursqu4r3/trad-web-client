@@ -112,6 +112,14 @@ const details = computed<DetailRow[]>(() => {
         row('Close Workflows', String(entity.row.close_workflow_ids.length)),
         optionalRow('Last Reason', entity.row.last_reason),
       ])
+    case 'entry_cancellation':
+      return compact([
+        row('Lifecycle', entity.row.lifecycle),
+        row('Target', formatRecord(entity.row.target)),
+        row('Affected Commands', String(entity.row.affected_command_ids.length)),
+        row('Entry Orders', String(entity.row.source_order_ids.length)),
+        optionalRow('Last Reason', entity.row.last_reason),
+      ])
   }
   return []
 })

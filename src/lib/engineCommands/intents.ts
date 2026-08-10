@@ -138,6 +138,21 @@ export function buildFlattenIntent(
   }
 }
 
+export function buildCancelEntryWorkIntent(
+  target: 'account' | 'symbol',
+  symbol: string,
+): BrowserCommandIntent {
+  return {
+    kind: 'cancel_entry_work',
+    parameters: {
+      target:
+        target === 'account'
+          ? { kind: 'account' }
+          : { kind: 'symbol', symbol: normalizedSymbol(symbol) },
+    },
+  }
+}
+
 function requireStopForRiskSizing(
   sizingMode: SizingMode,
   protection: ReturnType<typeof protectionIntent>,

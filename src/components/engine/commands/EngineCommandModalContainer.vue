@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 
 import { useModalStore } from '@/stores/modals'
 import ChaseCommandModal from './ChaseCommandModal.vue'
+import CancelEntryWorkModal from './CancelEntryWorkModal.vue'
 import FlattenCommandModal from './FlattenCommandModal.vue'
 import OrderCommandModal from './OrderCommandModal.vue'
 import TrailingEntryCommandModal from './TrailingEntryCommandModal.vue'
@@ -56,5 +57,9 @@ onBeforeUnmount(() => {
   <FlattenCommandModal
     :open="openModals.EngineFlatten ?? false"
     @close="modals.closeModal('EngineFlatten')"
+  />
+  <CancelEntryWorkModal
+    :open="openModals.EngineCancelEntryWork ?? false"
+    @close="modals.closeModal('EngineCancelEntryWork')"
   />
 </template>

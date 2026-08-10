@@ -67,6 +67,27 @@ test('opens chase and trailing-entry forms from their aliases', async ({ page })
   await expect(page.getByRole('dialog', { name: 'Trailing Entry' })).toBeVisible()
 })
 
+test('cancel entry work is distinct from flatten and submits an account target', async ({ page }) => {
+  await page.getByRole('button', { name: /Commands/ }).click()
+  await page.getByPlaceholder('Search commands').fill('ca')
+  await page.keyboard.press('Enter')
+  const modal = page.getByRole('dialog', { name: 'Cancel Entry Work' })
+  await expect(modal.getByText(/Existing exposure and its active protection remain/)).toBeVisible()
+  await modal.getByLabel('Target').selectOption('account')
+  await modal.getByText(/Confirm cancellation/).click()
+  await modal.getByRole('button', { name: 'Cancel Entry Work' }).click()
+
+  await expect(page.getByTestId('latest-command-intent')).toHaveText(
+    JSON.stringify({
+      accountId: '50000000-0000-4000-8000-000000000001',
+      intent: {
+        kind: 'cancel_entry_work',
+        parameters: { target: { kind: 'account' } },
+      },
+    }),
+  )
+})
+
 test('keeps an unknown-outcome command open and forbids blind resubmission', async ({ page }) => {
   await page.getByRole('button', { name: 'Lose next outcome' }).click()
   await page.getByRole('button', { name: /Commands/ }).click()

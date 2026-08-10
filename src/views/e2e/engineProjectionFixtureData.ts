@@ -96,6 +96,7 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
     trailing_entries: [],
     close_workflows: [],
     flatten_workflows: [],
+    entry_cancellations: [],
     orders: [chaseOrder, filledOrder],
     positions: [
       {
@@ -249,6 +250,7 @@ export function engineProjectionHistoryPage(): ClientCommandPage {
     trailing_entries: [],
     close_workflows: [],
     flatten_workflows: [],
+    entry_cancellations: [],
     orders: [oldOrder],
     executions: [],
     relationships: [
@@ -370,6 +372,8 @@ function summary(commands: number): AccountProjectionSummary {
     active_close_workflows: 0,
     flatten_workflows: 0,
     active_flatten_workflows: 0,
+    entry_cancellations: 0,
+    active_entry_cancellations: 0,
     orders: 2,
     active_orders: 1,
     positions: 1,

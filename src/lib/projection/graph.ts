@@ -38,6 +38,9 @@ export function pruneLiveSnapshot(snapshot: BrowserAccountSnapshot): BrowserAcco
   const flattenWorkflows = snapshot.flatten_workflows.filter((row) =>
     selectedNodes.has(nodeKey({ kind: 'flatten_workflow', id: row.flatten_workflow_id })),
   )
+  const entryCancellations = snapshot.entry_cancellations.filter((row) =>
+    selectedNodes.has(nodeKey({ kind: 'entry_cancellation', id: row.cancellation_id })),
+  )
   const orders = snapshot.orders.filter((row) =>
     selectedNodes.has(nodeKey({ kind: 'order', id: row.order_id })),
   )
@@ -59,6 +62,7 @@ export function pruneLiveSnapshot(snapshot: BrowserAccountSnapshot): BrowserAcco
     trailing_entries: trailingEntries,
     close_workflows: closeWorkflows,
     flatten_workflows: flattenWorkflows,
+    entry_cancellations: entryCancellations,
     orders,
     executions,
     relationships,
@@ -95,6 +99,11 @@ export function mergeGraph(preferred: ProjectionGraph, fallback: ProjectionGraph
       preferred.flatten_workflows,
       (row) => row.flatten_workflow_id,
     ),
+    entry_cancellations: mergeRows(
+      fallback.entry_cancellations,
+      preferred.entry_cancellations,
+      (row) => row.cancellation_id,
+    ),
     orders: mergeRows(fallback.orders, preferred.orders, (row) => row.order_id),
     executions: mergeRows(fallback.executions, preferred.executions, (row) => row.event_id),
     relationships: mergeRelationships(fallback.relationships, preferred.relationships),
@@ -129,6 +138,11 @@ export function upsertSnapshotGraph(
       delta.flatten_workflows,
       (row) => row.flatten_workflow_id,
     ),
+    entry_cancellations: mergeRows(
+      snapshot.entry_cancellations,
+      delta.entry_cancellations,
+      (row) => row.cancellation_id,
+    ),
     orders: mergeRows(snapshot.orders, delta.orders, (row) => row.order_id),
     executions: mergeRows(snapshot.executions, delta.executions, (row) => row.event_id),
     relationships: mergeRelationships(snapshot.relationships, delta.relationships),
@@ -154,6 +168,10 @@ export function graphNodes(graph: ProjectionGraph): Set<string> {
   addNodes(nodes, graph.flatten_workflows, (row) => ({
     kind: 'flatten_workflow',
     id: row.flatten_workflow_id,
+  }))
+  addNodes(nodes, graph.entry_cancellations, (row) => ({
+    kind: 'entry_cancellation',
+    id: row.cancellation_id,
   }))
   addNodes(nodes, graph.orders, (row) => ({ kind: 'order', id: row.order_id }))
   return nodes

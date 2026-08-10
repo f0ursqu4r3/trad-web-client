@@ -41,6 +41,13 @@ const commands: EngineCommandOption[] = [
     aliases: ['te'],
   },
   {
+    modal: 'EngineCancelEntryWork',
+    label: 'Cancel Entry Work',
+    description: 'Cancel waiting entry orders without closing established exposure',
+    aliases: ['ca', 'cancel'],
+    danger: true,
+  },
+  {
     modal: 'EngineFlatten',
     label: 'Flatten Exposure',
     description: 'Reduce-only flatten one symbol or the entire selected account',

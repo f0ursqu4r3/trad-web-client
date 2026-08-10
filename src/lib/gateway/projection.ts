@@ -32,6 +32,8 @@ export interface AccountProjectionSummary {
   active_close_workflows: number
   flatten_workflows: number
   active_flatten_workflows: number
+  entry_cancellations: number
+  active_entry_cancellations: number
   orders: number
   active_orders: number
   positions: number
@@ -149,6 +151,7 @@ export type ProjectionNodeKind =
   | 'trailing_entry'
   | 'close_workflow'
   | 'flatten_workflow'
+  | 'entry_cancellation'
 
 export interface ProjectionNodeId {
   kind: ProjectionNodeKind
@@ -164,6 +167,7 @@ export type RelationshipKind =
   | 'close_execution'
   | 'flatten_close'
   | 'flatten_affected_command'
+  | 'entry_cancellation_affected_command'
 
 export interface PresentationRelationship {
   parent: ProjectionNodeId
@@ -292,6 +296,17 @@ export interface FlattenWorkflowProjection {
   source_order_ids: Uuid[]
   affected_command_ids: Uuid[]
   close_workflow_ids: Uuid[]
+  lifecycle: string
+  last_reason: string | null
+  created_at: TimestampMillis
+}
+
+export interface EntryCancellationProjection {
+  cancellation_id: Uuid
+  command_id: Uuid
+  target: Record<string, unknown>
+  source_order_ids: Uuid[]
+  affected_command_ids: Uuid[]
   lifecycle: string
   last_reason: string | null
   created_at: TimestampMillis
@@ -451,6 +466,7 @@ export interface ProjectionGraph {
   trailing_entries: TrailingEntryProjection[]
   close_workflows: CloseWorkflowProjection[]
   flatten_workflows: FlattenWorkflowProjection[]
+  entry_cancellations: EntryCancellationProjection[]
   orders: OrderProjection[]
   executions: ExecutionProjection[]
   relationships: PresentationRelationship[]

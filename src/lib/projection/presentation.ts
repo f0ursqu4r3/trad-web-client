@@ -3,6 +3,7 @@ import type {
   CloseWorkflowProjection,
   CommandProjection,
   ExecutionGroupProjection,
+  EntryCancellationProjection,
   FlattenWorkflowProjection,
   OrderProjection,
   ProjectionGraph,
@@ -35,6 +36,11 @@ export type ProjectionEntity =
       id: string
       row: FlattenWorkflowProjection
     }
+  | {
+      kind: 'entry_cancellation'
+      id: string
+      row: EntryCancellationProjection
+    }
 
 export interface ProjectionTreeNode {
   entity: ProjectionEntity
@@ -59,6 +65,9 @@ export function projectionEntities(graph: ProjectionGraph): Map<string, Projecti
   for (const row of graph.flatten_workflows) {
     put(entities, { kind: 'flatten_workflow', id: row.flatten_workflow_id, row })
   }
+  for (const row of graph.entry_cancellations) {
+    put(entities, { kind: 'entry_cancellation', id: row.cancellation_id, row })
+  }
   return entities
 }
 
@@ -77,6 +86,7 @@ export function entityStatus(entity: ProjectionEntity): string {
     case 'trailing_entry':
     case 'close_workflow':
     case 'flatten_workflow':
+    case 'entry_cancellation':
       return entity.row.lifecycle
   }
 }
@@ -97,6 +107,8 @@ export function entityLabel(entity: ProjectionEntity): string {
       return entity.row.close_all ? 'Close Exposure' : 'Partial Close'
     case 'flatten_workflow':
       return 'Flatten'
+    case 'entry_cancellation':
+      return 'Cancel Entry Work'
   }
 }
 
@@ -123,6 +135,7 @@ export function commandKindLabel(kind: string): string {
     close_trailing_entry: 'Close Trailing Entry',
     close_exposure: 'Close Exposure',
     flatten: 'Flatten',
+    cancel_entry_work: 'Cancel Entry Work',
     modify_order: 'Modify Order',
     replace_order: 'Replace Order',
     cancel_order: 'Cancel Order',
