@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test'
+import { runSignedQualification } from './support/signedQualification'
 
 const enabled = process.env.ENGINE_PROCESS_SIGNED_TESTNET_E2E === '1'
 const terminalBaseUrl = process.env.ENGINE_PROCESS_TERMINAL_BASE_URL || 'http://127.0.0.1:15173'
@@ -84,27 +85,28 @@ test.describe.serial('replacement P0 controls through the production terminal', 
     validateConfiguration()
     await expectExchangeFlat(request)
 
-    let cleanupRequired = false
-    try {
-      await loginAndSelectAccount(page)
-      const mid = await hyperliquidMid(request)
-      const entryCommandId = await submitLimitOpen(page, (mid * 0.5).toFixed(0))
-      cleanupRequired = true
-      await expectCommandLifecycle(page, entryCommandId, 'running')
-      await expectExchangeOrderCount(request, 1)
+    await runSignedQualification({
+      label: 'signed cancel-all entry work',
+      run: async (risk) => {
+        await loginAndSelectAccount(page)
+        const mid = await hyperliquidMid(request)
+        risk.markUncertain()
+        const entryCommandId = await submitLimitOpen(page, (mid * 0.5).toFixed(0))
+        await expectCommandLifecycle(page, entryCommandId, 'running')
+        await expectExchangeOrderCount(request, 1)
 
-      const cancelCommandId = await submitCancelEntryWork(page)
-      await expectCommandLifecycle(page, cancelCommandId, 'succeeded')
-      await expectExchangeFlat(request)
+        const cancelCommandId = await submitCancelEntryWork(page)
+        await expectCommandLifecycle(page, cancelCommandId, 'succeeded')
+        await expectExchangeFlat(request)
 
-      await page.locator(`[data-command-id="${entryCommandId}"]`).click()
-      const order = page.locator('[data-node-kind="order"]').first()
-      await expect(order).toContainText(/canceled/i, { timeout: commandTimeoutMs })
-      cleanupRequired = false
-    } finally {
-      if (cleanupRequired) await bestEffortFlatten(page)
-      await expectExchangeFlat(request)
-    }
+        await page.locator(`[data-command-id="${entryCommandId}"]`).click()
+        const order = page.locator('[data-node-kind="order"]').first()
+        await expect(order).toContainText(/canceled/i, { timeout: commandTimeoutMs })
+        risk.markResolved()
+      },
+      cleanup: () => bestEffortFlatten(page),
+      verifyFinalState: () => expectExchangeFlat(request),
+    })
   })
 
   test('amends native protection and creates a reduce-only Limit close child', async ({
@@ -197,7 +199,7 @@ function validateConfiguration(): void {
 }
 
 async function loginAndSelectAccount(page: Page): Promise<void> {
-  page.setDefaultTimeout(commandTimeoutMs)
+  page.setDefaultTimeout(30_000)
   await page.setViewportSize({ width: 1600, height: 1000 })
   await page.goto(loginUrl())
   await page.waitForURL(/\/terminal(?:\?|$)/, { timeout: 30_000 })
@@ -309,12 +311,12 @@ async function expectLiveExecutionPreview(page: Page): Promise<void> {
   await openCommand(page, 'mo', 'Market Order')
   const dialog = page.getByRole('dialog', { name: 'Market Order' })
   await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
-  await dialog.getByLabel('Amount Type').selectOption('notional')
-  await dialog.getByLabel('USDC Amount').fill(notional)
-  const preview = dialog.getByRole('region', { name: 'Hyperliquid position effect' })
-  await expect(preview).toContainText('Current signed position', { timeout: commandTimeoutMs })
-  await expect(preview).toContainText('Expected after fill')
-  await expect(preview).toContainText('Requested base quantity')
+  await dialog.getByLabel('Amount Type').selectOption('quote_notional')
+  await dialog.getByLabel('Quote Amount').fill(notional)
+  const preview = dialog.locator('.execution-preview')
+  await expect(preview).toContainText('Ready', { timeout: commandTimeoutMs })
+  await expect(preview).toContainText(symbol)
+  await expect(preview).toContainText('Final submission replans against current exchange evidence.')
   await dialog.getByRole('button', { name: 'Cancel' }).click()
 }
 
@@ -401,11 +403,14 @@ async function submitMarketOpen(page: Page, takeProfit: string, stopLoss: string
   await openCommand(page, 'mo', 'Market Order')
   const dialog = page.getByRole('dialog', { name: 'Market Order' })
   await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
-  await dialog.getByLabel('Position Side').selectOption('Long')
-  await dialog.getByLabel('Amount Type').selectOption('notional')
-  await dialog.getByLabel('USDC Amount').fill(notional)
-  await dialog.getByRole('textbox', { name: 'Take Profit Price (optional)' }).fill(takeProfit)
-  await dialog.getByRole('textbox', { name: 'Stop Loss Price (optional)' }).fill(stopLoss)
+  await dialog.getByLabel('Position Side').selectOption('long')
+  await dialog.getByLabel('Amount Type').selectOption('quote_notional')
+  await dialog.getByLabel('Quote Amount').fill(notional)
+  await dialog.getByLabel('Execution Shape').selectOption('single')
+  await dialog.getByRole('button', { name: /Take Profit/i }).click()
+  await dialog.getByRole('textbox', { name: 'TP 1 Trigger' }).fill(takeProfit)
+  await dialog.getByRole('checkbox', { name: 'Stop loss' }).check()
+  await dialog.getByRole('textbox', { name: 'SL Trigger' }).fill(stopLoss)
   await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled()
   await dialog.getByRole('button', { name: 'Submit' }).click()
   await expect(dialog).toBeHidden({ timeout: 10_000 })
@@ -417,11 +422,12 @@ async function submitLimitOpen(page: Page, limitPrice: string): Promise<string> 
   await openCommand(page, 'lo', 'Limit Order')
   const dialog = page.getByRole('dialog', { name: 'Limit Order' })
   await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
-  await dialog.getByLabel('Position Side').selectOption('Long')
-  await dialog.getByLabel('Amount Type').selectOption('notional')
-  await dialog.getByLabel('USDC Amount').fill(notional)
+  await dialog.getByLabel('Position Side').selectOption('long')
+  await dialog.getByLabel('Amount Type').selectOption('quote_notional')
+  await dialog.getByLabel('Quote Amount').fill(notional)
   await dialog.getByLabel('Limit Price').fill(limitPrice)
-  await dialog.getByLabel(/Time in force/i).selectOption('alo')
+  await dialog.getByLabel('Time In Force').selectOption('post_only')
+  await dialog.getByLabel('Execution Shape').selectOption('single')
   await dialog.getByRole('button', { name: 'Submit' }).click()
   await expect(dialog).toBeHidden({ timeout: 10_000 })
   return await waitForNewCommandId(page, prior)
@@ -473,7 +479,7 @@ async function submitSelectedLimitClose(page: Page, limitPrice: string): Promise
   const dialog = page.getByRole('dialog', { name: 'Close Exposure' })
   await dialog.getByLabel('Execution').selectOption('limit')
   await dialog.getByLabel('Limit Price').fill(limitPrice)
-  await dialog.getByLabel(/Time in force/i).selectOption('alo')
+  await dialog.getByLabel('Time in Force').selectOption('post_only')
   await dialog.getByLabel('Confirm close exposure').check()
   await dialog.getByRole('button', { name: 'Close Exposure' }).click()
   await expect(dialog).toBeHidden({ timeout: 10_000 })

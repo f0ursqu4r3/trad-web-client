@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test'
 import { existsSync, rmSync, writeFileSync } from 'node:fs'
+import { runSignedQualification } from './support/signedQualification'
 
 const enabled = process.env.ENGINE_PROCESS_SIGNED_TESTNET_E2E === '1'
 const terminalBaseUrl = process.env.ENGINE_PROCESS_TERMINAL_BASE_URL || 'http://127.0.0.1:15173'
@@ -52,32 +53,33 @@ test.describe.serial('replacement strategy workflows through the production term
     validateConfiguration()
     await expectExchangeFlat(request)
 
-    let cleanupRequired = false
-    try {
-      await loginAndSelectAccount(page)
-      const commandId = await submitChase(page)
-      cleanupRequired = true
+    await runSignedQualification({
+      label: 'signed Chase cancellation',
+      run: async (risk) => {
+        await loginAndSelectAccount(page)
+        risk.markUncertain()
+        const commandId = await submitChase(page)
 
-      await expectCommandLifecycle(page, commandId, 'running')
-      const chase = await selectProjectedEntity(page, commandId, 'chase')
-      await expect(page.getByTestId('projection-details')).toContainText('Market Stale')
-      await expect(page.getByTestId('projection-details')).toContainText('Reprice Sequence')
-      await expectExchangeRestingOrder(request)
+        await expectCommandLifecycle(page, commandId, 'running')
+        const chase = await selectProjectedEntity(page, commandId, 'chase')
+        await expect(page.getByTestId('projection-details')).toContainText('Market Stale')
+        await expect(page.getByTestId('projection-details')).toContainText('Reprice Sequence')
+        await expectExchangeRestingOrder(request)
 
-      const cancelId = await submitSelectedAction(page, 'Cancel Chase')
-      await expectCommandLifecycle(page, cancelId, 'succeeded')
-      const terminal = await waitForEntityLifecycle(chase, ['canceled', 'filled'])
-      if (terminal === 'filled') {
-        await expectProjectedFilledOrder(page, commandId)
-        const flattenId = await submitSymbolFlatten(page)
-        await expectCommandLifecycle(page, flattenId, 'succeeded')
-      }
-      await expectExchangeFlat(request)
-      cleanupRequired = false
-    } finally {
-      if (cleanupRequired) await bestEffortFlatten(page)
-      await expectExchangeFlat(request)
-    }
+        const cancelId = await submitSelectedAction(page, 'Cancel Chase')
+        await expectCommandLifecycle(page, cancelId, 'succeeded')
+        const terminal = await waitForEntityLifecycle(chase, ['canceled', 'filled'])
+        if (terminal === 'filled') {
+          await expectProjectedFilledOrder(page, commandId)
+          const flattenId = await submitSymbolFlatten(page)
+          await expectCommandLifecycle(page, flattenId, 'succeeded')
+        }
+        await expectExchangeFlat(request)
+        risk.markResolved()
+      },
+      cleanup: () => bestEffortFlatten(page),
+      verifyFinalState: () => expectExchangeFlat(request),
+    })
   })
 
   test('tracks and cancels a waiting Hyperliquid Testnet Trailing Entry', async ({
@@ -88,31 +90,32 @@ test.describe.serial('replacement strategy workflows through the production term
     validateConfiguration()
     await expectExchangeFlat(request)
 
-    let cleanupRequired = false
-    try {
-      await loginAndSelectAccount(page)
-      const prices = trailingEntryPrices(await hyperliquidMid(request))
-      const commandId = await submitTrailingEntry(page, prices)
-      cleanupRequired = true
+    await runSignedQualification({
+      label: 'signed waiting Trailing Entry cancellation',
+      run: async (risk) => {
+        await loginAndSelectAccount(page)
+        const prices = trailingEntryPrices(await hyperliquidMid(request))
+        risk.markUncertain()
+        const commandId = await submitTrailingEntry(page, prices)
 
-      await expectCommandLifecycle(page, commandId, 'running')
-      const entry = await selectProjectedEntity(page, commandId, 'trailing_entry')
-      await expect(entry).toContainText(/running/i, { timeout: commandTimeoutMs })
-      const details = page.getByTestId('projection-details')
-      await expect(details).toContainText('waiting_for_activation', { timeout: commandTimeoutMs })
-      await expectDetailValueOtherThan(page, 'Points', '0')
-      await expectDetailValue(page, 'Market Stale', 'no')
-      await expectExchangeFlat(request)
+        await expectCommandLifecycle(page, commandId, 'running')
+        const entry = await selectProjectedEntity(page, commandId, 'trailing_entry')
+        await expect(entry).toContainText(/running/i, { timeout: commandTimeoutMs })
+        const details = page.getByTestId('projection-details')
+        await expect(details).toContainText('waiting_for_activation', { timeout: commandTimeoutMs })
+        await expectDetailValueOtherThan(page, 'Points', '0')
+        await expectDetailValue(page, 'Market Stale', 'no')
+        await expectExchangeFlat(request)
 
-      const cancelId = await submitSelectedAction(page, 'Cancel Entry')
-      await expectCommandLifecycle(page, cancelId, 'succeeded')
-      await expect(entry).toContainText(/canceled/i, { timeout: commandTimeoutMs })
-      await expectExchangeFlat(request)
-      cleanupRequired = false
-    } finally {
-      if (cleanupRequired) await bestEffortFlatten(page)
-      await expectExchangeFlat(request)
-    }
+        const cancelId = await submitSelectedAction(page, 'Cancel Entry')
+        await expectCommandLifecycle(page, cancelId, 'succeeded')
+        await expect(entry).toContainText(/canceled/i, { timeout: commandTimeoutMs })
+        await expectExchangeFlat(request)
+        risk.markResolved()
+      },
+      cleanup: () => bestEffortFlatten(page),
+      verifyFinalState: () => expectExchangeFlat(request),
+    })
   })
 
   test('enters, protects, and closes a Hyperliquid Testnet Trailing Entry', async ({
@@ -277,6 +280,7 @@ function validateConfiguration(): void {
 }
 
 async function loginAndSelectAccount(page: Page): Promise<void> {
+  page.setDefaultTimeout(30_000)
   await page.setViewportSize({ width: 1600, height: 1000 })
   await page.goto(loginUrl())
   await page.waitForURL(/\/terminal(?:\?|$)/, { timeout: 30_000 })
@@ -296,14 +300,13 @@ async function submitChase(page: Page): Promise<string> {
   await openCommand(page, 'chase', 'Chase Order')
   const dialog = page.getByRole('dialog', { name: 'Chase Order' })
   await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
-  await dialog.getByLabel('Position Side').selectOption('Long')
-  await dialog.getByLabel('Amount Type').selectOption('notional')
-  await dialog.getByLabel('USDC Amount').fill(chaseNotional)
-  await dialog.getByLabel('Adverse Boundary').selectOption('basis_points')
-  await dialog.getByLabel('Maximum Distance (bps)').fill('500')
-  await dialog.getByLabel('Expiry (minutes)').fill('1')
-  await expect(dialog.getByRole('button', { name: 'Start Chase' })).toBeEnabled()
-  await dialog.getByRole('button', { name: 'Start Chase' }).click()
+  await dialog.getByLabel('Position Side').selectOption('long')
+  await dialog.getByLabel('Amount Type').selectOption('quote_notional')
+  await dialog.getByLabel('Quote Amount').fill(chaseNotional)
+  await dialog.getByLabel('Adverse Boundary').selectOption('none')
+  await dialog.getByLabel('Expiry Seconds').fill('60')
+  await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled()
+  await dialog.getByRole('button', { name: 'Submit' }).click()
   await expect(dialog).toBeHidden({ timeout: 10_000 })
   return await waitForNewCommandId(page, prior)
 }
@@ -313,13 +316,16 @@ async function submitTrailingEntry(page: Page, prices: TrailingEntryPrices): Pro
   await openCommand(page, 'te', 'Trailing Entry')
   const dialog = page.getByRole('dialog', { name: 'Trailing Entry' })
   await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
-  await dialog.getByLabel('Position Side').selectOption('Long')
+  await dialog.getByLabel('Position Side').selectOption('long')
   await dialog.getByRole('textbox', { name: 'Risk Amount' }).fill('2.5')
   await dialog.getByRole('textbox', { name: 'Activation Price' }).fill(prices.activation)
-  await dialog.getByRole('textbox', { name: 'Jump Threshold (%)' }).fill('0.1')
+  await dialog.getByRole('textbox', { name: 'Jump Threshold (bps)' }).fill('10')
   await dialog.getByRole('textbox', { name: 'Stop Loss Price' }).fill(prices.stopLoss)
-  await dialog.getByRole('textbox', { name: 'Take Profit Price' }).fill(prices.takeProfit)
-  await dialog.getByLabel('One-way entry sizing').selectOption('delta')
+  await dialog
+    .getByRole('textbox', { name: 'Take Profit Price (optional)' })
+    .fill(prices.takeProfit)
+  await dialog.getByLabel('Execution Shape').selectOption('single')
+  await dialog.getByLabel('Hyperliquid One-Way Behavior').selectOption('delta')
   await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled()
   await dialog.getByRole('button', { name: 'Submit' }).click()
   await expect(dialog).toBeHidden({ timeout: 10_000 })
@@ -500,9 +506,9 @@ async function expectDetailValue(page: Page, label: string, value: string): Prom
     .getByTestId('projection-details')
     .locator('.detail-cell')
     .filter({
-      has: page.locator('.detail-label', { hasText: label }),
+      has: page.locator('dt', { hasText: new RegExp(`^${escapeRegExp(label)}$`, 'i') }),
     })
-  await expect(cell.locator('.detail-value')).toHaveText(value, { timeout: commandTimeoutMs })
+  await expect(cell.locator('dd')).toHaveText(value, { timeout: commandTimeoutMs })
 }
 
 async function expectDetailValueOtherThan(
@@ -514,9 +520,9 @@ async function expectDetailValueOtherThan(
     .getByTestId('projection-details')
     .locator('.detail-cell')
     .filter({
-      has: page.locator('.detail-label', { hasText: label }),
+      has: page.locator('dt', { hasText: new RegExp(`^${escapeRegExp(label)}$`, 'i') }),
     })
-  await expect(cell.locator('.detail-value')).not.toHaveText(excluded, {
+  await expect(cell.locator('dd')).not.toHaveText(excluded, {
     timeout: commandTimeoutMs,
   })
 }
@@ -689,4 +695,8 @@ function clearProtectionRestartMarkers(): void {
 
 function writeMarker(path: string): void {
   writeFileSync(path, `${new Date().toISOString()}\n`, { mode: 0o600 })
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import { runSignedQualification } from './support/signedQualification'
 
 const enabled = process.env.ENGINE_PROCESS_SIGNED_TESTNET_E2E === '1'
 const terminalBaseUrl = process.env.ENGINE_PROCESS_TERMINAL_BASE_URL || 'http://127.0.0.1:15173'
@@ -18,29 +19,30 @@ test.describe.serial('replacement engine through the production terminal', () =>
     validateConfiguration()
     await expectExchangeFlat(request)
 
-    let exposurePossible = false
-    try {
-      await loginAndSelectAccount(page)
+    await runSignedQualification({
+      label: 'signed Market open and flatten',
+      run: async (risk) => {
+        await loginAndSelectAccount(page)
 
-      const openId = await submitMarketOpen(page)
-      exposurePossible = true
-      await expectCommandLifecycle(page, openId, 'succeeded')
-      await expectProjectedFilledOrder(page, openId)
-      await expectExchangePosition(request)
+        risk.markUncertain()
+        const openId = await submitMarketOpen(page)
+        await expectCommandLifecycle(page, openId, 'succeeded')
+        await expectProjectedFilledOrder(page, openId)
+        await expectExchangePosition(request)
 
-      const flattenId = await submitSymbolFlatten(page)
-      await expectCommandLifecycle(page, flattenId, 'succeeded')
-      await expectExchangeFlat(request)
-      exposurePossible = false
+        const flattenId = await submitSymbolFlatten(page)
+        await expectCommandLifecycle(page, flattenId, 'succeeded')
+        await expectExchangeFlat(request)
+        risk.markResolved()
 
-      await page.screenshot({
-        path: 'test-results/engine-process-signed-testnet.png',
-        fullPage: true,
-      })
-    } finally {
-      if (exposurePossible) await bestEffortFlatten(page)
-      await expectExchangeFlat(request)
-    }
+        await page.screenshot({
+          path: 'test-results/engine-process-signed-testnet.png',
+          fullPage: true,
+        })
+      },
+      cleanup: () => bestEffortFlatten(page),
+      verifyFinalState: () => expectExchangeFlat(request),
+    })
   })
 
   test('installs and tears down native protection from a market fill', async ({
@@ -51,29 +53,30 @@ test.describe.serial('replacement engine through the production terminal', () =>
     validateConfiguration()
     await expectExchangeFlat(request)
 
-    let exposurePossible = false
-    try {
-      await loginAndSelectAccount(page)
-      const mid = await hyperliquidMid(request)
+    await runSignedQualification({
+      label: 'signed protected Market lifecycle',
+      run: async (risk) => {
+        await loginAndSelectAccount(page)
+        const mid = await hyperliquidMid(request)
 
-      const openId = await submitMarketOpen(page, {
-        takeProfit: (mid * 1.05).toFixed(0),
-        stopLoss: (mid * 0.95).toFixed(0),
-      })
-      exposurePossible = true
-      await expectCommandLifecycle(page, openId, 'succeeded')
-      await expectProjectedFilledOrder(page, openId)
-      await expectProjectedProtection(page)
-      await expectExchangeProtectedPosition(request)
+        risk.markUncertain()
+        const openId = await submitMarketOpen(page, {
+          takeProfit: (mid * 1.05).toFixed(0),
+          stopLoss: (mid * 0.95).toFixed(0),
+        })
+        await expectCommandLifecycle(page, openId, 'succeeded')
+        await expectProjectedFilledOrder(page, openId)
+        await expectProjectedProtection(page)
+        await expectExchangeProtectedPosition(request)
 
-      const flattenId = await submitSymbolFlatten(page)
-      await expectCommandLifecycle(page, flattenId, 'succeeded')
-      await expectExchangeFlat(request)
-      exposurePossible = false
-    } finally {
-      if (exposurePossible) await bestEffortFlatten(page)
-      await expectExchangeFlat(request)
-    }
+        const flattenId = await submitSymbolFlatten(page)
+        await expectCommandLifecycle(page, flattenId, 'succeeded')
+        await expectExchangeFlat(request)
+        risk.markResolved()
+      },
+      cleanup: () => bestEffortFlatten(page),
+      verifyFinalState: () => expectExchangeFlat(request),
+    })
   })
 
   test('places and cancels a resting Hyperliquid Testnet limit order', async ({
@@ -84,25 +87,26 @@ test.describe.serial('replacement engine through the production terminal', () =>
     validateConfiguration()
     await expectExchangeFlat(request)
 
-    let orderMayBeWorking = false
-    try {
-      await loginAndSelectAccount(page)
-      const mid = await hyperliquidMid(request)
-      const commandId = await submitLimitOpen(page, (mid * 0.5).toFixed(0))
-      orderMayBeWorking = true
-      await expectCommandLifecycle(page, commandId, 'running')
-      const order = await selectProjectedOrder(page, commandId)
-      await expect(order).toContainText(/working/i, { timeout: commandTimeoutMs })
-      await expectExchangeRestingOrder(request)
+    await runSignedQualification({
+      label: 'signed resting Limit cancellation',
+      run: async (risk) => {
+        await loginAndSelectAccount(page)
+        const mid = await hyperliquidMid(request)
+        risk.markUncertain()
+        const commandId = await submitLimitOpen(page, (mid * 0.5).toFixed(0))
+        await expectCommandLifecycle(page, commandId, 'running')
+        const order = await selectProjectedOrder(page, commandId)
+        await expect(order).toContainText(/working/i, { timeout: commandTimeoutMs })
+        await expectExchangeRestingOrder(request)
 
-      await cancelSelectedOrder(page)
-      await expect(order).toContainText(/canceled/i, { timeout: commandTimeoutMs })
-      await expectExchangeFlat(request)
-      orderMayBeWorking = false
-    } finally {
-      if (orderMayBeWorking) await bestEffortCancelSelectedOrder(page)
-      await expectExchangeFlat(request)
-    }
+        await cancelSelectedOrder(page)
+        await expect(order).toContainText(/canceled/i, { timeout: commandTimeoutMs })
+        await expectExchangeFlat(request)
+        risk.markResolved()
+      },
+      cleanup: () => bestEffortCancelSelectedOrder(page),
+      verifyFinalState: () => expectExchangeFlat(request),
+    })
   })
 })
 
@@ -117,6 +121,7 @@ function validateConfiguration(): void {
 }
 
 async function loginAndSelectAccount(page: Page): Promise<void> {
+  page.setDefaultTimeout(30_000)
   await page.setViewportSize({ width: 1600, height: 1000 })
   const login = new URL('/auth/test-login', terminalBaseUrl)
   login.searchParams.set('email', testEmail)
@@ -142,16 +147,15 @@ async function submitMarketOpen(
   await openCommand(page, 'mo', 'Market Order')
   const dialog = page.getByRole('dialog', { name: 'Market Order' })
   await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
-  await dialog.getByLabel('Position Side').selectOption('Long')
-  await dialog.getByLabel('Amount Type').selectOption('notional')
-  await dialog.getByLabel('USDC Amount').fill(notional)
+  await dialog.getByLabel('Position Side').selectOption('long')
+  await dialog.getByLabel('Amount Type').selectOption('quote_notional')
+  await dialog.getByLabel('Quote Amount').fill(notional)
+  await dialog.getByLabel('Execution Shape').selectOption('single')
   if (protection !== undefined) {
-    await dialog
-      .getByRole('textbox', { name: 'Take Profit Price (optional)' })
-      .fill(protection.takeProfit)
-    await dialog
-      .getByRole('textbox', { name: 'Stop Loss Price (optional)' })
-      .fill(protection.stopLoss)
+    await dialog.getByRole('button', { name: /Take Profit/i }).click()
+    await dialog.getByRole('textbox', { name: 'TP 1 Trigger' }).fill(protection.takeProfit)
+    await dialog.getByRole('checkbox', { name: 'Stop loss' }).check()
+    await dialog.getByRole('textbox', { name: 'SL Trigger' }).fill(protection.stopLoss)
   }
   await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled()
   await dialog.getByRole('button', { name: 'Submit' }).click()
@@ -176,11 +180,12 @@ async function submitLimitOpen(page: Page, limitPrice: string): Promise<string> 
   await openCommand(page, 'lo', 'Limit Order')
   const dialog = page.getByRole('dialog', { name: 'Limit Order' })
   await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
-  await dialog.getByLabel('Position Side').selectOption('Long')
-  await dialog.getByLabel('Amount Type').selectOption('notional')
-  await dialog.getByLabel('USDC Amount').fill(notional)
+  await dialog.getByLabel('Position Side').selectOption('long')
+  await dialog.getByLabel('Amount Type').selectOption('quote_notional')
+  await dialog.getByLabel('Quote Amount').fill(notional)
   await dialog.getByLabel('Limit Price').fill(limitPrice)
-  await dialog.getByLabel('Time in Force').selectOption('alo')
+  await dialog.getByLabel('Time In Force').selectOption('post_only')
+  await dialog.getByLabel('Execution Shape').selectOption('single')
   await dialog.getByRole('button', { name: 'Submit' }).click()
   await expect(dialog).toBeHidden({ timeout: 10_000 })
   return await waitForNewCommandId(page, prior)

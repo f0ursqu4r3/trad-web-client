@@ -1,6 +1,7 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test'
 import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import { bybitInstrument, bybitSymbolState, type BybitInstrument } from './support/bybitTestnet'
+import { runSignedQualification } from './support/signedQualification'
 
 const enabled = process.env.ENGINE_PROCESS_BYBIT_SIGNED_TESTNET_E2E === '1'
 const terminalBaseUrl = process.env.ENGINE_PROCESS_TERMINAL_BASE_URL || 'http://127.0.0.1:15173'
@@ -29,27 +30,28 @@ test.describe.serial('Bybit replacement engine through the production terminal',
     validateConfiguration()
     await expectExchangeFlat(request)
 
-    let exposurePossible = false
-    try {
-      await loginAndSelectAccount(page)
-      const instrument = await bybitInstrument(request, symbol)
-      const prices = protectionPrices(instrument)
-      const openId = await submitMarketOpen(page, safeNotional(instrument), prices)
-      exposurePossible = true
+    await runSignedQualification({
+      label: 'Bybit protected Market lifecycle',
+      run: async (risk) => {
+        await loginAndSelectAccount(page)
+        const instrument = await bybitInstrument(request, symbol)
+        const prices = protectionPrices(instrument)
+        risk.markUncertain()
+        const openId = await submitMarketOpen(page, safeNotional(instrument), prices)
 
-      await expectCommandLifecycle(page, openId, 'succeeded')
-      await expectProjectedFilledOrder(page, openId)
-      await expectProjectedProtection(page)
-      await expectExchangeProtectedLong(request)
+        await expectCommandLifecycle(page, openId, 'succeeded')
+        await expectProjectedFilledOrder(page, openId)
+        await expectProjectedProtection(page)
+        await expectExchangeProtectedLong(request)
 
-      const flattenId = await submitSymbolFlatten(page)
-      await expectCommandLifecycle(page, flattenId, 'succeeded')
-      await expectExchangeFlat(request)
-      exposurePossible = false
-    } finally {
-      if (exposurePossible) await bestEffortFlatten(page)
-      await expectExchangeFlat(request)
-    }
+        const flattenId = await submitSymbolFlatten(page)
+        await expectCommandLifecycle(page, flattenId, 'succeeded')
+        await expectExchangeFlat(request)
+        risk.markResolved()
+      },
+      cleanup: () => bestEffortFlatten(page),
+      verifyFinalState: () => expectExchangeFlat(request),
+    })
   })
 
   test('places and cancels a resting Limit entry', async ({ page, request }) => {
@@ -57,28 +59,32 @@ test.describe.serial('Bybit replacement engine through the production terminal',
     validateConfiguration()
     await expectExchangeFlat(request)
 
-    let cleanupRequired = false
-    try {
-      await loginAndSelectAccount(page)
-      const instrument = await bybitInstrument(request, symbol)
-      const limitPrice = alignPrice(instrument.lastPrice * 0.7, instrument.tickSize)
-      const quantity = alignQuantity(safeNotional(instrument) / limitPrice, instrument.quantityStep)
-      const commandId = await submitLimitOpen(page, limitPrice, quantity)
-      cleanupRequired = true
+    await runSignedQualification({
+      label: 'Bybit resting Limit cancellation',
+      run: async (risk) => {
+        await loginAndSelectAccount(page)
+        const instrument = await bybitInstrument(request, symbol)
+        const limitPrice = alignPrice(instrument.lastPrice * 0.7, instrument.tickSize)
+        const quantity = alignQuantity(
+          safeNotional(instrument) / limitPrice,
+          instrument.quantityStep,
+        )
+        risk.markUncertain()
+        const commandId = await submitLimitOpen(page, limitPrice, quantity)
 
-      await expectCommandLifecycle(page, commandId, 'running')
-      const order = await selectProjectedEntity(page, commandId, 'order')
-      await expect(order).toContainText(/working/i, { timeout: commandTimeoutMs })
-      await expectExchangeOrderCount(request, 1)
+        await expectCommandLifecycle(page, commandId, 'running')
+        const order = await selectProjectedEntity(page, commandId, 'order')
+        await expect(order).toContainText(/working/i, { timeout: commandTimeoutMs })
+        await expectExchangeOrderCount(request, 1)
 
-      await cancelSelectedOrder(page)
-      await expect(order).toContainText(/canceled/i, { timeout: commandTimeoutMs })
-      await expectExchangeFlat(request)
-      cleanupRequired = false
-    } finally {
-      if (cleanupRequired) await bestEffortFlatten(page)
-      await expectExchangeFlat(request)
-    }
+        await cancelSelectedOrder(page)
+        await expect(order).toContainText(/canceled/i, { timeout: commandTimeoutMs })
+        await expectExchangeFlat(request)
+        risk.markResolved()
+      },
+      cleanup: () => bestEffortFlatten(page),
+      verifyFinalState: () => expectExchangeFlat(request),
+    })
   })
 
   test('cancels a waiting Trailing Entry without creating exposure', async ({ page, request }) => {
@@ -86,30 +92,34 @@ test.describe.serial('Bybit replacement engine through the production terminal',
     validateConfiguration()
     await expectExchangeFlat(request)
 
-    let cleanupRequired = false
-    try {
-      await loginAndSelectAccount(page)
-      const instrument = await bybitInstrument(request, symbol)
-      const commandId = await submitTrailingEntry(page, instrument)
-      cleanupRequired = true
+    await runSignedQualification({
+      label: 'Bybit waiting Trailing Entry cancellation',
+      run: async (risk) => {
+        await loginAndSelectAccount(page)
+        const instrument = await bybitInstrument(request, symbol)
+        risk.markUncertain()
+        const commandId = await submitTrailingEntry(page, instrument)
 
-      await expectCommandLifecycle(page, commandId, 'running')
-      const entry = await selectProjectedEntity(page, commandId, 'trailing_entry')
-      await expect(entry).toContainText(/running/i, { timeout: commandTimeoutMs })
-      await expect(page.getByTestId('projection-details')).toContainText('waiting_for_activation', {
-        timeout: commandTimeoutMs,
-      })
-      await expectExchangeFlat(request)
+        await expectCommandLifecycle(page, commandId, 'running')
+        const entry = await selectProjectedEntity(page, commandId, 'trailing_entry')
+        await expect(entry).toContainText(/running/i, { timeout: commandTimeoutMs })
+        await expect(page.getByTestId('projection-details')).toContainText(
+          'waiting_for_activation',
+          {
+            timeout: commandTimeoutMs,
+          },
+        )
+        await expectExchangeFlat(request)
 
-      const cancelId = await submitSelectedAction(page, 'Cancel Entry')
-      await expectCommandLifecycle(page, cancelId, 'succeeded')
-      await expect(entry).toContainText(/canceled/i, { timeout: commandTimeoutMs })
-      await expectExchangeFlat(request)
-      cleanupRequired = false
-    } finally {
-      if (cleanupRequired) await bestEffortFlatten(page)
-      await expectExchangeFlat(request)
-    }
+        const cancelId = await submitSelectedAction(page, 'Cancel Entry')
+        await expectCommandLifecycle(page, cancelId, 'succeeded')
+        await expect(entry).toContainText(/canceled/i, { timeout: commandTimeoutMs })
+        await expectExchangeFlat(request)
+        risk.markResolved()
+      },
+      cleanup: () => bestEffortFlatten(page),
+      verifyFinalState: () => expectExchangeFlat(request),
+    })
   })
 
   test('enters, protects, and closes a Trailing Entry', async ({ page, request }) => {
@@ -118,31 +128,32 @@ test.describe.serial('Bybit replacement engine through the production terminal',
     await expectExchangeFlat(request)
 
     let commandId: string | null = null
-    let exposurePossible = false
-    try {
-      await loginAndSelectAccount(page)
-      const instrument = await bybitInstrument(request, symbol)
-      commandId = await submitTrailingEntry(page, instrument)
-      await selectProjectedEntity(page, commandId, 'trailing_entry')
+    await runSignedQualification({
+      label: 'Bybit Trailing Entry lifecycle',
+      run: async (risk) => {
+        await loginAndSelectAccount(page)
+        const instrument = await bybitInstrument(request, symbol)
+        commandId = await submitTrailingEntry(page, instrument)
+        await selectProjectedEntity(page, commandId, 'trailing_entry')
 
-      exposurePossible = true
-      const enterId = await submitSelectedAction(page, 'Enter Now')
-      await expectCommandLifecycle(page, enterId, 'succeeded')
-      await expectExchangeProtectedLong(request)
-      await expectProjectedFilledOrder(page, commandId)
-      await expectProjectedProtection(page)
+        risk.markUncertain()
+        const enterId = await submitSelectedAction(page, 'Enter Now')
+        await expectCommandLifecycle(page, enterId, 'succeeded')
+        await expectExchangeProtectedLong(request)
+        await expectProjectedFilledOrder(page, commandId)
+        await expectProjectedProtection(page)
 
-      await selectProjectedEntity(page, commandId, 'trailing_entry')
-      const closeId = await submitSelectedAction(page, 'Close Position')
-      await expectCommandLifecycle(page, closeId, 'succeeded')
-      const completed = await selectProjectedEntity(page, commandId, 'trailing_entry')
-      await expect(completed).toContainText(/completed/i, { timeout: commandTimeoutMs })
-      await expectExchangeFlat(request)
-      exposurePossible = false
-    } finally {
-      if (exposurePossible) await bestEffortCloseTrailingEntry(page, commandId)
-      await expectExchangeFlat(request)
-    }
+        await selectProjectedEntity(page, commandId, 'trailing_entry')
+        const closeId = await submitSelectedAction(page, 'Close Position')
+        await expectCommandLifecycle(page, closeId, 'succeeded')
+        const completed = await selectProjectedEntity(page, commandId, 'trailing_entry')
+        await expect(completed).toContainText(/completed/i, { timeout: commandTimeoutMs })
+        await expectExchangeFlat(request)
+        risk.markResolved()
+      },
+      cleanup: () => bestEffortCloseTrailingEntry(page, commandId),
+      verifyFinalState: () => expectExchangeFlat(request),
+    })
   })
 
   test('restores active native protection across abrupt node restart', async ({
@@ -210,7 +221,7 @@ function validateConfiguration(): void {
 }
 
 async function loginAndSelectAccount(page: Page): Promise<void> {
-  page.setDefaultTimeout(commandTimeoutMs)
+  page.setDefaultTimeout(30_000)
   await page.setViewportSize({ width: 1600, height: 1000 })
   const login = new URL('/auth/test-login', terminalBaseUrl)
   login.searchParams.set('email', testEmail)
@@ -245,15 +256,14 @@ async function submitMarketOpen(
   await openCommand(page, 'mo', 'Market Order')
   const dialog = page.getByRole('dialog', { name: 'Market Order' })
   await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
-  await dialog.getByLabel('Position Side').selectOption('Long')
-  await dialog.getByLabel('Amount Type').selectOption('notional')
-  await dialog.getByLabel('USDT Amount').fill(decimalString(notional))
-  await dialog
-    .getByRole('textbox', { name: 'Take Profit Price (optional)' })
-    .fill(protection.takeProfit)
-  await dialog
-    .getByRole('textbox', { name: 'Stop Loss Price (optional)' })
-    .fill(protection.stopLoss)
+  await dialog.getByLabel('Position Side').selectOption('long')
+  await dialog.getByLabel('Amount Type').selectOption('quote_notional')
+  await dialog.getByLabel('Quote Amount').fill(decimalString(notional))
+  await dialog.getByLabel('Execution Shape').selectOption('single')
+  await dialog.getByRole('button', { name: /Take Profit/i }).click()
+  await dialog.getByRole('textbox', { name: 'TP 1 Trigger' }).fill(protection.takeProfit)
+  await dialog.getByRole('checkbox', { name: 'Stop loss' }).check()
+  await dialog.getByRole('textbox', { name: 'SL Trigger' }).fill(protection.stopLoss)
   await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled()
   await dialog.getByRole('button', { name: 'Submit' }).click()
   await expect(dialog).toBeHidden({ timeout: 10_000 })
@@ -265,9 +275,12 @@ async function submitLimitOpen(page: Page, price: number, quantity: number): Pro
   await openCommand(page, 'lo', 'Limit Order')
   const dialog = page.getByRole('dialog', { name: 'Limit Order' })
   await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
-  await dialog.getByLabel('Position Side').selectOption('Long')
+  await dialog.getByLabel('Position Side').selectOption('long')
+  await dialog.getByLabel('Amount Type').selectOption('base')
   await dialog.getByLabel('Base Quantity').fill(decimalString(quantity))
   await dialog.getByLabel('Limit Price').fill(decimalString(price))
+  await dialog.getByLabel('Time In Force').selectOption('post_only')
+  await dialog.getByLabel('Execution Shape').selectOption('single')
   await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled()
   await dialog.getByRole('button', { name: 'Submit' }).click()
   await expect(dialog).toBeHidden({ timeout: 10_000 })
@@ -289,12 +302,15 @@ async function submitTrailingEntry(page: Page, instrument: BybitInstrument): Pro
   await openCommand(page, 'te', 'Trailing Entry')
   const dialog = page.getByRole('dialog', { name: 'Trailing Entry' })
   await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
-  await dialog.getByLabel('Position Side').selectOption('Long')
+  await dialog.getByLabel('Position Side').selectOption('long')
   await dialog.getByRole('textbox', { name: 'Activation Price' }).fill(decimalString(activation))
-  await dialog.getByRole('textbox', { name: 'Jump Threshold (%)' }).fill('0.1')
+  await dialog.getByRole('textbox', { name: 'Jump Threshold (bps)' }).fill('10')
   await dialog.getByRole('textbox', { name: 'Stop Loss Price' }).fill(decimalString(stopLoss))
-  await dialog.getByRole('textbox', { name: 'Take Profit Price' }).fill(decimalString(takeProfit))
+  await dialog
+    .getByRole('textbox', { name: 'Take Profit Price (optional)' })
+    .fill(decimalString(takeProfit))
   await dialog.getByRole('textbox', { name: 'Risk Amount' }).fill(riskAmount.toFixed(4))
+  await dialog.getByLabel('Execution Shape').selectOption('single')
   await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled({
     timeout: commandTimeoutMs,
   })
