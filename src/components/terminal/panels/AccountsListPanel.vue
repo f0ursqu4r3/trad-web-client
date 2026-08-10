@@ -11,6 +11,7 @@ import {
 import { useGatewayStore } from '@/stores/gateway'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
+import ActionConfirmationModal from '@/components/terminal/modals/ActionConfirmationModal.vue'
 import { X } from 'lucide-vue-next'
 import {
   isValidBybitUsdtSymbol,
@@ -64,6 +65,8 @@ const approvingAgentAccountIds = ref<Set<string>>(new Set())
 const refreshingAgentAccountIds = ref<Set<string>>(new Set())
 const controlError = ref<string | null>(null)
 const controlMessage = ref<string | null>(null)
+const deletionTarget = ref<AccountRecord | null>(null)
+const deletingAccountIds = ref<Set<string>>(new Set())
 type ApprovalFeedback = { kind: 'info' | 'success' | 'error'; message: string }
 const agentApprovalFeedback = reactive<Record<string, ApprovalFeedback | undefined>>({})
 const builderApprovalFeedback = reactive<Record<string, ApprovalFeedback | undefined>>({})
@@ -115,13 +118,30 @@ function openCreateModal() {
   isCreateModalOpen.value = true
 }
 
-async function deleteAccount(account: AccountRecord) {
-  if (!window.confirm(`Delete account "${account.label}"? This cannot be undone.`)) return
+function requestAccountDeletion(account: AccountRecord) {
+  controlError.value = null
+  controlMessage.value = null
+  deletionTarget.value = account
+}
+
+async function confirmAccountDeletion() {
+  const account = deletionTarget.value
+  if (!account) return
+  deletionTarget.value = null
+  deletingAccountIds.value = new Set(deletingAccountIds.value).add(account.id)
   try {
-    await accounts.removeAccount(account.label)
+    const result = await accounts.removeAccount(account.label)
+    controlMessage.value =
+      result.owner_release === 'completed'
+        ? `Deleted ${account.label}.`
+        : `Deleted ${account.label}; owner cleanup is completing in the background.`
   } catch (err) {
     logger.error('delete failed', err)
     controlError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    const next = new Set(deletingAccountIds.value)
+    next.delete(account.id)
+    deletingAccountIds.value = next
   }
 }
 
@@ -1124,11 +1144,11 @@ watch(
               {{ accountReady(account) ? 'Manage' : 'Setup' }}
             </button>
             <button
-              v-if="account.exchange !== ExchangeType.Hyperliquid"
               class="btn icon-btn btn-sm"
               type="button"
-              title="Delete"
-              @click="deleteAccount(account)"
+              title="Delete flat account"
+              :disabled="deletingAccountIds.has(account.id)"
+              @click="requestAccountDeletion(account)"
             >
               <X :size="12" />
             </button>
@@ -1137,5 +1157,17 @@ watch(
       </ul>
     </div>
     <CreateAccountModal :open="isCreateModalOpen" @close="isCreateModalOpen = false" />
+    <ActionConfirmationModal
+      :open="deletionTarget !== null"
+      title="Delete trading account"
+      :message="
+        deletionTarget
+          ? `Delete ${deletionTarget.label}? Trad will first reconcile the exchange and will refuse deletion if any position, order, protection, unresolved execution, or pending exchange action remains. Encrypted credentials are erased only after those checks pass.`
+          : ''
+      "
+      confirm-label="Check and delete"
+      @cancel="deletionTarget = null"
+      @confirm="confirmAccountDeletion"
+    />
   </section>
 </template>
