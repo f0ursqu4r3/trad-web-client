@@ -83,6 +83,30 @@ test('opens chase and trailing-entry forms from their aliases', async ({ page })
   await expect(page.getByRole('dialog', { name: 'Trailing Entry' })).toBeVisible()
 })
 
+test('remembers quantity mode across Market, Chase, Limit, and reload', async ({ page }) => {
+  await page.getByRole('button', { name: /Commands/ }).click()
+  await page.getByRole('button', { name: /Market Order/ }).click()
+  const market = page.getByRole('dialog', { name: 'Market Order' })
+  await market.getByLabel('Amount Type').selectOption('base')
+  await market.getByRole('button', { name: 'Cancel' }).click()
+
+  await page.getByRole('button', { name: /Commands/ }).click()
+  await page.getByPlaceholder('Search commands').fill('chase')
+  await page.keyboard.press('Enter')
+  const chase = page.getByRole('dialog', { name: 'Chase Order' })
+  await expect(chase.getByLabel('Amount Type')).toHaveValue('base')
+  await chase.getByLabel('Amount Type').selectOption('risk_at_stop')
+  await chase.getByRole('button', { name: 'Cancel' }).click()
+
+  await page.reload()
+  await page.getByRole('button', { name: /Commands/ }).click()
+  await page.getByPlaceholder('Search commands').fill('lo')
+  await page.keyboard.press('Enter')
+  await expect(
+    page.getByRole('dialog', { name: 'Limit Order' }).getByLabel('Amount Type'),
+  ).toHaveValue('risk_at_stop')
+})
+
 test('cancel entry work is distinct from flatten and submits an account target', async ({
   page,
 }) => {

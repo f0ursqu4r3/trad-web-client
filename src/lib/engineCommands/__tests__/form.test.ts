@@ -9,6 +9,8 @@ import {
   protectionAmendmentIntent,
   protectionIntent,
   shapeIntent,
+  sizingModeFromPreference,
+  sizingModePreference,
   sizingIntent,
 } from '../form.ts'
 import { protectionForm } from '../protectionAmendment.ts'
@@ -19,6 +21,14 @@ import {
   buildPlaceOrderIntent,
   buildPlaceTrailingEntryIntent,
 } from '../intents.ts'
+test('persisted quantity preferences map explicitly to typed sizing modes', () => {
+  assert.equal(sizingModeFromPreference('notional'), 'quote_notional')
+  assert.equal(sizingModeFromPreference('base'), 'base')
+  assert.equal(sizingModeFromPreference('risk'), 'risk_at_stop')
+  assert.equal(sizingModePreference('quote_notional'), 'notional')
+  assert.equal(sizingModePreference('base'), 'base')
+  assert.equal(sizingModePreference('risk_at_stop'), 'risk')
+})
 
 test('financial input remains an exact decimal string', () => {
   assert.equal(exactDecimal(' 0.0042000100 ', 'quantity'), '0.0042000100')

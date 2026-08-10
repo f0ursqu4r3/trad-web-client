@@ -11,8 +11,31 @@ import type {
 } from '@/lib/gateway'
 
 export type SizingMode = 'quote_notional' | 'base' | 'risk_at_stop'
+export type PersistedSizingMode = 'notional' | 'base' | 'risk'
 export type ShapeMode = 'single' | 'split'
 export type AllocationMode = 'full_remaining' | 'fraction' | 'exact_base'
+
+export function sizingModeFromPreference(mode: PersistedSizingMode): SizingMode {
+  switch (mode) {
+    case 'notional':
+      return 'quote_notional'
+    case 'base':
+      return 'base'
+    case 'risk':
+      return 'risk_at_stop'
+  }
+}
+
+export function sizingModePreference(mode: SizingMode): PersistedSizingMode {
+  switch (mode) {
+    case 'quote_notional':
+      return 'notional'
+    case 'base':
+      return 'base'
+    case 'risk_at_stop':
+      return 'risk'
+  }
+}
 
 export interface EngineCommandSubmission {
   accountId: Uuid

@@ -6,6 +6,8 @@ import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmis
 import type { PositionSideIntent, TimeInForceIntent } from '@/lib/gateway'
 import {
   newProtectionState,
+  sizingModeFromPreference,
+  sizingModePreference,
   type ProtectionFormState,
   type ShapeMode,
   type SizingMode,
@@ -15,6 +17,7 @@ import type { OrderCommandPrefill } from '@/lib/engineCommands/prefill'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 import { useModalStore } from '@/stores/modals'
+import { useUiStore } from '@/stores/ui'
 import ProtectionFields from './ProtectionFields.vue'
 import ExecutionPreviewPanel from './ExecutionPreviewPanel.vue'
 import ShapeFields from './ShapeFields.vue'
@@ -26,6 +29,7 @@ const emit = defineEmits<{ (event: 'close'): void }>()
 const accounts = useAccountsStore()
 const gateway = useGatewayStore()
 const modals = useModalStore()
+const ui = useUiStore()
 const submission = useEngineCommandSubmission()
 const selectedAccountId = ref('')
 const symbol = ref('')
@@ -67,7 +71,7 @@ function reset(): void {
     prefill?.accountId ?? accounts.selectedAccountId ?? accounts.accounts[0]?.id ?? ''
   symbol.value = prefill?.symbol ?? accounts.getDefaultSymbolForAccount(selectedAccountId.value)
   positionSide.value = prefill?.positionSide ?? 'long'
-  sizingMode.value = prefill?.sizingMode ?? 'quote_notional'
+  sizingMode.value = prefill?.sizingMode ?? sizingModeFromPreference(ui.orderQuantityMode)
   amount.value = prefill?.amount ?? '50'
   limitPrice.value = prefill?.limitPrice ?? ''
   timeInForce.value = prefill?.timeInForce ?? 'good_til_canceled'
@@ -81,6 +85,10 @@ function reset(): void {
 
 function applyAccountDefaultSymbol(): void {
   symbol.value = accounts.getDefaultSymbolForAccount(selectedAccountId.value)
+}
+
+function rememberSizingMode(mode: SizingMode): void {
+  ui.setOrderQuantityMode(sizingModePreference(mode))
 }
 
 async function submit(): Promise<void> {
@@ -133,7 +141,11 @@ function buildIntent() {
             <option value="short">Short</option>
           </select>
         </label>
-        <SizingFields v-model:mode="sizingMode" v-model:amount="amount" />
+        <SizingFields
+          v-model:mode="sizingMode"
+          v-model:amount="amount"
+          @update:mode="rememberSizingMode"
+        />
         <label v-if="executionKind === 'limit'" class="field">
           <span>Limit Price</span>
           <input v-model="limitPrice" class="input" type="text" inputmode="decimal" />
