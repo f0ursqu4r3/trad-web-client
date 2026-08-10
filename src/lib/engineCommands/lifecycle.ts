@@ -97,6 +97,14 @@ export function lifecycleIntent(
     targetPrice?: string
     targetQuantity?: string
     trailingEntry?: TrailingEntryAmendmentDraft
+    closeExecutionMode?: 'market' | 'limit' | 'chase'
+    closeLimitPrice?: string
+    closeLimitTimeInForce?: 'good_til_canceled' | 'post_only'
+    closeChaseBoundaryMode?: 'basis_points' | 'price'
+    closeChaseBoundaryValue?: string
+    closeChaseBoundaryEnabled?: boolean
+    closeChaseUntilCanceled?: boolean
+    closeChaseExpiryMinutes?: string
   } = {},
 ): BrowserCommandIntent {
   switch (action.kind) {
@@ -174,9 +182,64 @@ export function lifecycleIntent(
                   quantity: exactDecimal(fields.closeQuantity ?? '', 'close quantity'),
                 }
               : { kind: 'full' },
+          execution: closeExecutionIntent(fields),
         },
       }
   }
+}
+
+function closeExecutionIntent(fields: {
+  closeExecutionMode?: 'market' | 'limit' | 'chase'
+  closeLimitPrice?: string
+  closeLimitTimeInForce?: 'good_til_canceled' | 'post_only'
+  closeChaseBoundaryMode?: 'basis_points' | 'price'
+  closeChaseBoundaryValue?: string
+  closeChaseBoundaryEnabled?: boolean
+  closeChaseUntilCanceled?: boolean
+  closeChaseExpiryMinutes?: string
+}): Extract<
+  BrowserCommandIntent,
+  { kind: 'close_exposure' }
+>['parameters']['execution'] {
+  switch (fields.closeExecutionMode ?? 'market') {
+    case 'market':
+      return { kind: 'market' }
+    case 'limit':
+      return {
+        kind: 'limit',
+        price: exactDecimal(fields.closeLimitPrice ?? '', 'close limit price'),
+        time_in_force: fields.closeLimitTimeInForce ?? 'post_only',
+      }
+    case 'chase': {
+      const adverseBoundary =
+        fields.closeChaseBoundaryEnabled === false
+          ? undefined
+          : {
+              kind: fields.closeChaseBoundaryMode ?? 'basis_points',
+              value: exactDecimal(
+                fields.closeChaseBoundaryValue ?? '',
+                'close Chase adverse boundary',
+              ),
+            }
+      const expiresAfterMs = fields.closeChaseUntilCanceled
+        ? undefined
+        : durationMillis(fields.closeChaseExpiryMinutes ?? '', 'close Chase expiry')
+      return {
+        kind: 'chase',
+        ...(adverseBoundary === undefined ? {} : { adverse_boundary: adverseBoundary }),
+        ...(expiresAfterMs === undefined ? {} : { expires_after_ms: expiresAfterMs }),
+      }
+    }
+  }
+}
+
+function durationMillis(minutes: string, label: string): number {
+  const value = Number(exactDecimal(minutes, label))
+  const milliseconds = value * 60_000
+  if (!Number.isSafeInteger(milliseconds) || milliseconds <= 0) {
+    throw new Error(`${label} must resolve to a positive whole millisecond duration`)
+  }
+  return milliseconds
 }
 
 function addTrailingEntryActions(

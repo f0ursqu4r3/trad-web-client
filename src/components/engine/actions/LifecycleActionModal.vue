@@ -20,6 +20,14 @@ const gateway = useGatewayStore()
 const submission = useEngineCommandSubmission()
 const closeMode = ref<'full' | 'base'>('full')
 const closeQuantity = ref('')
+const closeExecutionMode = ref<'market' | 'limit' | 'chase'>('market')
+const closeLimitPrice = ref('')
+const closeLimitTimeInForce = ref<'good_til_canceled' | 'post_only'>('post_only')
+const closeChaseBoundaryEnabled = ref(true)
+const closeChaseBoundaryMode = ref<'basis_points' | 'price'>('basis_points')
+const closeChaseBoundaryValue = ref('20')
+const closeChaseUntilCanceled = ref(false)
+const closeChaseExpiryMinutes = ref('5')
 const targetPrice = ref('')
 const targetQuantity = ref('')
 const amendment = ref<TrailingEntryAmendmentDraft>(emptyAmendment())
@@ -49,6 +57,14 @@ watch(
 function reset(): void {
   closeMode.value = 'full'
   closeQuantity.value = ''
+  closeExecutionMode.value = 'market'
+  closeLimitPrice.value = ''
+  closeLimitTimeInForce.value = 'post_only'
+  closeChaseBoundaryEnabled.value = true
+  closeChaseBoundaryMode.value = 'basis_points'
+  closeChaseBoundaryValue.value = '20'
+  closeChaseUntilCanceled.value = false
+  closeChaseExpiryMinutes.value = '5'
   targetPrice.value = orderValue('price')
   targetQuantity.value =
     props.action?.target.kind === 'order' ? props.action.target.row.target_quantity : ''
@@ -65,6 +81,14 @@ async function submit(): Promise<void> {
     const intent = lifecycleIntent(props.action, {
       closeMode: closeMode.value,
       closeQuantity: closeQuantity.value,
+      closeExecutionMode: closeExecutionMode.value,
+      closeLimitPrice: closeLimitPrice.value,
+      closeLimitTimeInForce: closeLimitTimeInForce.value,
+      closeChaseBoundaryEnabled: closeChaseBoundaryEnabled.value,
+      closeChaseBoundaryMode: closeChaseBoundaryMode.value,
+      closeChaseBoundaryValue: closeChaseBoundaryValue.value,
+      closeChaseUntilCanceled: closeChaseUntilCanceled.value,
+      closeChaseExpiryMinutes: closeChaseExpiryMinutes.value,
       targetPrice: targetPrice.value,
       targetQuantity: targetQuantity.value,
       trailingEntry: amendment.value,
@@ -125,6 +149,66 @@ function primitiveString(value: unknown): string {
           <span>Base Quantity</span>
           <input v-model="closeQuantity" class="input" type="text" inputmode="decimal" />
         </label>
+        <label class="field">
+          <span>Execution</span>
+          <select v-model="closeExecutionMode" class="input">
+            <option value="market">Market</option>
+            <option value="limit">Limit</option>
+            <option value="chase">Chase</option>
+          </select>
+        </label>
+        <template v-if="closeExecutionMode === 'limit'">
+          <label class="field">
+            <span>Limit Price</span>
+            <input v-model="closeLimitPrice" class="input" type="text" inputmode="decimal" />
+          </label>
+          <label class="field">
+            <span>Time in Force</span>
+            <select v-model="closeLimitTimeInForce" class="input">
+              <option value="post_only">Post Only</option>
+              <option value="good_til_canceled">Good Til Canceled</option>
+            </select>
+          </label>
+        </template>
+        <template v-if="closeExecutionMode === 'chase'">
+          <label class="check-field">
+            <input v-model="closeChaseBoundaryEnabled" type="checkbox" />
+            <span>Use adverse boundary</span>
+          </label>
+          <label v-if="closeChaseBoundaryEnabled" class="field">
+            <span>Boundary Type</span>
+            <select v-model="closeChaseBoundaryMode" class="input">
+              <option value="basis_points">Distance (bps)</option>
+              <option value="price">Fixed Price</option>
+            </select>
+          </label>
+          <label v-if="closeChaseBoundaryEnabled" class="field">
+            <span>{{ closeChaseBoundaryMode === 'basis_points' ? 'Maximum Distance' : 'Boundary Price' }}</span>
+            <input
+              v-model="closeChaseBoundaryValue"
+              class="input"
+              type="text"
+              inputmode="decimal"
+            />
+          </label>
+          <label class="check-field">
+            <input v-model="closeChaseUntilCanceled" type="checkbox" />
+            <span>Run until canceled</span>
+          </label>
+          <label v-if="!closeChaseUntilCanceled" class="field">
+            <span>Expiry (minutes)</span>
+            <input
+              v-model="closeChaseExpiryMinutes"
+              class="input"
+              type="text"
+              inputmode="decimal"
+            />
+          </label>
+          <p class="help-text">
+            Chase is reduce-only and post-only. Boundary, expiry, or cancellation leaves any
+            unfilled owned exposure open; it never silently falls back to Market.
+          </p>
+        </template>
       </template>
 
       <template v-if="action?.kind === 'modify_order'">
@@ -230,6 +314,7 @@ function primitiveString(value: unknown): string {
   gap: 10px;
 }
 .help-text,
+.check-field,
 .confirm-row,
 .submission-error {
   grid-column: 1 / -1;
@@ -239,6 +324,11 @@ function primitiveString(value: unknown): string {
   color: var(--color-text-dim);
 }
 .confirm-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.check-field {
   display: flex;
   align-items: center;
   gap: 7px;

@@ -129,6 +129,15 @@ export interface ModifyOrderIntent {
 
 export type CloseQuantityIntent = { kind: 'full' } | { kind: 'base'; quantity: ExactDecimal }
 
+export type CloseExecutionIntent =
+  | { kind: 'market' }
+  | { kind: 'limit'; price: ExactDecimal; time_in_force: TimeInForceIntent }
+  | {
+      kind: 'chase'
+      adverse_boundary?: ChaseBoundaryIntent
+      expires_after_ms?: number
+    }
+
 export type FlattenTargetIntent = { kind: 'symbol'; symbol: string } | { kind: 'account' }
 export type CancelEntryWorkTargetIntent = FlattenTargetIntent
 export type MarginModeIntent = 'cross' | 'isolated'
@@ -154,7 +163,11 @@ export type BrowserCommandIntent =
   | { kind: 'continue_trailing_entry'; parameters: { trailing_entry_id: Uuid } }
   | {
       kind: 'close_exposure'
-      parameters: { source_command_id: Uuid; quantity: CloseQuantityIntent }
+      parameters: {
+        source_command_id: Uuid
+        quantity: CloseQuantityIntent
+        execution: CloseExecutionIntent
+      }
     }
   | { kind: 'close_trailing_entry'; parameters: { trailing_entry_id: Uuid } }
   | { kind: 'cancel_entry_work'; parameters: { target: CancelEntryWorkTargetIntent } }

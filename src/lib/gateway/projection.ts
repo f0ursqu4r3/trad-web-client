@@ -274,6 +274,21 @@ export interface OwnedReduction {
   quantity: ExactDecimal
 }
 
+export type CloseExecutionPlan =
+  | { kind: 'market' }
+  | { kind: 'limit'; price: ExactDecimal; time_in_force: string }
+  | {
+      kind: 'chase'
+      chase_id: Uuid
+      adverse_boundary?: Record<string, unknown>
+      expires_at?: TimestampMillis
+      remainder_policy: string
+    }
+
+export type CloseExecutionRoot =
+  | { kind: 'order'; order_id: Uuid }
+  | { kind: 'chase'; chase_id: Uuid }
+
 export interface CloseWorkflowProjection {
   close_workflow_id: Uuid
   command_id: Uuid
@@ -288,6 +303,8 @@ export interface CloseWorkflowProjection {
   submitted_external_quantity: ExactDecimal
   requested_quantity: ExactDecimal
   source_order_ids: Uuid[]
+  execution: CloseExecutionPlan
+  execution_root: CloseExecutionRoot
   close_order_id: Uuid
   submission_operation_id: Uuid
   client_order_id: string

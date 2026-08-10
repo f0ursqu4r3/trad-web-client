@@ -127,6 +127,7 @@ const details = computed<DetailRow[]>(() => {
         row('Lifecycle', entity.row.lifecycle),
         row('Close All', yesNo(entity.row.close_all)),
         row('Requested Quantity', entity.row.requested_quantity),
+        row('Execution', entity.row.execution.kind),
         row('External Quantity', entity.row.requested_external_quantity),
         row('Sources', String(entity.row.source_command_ids.length)),
         optionalRow('Last Reason', entity.row.last_reason),

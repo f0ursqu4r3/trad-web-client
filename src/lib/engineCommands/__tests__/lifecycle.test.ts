@@ -29,8 +29,52 @@ test('projected Chase actions target authoritative identities', () => {
     parameters: {
       source_command_id: command.command_id,
       quantity: { kind: 'base', quantity: '0.01000' },
+      execution: { kind: 'market' },
     },
   })
+
+  assert.deepEqual(
+    lifecycleIntent(actions[1]!, {
+      closeExecutionMode: 'limit',
+      closeLimitPrice: '64250.5',
+      closeLimitTimeInForce: 'post_only',
+    }),
+    {
+      kind: 'close_exposure',
+      parameters: {
+        source_command_id: command.command_id,
+        quantity: { kind: 'full' },
+        execution: {
+          kind: 'limit',
+          price: '64250.5',
+          time_in_force: 'post_only',
+        },
+      },
+    },
+  )
+
+  assert.deepEqual(
+    lifecycleIntent(actions[1]!, {
+      closeExecutionMode: 'chase',
+      closeChaseBoundaryEnabled: true,
+      closeChaseBoundaryMode: 'basis_points',
+      closeChaseBoundaryValue: '20',
+      closeChaseUntilCanceled: false,
+      closeChaseExpiryMinutes: '5',
+    }),
+    {
+      kind: 'close_exposure',
+      parameters: {
+        source_command_id: command.command_id,
+        quantity: { kind: 'full' },
+        execution: {
+          kind: 'chase',
+          adverse_boundary: { kind: 'basis_points', value: '20' },
+          expires_after_ms: 300_000,
+        },
+      },
+    },
+  )
 })
 
 test('selecting a Chase child still controls the owning Chase', () => {
