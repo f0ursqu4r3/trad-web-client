@@ -262,6 +262,7 @@ test.describe.serial('Bybit replacement engine through the production terminal',
         const instrument = await bybitInstrument(request, environment, symbol)
         commandId = await submitTrailingEntry(page, instrument)
         await selectProjectedEntity(page, commandId, 'trailing_entry')
+        await waitForTrailingEntryMarketFrame(page)
 
         risk.markUncertain()
         const enterId = await submitSelectedAction(page, 'Enter Now')
@@ -541,7 +542,7 @@ async function submitLimitOpen(page: Page, price: number, quantity: number): Pro
   await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
   await dialog.getByLabel('Position Side').selectOption('long')
   await dialog.getByLabel('Amount Type').selectOption('base')
-  await dialog.getByLabel('Base Quantity').fill(decimalString(quantity))
+  await dialog.getByRole('textbox', { name: 'Base Quantity' }).fill(decimalString(quantity))
   await dialog.getByLabel('Limit Price').fill(decimalString(price))
   await dialog.getByLabel('Time In Force').selectOption('post_only')
   await dialog.getByLabel('Execution Shape').selectOption('single')
@@ -553,14 +554,13 @@ async function submitLimitOpen(page: Page, price: number, quantity: number): Pro
 
 async function submitTrailingEntry(page: Page, instrument: BybitInstrument): Promise<string> {
   const activation = alignPrice(instrument.lastPrice * 0.9, instrument.tickSize)
-  const stopLoss = alignPrice(instrument.lastPrice * 0.8, instrument.tickSize)
+  const stopLoss = alignPrice(instrument.lastPrice * 0.7, instrument.tickSize)
   const takeProfit = alignPrice(instrument.lastPrice * 1.05, instrument.tickSize)
-  const minimumEntryNotional = Math.max(
-    instrument.minimumNotional * 1.25,
-    instrument.quantityStep * activation * 1.25,
+  const minimumEntryQuantity = Math.max(
+    instrument.quantityStep,
+    alignQuantity(instrument.minimumNotional / activation, instrument.quantityStep),
   )
-  const riskFraction = (activation - stopLoss) / activation
-  const riskAmount = minimumEntryNotional * riskFraction
+  const riskAmount = minimumEntryQuantity * (instrument.lastPrice - stopLoss) * 1.25
 
   const prior = await commandIds(page)
   await openCommand(page, 'te', 'Trailing Entry')
@@ -846,18 +846,44 @@ async function bestEffortFlatten(page: Page): Promise<void> {
 }
 
 async function bestEffortCloseTrailingEntry(page: Page, commandId: string | null): Promise<void> {
-  try {
-    await page.keyboard.press('Escape')
-    if (commandId) {
-      await selectProjectedEntity(page, commandId, 'trailing_entry')
-      const closeId = await submitSelectedAction(page, 'Close Position')
-      await expectCommandLifecycle(page, closeId, 'succeeded')
-      return
+  if (commandId) {
+    for (const label of ['Cancel Entry', 'Close Position']) {
+      try {
+        await page.keyboard.press('Escape')
+        const entry = await selectProjectedEntity(page, commandId, 'trailing_entry')
+        const deviceId = await entry.getAttribute('data-node-id')
+        if (deviceId) {
+          await expect(page.getByTestId('projection-details')).toContainText(deviceId, {
+            timeout: commandTimeoutMs,
+          })
+        }
+        const action = page.getByTestId('projection-actions').getByRole('button', { name: label })
+        if (!(await action.isVisible().catch(() => false))) continue
+        const actionId = await submitSelectedAction(page, label)
+        await expectCommandLifecycle(page, actionId, 'succeeded')
+        break
+      } catch {
+        // Try the other lifecycle action, then finish with authoritative flatten.
+      }
     }
-  } catch {
-    // Fall through to the account-authoritative flatten path.
   }
   await bestEffortFlatten(page)
+}
+
+async function waitForTrailingEntryMarketFrame(page: Page): Promise<void> {
+  const field = page
+    .getByTestId('projection-details')
+    .getByText('Last Trade Seen', { exact: true })
+    .locator('..')
+  await expect
+    .poll(
+      async () => {
+        const value = (await field.textContent())?.replace('Last Trade Seen', '').trim() ?? ''
+        return value !== '' && value !== '—'
+      },
+      { timeout: commandTimeoutMs },
+    )
+    .toBe(true)
 }
 
 function protectionPrices(instrument: BybitInstrument): {
