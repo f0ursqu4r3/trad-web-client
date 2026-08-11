@@ -4,17 +4,23 @@ import {
   bybitAccountInfo,
   bybitInstrument,
   bybitSymbolState,
+  type BybitEnvironment,
   type BybitInstrument,
   type BybitOpenOrder,
 } from './support/bybitTestnet'
 import { runSignedQualification } from './support/signedQualification'
 
-const enabled = process.env.ENGINE_PROCESS_BYBIT_SIGNED_TESTNET_E2E === '1'
+const testnetEnabled = process.env.ENGINE_PROCESS_BYBIT_SIGNED_TESTNET_E2E === '1'
+const mainnetEnabled = process.env.ENGINE_PROCESS_BYBIT_SIGNED_MAINNET_E2E === '1'
+const enabled = testnetEnabled || mainnetEnabled
+const network = mainnetEnabled ? 'mainnet' : 'testnet'
 const terminalBaseUrl = process.env.ENGINE_PROCESS_TERMINAL_BASE_URL || 'http://127.0.0.1:15173'
 const testEmail = process.env.ENGINE_PROCESS_TEST_EMAIL || 'replacement-qualification@trad.local'
-const accountLabel = process.env.ENGINE_PROCESS_BYBIT_ACCOUNT_LABEL || 'replacement-bybit-testnet'
-const apiKey = process.env.BYBIT_TESTNET_API_KEY || ''
-const apiSecret = process.env.BYBIT_TESTNET_API_SECRET || ''
+const accountLabel =
+  process.env.ENGINE_PROCESS_BYBIT_ACCOUNT_LABEL || `replacement-bybit-${network}`
+const apiKey = process.env[mainnetEnabled ? 'BYBIT_MAINNET_API_KEY' : 'BYBIT_TESTNET_API_KEY'] || ''
+const apiSecret =
+  process.env[mainnetEnabled ? 'BYBIT_MAINNET_API_SECRET' : 'BYBIT_TESTNET_API_SECRET'] || ''
 const symbol = (process.env.ENGINE_PROCESS_BYBIT_SYMBOL || 'BTCUSDT').toUpperCase()
 const configuredNotional = Number(process.env.ENGINE_PROCESS_BYBIT_NOTIONAL || '0')
 const commandTimeoutMs = Number(process.env.ENGINE_PROCESS_COMMAND_TIMEOUT_MS || '90000')
@@ -26,10 +32,14 @@ const restartUnavailablePath =
 const restartResumedPath =
   process.env.ENGINE_PROCESS_BYBIT_RESTART_RESUMED_PATH || '/tmp/trad-bybit-restart-resumed'
 
-const credentials = { apiKey, apiSecret }
+const environment: BybitEnvironment = {
+  apiKey,
+  apiSecret,
+  baseUrl: mainnetEnabled ? 'https://api.bybit.com' : 'https://api-testnet.bybit.com',
+}
 
 test.describe.serial('Bybit replacement engine through the production terminal', () => {
-  test.skip(!enabled, 'signed Bybit Testnet qualification is explicitly gated')
+  test.skip(!enabled, 'signed Bybit qualification is explicitly gated')
 
   test('refreshes and applies exchange-confirmed hedge mode and leverage', async ({
     page,
@@ -46,7 +56,7 @@ test.describe.serial('Bybit replacement engine through the production terminal',
     await enableHedgeMode(page)
     await expectHedgeMode(request)
 
-    const accountInfo = await bybitAccountInfo(request, credentials)
+    const accountInfo = await bybitAccountInfo(request, environment)
     expect(accountInfo.marginMode).toBe('REGULAR_MARGIN')
     expect(accountInfo.unifiedMarginStatus).toBeGreaterThan(0)
 
@@ -75,7 +85,7 @@ test.describe.serial('Bybit replacement engine through the production terminal',
       label: 'Bybit account-wide entry cancellation',
       run: async (risk) => {
         await loginAndSelectAccount(page)
-        const instrument = await bybitInstrument(request, symbol)
+        const instrument = await bybitInstrument(request, environment, symbol)
         const limitPrice = alignPrice(instrument.lastPrice * 0.7, instrument.tickSize)
         const quantity = alignQuantity(
           safeNotional(instrument) / limitPrice,
@@ -107,7 +117,7 @@ test.describe.serial('Bybit replacement engine through the production terminal',
       label: 'Bybit protected Market lifecycle',
       run: async (risk) => {
         await loginAndSelectAccount(page)
-        const instrument = await bybitInstrument(request, symbol)
+        const instrument = await bybitInstrument(request, environment, symbol)
         const prices = protectionPrices(instrument)
         risk.markUncertain()
         const openId = await submitMarketOpen(page, safeNotional(instrument), prices)
@@ -136,7 +146,7 @@ test.describe.serial('Bybit replacement engine through the production terminal',
       label: 'Bybit resting Limit cancellation',
       run: async (risk) => {
         await loginAndSelectAccount(page)
-        const instrument = await bybitInstrument(request, symbol)
+        const instrument = await bybitInstrument(request, environment, symbol)
         const limitPrice = alignPrice(instrument.lastPrice * 0.7, instrument.tickSize)
         const quantity = alignQuantity(
           safeNotional(instrument) / limitPrice,
@@ -172,7 +182,7 @@ test.describe.serial('Bybit replacement engine through the production terminal',
       label: 'Bybit reduce-only Limit close lifecycle',
       run: async (risk) => {
         await loginAndSelectAccount(page)
-        const instrument = await bybitInstrument(request, symbol)
+        const instrument = await bybitInstrument(request, environment, symbol)
         risk.markUncertain()
         const openId = await submitMarketOpen(
           page,
@@ -213,7 +223,7 @@ test.describe.serial('Bybit replacement engine through the production terminal',
       label: 'Bybit waiting Trailing Entry cancellation',
       run: async (risk) => {
         await loginAndSelectAccount(page)
-        const instrument = await bybitInstrument(request, symbol)
+        const instrument = await bybitInstrument(request, environment, symbol)
         risk.markUncertain()
         const commandId = await submitTrailingEntry(page, instrument)
 
@@ -249,7 +259,7 @@ test.describe.serial('Bybit replacement engine through the production terminal',
       label: 'Bybit Trailing Entry lifecycle',
       run: async (risk) => {
         await loginAndSelectAccount(page)
-        const instrument = await bybitInstrument(request, symbol)
+        const instrument = await bybitInstrument(request, environment, symbol)
         commandId = await submitTrailingEntry(page, instrument)
         await selectProjectedEntity(page, commandId, 'trailing_entry')
 
@@ -287,7 +297,7 @@ test.describe.serial('Bybit replacement engine through the production terminal',
     let exposurePossible = false
     try {
       await loginAndSelectAccount(page)
-      const instrument = await bybitInstrument(request, symbol)
+      const instrument = await bybitInstrument(request, environment, symbol)
       openId = await submitMarketOpen(page, safeNotional(instrument), protectionPrices(instrument))
       exposurePossible = true
       await expectCommandLifecycle(page, openId, 'succeeded')
@@ -323,17 +333,42 @@ test.describe.serial('Bybit replacement engine through the production terminal',
 })
 
 function validateConfiguration(): void {
+  if (testnetEnabled && mainnetEnabled) {
+    throw new Error('Bybit Testnet and mainnet qualification gates are mutually exclusive')
+  }
   if (!apiKey || !apiSecret) {
-    throw new Error('BYBIT_TESTNET_API_KEY and BYBIT_TESTNET_API_SECRET are required')
+    throw new Error(
+      mainnetEnabled
+        ? 'BYBIT_MAINNET_API_KEY and BYBIT_MAINNET_API_SECRET are required'
+        : 'BYBIT_TESTNET_API_KEY and BYBIT_TESTNET_API_SECRET are required',
+    )
   }
   if (!/^[A-Z0-9]+USDT$/.test(symbol)) {
     throw new Error('ENGINE_PROCESS_BYBIT_SYMBOL must be an uppercase USDT perpetual symbol')
   }
+  const maximumNotional = mainnetEnabled ? 100 : 250
   if (
     configuredNotional !== 0 &&
-    (!Number.isFinite(configuredNotional) || configuredNotional < 5 || configuredNotional > 250)
+    (!Number.isFinite(configuredNotional) ||
+      configuredNotional < 5 ||
+      configuredNotional > maximumNotional)
   ) {
-    throw new Error('ENGINE_PROCESS_BYBIT_NOTIONAL must be between 5 and 250 USDT')
+    throw new Error(
+      `ENGINE_PROCESS_BYBIT_NOTIONAL must be between 5 and ${maximumNotional} USDT`,
+    )
+  }
+  if (mainnetEnabled) {
+    if (process.env.ENGINE_PROCESS_BYBIT_MAINNET_ACK !== 'I_ACCEPT_BOUNDED_MAINNET_ORDERS') {
+      throw new Error(
+        'ENGINE_PROCESS_BYBIT_MAINNET_ACK must equal I_ACCEPT_BOUNDED_MAINNET_ORDERS',
+      )
+    }
+    if (symbol !== 'BTCUSDT') {
+      throw new Error('bounded Bybit mainnet qualification only permits BTCUSDT')
+    }
+    if (!/mainnet/i.test(accountLabel)) {
+      throw new Error('bounded Bybit mainnet qualification requires a mainnet account label')
+    }
   }
 }
 
@@ -359,7 +394,7 @@ async function loginAndSelectAccount(page: Page): Promise<void> {
   }
   await expect(account).toContainText(accountLabel, { timeout: 30_000 })
   await expect(account).toContainText(/BYBIT/i)
-  await expect(account).toContainText(/TESTNET/i)
+  await expect(account).toContainText(new RegExp(network, 'i'))
   await expect(account).toContainText(/HEDGE ONLY/i)
   await expect(page.getByTestId('projection-command-list')).toBeVisible()
 }
@@ -378,7 +413,7 @@ async function refreshAuthoritativeExchangeState(page: Page): Promise<void> {
 }
 
 async function expectLiveExecutionPreview(page: Page, request: APIRequestContext): Promise<void> {
-  const instrument = await bybitInstrument(request, symbol)
+  const instrument = await bybitInstrument(request, environment, symbol)
   await openCommand(page, 'mo', 'Market Order')
   const dialog = page.getByRole('dialog', { name: 'Market Order' })
   await dialog.getByRole('textbox', { name: 'Symbol' }).fill(symbol)
@@ -393,7 +428,10 @@ async function expectLiveExecutionPreview(page: Page, request: APIRequestContext
 
 async function openManagedAccount(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Settings' }).click()
-  await page.getByRole('button', { name: 'Manage', exact: true }).click()
+  const account = page
+    .getByRole('listitem')
+    .filter({ hasText: accountLabel })
+  await account.getByRole('button', { name: /^(?:Setup|Manage)$/ }).click()
   await expect(page.getByText('Account Settings', { exact: true })).toBeVisible()
   await expect(page.getByText(`( ${accountLabel} )`, { exact: true })).toBeVisible()
 }
@@ -684,17 +722,17 @@ async function expectProjectedProtection(page: Page): Promise<void> {
 
 async function expectExchangeProtectedLong(request: APIRequestContext): Promise<void> {
   await expect
-    .poll(async () => await bybitSymbolState(request, credentials, symbol), {
+    .poll(async () => await bybitSymbolState(request, environment, symbol), {
       timeout: commandTimeoutMs,
     })
     .toMatchObject({ shortQuantity: 0 })
   await expect
-    .poll(async () => (await bybitSymbolState(request, credentials, symbol)).longQuantity, {
+    .poll(async () => (await bybitSymbolState(request, environment, symbol)).longQuantity, {
       timeout: commandTimeoutMs,
     })
     .toBeGreaterThan(0)
   await expect
-    .poll(async () => (await bybitSymbolState(request, credentials, symbol)).openOrders.length, {
+    .poll(async () => (await bybitSymbolState(request, environment, symbol)).openOrders.length, {
       timeout: commandTimeoutMs,
     })
     .toBeGreaterThanOrEqual(2)
@@ -705,7 +743,7 @@ async function expectExchangeOrderCount(
   expected: number,
 ): Promise<void> {
   await expect
-    .poll(async () => (await bybitSymbolState(request, credentials, symbol)).openOrders.length, {
+    .poll(async () => (await bybitSymbolState(request, environment, symbol)).openOrders.length, {
       timeout: commandTimeoutMs,
     })
     .toBe(expected)
@@ -715,7 +753,7 @@ async function expectHedgeMode(request: APIRequestContext): Promise<void> {
   await expect
     .poll(
       async () =>
-        (await bybitSymbolState(request, credentials, symbol)).positions
+        (await bybitSymbolState(request, environment, symbol)).positions
           .map((position) => position.positionIdx)
           .sort(),
       { timeout: commandTimeoutMs },
@@ -727,7 +765,7 @@ async function expectLeverage(request: APIRequestContext, expected: number): Pro
   await expect
     .poll(
       async () =>
-        (await bybitSymbolState(request, credentials, symbol)).positions.map((position) =>
+        (await bybitSymbolState(request, environment, symbol)).positions.map((position) =>
           Number(position.leverage),
         ),
       { timeout: commandTimeoutMs },
@@ -742,7 +780,7 @@ async function expectExchangeReduceOnlyLimit(
   await expect
     .poll(
       async () => {
-        const state = await bybitSymbolState(request, credentials, symbol)
+        const state = await bybitSymbolState(request, environment, symbol)
         const order = state.openOrders.find(isPlainLimitOrder)
         return order === undefined
           ? null
@@ -765,7 +803,7 @@ async function expectExchangeProtectionOrderCount(
   await expect
     .poll(
       async () =>
-        (await bybitSymbolState(request, credentials, symbol)).openOrders.filter(
+        (await bybitSymbolState(request, environment, symbol)).openOrders.filter(
           (order) => !isPlainLimitOrder(order),
         ).length,
       { timeout: commandTimeoutMs },
@@ -785,7 +823,7 @@ async function expectExchangeFlat(request: APIRequestContext): Promise<void> {
   await expect
     .poll(
       async () => {
-        const state = await bybitSymbolState(request, credentials, symbol)
+        const state = await bybitSymbolState(request, environment, symbol)
         return {
           longQuantity: state.longQuantity,
           shortQuantity: state.shortQuantity,

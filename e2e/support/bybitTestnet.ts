@@ -1,8 +1,13 @@
 import { createHmac } from 'node:crypto'
 import type { APIRequestContext } from '@playwright/test'
 
-const baseUrl = 'https://api-testnet.bybit.com'
 const receiveWindow = '5000'
+
+export type BybitEnvironment = {
+  apiKey: string
+  apiSecret: string
+  baseUrl: 'https://api-testnet.bybit.com' | 'https://api.bybit.com'
+}
 
 export interface BybitPosition {
   leverage: string
@@ -51,8 +56,12 @@ interface BybitResponse<T> {
   result: T
 }
 
-export async function bybitLastPrice(request: APIRequestContext, symbol: string): Promise<number> {
-  const response = await request.get(`${baseUrl}/v5/market/tickers`, {
+export async function bybitLastPrice(
+  request: APIRequestContext,
+  environment: BybitEnvironment,
+  symbol: string,
+): Promise<number> {
+  const response = await request.get(`${environment.baseUrl}/v5/market/tickers`, {
     params: { category: 'linear', symbol },
   })
   if (!response.ok()) throw new Error(`Bybit ticker query failed: HTTP ${response.status()}`)
@@ -69,11 +78,12 @@ export async function bybitLastPrice(request: APIRequestContext, symbol: string)
 
 export async function bybitInstrument(
   request: APIRequestContext,
+  environment: BybitEnvironment,
   symbol: string,
 ): Promise<BybitInstrument> {
   const [lastPrice, response] = await Promise.all([
-    bybitLastPrice(request, symbol),
-    request.get(`${baseUrl}/v5/market/instruments-info`, {
+    bybitLastPrice(request, environment, symbol),
+    request.get(`${environment.baseUrl}/v5/market/instruments-info`, {
       params: { category: 'linear', symbol },
     }),
   ])
@@ -107,15 +117,15 @@ export async function bybitInstrument(
 
 export async function bybitSymbolState(
   request: APIRequestContext,
-  credentials: { apiKey: string; apiSecret: string },
+  environment: BybitEnvironment,
   symbol: string,
 ): Promise<BybitSymbolState> {
   const [positionPayload, orderPayload] = await Promise.all([
-    signedGet<{ list?: BybitPosition[] }>(request, credentials, '/v5/position/list', {
+    signedGet<{ list?: BybitPosition[] }>(request, environment, '/v5/position/list', {
       category: 'linear',
       symbol,
     }),
-    signedGet<{ list?: BybitOpenOrder[] }>(request, credentials, '/v5/order/realtime', {
+    signedGet<{ list?: BybitOpenOrder[] }>(request, environment, '/v5/order/realtime', {
       category: 'linear',
       symbol,
       openOnly: '0',
@@ -134,24 +144,24 @@ export async function bybitSymbolState(
 
 export async function bybitAccountInfo(
   request: APIRequestContext,
-  credentials: { apiKey: string; apiSecret: string },
+  environment: BybitEnvironment,
 ): Promise<BybitAccountInfo> {
-  return await signedGet<BybitAccountInfo>(request, credentials, '/v5/account/info', {})
+  return await signedGet<BybitAccountInfo>(request, environment, '/v5/account/info', {})
 }
 
 async function signedGet<T>(
   request: APIRequestContext,
-  credentials: { apiKey: string; apiSecret: string },
+  environment: BybitEnvironment,
   path: string,
   parameters: Record<string, string>,
 ): Promise<T> {
   const query = new URLSearchParams(parameters).toString()
   const timestamp = Date.now().toString()
-  const payload = `${timestamp}${credentials.apiKey}${receiveWindow}${query}`
-  const signature = createHmac('sha256', credentials.apiSecret).update(payload).digest('hex')
-  const response = await request.get(`${baseUrl}${path}?${query}`, {
+  const payload = `${timestamp}${environment.apiKey}${receiveWindow}${query}`
+  const signature = createHmac('sha256', environment.apiSecret).update(payload).digest('hex')
+  const response = await request.get(`${environment.baseUrl}${path}?${query}`, {
     headers: {
-      'X-BAPI-API-KEY': credentials.apiKey,
+      'X-BAPI-API-KEY': environment.apiKey,
       'X-BAPI-RECV-WINDOW': receiveWindow,
       'X-BAPI-SIGN': signature,
       'X-BAPI-TIMESTAMP': timestamp,
