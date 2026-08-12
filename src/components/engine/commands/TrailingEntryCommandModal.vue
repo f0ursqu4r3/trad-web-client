@@ -13,6 +13,7 @@ import { useGatewayStore } from '@/stores/gateway'
 import { useModalStore } from '@/stores/modals'
 import ShapeFields from './ShapeFields.vue'
 import ExecutionPreviewPanel from './ExecutionPreviewPanel.vue'
+import LiveMarketPrice from './LiveMarketPrice.vue'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
@@ -123,7 +124,15 @@ function buildIntent() {
           </select>
         </label>
         <label class="field">
-          <span>Symbol</span>
+          <span class="symbol-heading">
+            <span>Symbol</span>
+            <LiveMarketPrice
+              :active="open"
+              :account-id="selectedAccountId"
+              :symbol="symbol"
+              :quote-asset="units.quote"
+            />
+          </span>
           <input v-model="symbol" class="input" autocomplete="off" />
         </label>
         <label class="field">
@@ -135,11 +144,23 @@ function buildIntent() {
         </label>
         <label class="field">
           <span>{{ labelWithUnit('Risk at Stop', units.quote) }}</span>
-          <input v-model="riskAmount" class="input" type="text" inputmode="decimal" />
+          <input
+            v-model="riskAmount"
+            class="input"
+            aria-label="Risk Amount"
+            type="text"
+            inputmode="decimal"
+          />
         </label>
         <label class="field">
           <span>{{ labelWithUnit('Activation Price', units.quote) }}</span>
-          <input v-model="activationPrice" class="input" type="text" inputmode="decimal" />
+          <input
+            v-model="activationPrice"
+            class="input"
+            aria-label="Activation Price"
+            type="text"
+            inputmode="decimal"
+          />
         </label>
         <label class="field">
           <span>Jump Threshold (bps)</span>
@@ -147,11 +168,23 @@ function buildIntent() {
         </label>
         <label class="field">
           <span>{{ labelWithUnit('Stop Loss Price', units.quote) }}</span>
-          <input v-model="stopLossPrice" class="input" type="text" inputmode="decimal" />
+          <input
+            v-model="stopLossPrice"
+            class="input"
+            aria-label="Stop Loss Price"
+            type="text"
+            inputmode="decimal"
+          />
         </label>
         <label class="field">
           <span>{{ labelWithUnit('Take Profit Price', units.quote) }} (optional)</span>
-          <input v-model="takeProfitPrice" class="input" type="text" inputmode="decimal" />
+          <input
+            v-model="takeProfitPrice"
+            class="input"
+            aria-label="Take Profit Price (optional)"
+            type="text"
+            inputmode="decimal"
+          />
         </label>
         <label v-if="isHyperliquid" class="field one-way-field">
           <span>Hyperliquid One-Way Behavior</span>
@@ -207,6 +240,13 @@ function buildIntent() {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+.symbol-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 .one-way-field {
   grid-column: 1 / -1;

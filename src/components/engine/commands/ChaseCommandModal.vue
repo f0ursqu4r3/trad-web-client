@@ -20,6 +20,7 @@ import { useModalStore } from '@/stores/modals'
 import { useUiStore } from '@/stores/ui'
 import ProtectionFields from './ProtectionFields.vue'
 import ExecutionPreviewPanel from './ExecutionPreviewPanel.vue'
+import LiveMarketPrice from './LiveMarketPrice.vue'
 import SizingFields from './SizingFields.vue'
 
 const props = defineProps<{ open: boolean }>()
@@ -126,7 +127,18 @@ function buildIntent() {
             </option>
           </select>
         </label>
-        <label class="field"><span>Symbol</span><input v-model="symbol" class="input" /></label>
+        <label class="field">
+          <span class="symbol-heading">
+            <span>Symbol</span>
+            <LiveMarketPrice
+              :active="open"
+              :account-id="selectedAccountId"
+              :symbol="symbol"
+              :quote-asset="units.quote"
+            />
+          </span>
+          <input v-model="symbol" class="input" />
+        </label>
         <label class="field">
           <span>Position Side</span>
           <select v-model="positionSide" class="input">
@@ -210,6 +222,13 @@ function buildIntent() {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+.symbol-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 .submission-error {
   color: var(--color-error);

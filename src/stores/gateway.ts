@@ -99,6 +99,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   const subscriptionRetryAttempts = new Map<Uuid, number>()
   const subscriptionRetryTimers = new Map<Uuid, number>()
   const marketDemands = new Map<string, MarketDemand>()
+  const marketDemandReferences = new Map<string, number>()
   const marketRequests = new Map<Uuid, MarketDemand>()
   const marketSubscriptions = new Map<Uuid, MarketDemand>()
   const marketRetryAttempts = new Map<string, number>()
@@ -352,12 +353,25 @@ export const useGatewayStore = defineStore('gateway', () => {
   function subscribeMarket(accountId: Uuid, symbol: string, limit = 1_024): void {
     const demand = normalizeMarketDemand(accountId, symbol, limit)
     const key = marketKey(demand.accountId, demand.symbol)
+    const references = marketDemandReferences.get(key) ?? 0
+    marketDemandReferences.set(key, references + 1)
+    const existing = marketDemands.get(key)
+    if (existing !== undefined) {
+      if (demand.limit > existing.limit) existing.limit = demand.limit
+      return
+    }
     marketDemands.set(key, demand)
     subscribeMarketDemand(demand)
   }
 
   function unsubscribeMarket(accountId: Uuid, symbol: string): void {
     const key = marketKey(accountId, symbol)
+    const references = marketDemandReferences.get(key) ?? 0
+    if (references > 1) {
+      marketDemandReferences.set(key, references - 1)
+      return
+    }
+    marketDemandReferences.delete(key)
     marketDemands.delete(key)
     clearMarketRetry(key)
     for (const [subscriptionId, demand] of marketSubscriptions) {

@@ -16,6 +16,12 @@ function sizingLabel(kind: SizingMode): string {
       return labelWithUnit('Quote Notional', props.quoteAsset)
   }
 }
+
+function inputLabel(kind: SizingMode): string {
+  if (kind === 'base') return 'Base Quantity'
+  if (kind === 'risk_at_stop') return 'Risk Amount'
+  return 'Quote Amount'
+}
 </script>
 
 <template>
@@ -32,6 +38,16 @@ function sizingLabel(kind: SizingMode): string {
     <input
       v-model="amount"
       class="input"
+      :aria-label="inputLabel(mode)"
+      :aria-description="
+        mode === 'base'
+          ? baseAsset
+            ? 'Denominated in ' + baseAsset
+            : undefined
+          : quoteAsset
+            ? 'Denominated in ' + quoteAsset
+            : undefined
+      "
       type="text"
       inputmode="decimal"
       autocomplete="off"

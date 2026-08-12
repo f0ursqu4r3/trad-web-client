@@ -59,6 +59,8 @@ function removeTakeProfit(row: TakeProfitFormState): void {
           <input
             v-model="takeProfit.triggerPrice"
             class="input"
+            :aria-label="'TP ' + (index + 1) + ' Trigger'"
+            :aria-description="props.quoteAsset ? 'Denominated in ' + props.quoteAsset : undefined"
             type="text"
             inputmode="decimal"
             placeholder="Price"
@@ -81,6 +83,7 @@ function removeTakeProfit(row: TakeProfitFormState): void {
           <input
             v-model="takeProfit.allocationValue"
             class="input"
+            :aria-label="takeProfit.allocationKind === 'fraction' ? 'Percent' : 'Base Quantity'"
             type="text"
             inputmode="decimal"
           />
@@ -106,6 +109,7 @@ function removeTakeProfit(row: TakeProfitFormState): void {
           <input
             v-model="takeProfit.executionPrice"
             class="input"
+            aria-label="Limit Price"
             type="text"
             inputmode="decimal"
           />
@@ -131,6 +135,7 @@ function removeTakeProfit(row: TakeProfitFormState): void {
         <input
           v-model="model.stopLoss.triggerPrice"
           class="input"
+          aria-label="SL Trigger"
           type="text"
           inputmode="decimal"
           placeholder="Price"
@@ -157,6 +162,7 @@ function removeTakeProfit(row: TakeProfitFormState): void {
         <input
           v-model="model.stopLoss.executionPrice"
           class="input"
+          aria-label="Limit Price"
           type="text"
           inputmode="decimal"
         />

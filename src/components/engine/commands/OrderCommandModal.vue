@@ -21,6 +21,7 @@ import { useModalStore } from '@/stores/modals'
 import { useUiStore } from '@/stores/ui'
 import ProtectionFields from './ProtectionFields.vue'
 import ExecutionPreviewPanel from './ExecutionPreviewPanel.vue'
+import LiveMarketPrice from './LiveMarketPrice.vue'
 import ShapeFields from './ShapeFields.vue'
 import SizingFields from './SizingFields.vue'
 
@@ -136,7 +137,15 @@ function buildIntent() {
           </select>
         </label>
         <label class="field">
-          <span>Symbol</span>
+          <span class="symbol-heading">
+            <span>Symbol</span>
+            <LiveMarketPrice
+              :active="open"
+              :account-id="selectedAccountId"
+              :symbol="symbol"
+              :quote-asset="units.quote"
+            />
+          </span>
           <input v-model="symbol" class="input" autocomplete="off" />
         </label>
         <label class="field">
@@ -155,7 +164,14 @@ function buildIntent() {
         />
         <label v-if="executionKind === 'limit'" class="field">
           <span>{{ labelWithUnit('Limit Price', units.quote) }}</span>
-          <input v-model="limitPrice" class="input" type="text" inputmode="decimal" />
+          <input
+            v-model="limitPrice"
+            class="input"
+            aria-label="Limit Price"
+            :aria-description="units.quote ? 'Denominated in ' + units.quote : undefined"
+            type="text"
+            inputmode="decimal"
+          />
         </label>
         <label v-if="executionKind === 'limit'" class="field">
           <span>Time In Force</span>
@@ -209,6 +225,13 @@ function buildIntent() {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+.symbol-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .submission-error {
