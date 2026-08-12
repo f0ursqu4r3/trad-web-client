@@ -1,6 +1,7 @@
 import type {
   BrowserCommandIntent,
   CommandProjection,
+  OwnedExposureProjection,
   PositionProjection,
   ProjectionGraph,
   TrailingEntryExpectedIntent,
@@ -87,6 +88,20 @@ export function lifecycleActions(
     }
   }
   return dedupe(actions)
+}
+
+export function actionOwnedExposure(
+  action: LifecycleAction | null,
+  positions: PositionProjection[],
+): OwnedExposureProjection | null {
+  if (action === null) return null
+  const scopeId = sourceScopeId(action.command)
+  if (scopeId === null) return null
+  for (const position of positions) {
+    const exposure = position.owned_exposure[scopeId]
+    if (exposure !== undefined) return exposure
+  }
+  return null
 }
 
 export function lifecycleIntent(
@@ -197,10 +212,7 @@ function closeExecutionIntent(fields: {
   closeChaseBoundaryEnabled?: boolean
   closeChaseUntilCanceled?: boolean
   closeChaseExpiryMinutes?: string
-}): Extract<
-  BrowserCommandIntent,
-  { kind: 'close_exposure' }
->['parameters']['execution'] {
+}): Extract<BrowserCommandIntent, { kind: 'close_exposure' }>['parameters']['execution'] {
   switch (fields.closeExecutionMode ?? 'market') {
     case 'market':
       return { kind: 'market' }

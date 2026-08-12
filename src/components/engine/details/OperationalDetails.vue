@@ -3,6 +3,7 @@ import { computed } from 'vue'
 
 import type { ProjectionEntity } from '@/lib/projection/presentation'
 import DetailGrid from './DetailGrid.vue'
+import EvidenceDisclosure from './EvidenceDisclosure.vue'
 import {
   compactDetails,
   detail,
@@ -100,25 +101,24 @@ const rows = computed(() => {
 <template>
   <div data-testid="operational-details">
     <DetailGrid :title="title" :rows="rows" />
-    <details v-if="entity.kind === 'protection_amendment'" class="step-list">
-      <summary>Amendment steps ({{ entity.row.steps.length }})</summary>
-      <div v-for="(step, index) in entity.row.steps" :key="index" class="step-row">
-        <span>{{ index + 1 }}. {{ step.kind }}</span>
-        <span>{{ index < entity.row.completed_steps ? 'completed' : 'pending' }}</span>
+    <EvidenceDisclosure
+      v-if="entity.kind === 'protection_amendment'"
+      :title="`Amendment Steps (${entity.row.steps.length})`"
+    >
+      <div class="step-list">
+        <div v-for="(step, index) in entity.row.steps" :key="index" class="step-row">
+          <span>{{ index + 1 }}. {{ step.kind }}</span>
+          <span>{{ index < entity.row.completed_steps ? 'completed' : 'pending' }}</span>
+        </div>
       </div>
-    </details>
+    </EvidenceDisclosure>
   </div>
 </template>
 
 <style scoped>
 .step-list {
-  padding: 8px 12px 10px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.step-list summary {
-  cursor: pointer;
-  color: var(--color-text);
+  max-height: 240px;
+  overflow: auto;
 }
 
 .step-row {

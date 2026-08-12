@@ -35,6 +35,14 @@ accounts.accountsRaw = [
     key: 'fixture',
     network: NetworkType.Testnet,
     exchange: ExchangeType.Hyperliquid,
+    exchange_metadata: {
+      product: 'usdc_perp',
+      margin_mode: 'cross',
+      agent_address: '0xagent',
+      agent_approved: true,
+      builder_approved: true,
+      default_leverage: 20,
+    },
   },
 ]
 projections.install(

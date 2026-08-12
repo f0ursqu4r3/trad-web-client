@@ -4,13 +4,23 @@ import { computed, ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmission'
 import {
+  actionOwnedExposure,
   lifecycleIntent,
   type LifecycleAction,
   type TrailingEntryAmendmentDraft,
 } from '@/lib/engineCommands/lifecycle'
+import { percentToFraction } from '@/lib/engineCommands/form'
 import { labelWithUnit, marketUnits } from '@/lib/engineCommands/marketUnits'
+import {
+  formatExactDecimal,
+  isExactZero,
+  multiplyExact,
+  subtractExact,
+} from '@/lib/exactDecimalMath'
 import { useAccountsStore } from '@/stores/accounts'
+import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useGatewayStore } from '@/stores/gateway'
+import { useMarketStore } from '@/stores/market'
 
 const props = defineProps<{
   open: boolean
@@ -21,8 +31,11 @@ const props = defineProps<{
 const emit = defineEmits<{ (event: 'close'): void }>()
 const gateway = useGatewayStore()
 const accounts = useAccountsStore()
+const projections = useAccountProjectionStore()
+const markets = useMarketStore()
 const submission = useEngineCommandSubmission()
-const closeMode = ref<'full' | 'base'>('full')
+const closeMode = ref<'full' | 'percent' | 'base'>('full')
+const closePercent = ref('25')
 const closeQuantity = ref('')
 const closeExecutionMode = ref<'market' | 'limit' | 'chase'>('market')
 const closeLimitPrice = ref('')
@@ -53,6 +66,81 @@ const actionSymbol = computed(() => {
   }
 })
 const units = computed(() => marketUnits(selectedAccount.value, actionSymbol.value))
+const ownedExposure = computed(() =>
+  actionOwnedExposure(props.action, projections.selectedLive?.positions ?? []),
+)
+const ownedQuantity = computed(() => ownedExposure.value?.remaining_quantity ?? '0')
+const closeQuantityResolved = computed(() => {
+  if (closeMode.value === 'full') return ownedQuantity.value
+  if (closeMode.value === 'base') return closeQuantity.value.trim()
+  try {
+    return multiplyExact(
+      ownedQuantity.value,
+      percentToFraction(closePercent.value, 'close percentage'),
+    )
+  } catch {
+    return ''
+  }
+})
+const closeRemainder = computed(() => {
+  if (closeQuantityResolved.value === '') return '-'
+  try {
+    return subtractExact(ownedQuantity.value, closeQuantityResolved.value)
+  } catch {
+    return '-'
+  }
+})
+const latestMarketPrice = computed(() => {
+  const stream = markets.stream(props.accountId || null, actionSymbol.value || null)
+  return stream?.samples[stream.samples.length - 1]?.price ?? null
+})
+const latestFillPrice = computed(() => {
+  const action = props.action
+  const graph = projections.selectedLive
+  if (action === null || graph === null) return null
+  const orderIds = new Set(
+    graph.orders
+      .filter((order) => order.command_id === action.command.command_id)
+      .map((order) => order.order_id),
+  )
+  return (
+    graph.executions
+      .filter((execution) => execution.order !== null && orderIds.has(execution.order.order_id))
+      .sort((left, right) => right.fill.occurred_at - left.fill.occurred_at)[0]?.fill.price ?? null
+  )
+})
+const closeReferencePrice = computed(() => latestMarketPrice.value ?? latestFillPrice.value)
+const closeReferenceLabel = computed(() =>
+  latestMarketPrice.value !== null
+    ? 'Latest Market'
+    : latestFillPrice.value !== null
+      ? 'Last Fill'
+      : '',
+)
+const closeNotional = computed(() => {
+  if (closeReferencePrice.value === null || closeQuantityResolved.value === '') return null
+  try {
+    return multiplyExact(closeQuantityResolved.value, closeReferencePrice.value)
+  } catch {
+    return null
+  }
+})
+const closeSizingError = computed(() => {
+  if (props.action?.kind !== 'close_exposure') return null
+  if (ownedExposure.value === null) return 'Owned exposure is no longer available.'
+  if (closeMode.value === 'percent' && /^0+(?:\.0+)?$/.test(closePercent.value.trim())) {
+    return 'Close amount must be greater than zero.'
+  }
+  if (closeQuantityResolved.value === '') return 'Enter a valid close amount.'
+  try {
+    if (isExactZero(closeQuantityResolved.value)) return 'Close amount must be greater than zero.'
+    const remainder = subtractExact(ownedQuantity.value, closeQuantityResolved.value)
+    if (remainder.startsWith('-')) return 'Close amount exceeds this command-owned exposure.'
+  } catch {
+    return 'Enter a valid close amount.'
+  }
+  return null
+})
 
 const title = computed(() => props.action?.label ?? 'Action')
 const needsConfirmation = computed(
@@ -63,6 +151,7 @@ const canSubmit = computed(
     gateway.isConnected &&
     props.accountId !== '' &&
     props.action !== null &&
+    closeSizingError.value === null &&
     (!needsConfirmation.value || confirmed.value) &&
     !submission.submitting.value,
 )
@@ -76,6 +165,7 @@ watch(
 
 function reset(): void {
   closeMode.value = 'full'
+  closePercent.value = '25'
   closeQuantity.value = ''
   closeExecutionMode.value = 'market'
   closeLimitPrice.value = ''
@@ -99,8 +189,8 @@ async function submit(): Promise<void> {
   validationError.value = null
   try {
     const intent = lifecycleIntent(props.action, {
-      closeMode: closeMode.value,
-      closeQuantity: closeQuantity.value,
+      closeMode: closeMode.value === 'full' ? 'full' : 'base',
+      closeQuantity: closeQuantityResolved.value,
       closeExecutionMode: closeExecutionMode.value,
       closeLimitPrice: closeLimitPrice.value,
       closeLimitTimeInForce: closeLimitTimeInForce.value,
@@ -153,19 +243,80 @@ function emptyAmendment(): TrailingEntryAmendmentDraft {
 function primitiveString(value: unknown): string {
   return typeof value === 'string' || typeof value === 'number' ? String(value) : ''
 }
+
+function chooseClosePercent(percent: string): void {
+  if (percent === '100') {
+    closeMode.value = 'full'
+    return
+  }
+  closePercent.value = percent
+}
 </script>
 
 <template>
-  <BaseCommandModal :title="title" :open="open" @close="emit('close')">
+  <BaseCommandModal
+    :title="title"
+    :open="open"
+    :blur-backdrop="action?.kind !== 'close_exposure'"
+    @close="emit('close')"
+  >
     <form id="engine-lifecycle-action" class="action-form" @submit.prevent="submit">
       <template v-if="action?.kind === 'close_exposure'">
+        <section class="close-context" data-testid="close-exposure-context">
+          <div>
+            <span>Source Exposure</span>
+            <strong>
+              {{ actionSymbol }} · {{ ownedExposure?.side ?? '-' }} ·
+              {{ formatExactDecimal(ownedQuantity) }} {{ units.base ?? '' }}
+            </strong>
+          </div>
+          <div>
+            <span>Selected Close</span>
+            <strong>
+              {{ closeQuantityResolved ? formatExactDecimal(closeQuantityResolved) : '-' }}
+              {{ units.base ?? '' }}
+            </strong>
+          </div>
+          <div>
+            <span>Owned Remainder</span>
+            <strong>
+              {{ closeRemainder === '-' ? '-' : formatExactDecimal(closeRemainder) }}
+              {{ units.base ?? '' }}
+            </strong>
+          </div>
+          <div>
+            <span>
+              Estimated Notional<span v-if="closeReferenceLabel"> · {{ closeReferenceLabel }}</span>
+            </span>
+            <strong>
+              {{ closeNotional === null ? '-' : formatExactDecimal(closeNotional) }}
+              {{ closeNotional === null ? '' : (units.quote ?? '') }}
+            </strong>
+          </div>
+        </section>
         <label class="field">
           <span>Close Amount</span>
           <select v-model="closeMode" class="input">
             <option value="full">Full Owned Exposure</option>
+            <option value="percent">Percentage of Owned Exposure</option>
             <option value="base">Partial Base Quantity</option>
           </select>
         </label>
+        <label v-if="closeMode === 'percent'" class="field">
+          <span>Close Percentage (%)</span>
+          <input v-model="closePercent" class="input" type="text" inputmode="decimal" />
+        </label>
+        <div v-if="closeMode === 'percent'" class="percent-presets" aria-label="Close percentage">
+          <button
+            v-for="percent in ['25', '50', '75', '100']"
+            :key="percent"
+            class="btn btn-sm"
+            type="button"
+            @click="chooseClosePercent(percent)"
+          >
+            {{ percent }}%
+          </button>
+        </div>
         <label v-if="closeMode === 'base'" class="field">
           <span>{{ labelWithUnit('Base Quantity', units.base) }}</span>
           <input v-model="closeQuantity" class="input" type="text" inputmode="decimal" />
@@ -312,8 +463,11 @@ function primitiveString(value: unknown): string {
         <input v-model="confirmed" type="checkbox" />
         Confirm {{ title.toLowerCase() }}
       </label>
-      <p v-if="validationError || submission.submissionError.value" class="submission-error">
-        {{ validationError || submission.submissionError.value }}
+      <p
+        v-if="closeSizingError || validationError || submission.submissionError.value"
+        class="submission-error"
+      >
+        {{ closeSizingError || validationError || submission.submissionError.value }}
       </p>
     </form>
 
@@ -341,8 +495,37 @@ function primitiveString(value: unknown): string {
 .help-text,
 .check-field,
 .confirm-row,
-.submission-error {
+.submission-error,
+.close-context,
+.percent-presets {
   grid-column: 1 / -1;
+}
+.close-context {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-block: 1px solid var(--border-color);
+}
+.close-context > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 10px;
+}
+.close-context span {
+  color: var(--color-text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+.close-context strong {
+  overflow-wrap: anywhere;
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: normal;
+}
+.percent-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
 }
 .help-text {
   margin: 0;

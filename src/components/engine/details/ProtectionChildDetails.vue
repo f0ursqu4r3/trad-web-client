@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import DetailGrid from './DetailGrid.vue'
+import EvidenceDisclosure from './EvidenceDisclosure.vue'
 import type { NativeProtectionProjection } from '@/lib/gateway'
 import { formatExactDecimal } from '@/lib/exactDecimalMath'
 
@@ -45,33 +46,24 @@ async function copyRemoteId(remoteId: string): Promise<void> {
         },
       ]"
     />
-    <details class="evidence">
-      <summary>Exchange evidence ({{ state?.remote_order_ids.length ?? 0 }})</summary>
+    <EvidenceDisclosure :title="`Exchange evidence (${state?.remote_order_ids.length ?? 0})`">
       <button
         v-for="remoteId in state?.remote_order_ids ?? []"
         :key="remoteId"
+        class="evidence-button"
         type="button"
         :title="`Copy ${remoteId}`"
         @click="copyRemoteId(remoteId)"
       >
         {{ remoteId }}
       </button>
-    </details>
+    </EvidenceDisclosure>
     <p v-if="state?.failure_reason" class="failure-reason">{{ state.failure_reason }}</p>
   </template>
 </template>
 
 <style scoped>
-.evidence {
-  border-bottom: 1px solid var(--border-color);
-  padding: 8px 12px;
-}
-.evidence summary {
-  color: var(--color-text-dim);
-  cursor: pointer;
-  font-size: 11px;
-}
-.evidence button {
+.evidence-button {
   background: transparent;
   border: 0;
   color: var(--color-info);

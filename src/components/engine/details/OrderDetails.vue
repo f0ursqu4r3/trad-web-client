@@ -3,6 +3,7 @@ import { computed } from 'vue'
 
 import type { OrderProjection } from '@/lib/gateway'
 import DetailGrid from './DetailGrid.vue'
+import EvidenceDisclosure from './EvidenceDisclosure.vue'
 import { compactDetails, detail, recordDetail, yesNo } from './model'
 
 const props = defineProps<{
@@ -47,20 +48,21 @@ const generations = computed(() =>
       {{ order.failure_reason }}
     </div>
 
-    <details class="generation-list">
-      <summary>Order generations ({{ generations.length }})</summary>
-      <article v-for="generation in generations" :key="generation.generation">
-        <div>
-          <span>Generation {{ generation.generation }}</span>
-          <span>{{ generation.lifecycle }}</span>
-        </div>
-        <div>
-          <span>{{ generation.filled_quantity }} filled</span>
-          <span>{{ generation.working_request.quantity }} requested</span>
-        </div>
-        <div class="identifier">{{ generation.client_order_id }}</div>
-      </article>
-    </details>
+    <EvidenceDisclosure :title="`Order Generations (${generations.length})`">
+      <div class="generation-list">
+        <article v-for="generation in generations" :key="generation.generation">
+          <div>
+            <span>Generation {{ generation.generation }}</span>
+            <span>{{ generation.lifecycle }}</span>
+          </div>
+          <div>
+            <span>{{ generation.filled_quantity }} filled</span>
+            <span>{{ generation.working_request.quantity }} requested</span>
+          </div>
+          <div class="identifier">{{ generation.client_order_id }}</div>
+        </article>
+      </div>
+    </EvidenceDisclosure>
   </div>
 </template>
 
@@ -79,13 +81,8 @@ const generations = computed(() =>
 }
 
 .generation-list {
-  padding: 8px 12px 10px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.generation-list summary {
-  cursor: pointer;
-  color: var(--color-text);
+  max-height: 240px;
+  overflow: auto;
 }
 
 .generation-list article {

@@ -7,6 +7,7 @@ import type {
   ProtectionProjection,
 } from '@/lib/gateway'
 import DetailGrid from './DetailGrid.vue'
+import EvidenceDisclosure from './EvidenceDisclosure.vue'
 import { detail } from './model'
 
 const props = defineProps<{
@@ -70,8 +71,10 @@ function childState(childId: string) {
       </div>
     </div>
 
-    <details v-if="exchangeProtections.length" class="exchange-orders">
-      <summary>Exchange protection orders ({{ exchangeProtections.length }})</summary>
+    <EvidenceDisclosure
+      v-if="exchangeProtections.length"
+      :title="`Exchange protection orders (${exchangeProtections.length})`"
+    >
       <article
         v-for="protection in exchangeProtections"
         :key="protection.remote_order_id"
@@ -92,13 +95,12 @@ function childState(childId: string) {
           {{ protection.failure_reason }}
         </div>
       </article>
-    </details>
+    </EvidenceDisclosure>
   </section>
 </template>
 
 <style scoped>
-.protection-list,
-.exchange-orders {
+.protection-list {
   padding: 8px 12px 10px;
   border-bottom: 1px solid var(--border-color);
 }
@@ -113,24 +115,24 @@ function childState(childId: string) {
 
 .protection-heading,
 .protection-meta {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px 14px;
+}
+
+.protection-heading > :nth-child(even),
+.protection-meta > :nth-child(even) {
+  text-align: right;
 }
 
 .protection-heading {
   color: var(--color-text);
+  font-size: 11px;
 }
 
 .protection-meta {
   color: var(--color-text-dim);
   font-size: 10px;
-}
-
-.exchange-orders summary {
-  cursor: pointer;
-  color: var(--color-text);
 }
 
 .amendment {

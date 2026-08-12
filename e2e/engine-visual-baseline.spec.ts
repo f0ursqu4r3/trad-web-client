@@ -89,3 +89,33 @@ test('A1 Native Protection edit keeps readable aligned controls', async ({ page 
     animations: 'disabled',
   })
 })
+
+test('A1 Market Order details keep compact evidence and actions', async ({ page }) => {
+  await openFixture(page, { width: 1680, height: 940 }, 'dark')
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await fixture.getByTestId('projection-command-list').getByText('Market Order').click()
+
+  await expect(fixture.getByTestId('order-details')).toBeVisible()
+  await expect(page).toHaveScreenshot('a1-market-order-details.png', {
+    animations: 'disabled',
+    fullPage: true,
+  })
+})
+
+test('A1 Close Exposure carries authoritative sizing context', async ({ page }) => {
+  await openFixture(page, { width: 1680, height: 940 }, 'dark')
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await fixture.getByTestId('projection-command-list').getByText('Market Order').click()
+  await fixture
+    .getByTestId('projection-actions')
+    .getByRole('button', { name: 'Close Exposure' })
+    .click()
+  const modal = page.getByRole('dialog', { name: 'Close Exposure' })
+  await modal.getByLabel('Close Amount').selectOption('percent')
+  await modal.getByRole('button', { name: '50%' }).click()
+
+  await expect(modal.getByTestId('close-exposure-context')).toContainText('0.002100005 ETH')
+  await expect(modal).toHaveScreenshot('a1-close-exposure.png', {
+    animations: 'disabled',
+  })
+})

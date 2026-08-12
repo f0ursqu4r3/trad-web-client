@@ -47,6 +47,7 @@ export interface TerminalTreeNode {
   children: TerminalTreeNode[]
   intent?: string | null
   throttled?: boolean
+  protection?: { text: string; className: string } | null
   symbol?: string | null
   market?: {
     exchange?: string | null
@@ -109,6 +110,7 @@ function convertTree(tree: ProjectionTreeNode): TerminalTreeNode {
     children,
     intent: entityIntent(entity),
     throttled: false,
+    protection: null,
     symbol: entitySymbol(entity),
     market: null,
     lifecycle:
@@ -126,10 +128,7 @@ function protectionNode(protection: NativeProtectionProjection): TerminalTreeNod
     status: terminalStatus(protection.status),
     tone: lifecycleTone(protection.status),
     relationship: 'attached protection',
-    badges: [
-      badge(protection.position_side, sideTone(protection.position_side)),
-      badge(`${protection.covered_quantity} / ${protection.target_quantity}`, 'info'),
-    ],
+    badges: [badge(`${protection.covered_quantity} / ${protection.target_quantity}`, 'info')],
     entity: {
       kind: 'native_protection',
       id: protection.protection_id,
@@ -140,6 +139,10 @@ function protectionNode(protection: NativeProtectionProjection): TerminalTreeNod
     ),
     intent: null,
     throttled: false,
+    protection: {
+      text: `Native Protection: ${title(protection.status)}`,
+      className: protectionStatusClass(protection.status),
+    },
     symbol: protection.symbol,
     market: null,
     lifecycle: null,
@@ -182,6 +185,7 @@ function protectionChildNode(
     children: [],
     intent: null,
     throttled: false,
+    protection: null,
     symbol: null,
     market: null,
     lifecycle: null,
@@ -212,6 +216,7 @@ function generationNode(
     children: [],
     intent: null,
     throttled: false,
+    protection: null,
     symbol: null,
     market: null,
     lifecycle: null,
@@ -288,18 +293,11 @@ function entityBadges(entity: ProjectionEntity): TerminalBadge[] {
   switch (entity.kind) {
     case 'order':
       return compactBadges([
-        badge(
-          entity.row.current_request.position_side,
-          sideTone(entity.row.current_request.position_side),
-        ),
-        badge(entity.row.current_request.side, 'dim'),
-        badge(entity.row.current_request.symbol, 'dim'),
         entity.row.current_request.reduce_only ? badge('Reduce only', 'warning') : null,
         entity.row.reconciliation_required ? badge('Reconcile', 'error') : null,
       ])
     case 'execution_group':
       return compactBadges([
-        badge(entity.row.purpose, 'dim'),
         badge(`${entity.row.filled_children}/${entity.row.child_order_ids.length} filled`, 'dim'),
         entity.row.reconciliation_children > 0 ? badge('Reconcile', 'error') : null,
       ])
@@ -310,17 +308,9 @@ function entityBadges(entity: ProjectionEntity): TerminalBadge[] {
         badge(`r${entity.row.reprice_sequence}`, 'dim'),
       ])
     case 'trailing_entry':
-      return compactBadges([
-        badge(entity.row.plan.position_side, sideTone(entity.row.plan.position_side)),
-        badge(entity.row.plan.symbol, 'dim'),
-        badge(entity.row.phase, lifecycleTone(entity.row.phase)),
-      ])
+      return []
     case 'close_workflow':
-      return compactBadges([
-        badge(entity.row.position_side, sideTone(entity.row.position_side)),
-        badge(entity.row.symbol, 'dim'),
-        badge(entity.row.execution.kind, 'dim'),
-      ])
+      return [badge(entity.row.execution.kind, 'dim')]
     case 'flatten_workflow':
       return [badge(`${entity.row.affected_command_ids.length} affected`, 'dim')]
     case 'command':
@@ -342,14 +332,6 @@ function badge(label: string, tone: TerminalBadge['tone']): TerminalBadge {
   return { label: title(label), tone }
 }
 
-function sideTone(side: string): TerminalBadge['tone'] {
-  return side.toLowerCase() === 'long'
-    ? 'success'
-    : side.toLowerCase() === 'short'
-      ? 'error'
-      : 'dim'
-}
-
 export function lifecycleTone(status: string): TerminalBadge['tone'] {
   const value = status.toLowerCase()
   if (['succeeded', 'filled', 'completed', 'flat'].includes(value)) return 'success'
@@ -363,6 +345,14 @@ export function lifecycleTone(status: string): TerminalBadge['tone'] {
     return 'info'
   }
   return 'dim'
+}
+
+function protectionStatusClass(status: string): string {
+  const tone = lifecycleTone(status)
+  if (tone === 'error') return 'pill-err'
+  if (tone === 'warning') return 'pill-warn'
+  if (tone === 'success' || tone === 'info') return 'pill-info'
+  return ''
 }
 
 function title(value: string): string {

@@ -32,6 +32,34 @@ test('renders the typed command graph and exact execution evidence', async ({ pa
   await expect(details.getByText('stop_loss @ 1800.125', { exact: true }).first()).toBeVisible()
 })
 
+test('keeps execution identity badges in mature semantic order without duplicates', async ({
+  page,
+}) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await fixture.getByTestId('projection-command-list').getByText('Market Order').click()
+  const row = fixture
+    .getByTestId('projection-entity-tree')
+    .locator('[data-node-kind="order"]')
+    .first()
+
+  const pills = await row.locator('.pill').allTextContents()
+  expect(pills).toEqual(['Open', 'ETH', 'hyperliquid', 'USDC perp', '10000000...', 'testnet'])
+
+  const protection = fixture
+    .getByTestId('projection-entity-tree')
+    .locator('[data-node-kind="native_protection"]')
+  const protectionPills = await protection.locator('.pill').allTextContents()
+  expect(protectionPills).toEqual([
+    'Native Protection: Tracking',
+    'ETH',
+    'hyperliquid',
+    'USDC perp',
+    '10000000...',
+    'testnet',
+    '0.00420001 / 0.00420001',
+  ])
+})
+
 test('loads revision-pinned history without replacing the live graph', async ({ page }) => {
   const fixture = page.getByTestId('engine-projection-fixture')
   await fixture.getByRole('button', { name: 'Command filters' }).click()
@@ -257,6 +285,34 @@ test('submits an exact reduce-only Chase policy for owned exposure', async ({ pa
   await expect(evidence).toContainText('"kind":"basis_points","value":"25.5"')
   await expect(evidence).toContainText('"expires_after_ms":180000')
   await expect(evidence).toContainText('"quantity":{"kind":"full"}')
+})
+
+test('sizes a partial close from authoritative owned exposure inside the modal', async ({
+  page,
+}) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await fixture.getByTestId('projection-command-list').getByText('Market Order').click()
+  await fixture
+    .getByTestId('projection-actions')
+    .getByRole('button', { name: 'Close Exposure' })
+    .click()
+
+  const modal = page.getByRole('dialog', { name: 'Close Exposure' })
+  const context = modal.getByTestId('close-exposure-context')
+  await expect(context).toContainText('ETH · long · 0.00420001 ETH')
+  await modal.getByLabel('Close Amount').selectOption('percent')
+  await modal.getByLabel('Close Percentage (%)').fill('0')
+  await expect(modal.getByText('Close amount must be greater than zero.')).toBeVisible()
+  await expect(modal.getByRole('button', { name: 'Close Exposure' })).toBeDisabled()
+  await modal.getByRole('button', { name: '50%' }).click()
+  await expect(context).toContainText('0.002100005 ETH')
+  await expect(context).toContainText('0.002100005 ETH')
+  await modal.getByLabel('Confirm close exposure').check()
+  await modal.getByRole('button', { name: 'Close Exposure' }).click()
+
+  await expect(fixture.getByTestId('latest-lifecycle-intent')).toContainText(
+    '"quantity":{"kind":"base","quantity":"0.002100005"}',
+  )
 })
 
 test('edits logical native protection without exposing exchange order identity', async ({

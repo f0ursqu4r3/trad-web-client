@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
-import { accountMetadataChips, useAccountsStore } from '@/stores/accounts'
+import { accountIdentityChips, useAccountsStore } from '@/stores/accounts'
 import { useUiStore } from '@/stores/ui'
 import DropMenu, { type DropMenuItem } from '@/components/general/DropMenu.vue'
 import { accountColorFromId } from '@/lib/accountColors'
@@ -13,7 +13,7 @@ const selectedAccount = computed(() => accounts.selectedAccount)
 
 const accountLabel = computed(() => {
   if (!selectedAccount.value) return 'No account selected'
-  return `${selectedAccount.value.label} • ${accountMetadataChips(selectedAccount.value).join(' • ')}`
+  return selectedAccount.value.label
 })
 
 const accountColor = computed(() => {
@@ -26,7 +26,7 @@ const accountMenuItems = computed<DropMenuItem[]>(() => {
   return accounts.accounts.map((acc) => {
     const color = accountColorFromId(acc.id || acc.label)
     return {
-      label: `${acc.label} • ${accountMetadataChips(acc).join(' • ')}`,
+      label: `${acc.label} • ${accountIdentityChips(acc).join(' • ')}`,
       value: acc.id,
       className: 'account-menu-item',
       style: {
@@ -86,6 +86,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .account-trigger {
   min-width: 280px;
+  max-width: min(420px, 36vw);
   border-radius: var(--radius-btn);
   background: color-mix(in srgb, var(--account-color) 70%, var(--panel-header-bg));
   border-color: color-mix(in srgb, var(--account-color) 45%, var(--border-color));
@@ -99,6 +100,10 @@ onBeforeUnmount(() => {
 }
 
 .account-trigger-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   font-weight: 500;
   color: #f5f7fa;

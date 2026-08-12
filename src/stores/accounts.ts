@@ -11,6 +11,7 @@ import {
 } from '@/lib/marketContext'
 import {
   accountMetadataChips,
+  accountIdentityChips,
   accountMetadataStatus,
   formatAccountProduct,
   isBybitMetadataVerified,
@@ -150,6 +151,7 @@ interface AccountDeletionFailure {
 }
 
 export {
+  accountIdentityChips,
   accountMetadataChips,
   accountMetadataStatus,
   formatAccountProduct,

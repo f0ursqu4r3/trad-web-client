@@ -7,6 +7,7 @@ import {
   summarizeProjectionExecutions,
 } from '@/lib/projection/executionEconomics'
 import DetailGrid from './DetailGrid.vue'
+import EvidenceDisclosure from './EvidenceDisclosure.vue'
 import { detail } from './model'
 
 const props = defineProps<{
@@ -33,8 +34,7 @@ function liquidity(execution: ExecutionProjection): string {
 <template>
   <section v-if="executions.length" class="execution-evidence" data-testid="execution-economics">
     <DetailGrid title="Execution Economics" :rows="economicsRows" />
-    <details open>
-      <summary>Fills ({{ executions.length }})</summary>
+    <EvidenceDisclosure :title="`Fills (${executions.length})`" open>
       <div class="fill-list">
         <article v-for="execution in executions" :key="execution.event_id" class="fill-row">
           <div class="fill-heading">
@@ -71,21 +71,11 @@ function liquidity(execution: ExecutionProjection): string {
           </div>
         </article>
       </div>
-    </details>
+    </EvidenceDisclosure>
   </section>
 </template>
 
 <style scoped>
-.execution-evidence > details {
-  padding: 8px 12px 10px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-summary {
-  cursor: pointer;
-  color: var(--color-text);
-}
-
 .fill-list {
   max-height: 280px;
   margin-top: 7px;
@@ -102,14 +92,20 @@ summary {
 .fill-heading,
 .fill-meta,
 .fill-ids {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px 14px;
+}
+
+.fill-heading > :nth-child(even),
+.fill-meta > :nth-child(even),
+.fill-ids > :nth-child(even) {
+  text-align: right;
 }
 
 .fill-heading {
   color: var(--color-text);
+  font-size: 11px;
 }
 
 .fill-meta,

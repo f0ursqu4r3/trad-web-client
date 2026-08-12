@@ -345,7 +345,7 @@ function formatDate(value: number | null): string {
 }
 
 .entity-title {
-  font-size: 14px;
+  font-size: 12px;
   color: var(--color-text);
 }
 

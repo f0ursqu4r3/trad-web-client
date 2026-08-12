@@ -1,4 +1,5 @@
 import { ExchangeType, type NetworkType } from '@/lib/ws/protocol'
+export { accountIdentityChips } from './accountIdentity'
 
 export interface ExchangeAccountMetadataLike {
   product?: string | null

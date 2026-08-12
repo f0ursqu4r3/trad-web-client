@@ -5,8 +5,9 @@ const props = withDefaults(
     title: string
     open: boolean
     size?: 'default' | 'wide'
+    blurBackdrop?: boolean
   }>(),
-  { open: false, size: 'default' },
+  { open: false, size: 'default', blurBackdrop: true },
 )
 const titleId = `command-modal-title-${props.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -19,7 +20,8 @@ function close() {
   <Teleport to="body">
     <div
       v-if="open"
-      class="fixed inset-0 bg-black/25 backdrop-blur-xs flex items-start justify-center p-16 z-500"
+      class="fixed inset-0 bg-black/25 flex items-start justify-center p-16 z-500"
+      :class="blurBackdrop ? 'backdrop-blur-xs' : ''"
       @click.self="close"
     >
       <div

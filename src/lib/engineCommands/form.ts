@@ -225,7 +225,7 @@ function takeProfitAllocation(
   }
 }
 
-function percentToFraction(value: string, label: string): string {
+export function percentToFraction(value: string, label: string): string {
   const percent = exactDecimal(value, label)
   const [whole = '0', fraction = ''] = percent.split('.')
   const digits = `${whole}${fraction}`.replace(/^0+(?=\d)/, '')

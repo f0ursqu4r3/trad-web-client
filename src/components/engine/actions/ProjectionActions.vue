@@ -46,7 +46,7 @@ function close(): void {
       v-for="action in actions"
       :key="action.kind"
       class="btn btn-sm"
-      :class="action.danger ? 'btn-danger' : 'btn-ghost'"
+      :class="action.danger ? 'btn-danger' : ''"
       type="button"
       @click="choose(action)"
     >
@@ -59,7 +59,7 @@ function close(): void {
     data-testid="projection-protection-actions"
   >
     <button
-      class="btn btn-sm btn-ghost"
+      class="btn btn-sm"
       type="button"
       :disabled="!canEditProtection"
       :title="

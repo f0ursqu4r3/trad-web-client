@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { Copy } from 'lucide-vue-next'
 
 import DetailGrid from './DetailGrid.vue'
+import EvidenceDisclosure from './EvidenceDisclosure.vue'
 import type { NativeProtectionProjection, ProtectionProjection } from '@/lib/gateway'
 import { formatExactDecimal } from '@/lib/exactDecimalMath'
 
@@ -104,8 +105,10 @@ async function copyRemoteOrderId(value: string): Promise<void> {
       </div>
     </section>
 
-    <details v-if="exchangeProtections.length" class="exchange-section">
-      <summary>Exchange protection orders ({{ exchangeProtections.length }})</summary>
+    <EvidenceDisclosure
+      v-if="exchangeProtections.length"
+      :title="`Exchange protection orders (${exchangeProtections.length})`"
+    >
       <article
         v-for="row in exchangeProtections"
         :key="row.remote_order_id"
@@ -124,7 +127,7 @@ async function copyRemoteOrderId(value: string): Promise<void> {
           <Copy :size="10" aria-hidden="true" />
         </button>
       </article>
-    </details>
+    </EvidenceDisclosure>
 
     <p v-if="protection.failure_reason" class="failure-reason">{{ protection.failure_reason }}</p>
   </section>
@@ -144,7 +147,7 @@ async function copyRemoteOrderId(value: string): Promise<void> {
 }
 
 h3 {
-  font-size: 14px;
+  font-size: 12px;
   margin: 0;
 }
 .protection-heading p {
@@ -187,28 +190,17 @@ h3 {
 
 .protection-children {
   display: grid;
-  gap: 8px;
-  padding: 0 12px 12px;
+  gap: 0;
 }
 .protection-child {
-  border: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-color);
 }
 .protection-child > header {
   display: flex;
   font-size: 10px;
   justify-content: space-between;
-  padding: 7px 9px;
+  padding: 8px 12px 0;
   text-transform: uppercase;
-}
-
-.exchange-section {
-  border-bottom: 1px solid var(--border-color);
-  padding: 8px 12px 10px;
-}
-
-.exchange-section summary {
-  cursor: pointer;
-  color: var(--color-text);
 }
 
 .exchange-evidence {

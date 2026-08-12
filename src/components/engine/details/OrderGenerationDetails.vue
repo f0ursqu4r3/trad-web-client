@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import DetailGrid from './DetailGrid.vue'
+import EvidenceDisclosure from './EvidenceDisclosure.vue'
 import type { OrderProjection } from '@/lib/gateway'
 import { formatExactDecimal } from '@/lib/exactDecimalMath'
 
@@ -28,8 +29,7 @@ const row = computed(() => props.order.generations[String(props.generation)])
         { label: 'Successor', value: row.successor_generation?.toString() ?? '-' },
       ]"
     />
-    <details class="evidence">
-      <summary>Operations and remote identities</summary>
+    <EvidenceDisclosure title="Operations and Remote Identities">
       <DetailGrid
         :rows="[
           { label: 'Submit operation', value: row.submission_operation_id },
@@ -39,19 +39,6 @@ const row = computed(() => props.order.generations[String(props.generation)])
           { label: 'Remote identities', value: String(row.remote_order_ids.length) },
         ]"
       />
-    </details>
+    </EvidenceDisclosure>
   </template>
 </template>
-
-<style scoped>
-.evidence {
-  border-bottom: 1px solid var(--border-color);
-  padding-top: 8px;
-}
-.evidence summary {
-  color: var(--color-text-dim);
-  cursor: pointer;
-  font-size: 11px;
-  padding: 0 12px 8px;
-}
-</style>

@@ -66,7 +66,7 @@ const repriceRows = computed(() => [
 
 .reason-block .reason-value {
   color: var(--color-text);
-  font-size: inherit;
+  font-size: 12px;
   text-transform: none;
 }
 </style>
