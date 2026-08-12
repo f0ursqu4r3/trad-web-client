@@ -3,7 +3,6 @@ import { ref } from 'vue'
 import { Filter, WalletCards } from 'lucide-vue-next'
 
 import AccountPositionInspector from '@/components/engine/AccountPositionInspector.vue'
-import ActiveProtectionList from '@/components/engine/ActiveProtectionList.vue'
 import ReconciliationControl from '@/components/engine/ReconciliationControl.vue'
 import SplitView from '@/components/general/SplitView.vue'
 import ProjectionCommandPanel from '@/components/terminal/projection/ProjectionCommandPanel.vue'
@@ -42,7 +41,6 @@ const positionsOpen = ref(false)
             </button>
           </span>
         </div>
-        <ActiveProtectionList />
         <ProjectionCommandPanel ref="commandPanel" />
       </div>
     </template>

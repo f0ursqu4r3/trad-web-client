@@ -181,11 +181,7 @@ function formatDate(value: number | null): string {
 <template>
   <section class="details-panel" :class="`details-${detailTone}`" data-testid="projection-details">
     <header class="panel-header">
-      <span class="panel-title">Details</span>
-      <span v-if="entity" class="detail-status">{{ entityStatus(entity) }}</span>
-      <span v-else-if="directlySelectedProtection" class="detail-status">
-        {{ directlySelectedProtection.status }}
-      </span>
+      <span class="panel-title">Device Details</span>
     </header>
 
     <div v-if="directlySelectedProtection" class="details-scroll">
@@ -195,10 +191,7 @@ function formatDate(value: number | null): string {
         >
         <span>Created: <strong>-</strong></span>
       </div>
-      <div class="entity-heading">
-        <div class="entity-title">Native Protection Device</div>
-        <span class="entity-status">{{ detailStatus }}</span>
-      </div>
+      <ProjectionActions v-if="showActions" />
       <NativeProtectionDetails
         :protection="directlySelectedProtection"
         :exchange-protections="directlySelectedExchangeProtections"
@@ -248,12 +241,6 @@ function formatDate(value: number | null): string {
   height: 100%;
   min-height: 0;
   flex-direction: column;
-}
-
-.detail-status {
-  margin-left: auto;
-  color: var(--color-text-dim);
-  text-transform: uppercase;
 }
 
 .details-scroll {

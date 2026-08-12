@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Copy } from 'lucide-vue-next'
 
 import DetailGrid from './DetailGrid.vue'
 import type { NativeProtectionProjection, ProtectionProjection } from '@/lib/gateway'
@@ -20,6 +21,14 @@ const coverageTone = computed(() => {
   if (props.protection.covered_quantity === props.protection.target_quantity) return 'success'
   return 'warning'
 })
+
+async function copyRemoteOrderId(value: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(value)
+  } catch {
+    // Clipboard access can be denied outside a secure browser context.
+  }
+}
 </script>
 
 <template>
@@ -95,8 +104,8 @@ const coverageTone = computed(() => {
       </div>
     </section>
 
-    <section v-if="exchangeProtections.length" class="detail-section">
-      <h4>Exchange Evidence</h4>
+    <details v-if="exchangeProtections.length" class="exchange-section">
+      <summary>Exchange protection orders ({{ exchangeProtections.length }})</summary>
       <article
         v-for="row in exchangeProtections"
         :key="row.remote_order_id"
@@ -105,9 +114,17 @@ const coverageTone = computed(() => {
         <span>{{ row.protection_kind.replace(/_/g, ' ') }}</span>
         <span>{{ formatExactDecimal(row.trigger_price) }}</span>
         <span>{{ row.status }}</span>
-        <span :title="row.remote_order_id">#{{ row.remote_order_id.slice(0, 12) }}</span>
+        <button
+          class="remote-order-id"
+          type="button"
+          :title="`Copy remote order ID ${row.remote_order_id}`"
+          @click="copyRemoteOrderId(row.remote_order_id)"
+        >
+          <span>#{{ row.remote_order_id.slice(0, 12) }}</span>
+          <Copy :size="10" aria-hidden="true" />
+        </button>
       </article>
-    </section>
+    </details>
 
     <p v-if="protection.failure_reason" class="failure-reason">{{ protection.failure_reason }}</p>
   </section>
@@ -184,13 +201,45 @@ h3 {
   text-transform: uppercase;
 }
 
+.exchange-section {
+  border-bottom: 1px solid var(--border-color);
+  padding: 8px 12px 10px;
+}
+
+.exchange-section summary {
+  cursor: pointer;
+  color: var(--color-text);
+}
+
 .exchange-evidence {
   display: grid;
   font-family: var(--font-mono);
   font-size: 10px;
   gap: 10px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  padding: 5px 12px;
+  padding: 7px 0;
+  border-top: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+}
+
+.remote-order-id {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  padding: 0;
+  overflow: hidden;
+  color: var(--color-info);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  cursor: copy;
+}
+
+.remote-order-id span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .failure-reason {

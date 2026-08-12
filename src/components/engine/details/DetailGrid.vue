@@ -60,6 +60,7 @@ dd {
   margin: 0;
   overflow-wrap: anywhere;
   color: var(--color-text);
+  font-size: 12px;
 }
 
 dd[data-tone='warning'] {

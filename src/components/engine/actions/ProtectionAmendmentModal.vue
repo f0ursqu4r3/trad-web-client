@@ -82,7 +82,7 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <BaseCommandModal title="Edit Native Protection" :open="open" @close="emit('close')">
+  <BaseCommandModal title="Edit Native Protection" :open="open" size="wide" @close="emit('close')">
     <form id="engine-protection-amendment" class="amendment-form" @submit.prevent="submit">
       <div v-if="protection" class="controller-summary">
         <span>{{ protection.symbol }} · {{ protection.position_side }}</span>

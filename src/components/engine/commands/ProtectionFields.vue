@@ -214,11 +214,21 @@ function removeTakeProfit(row: TakeProfitFormState): void {
 }
 
 .tp-fields {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
 }
 
 .stop-row {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.field {
+  min-width: 0;
+}
+
+.field > .input,
+.readonly-value {
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .remove-button {
@@ -229,6 +239,8 @@ function removeTakeProfit(row: TakeProfitFormState): void {
 }
 
 .readonly-value {
+  display: flex;
+  align-items: center;
   min-height: 28px;
   padding: 5px 7px;
   color: var(--color-text-dim);

@@ -2,12 +2,7 @@
 import { computed, ref } from 'vue'
 
 import { lifecycleActions, type LifecycleAction } from '@/lib/engineCommands/lifecycle'
-import type { CommandProjection } from '@/lib/gateway'
-import {
-  activeProtectionAmendment,
-  commandNativeProtection,
-} from '@/lib/engineCommands/protectionAmendment'
-import { entityCommandId } from '@/lib/projection/presentation'
+import { activeProtectionAmendment } from '@/lib/engineCommands/protectionAmendment'
 import { useAccountsStore } from '@/stores/accounts'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useProjectionUiStore } from '@/stores/projectionUi'
@@ -22,18 +17,7 @@ const editProtectionOpen = ref(false)
 const actions = computed(() =>
   lifecycleActions(ui.selectedEntity, ui.graph, projections.selectedLive?.positions ?? []),
 )
-const selectedCommand = computed<CommandProjection | null>(() => {
-  const selected = ui.selectedEntity
-  if (selected === null || ui.graph === null) return null
-  const commandId = entityCommandId(selected)
-  return ui.graph.commands.find((command) => command.command_id === commandId) ?? null
-})
-const selectedProtection = computed(() => {
-  const command = selectedCommand.value
-  const live = projections.selectedLive
-  if (command === null || live === null) return null
-  return commandNativeProtection(command, live.native_protections)
-})
+const selectedProtection = computed(() => ui.selectedProtection)
 const activeAmendment = computed(() => {
   return activeProtectionAmendment(
     selectedProtection.value,

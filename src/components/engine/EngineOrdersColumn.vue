@@ -4,7 +4,6 @@ import { WalletCards } from 'lucide-vue-next'
 
 import SplitView from '@/components/general/SplitView.vue'
 import AccountPositionInspector from './AccountPositionInspector.vue'
-import ActiveProtectionList from './ActiveProtectionList.vue'
 import ProjectionCommandList from './ProjectionCommandList.vue'
 import ProjectionEntityTree from './ProjectionEntityTree.vue'
 import ReconciliationControl from './ReconciliationControl.vue'
@@ -31,7 +30,6 @@ const positionsOpen = ref(false)
             <ReconciliationControl />
           </span>
         </header>
-        <ActiveProtectionList />
         <ProjectionCommandList />
       </section>
     </template>

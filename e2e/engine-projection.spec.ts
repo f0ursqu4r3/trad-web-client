@@ -265,6 +265,10 @@ test('edits logical native protection without exposing exchange order identity',
   const fixture = page.getByTestId('engine-projection-fixture')
   await fixture.getByTestId('projection-command-list').getByText('Market Order').click()
   await fixture
+    .getByTestId('projection-entity-tree')
+    .locator('[data-node-kind="native_protection"]')
+    .click()
+  await fixture
     .getByTestId('projection-protection-actions')
     .getByRole('button', { name: 'Edit Protection' })
     .click()
@@ -285,18 +289,20 @@ test('edits logical native protection without exposing exchange order identity',
   await expect(evidence).not.toContainText('native-take-profit-remote')
 })
 
-test('opens account-current protection without selecting its source command', async ({ page }) => {
+test('opens protection from its owning execution relationship', async ({ page }) => {
   const fixture = page.getByTestId('engine-projection-fixture')
-  await expect(
-    fixture.getByTestId('projection-command-list').getByText('Chase Order'),
-  ).toBeVisible()
-
+  await fixture.getByTestId('projection-command-list').getByText('Market Order').click()
   const protection = fixture
-    .getByTestId('active-protection-list')
-    .locator('[data-protection-id="30000000-0000-4000-8000-000000000003"]')
-  await expect(protection).toContainText('ETH · long')
-  await expect(protection).toContainText('0.00420001 / 0.00420001 covered')
-  await protection.getByRole('button', { name: 'Edit' }).click()
+    .getByTestId('projection-entity-tree')
+    .locator('[data-node-kind="native_protection"]')
+  await expect(protection).toContainText('Native Protection')
+  await expect(protection).toContainText('0.00420001 / 0.00420001')
+  await protection.click()
+
+  const details = fixture.getByTestId('projection-details')
+  await expect(details.getByText('Native Protection', { exact: true })).toBeVisible()
+  await expect(details.getByText('tracking', { exact: true })).toHaveCount(1)
+  await details.getByRole('button', { name: 'Edit Protection' }).click()
 
   const modal = page.getByRole('dialog', { name: 'Edit Native Protection' })
   await expect(modal.getByText('Plan revision 4')).toBeVisible()
