@@ -324,10 +324,23 @@ test('edits logical native protection without exposing exchange order identity',
     .getByTestId('projection-entity-tree')
     .locator('[data-node-kind="native_protection"]')
     .click()
-  await fixture
+  const details = fixture.getByTestId('projection-details')
+  const heading = details.getByRole('heading', { name: 'Native Protection' })
+  const edit = details
     .getByTestId('projection-protection-actions')
     .getByRole('button', { name: 'Edit Protection' })
-    .click()
+  await expect
+    .poll(async () =>
+      heading.evaluate(
+        (element, button) => {
+          if (!(button instanceof Node)) return false
+          return Boolean(element.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING)
+        },
+        await edit.elementHandle(),
+      ),
+    )
+    .toBe(true)
+  await edit.click()
 
   const modal = page.getByRole('dialog', { name: 'Edit Native Protection' })
   await expect(modal.getByText('Plan revision 4')).toBeVisible()

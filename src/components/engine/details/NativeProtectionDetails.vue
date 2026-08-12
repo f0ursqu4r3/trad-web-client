@@ -42,6 +42,8 @@ async function copyRemoteOrderId(value: string): Promise<void> {
       <span class="status-pill" :class="`tone-${coverageTone}`">{{ protection.status }}</span>
     </div>
 
+    <slot name="actions" />
+
     <section class="detail-section">
       <h4>Coverage</h4>
       <DetailGrid

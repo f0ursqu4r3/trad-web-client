@@ -249,11 +249,14 @@ function formatDate(value: number | null): string {
         >
         <span>Created: <strong>-</strong></span>
       </div>
-      <ProjectionActions v-if="showActions" />
       <NativeProtectionDetails
         :protection="directlySelectedProtection"
         :exchange-protections="directlySelectedExchangeProtections"
-      />
+      >
+        <template v-if="showActions" #actions>
+          <ProjectionActions />
+        </template>
+      </NativeProtectionDetails>
     </div>
     <div v-else-if="entity" class="details-scroll">
       <div class="entity-meta">
