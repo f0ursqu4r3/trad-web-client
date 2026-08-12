@@ -1,6 +1,6 @@
 import { ref, watch } from 'vue'
 import type { AuthProvider, AuthUser, LoginOptions, LogoutOptions } from '@/lib/auth'
-import { useWsStore } from '@/stores/ws'
+import { useGatewayStore } from '@/stores/gateway'
 
 interface SessionResponse {
   authenticated: boolean
@@ -29,7 +29,7 @@ export function createBffAuthProvider(): AuthProvider {
     isAuthenticated.value = false
     user.value = null
     try {
-      useWsStore().disconnect()
+      useGatewayStore().disconnect()
     } catch {
       // Navigation still tears down the browser websocket if the store is unavailable.
     }

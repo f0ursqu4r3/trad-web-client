@@ -41,6 +41,15 @@ export function sumExact(values: Iterable<ExactDecimal>): ExactDecimal {
   return total
 }
 
+export function formatExactDecimal(value: ExactDecimal): string {
+  const trimmed = value.trim()
+  const match = DECIMAL_PATTERN.exec(trimmed)
+  if (match === null) return value
+  const whole = (match[2] ?? '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  const fraction = match[3]
+  return `${match[1] ?? ''}${whole}${fraction === undefined ? '' : `.${fraction}`}`
+}
+
 function parseExact(value: ExactDecimal): DecimalParts {
   const match = DECIMAL_PATTERN.exec(value.trim())
   if (match === null) throw new Error(`invalid exact decimal: ${value}`)

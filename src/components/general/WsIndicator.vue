@@ -1,16 +1,16 @@
 <template>
   <div class="flex items-center space-x-1">
-    <span class="ws-indicator-status muted">[{{ ws.status }}]</span>
-    <span v-if="ws.latencyMs != null" class="size-xs muted">
-      ({{ ws.latencyMs.toFixed(0) }}ms)
+    <span class="ws-indicator-status muted">[{{ gateway.status }}]</span>
+    <span v-if="gateway.latencyMs != null" class="size-xs muted">
+      ({{ gateway.latencyMs.toFixed(0) }}ms)
     </span>
     <status-indicator
       :title="
-        `WS Status: ${ws.status}` +
-        (ws.latencyMs != null ? ` (lat ${ws.latencyMs.toFixed(0)}ms)` : '')
+        `Gateway status: ${gateway.status}` +
+        (gateway.latencyMs != null ? ` (lat ${gateway.latencyMs.toFixed(0)}ms)` : '')
       "
-      :status="statusMap[ws.status]"
-      :animated="ws.status !== 'ready'"
+      :status="statusMap[gateway.status]"
+      :animated="gateway.status !== 'ready'"
     />
     <span class="ws-indicator-divider muted">|</span>
     <span class="ws-indicator-auth muted">auth</span>
@@ -24,29 +24,32 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useWsStore } from '@/stores/ws'
+import { useGatewayStore } from '@/stores/gateway'
 
 import StatusIndicator from './StatusIndicator.vue'
 
-const ws = useWsStore()
+const gateway = useGatewayStore()
 
 const statusMap: Record<string, string> = {
   connecting: 'info',
   ready: 'success',
   error: 'error',
+  idle: 'neutral',
+  authenticating: 'info',
+  reconnecting: 'warning',
   disconnected: 'warning',
 }
 
 const authStatus = computed(() => {
-  if (ws.authAccepted === true) return 'success'
-  if (ws.authAccepted === false) return 'error'
+  if (gateway.status === 'ready') return 'success'
+  if (gateway.status === 'error') return 'error'
   return 'neutral'
 })
 
 const authTitle = computed(() => {
-  if (ws.authAccepted === true) return 'Auth: OK'
-  if (ws.authAccepted === false) {
-    return ws.authError ? `Auth: ${ws.authError}` : 'Auth: Failed'
+  if (gateway.status === 'ready') return 'Auth: OK'
+  if (gateway.status === 'error') {
+    return gateway.lastError ? `Auth: ${gateway.lastError}` : 'Auth: Failed'
   }
   return 'Auth: Pending'
 })

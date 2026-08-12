@@ -11,8 +11,8 @@ import { accountColorFromId } from '@/lib/accountColors'
 import WsIndicator from '@/components/general/WsIndicator.vue'
 import UserSettings from '@/components/terminal/modals/UserSettings.vue'
 import AccountSelect from '@/components/general/AccountSelect.vue'
-import CommandInputModal from '@/components/terminal/modals/commands/CommandInputModal.vue'
-import CommandModalContainer from '@/components/terminal/modals/commands/CommandModalContainer.vue'
+import EngineCommandPalette from '@/components/engine/commands/EngineCommandPalette.vue'
+import EngineCommandModalContainer from '@/components/engine/commands/EngineCommandModalContainer.vue'
 
 const userStore = useUserStore()
 const ui = useUiStore()
@@ -102,7 +102,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeys))
           <AccountSelect />
         </div>
         <div class="toolbar-section">
-          <CommandInputModal />
+          <EngineCommandPalette />
           <button class="btn btn-ghost" @click="toggleMessagesPanel" :title="msgsShortcut">
             {{ ui.showInboundPanel ? 'Hide msgs' : 'Show msgs' }}
             <span class="kbd">{{ msgsShortcut }}</span>
@@ -122,7 +122,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeys))
       </div>
       <UserSettings :open="ui.settingsOpen" @close="ui.closeSettings()" />
       <slot></slot>
-      <CommandModalContainer />
+      <EngineCommandModalContainer />
     </div>
   </div>
 </template>

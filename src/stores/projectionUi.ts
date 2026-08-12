@@ -32,6 +32,7 @@ export const useProjectionUiStore = defineStore(
     const ui = useUiStore()
     const selectedCommandId = ref<Uuid | null>(null)
     const selectedNode = ref<ProjectionNodeId | null>(null)
+    const selectedProtectionId = ref<Uuid | null>(null)
     const autoSelectNewCommands = ref(true)
     const commandMeta = ref<Record<Uuid, ProjectionCommandMeta>>({})
     const commandFilters = ref<ProjectionCommandFilters>(defaultProjectionCommandFilters())
@@ -69,12 +70,18 @@ export const useProjectionUiStore = defineStore(
       if (graph.value === null || selectedNode.value === null) return null
       return projectionEntities(graph.value).get(nodeKey(selectedNode.value)) ?? null
     })
+    const selectedProtection = computed(() => {
+      const id = selectedProtectionId.value
+      if (id === null) return null
+      return projections.selectedLive?.native_protections.find((row) => row.protection_id === id) ?? null
+    })
 
     watch(
       () => accounts.selectedAccountId,
       () => {
         selectedCommandId.value = null
         selectedNode.value = null
+        selectedProtectionId.value = null
       },
     )
 
@@ -108,10 +115,17 @@ export const useProjectionUiStore = defineStore(
       selectedNode.value =
         commands.value.find((command) => command.command_id === commandId)?.root ??
         ({ kind: 'command', id: commandId } as const)
+      selectedProtectionId.value = null
     }
 
     function selectEntity(node: ProjectionNodeId): void {
       selectedNode.value = node
+      selectedProtectionId.value = null
+    }
+
+    function selectProtection(protectionId: Uuid): void {
+      selectedNode.value = null
+      selectedProtectionId.value = protectionId
     }
 
     function togglePinned(commandId: Uuid): void {
@@ -144,6 +158,7 @@ export const useProjectionUiStore = defineStore(
     return {
       selectedCommandId,
       selectedNode,
+      selectedProtectionId,
       autoSelectNewCommands,
       commandMeta,
       commandFilters,
@@ -155,8 +170,10 @@ export const useProjectionUiStore = defineStore(
       selectedCommand,
       selectedTree,
       selectedEntity,
+      selectedProtection,
       selectCommand,
       selectEntity,
+      selectProtection,
       togglePinned,
       setNickname,
       resetCommandFilters,
