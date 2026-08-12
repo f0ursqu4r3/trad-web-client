@@ -48,48 +48,60 @@ function removeTakeProfit(row: TakeProfitFormState): void {
     </div>
 
     <div v-for="(takeProfit, index) in model.takeProfits" :key="takeProfit.id" class="tp-row">
-      <label class="field">
-        <span>TP {{ index + 1 }} Trigger</span>
-        <input
-          v-model="takeProfit.triggerPrice"
-          class="input"
-          type="text"
-          inputmode="decimal"
-          placeholder="Price"
-        />
-      </label>
-      <label class="field">
-        <span>Allocation</span>
-        <select v-model="takeProfit.allocationKind" class="input">
-          <option value="full_remaining">Full Remaining</option>
-          <option value="fraction">Percent</option>
-          <option value="exact_base">Base Quantity</option>
-        </select>
-      </label>
-      <label v-if="takeProfit.allocationKind !== 'full_remaining'" class="field">
-        <span>{{ takeProfit.allocationKind === 'fraction' ? 'Percent' : 'Base Quantity' }}</span>
-        <input v-model="takeProfit.allocationValue" class="input" type="text" inputmode="decimal" />
-      </label>
-      <label class="field">
-        <span>Trigger Source</span>
-        <span v-if="markPriceOnly" class="readonly-value">Mark Price</span>
-        <select v-else v-model="takeProfit.triggerSource" class="input">
-          <option value="mark_price">Mark Price</option>
-          <option value="last_price">Last Price</option>
-          <option value="index_price">Index Price</option>
-        </select>
-      </label>
-      <label class="field">
-        <span>Execution</span>
-        <select v-model="takeProfit.executionKind" class="input">
-          <option value="market">Market</option>
-          <option value="limit">Limit</option>
-        </select>
-      </label>
-      <label v-if="takeProfit.executionKind === 'limit'" class="field">
-        <span>Limit Price</span>
-        <input v-model="takeProfit.executionPrice" class="input" type="text" inputmode="decimal" />
-      </label>
+      <div class="tp-fields">
+        <label class="field">
+          <span>TP {{ index + 1 }} Trigger</span>
+          <input
+            v-model="takeProfit.triggerPrice"
+            class="input"
+            type="text"
+            inputmode="decimal"
+            placeholder="Price"
+          />
+        </label>
+        <label class="field">
+          <span>Allocation</span>
+          <select v-model="takeProfit.allocationKind" class="input">
+            <option value="full_remaining">Full Remaining</option>
+            <option value="fraction">Percent</option>
+            <option value="exact_base">Base Quantity</option>
+          </select>
+        </label>
+        <label v-if="takeProfit.allocationKind !== 'full_remaining'" class="field">
+          <span>{{ takeProfit.allocationKind === 'fraction' ? 'Percent' : 'Base Quantity' }}</span>
+          <input
+            v-model="takeProfit.allocationValue"
+            class="input"
+            type="text"
+            inputmode="decimal"
+          />
+        </label>
+        <label class="field">
+          <span>Trigger Source</span>
+          <span v-if="markPriceOnly" class="readonly-value">Mark Price</span>
+          <select v-else v-model="takeProfit.triggerSource" class="input">
+            <option value="mark_price">Mark Price</option>
+            <option value="last_price">Last Price</option>
+            <option value="index_price">Index Price</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Execution</span>
+          <select v-model="takeProfit.executionKind" class="input">
+            <option value="market">Market</option>
+            <option value="limit">Limit</option>
+          </select>
+        </label>
+        <label v-if="takeProfit.executionKind === 'limit'" class="field">
+          <span>Limit Price</span>
+          <input
+            v-model="takeProfit.executionPrice"
+            class="input"
+            type="text"
+            inputmode="decimal"
+          />
+        </label>
+      </div>
       <button
         class="btn icon-btn remove-button"
         type="button"
@@ -171,13 +183,23 @@ function removeTakeProfit(row: TakeProfitFormState): void {
   gap: 5px;
 }
 
-.tp-row,
-.stop-row {
+.tp-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) 28px;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  align-items: end;
   gap: 8px;
   padding: 8px 0;
   border-top: 1px solid color-mix(in srgb, var(--border-color) 65%, transparent);
+}
+
+.tp-fields,
+.stop-row {
+  display: grid;
+  gap: 8px;
+}
+
+.tp-fields {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .stop-row {
@@ -185,7 +207,10 @@ function removeTakeProfit(row: TakeProfitFormState): void {
 }
 
 .remove-button {
-  align-self: end;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
 }
 
 .readonly-value {
@@ -195,10 +220,17 @@ function removeTakeProfit(row: TakeProfitFormState): void {
   border: 1px solid var(--border-color);
 }
 
-@media (max-width: 640px) {
-  .tp-row,
+@media (max-width: 760px) {
+  .tp-fields,
   .stop-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .tp-fields,
+  .stop-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>

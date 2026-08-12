@@ -110,7 +110,7 @@ function buildIntent() {
 </script>
 
 <template>
-  <BaseCommandModal title="Chase Order" :open="open" @close="emit('close')">
+  <BaseCommandModal title="Chase Order" :open="open" size="wide" @close="emit('close')">
     <form id="engine-chase-order" class="command-form" @submit.prevent="submit">
       <div class="form-grid">
         <label class="field">

@@ -119,7 +119,7 @@ function buildIntent() {
 </script>
 
 <template>
-  <BaseCommandModal :title="title" :open="open" @close="emit('close')">
+  <BaseCommandModal :title="title" :open="open" size="wide" @close="emit('close')">
     <form :id="`engine-${executionKind}-order`" class="command-form" @submit.prevent="submit">
       <div class="form-grid">
         <label class="field">
