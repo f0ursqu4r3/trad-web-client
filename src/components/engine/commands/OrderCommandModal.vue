@@ -13,6 +13,7 @@ import {
   type SizingMode,
 } from '@/lib/engineCommands/form'
 import { buildPlaceOrderIntent, previewIntent } from '@/lib/engineCommands/intents'
+import { labelWithUnit, marketUnits } from '@/lib/engineCommands/marketUnits'
 import type { OrderCommandPrefill } from '@/lib/engineCommands/prefill'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
@@ -43,6 +44,10 @@ const targetChildNotional = ref('')
 const maxChildren = ref('20')
 const protection = ref<ProtectionFormState>(newProtectionState())
 const validationError = ref<string | null>(null)
+const selectedAccount = computed(
+  () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
+)
+const units = computed(() => marketUnits(selectedAccount.value, symbol.value))
 
 const title = computed(() => (props.executionKind === 'market' ? 'Market Order' : 'Limit Order'))
 const canSubmit = computed(
@@ -144,10 +149,12 @@ function buildIntent() {
         <SizingFields
           v-model:mode="sizingMode"
           v-model:amount="amount"
+          :base-asset="units.base"
+          :quote-asset="units.quote"
           @update:mode="rememberSizingMode"
         />
         <label v-if="executionKind === 'limit'" class="field">
-          <span>Limit Price</span>
+          <span>{{ labelWithUnit('Limit Price', units.quote) }}</span>
           <input v-model="limitPrice" class="input" type="text" inputmode="decimal" />
         </label>
         <label v-if="executionKind === 'limit'" class="field">
@@ -164,11 +171,12 @@ function buildIntent() {
         />
       </div>
 
-      <ProtectionFields v-model="protection" />
+      <ProtectionFields v-model="protection" :base-asset="units.base" :quote-asset="units.quote" />
       <ExecutionPreviewPanel
         :account-id="selectedAccountId"
         :intent="planningIntent"
         :active="open"
+        :quote-asset="units.quote"
       />
 
       <p v-if="validationError || submission.submissionError.value" class="submission-error">

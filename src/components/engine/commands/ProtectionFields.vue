@@ -6,9 +6,14 @@ import {
   type ProtectionFormState,
   type TakeProfitFormState,
 } from '@/lib/engineCommands/form'
+import { labelWithUnit } from '@/lib/engineCommands/marketUnits'
 
 const model = defineModel<ProtectionFormState>({ required: true })
-defineProps<{ markPriceOnly?: boolean }>()
+const props = defineProps<{
+  markPriceOnly?: boolean
+  baseAsset?: string | null
+  quoteAsset?: string | null
+}>()
 
 function addTakeProfit(): void {
   if (model.value.takeProfits.length >= 20) return
@@ -50,7 +55,7 @@ function removeTakeProfit(row: TakeProfitFormState): void {
     <div v-for="(takeProfit, index) in model.takeProfits" :key="takeProfit.id" class="tp-row">
       <div class="tp-fields">
         <label class="field">
-          <span>TP {{ index + 1 }} Trigger</span>
+          <span>{{ labelWithUnit('TP ' + (index + 1) + ' Trigger', props.quoteAsset) }}</span>
           <input
             v-model="takeProfit.triggerPrice"
             class="input"
@@ -68,7 +73,11 @@ function removeTakeProfit(row: TakeProfitFormState): void {
           </select>
         </label>
         <label v-if="takeProfit.allocationKind !== 'full_remaining'" class="field">
-          <span>{{ takeProfit.allocationKind === 'fraction' ? 'Percent' : 'Base Quantity' }}</span>
+          <span>{{
+            takeProfit.allocationKind === 'fraction'
+              ? 'Percent'
+              : labelWithUnit('Base Quantity', props.baseAsset)
+          }}</span>
           <input
             v-model="takeProfit.allocationValue"
             class="input"
@@ -93,7 +102,7 @@ function removeTakeProfit(row: TakeProfitFormState): void {
           </select>
         </label>
         <label v-if="takeProfit.executionKind === 'limit'" class="field">
-          <span>Limit Price</span>
+          <span>{{ labelWithUnit('Limit Price', props.quoteAsset) }}</span>
           <input
             v-model="takeProfit.executionPrice"
             class="input"
@@ -118,7 +127,7 @@ function removeTakeProfit(row: TakeProfitFormState): void {
     </label>
     <div v-if="model.stopLoss.enabled" class="stop-row">
       <label class="field">
-        <span>SL Trigger</span>
+        <span>{{ labelWithUnit('SL Trigger', props.quoteAsset) }}</span>
         <input
           v-model="model.stopLoss.triggerPrice"
           class="input"
@@ -144,7 +153,7 @@ function removeTakeProfit(row: TakeProfitFormState): void {
         </select>
       </label>
       <label v-if="model.stopLoss.executionKind === 'limit'" class="field">
-        <span>Limit Price</span>
+        <span>{{ labelWithUnit('Limit Price', props.quoteAsset) }}</span>
         <input
           v-model="model.stopLoss.executionPrice"
           class="input"

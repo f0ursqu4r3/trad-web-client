@@ -8,6 +8,7 @@ const props = defineProps<{
   accountId: string
   intent: BrowserPreviewIntent | null
   active: boolean
+  quoteAsset?: string | null
 }>()
 
 const gateway = useGatewayStore()
@@ -84,11 +85,15 @@ onBeforeUnmount(() => {
     <p v-if="error" class="preview-error">{{ error }}</p>
     <template v-else-if="preview">
       <div class="preview-grid">
-        <span>Decision price</span>
+        <span>{{
+          props.quoteAsset ? 'Decision price (' + props.quoteAsset + ')' : 'Decision price'
+        }}</span>
         <strong>{{ preview.decision_price }} · {{ sourceLabel }}</strong>
         <span>Normalized base</span>
         <strong>{{ preview.normalized_base_quantity }} {{ preview.symbol }}</strong>
-        <span>Estimated notional</span>
+        <span>{{
+          props.quoteAsset ? 'Estimated notional (' + props.quoteAsset + ')' : 'Estimated notional'
+        }}</span>
         <strong>{{ preview.normalized_quote_notional }}</strong>
         <span>Exchange children</span>
         <strong>{{ preview.children.length }}</strong>
@@ -101,7 +106,10 @@ onBeforeUnmount(() => {
         <summary>Child allocations</summary>
         <div v-for="(child, index) in preview.children" :key="index" class="child-row">
           <span>#{{ index + 1 }}</span>
-          <span>{{ child.base_quantity }} · {{ child.quote_notional }}</span>
+          <span>
+            {{ child.base_quantity }} {{ preview.symbol }} · {{ child.quote_notional }}
+            {{ props.quoteAsset ?? '' }}
+          </span>
         </div>
       </details>
       <details class="preview-details">
@@ -123,7 +131,11 @@ onBeforeUnmount(() => {
           <strong v-if="preview.instrument.maximum_order_quantity">
             {{ preview.instrument.maximum_order_quantity }}
           </strong>
-          <span v-if="preview.instrument.minimum_order_notional">Minimum notional</span>
+          <span v-if="preview.instrument.minimum_order_notional">
+            {{
+              props.quoteAsset ? 'Minimum notional (' + props.quoteAsset + ')' : 'Minimum notional'
+            }}
+          </span>
           <strong v-if="preview.instrument.minimum_order_notional">
             {{ preview.instrument.minimum_order_notional }}
           </strong>

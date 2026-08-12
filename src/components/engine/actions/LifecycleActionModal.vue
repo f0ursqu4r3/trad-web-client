@@ -8,6 +8,8 @@ import {
   type LifecycleAction,
   type TrailingEntryAmendmentDraft,
 } from '@/lib/engineCommands/lifecycle'
+import { labelWithUnit, marketUnits } from '@/lib/engineCommands/marketUnits'
+import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 
 const props = defineProps<{
@@ -18,6 +20,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
 const gateway = useGatewayStore()
+const accounts = useAccountsStore()
 const submission = useEngineCommandSubmission()
 const closeMode = ref<'full' | 'base'>('full')
 const closeQuantity = ref('')
@@ -34,6 +37,22 @@ const targetQuantity = ref('')
 const amendment = ref<TrailingEntryAmendmentDraft>(emptyAmendment())
 const confirmed = ref(false)
 const validationError = ref<string | null>(null)
+const selectedAccount = computed(
+  () => accounts.accounts.find((account) => account.id === props.accountId) ?? null,
+)
+const actionSymbol = computed(() => {
+  switch (props.action?.target.kind) {
+    case 'order':
+      return props.action.target.row.current_request.symbol
+    case 'chase':
+      return primitiveString(props.action.target.row.plan.symbol)
+    case 'trailing_entry':
+      return props.action.target.row.plan.symbol
+    default:
+      return ''
+  }
+})
+const units = computed(() => marketUnits(selectedAccount.value, actionSymbol.value))
 
 const title = computed(() => props.action?.label ?? 'Action')
 const needsConfirmation = computed(
@@ -148,7 +167,7 @@ function primitiveString(value: unknown): string {
           </select>
         </label>
         <label v-if="closeMode === 'base'" class="field">
-          <span>Base Quantity</span>
+          <span>{{ labelWithUnit('Base Quantity', units.base) }}</span>
           <input v-model="closeQuantity" class="input" type="text" inputmode="decimal" />
         </label>
         <label class="field">
@@ -161,7 +180,7 @@ function primitiveString(value: unknown): string {
         </label>
         <template v-if="closeExecutionMode === 'limit'">
           <label class="field">
-            <span>Limit Price</span>
+            <span>{{ labelWithUnit('Limit Price', units.quote) }}</span>
             <input v-model="closeLimitPrice" class="input" type="text" inputmode="decimal" />
           </label>
           <label class="field">
@@ -186,7 +205,9 @@ function primitiveString(value: unknown): string {
           </label>
           <label v-if="closeChaseBoundaryEnabled" class="field">
             <span>{{
-              closeChaseBoundaryMode === 'basis_points' ? 'Maximum Distance' : 'Boundary Price'
+              closeChaseBoundaryMode === 'basis_points'
+                ? 'Maximum Distance (bps)'
+                : labelWithUnit('Boundary Price', units.quote)
             }}</span>
             <input
               v-model="closeChaseBoundaryValue"
@@ -217,11 +238,11 @@ function primitiveString(value: unknown): string {
 
       <template v-if="action?.kind === 'modify_order'">
         <label class="field">
-          <span>Target Price</span>
+          <span>{{ labelWithUnit('Target Price', units.quote) }}</span>
           <input v-model="targetPrice" class="input" type="text" inputmode="decimal" />
         </label>
         <label class="field">
-          <span>Total Base Quantity</span>
+          <span>{{ labelWithUnit('Total Base Quantity', units.base) }}</span>
           <input v-model="targetQuantity" class="input" type="text" inputmode="decimal" />
         </label>
         <p class="help-text">Total quantity cannot be below the quantity already filled.</p>
@@ -229,7 +250,7 @@ function primitiveString(value: unknown): string {
 
       <template v-if="action?.kind === 'amend_trailing_entry'">
         <label class="field">
-          <span>Activation Price</span>
+          <span>{{ labelWithUnit('Activation Price', units.quote) }}</span>
           <input
             v-model="amendment.activationPrice"
             class="input"
@@ -247,11 +268,11 @@ function primitiveString(value: unknown): string {
           />
         </label>
         <label class="field">
-          <span>Stop Loss Price</span>
+          <span>{{ labelWithUnit('Stop Loss Price', units.quote) }}</span>
           <input v-model="amendment.stopLossPrice" class="input" type="text" inputmode="decimal" />
         </label>
         <label class="field">
-          <span>Risk Amount</span>
+          <span>{{ labelWithUnit('Risk at Stop', units.quote) }}</span>
           <input v-model="amendment.riskAmount" class="input" type="text" inputmode="decimal" />
         </label>
         <label class="field">
@@ -263,7 +284,7 @@ function primitiveString(value: unknown): string {
           </select>
         </label>
         <label v-if="amendment.takeProfitMode === 'set'" class="field">
-          <span>Take Profit Price</span>
+          <span>{{ labelWithUnit('Take Profit Price', units.quote) }}</span>
           <input
             v-model="amendment.takeProfitPrice"
             class="input"

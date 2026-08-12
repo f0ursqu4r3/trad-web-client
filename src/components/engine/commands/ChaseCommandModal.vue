@@ -12,6 +12,7 @@ import {
   type SizingMode,
 } from '@/lib/engineCommands/form'
 import { buildPlaceChaseIntent, previewIntent } from '@/lib/engineCommands/intents'
+import { labelWithUnit, marketUnits } from '@/lib/engineCommands/marketUnits'
 import type { ChaseCommandPrefill } from '@/lib/engineCommands/prefill'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
@@ -40,6 +41,10 @@ const expirySeconds = ref('')
 const remainder = ref<'cancel' | 'market_fill'>('cancel')
 const protection = ref<ProtectionFormState>(newProtectionState())
 const validationError = ref<string | null>(null)
+const selectedAccount = computed(
+  () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
+)
+const units = computed(() => marketUnits(selectedAccount.value, symbol.value))
 const canSubmit = computed(
   () => gateway.isConnected && selectedAccountId.value !== '' && !submission.submitting.value,
 )
@@ -132,6 +137,8 @@ function buildIntent() {
         <SizingFields
           v-model:mode="sizingMode"
           v-model:amount="amount"
+          :base-asset="units.base"
+          :quote-asset="units.quote"
           @update:mode="rememberSizingMode"
         />
         <label class="field">
@@ -143,7 +150,11 @@ function buildIntent() {
           </select>
         </label>
         <label v-if="boundaryKind !== 'none'" class="field">
-          <span>{{ boundaryKind === 'price' ? 'Boundary Price' : 'Boundary Basis Points' }}</span>
+          <span>{{
+            boundaryKind === 'price'
+              ? labelWithUnit('Boundary Price', units.quote)
+              : 'Boundary Basis Points'
+          }}</span>
           <input v-model="boundaryValue" class="input" type="text" inputmode="decimal" />
         </label>
         <label class="field">
@@ -164,11 +175,12 @@ function buildIntent() {
           </select>
         </label>
       </div>
-      <ProtectionFields v-model="protection" />
+      <ProtectionFields v-model="protection" :base-asset="units.base" :quote-asset="units.quote" />
       <ExecutionPreviewPanel
         :account-id="selectedAccountId"
         :intent="planningIntent"
         :active="open"
+        :quote-asset="units.quote"
       />
       <p v-if="validationError || submission.submissionError.value" class="submission-error">
         {{ validationError || submission.submissionError.value }}

@@ -6,6 +6,7 @@ import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmis
 import type { PositionSideIntent } from '@/lib/gateway'
 import { type ShapeMode } from '@/lib/engineCommands/form'
 import { buildPlaceTrailingEntryIntent, previewIntent } from '@/lib/engineCommands/intents'
+import { labelWithUnit, marketUnits } from '@/lib/engineCommands/marketUnits'
 import type { TrailingEntryCommandPrefill } from '@/lib/engineCommands/prefill'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
@@ -38,6 +39,7 @@ const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
 )
 const isHyperliquid = computed(() => selectedAccount.value?.exchange === 'hyperliquid')
+const units = computed(() => marketUnits(selectedAccount.value, symbol.value))
 const canSubmit = computed(
   () => gateway.isConnected && selectedAccountId.value !== '' && !submission.submitting.value,
 )
@@ -58,9 +60,7 @@ watch(
 )
 
 function reset(): void {
-  const prefill = modals.modalValues.EngineTrailingEntry as
-    | TrailingEntryCommandPrefill
-    | undefined
+  const prefill = modals.modalValues.EngineTrailingEntry as TrailingEntryCommandPrefill | undefined
   selectedAccountId.value =
     prefill?.accountId ?? accounts.selectedAccountId ?? accounts.accounts[0]?.id ?? ''
   symbol.value = prefill?.symbol ?? accounts.getDefaultSymbolForAccount(selectedAccountId.value)
@@ -134,11 +134,11 @@ function buildIntent() {
           </select>
         </label>
         <label class="field">
-          <span>Risk Amount</span>
+          <span>{{ labelWithUnit('Risk at Stop', units.quote) }}</span>
           <input v-model="riskAmount" class="input" type="text" inputmode="decimal" />
         </label>
         <label class="field">
-          <span>Activation Price</span>
+          <span>{{ labelWithUnit('Activation Price', units.quote) }}</span>
           <input v-model="activationPrice" class="input" type="text" inputmode="decimal" />
         </label>
         <label class="field">
@@ -146,11 +146,11 @@ function buildIntent() {
           <input v-model="jumpBasisPoints" class="input" type="text" inputmode="decimal" />
         </label>
         <label class="field">
-          <span>Stop Loss Price</span>
+          <span>{{ labelWithUnit('Stop Loss Price', units.quote) }}</span>
           <input v-model="stopLossPrice" class="input" type="text" inputmode="decimal" />
         </label>
         <label class="field">
-          <span>Take Profit Price (optional)</span>
+          <span>{{ labelWithUnit('Take Profit Price', units.quote) }} (optional)</span>
           <input v-model="takeProfitPrice" class="input" type="text" inputmode="decimal" />
         </label>
         <label v-if="isHyperliquid" class="field one-way-field">
@@ -175,6 +175,7 @@ function buildIntent() {
         :account-id="selectedAccountId"
         :intent="planningIntent"
         :active="open"
+        :quote-asset="units.quote"
       />
 
       <p v-if="validationError || submission.submissionError.value" class="submission-error">

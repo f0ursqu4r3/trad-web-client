@@ -10,7 +10,9 @@ import {
   protectionAmendmentIntent,
   type ProtectionFormState,
 } from '@/lib/engineCommands/form'
+import { marketUnits } from '@/lib/engineCommands/marketUnits'
 import { protectionForm } from '@/lib/engineCommands/protectionAmendment'
+import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 
 const props = defineProps<{
@@ -21,11 +23,18 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
 const gateway = useGatewayStore()
+const accounts = useAccountsStore()
 const submission = useEngineCommandSubmission()
 const form = ref<ProtectionFormState>(newProtectionState())
 const baseline = ref('')
 const confirmed = ref(false)
 const validationError = ref<string | null>(null)
+const units = computed(() =>
+  marketUnits(
+    accounts.accounts.find((account) => account.id === props.accountId),
+    props.protection?.symbol ?? '',
+  ),
+)
 
 const changed = computed(() => JSON.stringify(form.value) !== baseline.value)
 const canSubmit = computed(
@@ -78,10 +87,18 @@ async function submit(): Promise<void> {
       <div v-if="protection" class="controller-summary">
         <span>{{ protection.symbol }} · {{ protection.position_side }}</span>
         <span>Plan revision {{ protection.plan_revision }}</span>
-        <span>{{ protection.covered_quantity }} / {{ protection.target_quantity }} covered</span>
+        <span>
+          {{ protection.covered_quantity }} / {{ protection.target_quantity }}
+          {{ units.base ?? '' }} covered
+        </span>
       </div>
 
-      <ProtectionFields v-model="form" mark-price-only />
+      <ProtectionFields
+        v-model="form"
+        mark-price-only
+        :base-asset="units.base"
+        :quote-asset="units.quote"
+      />
 
       <p class="help-text">
         Hyperliquid edits are applied one verified exchange operation at a time. Stop changes run
