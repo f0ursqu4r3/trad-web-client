@@ -22,6 +22,11 @@ const selected = computed(() => {
   const node = projectionUi.selectedNode
   return node?.kind === props.node.entity.node.kind && node.id === props.node.entity.node.id
 })
+const nodeKind = computed(() =>
+  props.node.entity.kind === 'native_protection'
+    ? 'native_protection'
+    : props.node.entity.node.kind,
+)
 
 function select(): void {
   if (props.node.entity.kind === 'native_protection') {
@@ -38,6 +43,10 @@ function select(): void {
       class="tree-row"
       :class="[{ selected }, `tone-${node.tone}`]"
       :style="{ '--tree-depth': depth }"
+      :data-node-kind="nodeKind"
+      :data-node-id="
+        node.entity.kind === 'native_protection' ? node.entity.id : node.entity.node.id
+      "
       type="button"
       @click="select"
     >
@@ -50,7 +59,9 @@ function select(): void {
         <ChevronRight v-else-if="node.children.length > 0" :size="11" />
       </span>
       <span class="tree-label">{{ node.label }}</span>
-      <span v-if="node.relationship" class="relationship">{{ node.relationship.replace(/_/g, ' ') }}</span>
+      <span v-if="node.relationship" class="relationship">{{
+        node.relationship.replace(/_/g, ' ')
+      }}</span>
       <span class="tree-badges">
         <span
           v-for="badge in node.badges"
@@ -94,22 +105,45 @@ function select(): void {
   width: 100%;
 }
 
-.tree-row:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+.tree-row:hover {
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
 .tree-row.selected {
   background: color-mix(in srgb, var(--tone-color) 10%, transparent);
   border-left-color: var(--tone-color);
   color: var(--color-text);
 }
 
-.tone-info { --tone-color: var(--color-info); }
-.tone-success { --tone-color: var(--color-success); }
-.tone-warning { --tone-color: var(--color-warning); }
-.tone-error { --tone-color: var(--color-error); }
+.tone-info {
+  --tone-color: var(--color-info);
+}
+.tone-success {
+  --tone-color: var(--color-success);
+}
+.tone-warning {
+  --tone-color: var(--color-warning);
+}
+.tone-error {
+  --tone-color: var(--color-error);
+}
 
-.tree-expander { align-items: center; display: inline-flex; justify-content: center; }
-.tree-expander.empty { visibility: hidden; }
-.tree-label { color: var(--color-text); white-space: nowrap; }
-.relationship { color: var(--color-text-dim); font-size: 9px; text-transform: uppercase; }
+.tree-expander {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+}
+.tree-expander.empty {
+  visibility: hidden;
+}
+.tree-label {
+  color: var(--color-text);
+  white-space: nowrap;
+}
+.relationship {
+  color: var(--color-text-dim);
+  font-size: 9px;
+  text-transform: uppercase;
+}
 
 .tree-badges {
   display: flex;

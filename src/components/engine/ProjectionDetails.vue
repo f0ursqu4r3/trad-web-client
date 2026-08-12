@@ -10,6 +10,7 @@ import OperationalDetails from '@/components/engine/details/OperationalDetails.v
 import OrderDetails from '@/components/engine/details/OrderDetails.vue'
 import ProtectionEvidence from '@/components/engine/details/ProtectionEvidence.vue'
 import TrailingEntryDetails from '@/components/engine/details/TrailingEntryDetails.vue'
+import NativeProtectionDetails from '@/components/engine/details/NativeProtectionDetails.vue'
 import {
   activeProtectionAmendment,
   commandNativeProtection,
@@ -44,6 +45,7 @@ const projections = useAccountProjectionStore()
 const ui = useProjectionUiStore()
 
 const entity = computed(() => ui.selectedEntity)
+const directlySelectedProtection = computed(() => ui.selectedProtection)
 const selectedCommand = computed<CommandProjection | null>(() => {
   if (entity.value === null || ui.graph === null) return null
   const commandId = entityCommandId(entity.value)
@@ -98,10 +100,30 @@ const relatedProtections = computed(() => {
         clientIds.has(protection.parent_client_order_id)),
   )
 })
+const directlySelectedExchangeProtections = computed(() => {
+  const protection = directlySelectedProtection.value
+  if (protection === null) return []
+  const remoteIds = new Set(
+    Object.values(protection.children).flatMap((child) => child.remote_order_ids),
+  )
+  return (projections.selectedLive?.protections ?? []).filter((row) =>
+    remoteIds.has(row.remote_order_id),
+  )
+})
 const operationalEntity = computed<OperationalEntity | null>(() => {
   const selected = entity.value
   return selected !== null && isOperational(selected) ? selected : null
 })
+const selectedId = computed(
+  () => directlySelectedProtection.value?.protection_id ?? entity.value?.id ?? null,
+)
+const acceptedAt = computed(() => selectedCommand.value?.accepted_at ?? null)
+const detailStatus = computed(
+  () =>
+    directlySelectedProtection.value?.status ??
+    (entity.value === null ? null : entityStatus(entity.value)),
+)
+const detailTone = computed(() => statusTone(detailStatus.value))
 
 function descendantKeys(root: string): Set<string> {
   const result = new Set([root])
@@ -137,19 +159,63 @@ function isOperational(value: ProjectionEntity): value is OperationalEntity {
     'protection_amendment',
   ].includes(value.kind)
 }
+
+function statusTone(status: string | null): string {
+  const value = status?.toLowerCase() ?? ''
+  if (value.includes('fail') || value.includes('reject') || value.includes('reconciliation')) {
+    return 'error'
+  }
+  if (value.includes('cancel')) return 'canceled'
+  if (['succeeded', 'filled', 'completed', 'flat'].includes(value)) return 'complete'
+  if (['running', 'working', 'tracking', 'triggered', 'installing', 'resizing'].includes(value)) {
+    return 'active'
+  }
+  return 'neutral'
+}
+
+function formatDate(value: number | null): string {
+  return value === null ? '-' : new Date(value).toLocaleString()
+}
 </script>
 
 <template>
-  <section class="details-panel" data-testid="projection-details">
+  <section class="details-panel" :class="`details-${detailTone}`" data-testid="projection-details">
     <header class="panel-header">
       <span class="panel-title">Details</span>
       <span v-if="entity" class="detail-status">{{ entityStatus(entity) }}</span>
+      <span v-else-if="directlySelectedProtection" class="detail-status">
+        {{ directlySelectedProtection.status }}
+      </span>
     </header>
 
-    <div v-if="entity" class="details-scroll">
+    <div v-if="directlySelectedProtection" class="details-scroll">
+      <div class="entity-meta">
+        <span
+          >Device ID: <strong>{{ selectedId }}</strong></span
+        >
+        <span>Created: <strong>-</strong></span>
+      </div>
       <div class="entity-heading">
-        <div class="entity-title">{{ entityLabel(entity) }}</div>
-        <div class="entity-id">{{ entity.id }}</div>
+        <div class="entity-title">Native Protection Device</div>
+        <span class="entity-status">{{ detailStatus }}</span>
+      </div>
+      <NativeProtectionDetails
+        :protection="directlySelectedProtection"
+        :exchange-protections="directlySelectedExchangeProtections"
+      />
+    </div>
+    <div v-else-if="entity" class="details-scroll">
+      <div class="entity-meta">
+        <span
+          >Device ID: <strong>{{ selectedId }}</strong></span
+        >
+        <span
+          >Created: <strong>{{ formatDate(acceptedAt) }}</strong></span
+        >
+      </div>
+      <div class="entity-heading">
+        <div class="entity-title">{{ entityLabel(entity) }} Device</div>
+        <span class="entity-status">{{ detailStatus }}</span>
       </div>
 
       <ProjectionActions v-if="showActions" />
@@ -195,8 +261,41 @@ function isOperational(value: ProjectionEntity): value is OperationalEntity {
   overflow: auto;
 }
 
+.details-error {
+  background: color-mix(in srgb, var(--color-error) 9%, transparent);
+}
+.details-canceled {
+  background: color-mix(in srgb, var(--color-error) 6%, transparent);
+}
+.details-complete {
+  background: color-mix(in srgb, var(--color-success) 7%, transparent);
+}
+.details-active {
+  background: color-mix(in srgb, var(--color-warning) 7%, transparent);
+}
+
+.entity-meta {
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--color-text-dim);
+  display: flex;
+  font-size: 10px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+}
+
+.entity-meta strong {
+  color: var(--color-text);
+  font-weight: normal;
+}
+
 .entity-heading {
-  padding: 10px 12px;
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px 5px;
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -205,9 +304,11 @@ function isOperational(value: ProjectionEntity): value is OperationalEntity {
   color: var(--color-text);
 }
 
-.entity-id {
-  margin-top: 4px;
+.entity-status {
+  border: 1px solid currentColor;
   color: var(--color-text-dim);
   font-size: 10px;
+  padding: 2px 7px;
+  text-transform: uppercase;
 }
 </style>

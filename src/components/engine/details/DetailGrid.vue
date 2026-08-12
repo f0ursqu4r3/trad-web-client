@@ -25,18 +25,21 @@ defineProps<{
 }
 
 .detail-section > h3 {
-  margin: 0;
-  padding: 9px 12px 5px;
-  color: var(--color-accent);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--color-text-dim);
   font-size: 11px;
   font-weight: normal;
+  margin: 0 12px;
+  padding: 9px 0 5px;
   text-transform: uppercase;
 }
 
 .detail-grid {
   display: grid;
+  gap: 0 16px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: 0;
+  padding: 0 12px 8px;
 }
 
 .detail-cell {
@@ -44,9 +47,7 @@ defineProps<{
   min-width: 0;
   flex-direction: column;
   gap: 3px;
-  padding: 7px 12px;
-  border-right: 1px solid var(--border-color);
-  border-top: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+  padding: 7px 0 0;
 }
 
 dt {

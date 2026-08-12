@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Filter } from 'lucide-vue-next'
+import { Filter, WalletCards } from 'lucide-vue-next'
 
+import AccountPositionInspector from '@/components/engine/AccountPositionInspector.vue'
+import ActiveProtectionList from '@/components/engine/ActiveProtectionList.vue'
+import ReconciliationControl from '@/components/engine/ReconciliationControl.vue'
 import SplitView from '@/components/general/SplitView.vue'
 import ProjectionCommandPanel from '@/components/terminal/projection/ProjectionCommandPanel.vue'
 import ProjectionTreePanel from '@/components/terminal/projection/ProjectionTreePanel.vue'
 
 const commandPanel = ref<InstanceType<typeof ProjectionCommandPanel> | null>(null)
+const positionsOpen = ref(false)
 </script>
 
 <template>
@@ -21,6 +25,15 @@ const commandPanel = ref<InstanceType<typeof ProjectionCommandPanel> | null>(nul
               {{ commandPanel.hiddenCommandCount }} hidden
             </span>
             <button
+              class="btn btn-sm btn-ghost compact-icon"
+              title="Inspect account positions"
+              aria-label="Inspect account positions"
+              @click="positionsOpen = true"
+            >
+              <WalletCards :size="12" />
+            </button>
+            <ReconciliationControl />
+            <button
               class="btn btn-sm btn-ghost"
               title="Command filters"
               @click="commandPanel?.toggleFilters()"
@@ -29,6 +42,7 @@ const commandPanel = ref<InstanceType<typeof ProjectionCommandPanel> | null>(nul
             </button>
           </span>
         </div>
+        <ActiveProtectionList />
         <ProjectionCommandPanel ref="commandPanel" />
       </div>
     </template>
@@ -39,6 +53,7 @@ const commandPanel = ref<InstanceType<typeof ProjectionCommandPanel> | null>(nul
       </div>
     </template>
   </SplitView>
+  <AccountPositionInspector :open="positionsOpen" @close="positionsOpen = false" />
 </template>
 
 <style scoped>
@@ -48,5 +63,14 @@ const commandPanel = ref<InstanceType<typeof ProjectionCommandPanel> | null>(nul
   flex-direction: column;
   height: 100%;
   width: 100%;
+}
+
+.compact-icon {
+  align-items: center;
+  display: inline-flex;
+  height: 22px;
+  justify-content: center;
+  padding: 0;
+  width: 22px;
 }
 </style>

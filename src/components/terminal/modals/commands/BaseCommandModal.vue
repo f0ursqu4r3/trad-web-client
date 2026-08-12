@@ -4,8 +4,9 @@ const props = withDefaults(
   defineProps<{
     title: string
     open: boolean
+    size?: 'default' | 'wide'
   }>(),
-  { open: false },
+  { open: false, size: 'default' },
 )
 const titleId = `command-modal-title-${props.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -22,7 +23,8 @@ function close() {
       @click.self="close"
     >
       <div
-        class="bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-[10px] w-full max-w-[640px] max-h-[80vh] flex flex-col text-[var(--color-text)] shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+        class="command-modal bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-[10px] w-full max-h-[80vh] flex flex-col text-[var(--color-text)] shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+        :class="`command-modal-${size}`"
         role="dialog"
         aria-modal="true"
         :aria-labelledby="titleId"
@@ -49,3 +51,12 @@ function close() {
     </div>
   </Teleport>
 </template>
+
+<style scoped>
+.command-modal-default {
+  max-width: 640px;
+}
+.command-modal-wide {
+  max-width: 920px;
+}
+</style>

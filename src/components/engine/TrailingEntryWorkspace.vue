@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 
 import LifecycleActionModal from '@/components/engine/actions/LifecycleActionModal.vue'
-import ProjectionActions from '@/components/engine/actions/ProjectionActions.vue'
 import TrailingEntryChart from '@/components/engine/TrailingEntryChart.vue'
 import {
   lifecycleActions,
@@ -71,7 +70,6 @@ function closeEdit(): void {
 
 <template>
   <section class="te-workspace" data-testid="engine-te-workspace">
-    <ProjectionActions />
     <TrailingEntryChart
       :account-id="accountId"
       :trailing-entry="trailingEntry"

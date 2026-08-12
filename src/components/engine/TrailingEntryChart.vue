@@ -111,6 +111,15 @@ const latestPrice = computed(() => {
     ? formatNumberShort(value, { minDecimals: 2, maxDecimals: 8 })
     : '-'
 })
+const chartTitle = computed(() => {
+  const side =
+    props.trailingEntry.plan.position_side === 'long'
+      ? 'Long'
+      : props.trailingEntry.plan.position_side === 'short'
+        ? 'Short'
+        : props.trailingEntry.plan.position_side
+  return `Graph of TE: ${side} ${symbol.value} - ${props.trailingEntry.trailing_entry_id}`
+})
 
 const lineDefinitions = computed<DraggablePriceLineDefinition[]>(() => {
   return buildLineDefinitions(chartLines.value)
@@ -450,7 +459,7 @@ function editableLine(value: string): value is TrailingEntryLineId {
 <template>
   <section class="te-chart" data-testid="engine-te-chart">
     <header class="chart-header">
-      <span>{{ trailingEntry.plan.position_side }} {{ symbol }}</span>
+      <span class="chart-title" :title="chartTitle">{{ chartTitle }}</span>
       <span class="history-status" :class="{ stale: trailingEntry.market_stale }">
         {{ streamSummary }}
       </span>
@@ -526,6 +535,14 @@ function editableLine(value: string): value is TrailingEntryLineId {
   overflow: hidden;
   text-align: right;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: none;
   white-space: nowrap;
 }
 

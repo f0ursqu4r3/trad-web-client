@@ -44,6 +44,18 @@ const scopeCommands = computed(() => {
   return result
 })
 const refreshBusy = computed(() => summary.value?.reconciliation_status === 'reconciling')
+const title = computed(() => {
+  if (account.value === null) return 'Account Positions'
+  const exchange =
+    account.value.exchange === 'hyperliquid'
+      ? 'Hyperliquid'
+      : account.value.exchange === 'bybit'
+        ? 'Bybit'
+        : account.value.exchange === 'binance'
+          ? 'Binance'
+          : 'Account'
+  return `${exchange} Positions - ${account.value.label}`
+})
 
 watch(
   () => accounts.selectedAccountId,
@@ -98,12 +110,7 @@ async function refreshExchange(): Promise<void> {
 </script>
 
 <template>
-  <BaseCommandModal
-    :title="`Account Positions${account ? ` - ${account.label}` : ''}`"
-    :open="open"
-    size="wide"
-    @close="emit('close')"
-  >
+  <BaseCommandModal :title="title" :open="open" size="wide" @close="emit('close')">
     <div class="position-inspector" data-testid="account-position-inspector">
       <header class="inspector-toolbar">
         <p>

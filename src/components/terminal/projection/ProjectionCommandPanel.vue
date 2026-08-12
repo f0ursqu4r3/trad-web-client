@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 
+import DropMenu, { type DropMenuItem } from '@/components/general/DropMenu.vue'
 import SplitView from '@/components/general/SplitView.vue'
 import StickyScroller from '@/components/general/StickyScroller.vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
@@ -37,9 +38,23 @@ const loadingHistory = ref(false)
 const renameCommand = ref<CommandProjection | null>(null)
 const renameValue = ref('')
 const renameColor = ref<string | null>(null)
+const contextMenu = ref<InstanceType<typeof DropMenu> | null>(null)
+const contextCommand = ref<CommandProjection | null>(null)
+const nicknameColors = [
+  { label: 'Default', value: null },
+  { label: 'Blue', value: '#5cc8ff' },
+  { label: 'Green', value: '#6ee7b7' },
+  { label: 'Yellow', value: '#fbbf24' },
+  { label: 'Orange', value: '#f97316' },
+  { label: 'Red', value: '#f87171' },
+  { label: 'Purple', value: '#a78bfa' },
+  { label: 'Pink', value: '#f472b6' },
+]
 
 const symbols = computed(() =>
-  projectionUi.graph === null ? new Map<string, string | null>() : commandSymbolIndex(projectionUi.graph),
+  projectionUi.graph === null
+    ? new Map<string, string | null>()
+    : commandSymbolIndex(projectionUi.graph),
 )
 const visibleCommands = computed(() => {
   const normalized = query.value.trim().toLowerCase()
@@ -82,15 +97,39 @@ function toggleFilters(): void {
   projectionUi.showCommandFilters = showFilters.value
 }
 
-function actionsFor(command: CommandProjection): LifecycleAction[] {
-  if (projectionUi.graph === null) return []
+const contextActions = computed<LifecycleAction[]>(() => {
+  const command = contextCommand.value
+  if (command === null || projectionUi.graph === null) return []
   const root = projectionEntities(projectionUi.graph).get(nodeKey(command.root)) ?? null
   return lifecycleActions(root, projectionUi.graph, projections.selectedLive?.positions ?? [])
-}
+})
 
-function canDuplicate(command: CommandProjection): boolean {
-  return accounts.selectedAccountId !== null && duplicateCommandPrefill(command, accounts.selectedAccountId) !== null
-}
+const contextItems = computed<DropMenuItem[]>(() => {
+  const command = contextCommand.value
+  if (command === null) return []
+  const meta = projectionUi.meta(command.command_id)
+  const prefill =
+    accounts.selectedAccountId === null
+      ? null
+      : duplicateCommandPrefill(command, accounts.selectedAccountId)
+  return [
+    { label: 'Inspect', action: () => projectionUi.selectCommand(command.command_id) },
+    ...(prefill === null ? [] : [{ label: 'Duplicate', action: () => duplicate(command) }]),
+    {
+      label: meta.pinned ? 'Unpin' : 'Pin',
+      action: () => projectionUi.togglePinned(command.command_id),
+    },
+    { label: 'Nickname / Color...', action: () => openRename(command) },
+    ...contextActions.value.map((action) => ({
+      label: action.label,
+      title: action.danger ? 'Risk-reducing action; review the confirmation carefully.' : undefined,
+      className: action.danger ? 'context-danger' : undefined,
+      action: () => {
+        selectedAction.value = action
+      },
+    })),
+  ]
+})
 
 function duplicate(command: CommandProjection): void {
   const accountId = accounts.selectedAccountId
@@ -106,6 +145,12 @@ function openRename(command: CommandProjection): void {
   renameCommand.value = command
   renameValue.value = meta.nickname ?? ''
   renameColor.value = meta.nicknameColor
+}
+
+async function openMenu(command: CommandProjection, x: number, y: number): Promise<void> {
+  contextCommand.value = command
+  await nextTick()
+  await contextMenu.value?.openAt(x, y)
 }
 
 function saveRename(): void {
@@ -128,7 +173,7 @@ async function loadOlder(): Promise<void> {
 </script>
 
 <template>
-  <div class="projection-command-panel">
+  <div class="projection-command-panel" data-testid="projection-command-list">
     <div v-if="showFilters" class="command-filter-panel">
       <div class="filter-search-row">
         <input v-model="query" class="input" type="search" placeholder="Filter commands" />
@@ -169,7 +214,7 @@ async function loadOlder(): Promise<void> {
               :show-button="false"
               :stick-on-mount="!ui.newestCommandsFirst"
             >
-              <div class="command-card-list">
+              <div class="command-card-list command-rows">
                 <ProjectionCommandCard
                   v-for="command in pinnedCommands"
                   :key="command.command_id"
@@ -177,13 +222,9 @@ async function loadOlder(): Promise<void> {
                   :graph="projectionUi.graph!"
                   :meta="projectionUi.meta(command.command_id)"
                   :selected="projectionUi.selectedCommandId === command.command_id"
-                  :actions="actionsFor(command)"
-                  :can-duplicate="canDuplicate(command)"
                   @select="projectionUi.selectCommand"
-                  @duplicate="duplicate"
-                  @rename="openRename"
                   @pin="projectionUi.togglePinned"
-                  @action="selectedAction = $event"
+                  @menu="openMenu"
                 />
               </div>
             </StickyScroller>
@@ -196,7 +237,7 @@ async function loadOlder(): Promise<void> {
             :show-button="!ui.newestCommandsFirst"
             :stick-on-mount="!ui.newestCommandsFirst"
           >
-            <div class="command-card-list">
+            <div class="command-card-list command-rows">
               <ProjectionCommandCard
                 v-for="command in unpinnedCommands"
                 :key="command.command_id"
@@ -204,13 +245,9 @@ async function loadOlder(): Promise<void> {
                 :graph="projectionUi.graph!"
                 :meta="projectionUi.meta(command.command_id)"
                 :selected="projectionUi.selectedCommandId === command.command_id"
-                :actions="actionsFor(command)"
-                :can-duplicate="canDuplicate(command)"
                 @select="projectionUi.selectCommand"
-                @duplicate="duplicate"
-                @rename="openRename"
                 @pin="projectionUi.togglePinned"
-                @action="selectedAction = $event"
+                @menu="openMenu"
               />
             </div>
           </StickyScroller>
@@ -226,7 +263,7 @@ async function loadOlder(): Promise<void> {
       :show-button="!ui.newestCommandsFirst"
       :stick-on-mount="!ui.newestCommandsFirst"
     >
-      <div class="command-card-list">
+      <div class="command-card-list command-rows">
         <ProjectionCommandCard
           v-for="command in unpinnedCommands"
           :key="command.command_id"
@@ -234,17 +271,17 @@ async function loadOlder(): Promise<void> {
           :graph="projectionUi.graph!"
           :meta="projectionUi.meta(command.command_id)"
           :selected="projectionUi.selectedCommandId === command.command_id"
-          :actions="actionsFor(command)"
-          :can-duplicate="canDuplicate(command)"
           @select="projectionUi.selectCommand"
-          @duplicate="duplicate"
-          @rename="openRename"
           @pin="projectionUi.togglePinned"
-          @action="selectedAction = $event"
+          @menu="openMenu"
         />
         <div v-if="visibleCommands.length === 0" class="empty-state">No commands</div>
       </div>
     </StickyScroller>
+
+    <DropMenu ref="contextMenu" :items="contextItems">
+      <template #trigger><span /></template>
+    </DropMenu>
 
     <LifecycleActionModal
       :open="selectedAction !== null"
@@ -263,10 +300,21 @@ async function loadOlder(): Promise<void> {
           <span>Nickname</span>
           <input v-model="renameValue" class="input" maxlength="80" autocomplete="off" />
         </label>
-        <label>
-          <span>Color</span>
-          <input v-model="renameColor" class="input" type="color" />
-        </label>
+        <fieldset class="color-field">
+          <legend>Color</legend>
+          <button
+            v-for="color in nicknameColors"
+            :key="color.label"
+            class="color-option"
+            :class="{ selected: renameColor === color.value }"
+            type="button"
+            :title="color.label"
+            :aria-label="color.label"
+            @click="renameColor = color.value"
+          >
+            <span :style="{ background: color.value ?? 'var(--color-text-dim)' }" />
+          </button>
+        </fieldset>
       </form>
       <template #footer>
         <button class="btn btn-ghost" @click="renameCommand = null">Cancel</button>
@@ -324,7 +372,9 @@ async function loadOlder(): Promise<void> {
   padding: 8px 10px;
 }
 
-.error-text { color: var(--color-error); }
+.error-text {
+  color: var(--color-error);
+}
 
 .rename-form {
   display: grid;
@@ -341,5 +391,41 @@ async function loadOlder(): Promise<void> {
   color: var(--color-text-dim);
   font-size: 10px;
   text-transform: uppercase;
+}
+
+.color-field {
+  border: 0;
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+}
+
+.color-field legend {
+  color: var(--color-text-dim);
+  font-size: 10px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.color-option {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  display: grid;
+  height: 26px;
+  place-items: center;
+  width: 26px;
+}
+
+.color-option span {
+  height: 14px;
+  width: 14px;
+}
+.color-option.selected {
+  border-color: var(--accent-color);
+  outline: 1px solid var(--accent-color);
+}
+:global(.context-danger) {
+  color: var(--color-error) !important;
 }
 </style>

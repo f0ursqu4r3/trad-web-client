@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   accountMetadataChips,
   accountMetadataStatus,
@@ -8,11 +8,12 @@ import {
   useAccountsStore,
   type AccountRecord,
 } from '@/stores/accounts'
-import { useWsStore } from '@/stores/ws'
+import { useGatewayStore } from '@/stores/gateway'
+import { useAccountProjectionStore } from '@/stores/accountProjection'
+import AccountPositionInspector from '@/components/engine/AccountPositionInspector.vue'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
-import HyperliquidPositionOwnershipModal from '@/components/terminal/modals/HyperliquidPositionOwnershipModal.vue'
-import { X } from 'lucide-vue-next'
-import { getWebSocketToken } from '@/lib/auth'
+import ActionConfirmationModal from '@/components/terminal/modals/ActionConfirmationModal.vue'
+import { Trash2 } from 'lucide-vue-next'
 import {
   isValidBybitUsdtSymbol,
   normalizeBybitUsdtSymbol,
@@ -34,12 +35,7 @@ import {
   resolveHyperliquidExecutionGuards,
   tenthsBpsToPercent,
 } from '@/lib/hyperliquidExecutionGuards'
-import {
-  ExchangeType,
-  type MarketCapabilitiesData,
-  type OrderThrottleSnapshotData,
-  type UserCommandPayload,
-} from '@/lib/ws/protocol'
+import { ExchangeType } from '@/lib/ws/protocol'
 
 const logger = createLogger('accounts')
 
@@ -58,22 +54,21 @@ const emit = defineEmits<{
 }>()
 
 const accounts = useAccountsStore()
-const ws = useWsStore()
+const gateway = useGatewayStore()
+const projections = useAccountProjectionStore()
 
 const isCreateModalOpen = ref(false)
-const positionAccount = ref<AccountRecord | null>(null)
-const refreshingAccountIds = ref<Set<string>>(new Set())
-const refreshingLeverageAccountIds = ref<Set<string>>(new Set())
-const requestedCapabilityAccountIds = ref<Set<string>>(new Set())
+const positionsOpen = ref(false)
 const approvingBuilderAccountIds = ref<Set<string>>(new Set())
 const savingBuilderAccountIds = ref<Set<string>>(new Set())
 const savingGuardAccountIds = ref<Set<string>>(new Set())
 const refreshingBuilderAccountIds = ref<Set<string>>(new Set())
 const approvingAgentAccountIds = ref<Set<string>>(new Set())
 const refreshingAgentAccountIds = ref<Set<string>>(new Set())
-const refreshError = ref<string | null>(null)
 const controlError = ref<string | null>(null)
 const controlMessage = ref<string | null>(null)
+const deletionTarget = ref<AccountRecord | null>(null)
+const deletingAccountIds = ref<Set<string>>(new Set())
 type ApprovalFeedback = { kind: 'info' | 'success' | 'error'; message: string }
 const agentApprovalFeedback = reactive<Record<string, ApprovalFeedback | undefined>>({})
 const builderApprovalFeedback = reactive<Record<string, ApprovalFeedback | undefined>>({})
@@ -92,8 +87,6 @@ const builderForms = reactive<Record<string, { targetTotalBps: string }>>({})
 const guardForms = reactive<
   Record<string, { entryPercent: number; takeProfitPercent: number; stopLossPercent: number }>
 >({})
-let throttleRefreshTimer: number | null = null
-
 const sortedAccounts = computed(() => {
   accounts.accounts.forEach(ensureLeverageForm)
   accounts.accounts.forEach(ensureBuilderForm)
@@ -127,17 +120,30 @@ function openCreateModal() {
   isCreateModalOpen.value = true
 }
 
-async function deleteAccount(account: AccountRecord) {
-  if (!window.confirm(`Delete account "${account.label}"? This cannot be undone.`)) return
+function requestAccountDeletion(account: AccountRecord) {
+  controlError.value = null
+  controlMessage.value = null
+  deletionTarget.value = account
+}
+
+async function confirmAccountDeletion() {
+  const account = deletionTarget.value
+  if (!account) return
+  deletionTarget.value = null
+  deletingAccountIds.value = new Set(deletingAccountIds.value).add(account.id)
   try {
-    if (account.exchange === ExchangeType.Hyperliquid) {
-      await ws.sendDeleteHyperliquidAccount(account.id)
-    } else {
-      await accounts.removeAccount(account.label)
-    }
+    const result = await accounts.removeAccount(account.label)
+    controlMessage.value =
+      result.owner_release === 'completed'
+        ? `Deleted ${account.label}.`
+        : `Deleted ${account.label}; owner cleanup is completing in the background.`
   } catch (err) {
     logger.error('delete failed', err)
     controlError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    const next = new Set(deletingAccountIds.value)
+    next.delete(account.id)
+    deletingAccountIds.value = next
   }
 }
 
@@ -146,11 +152,6 @@ function selectAccount(account: AccountRecord) {
   ensureLeverageForm(account)
   ensureBuilderForm(account)
   ensureGuardForm(account)
-  requestAccountCapabilities(account)
-  requestAccountThrottle(account)
-  if (account.exchange === ExchangeType.Bybit) {
-    requestAccountLeverage(account)
-  }
 }
 
 function manageAccount(account: AccountRecord) {
@@ -160,7 +161,7 @@ function manageAccount(account: AccountRecord) {
 
 function openPositions(account: AccountRecord) {
   selectAccount(account)
-  positionAccount.value = account
+  positionsOpen.value = true
 }
 
 function showAccountDetails(account: AccountRecord): boolean {
@@ -169,30 +170,6 @@ function showAccountDetails(account: AccountRecord): boolean {
 
 async function refreshAccounts() {
   await accounts.fetchAccounts()
-  requestVisibleCapabilities()
-}
-
-async function refreshAccountKeys(account: AccountRecord) {
-  refreshError.value = null
-  if (ws.status !== 'ready') {
-    refreshError.value = 'Account refresh requires an active server connection.'
-    return
-  }
-  const token = await getWebSocketToken()
-  if (!token) {
-    refreshError.value = 'Unable to refresh account credentials: no auth token available.'
-    return
-  }
-  refreshingAccountIds.value = new Set([...refreshingAccountIds.value, account.id])
-  try {
-    await ws.sendRefreshAccountKeys(account.id, account.label, token)
-  } catch (err) {
-    refreshError.value = err instanceof Error ? err.message : String(err)
-  } finally {
-    const next = new Set(refreshingAccountIds.value)
-    next.delete(account.id)
-    refreshingAccountIds.value = next
-  }
 }
 
 function ensureLeverageForm(account: AccountRecord) {
@@ -273,69 +250,22 @@ async function saveHyperliquidGuards(account: AccountRecord) {
   }
 }
 
-function marketContextForAccount(account: AccountRecord) {
-  return accounts.getMarketContextForAccount(account.id)
-}
-
-function capabilitiesForAccount(account: AccountRecord): MarketCapabilitiesData | null {
-  return ws.capabilitiesForMarketContext(marketContextForAccount(account))
-}
-
-function throttleForAccount(account: AccountRecord): OrderThrottleSnapshotData | null {
-  return ws.orderThrottleForMarketContext(marketContextForAccount(account))
-}
-
-function symbolLeverageForAccount(account: AccountRecord) {
-  return ws.symbolLeverageForMarketContext(marketContextForAccount(account))
-}
-
-function requestAccountCapabilities(account: AccountRecord) {
-  if (ws.status !== 'ready') return
-  const marketContext = marketContextForAccount(account)
-  if (!marketContext) return
-  requestedCapabilityAccountIds.value = new Set([
-    ...requestedCapabilityAccountIds.value,
-    account.id,
-  ])
-  ws.requestMarketCapabilities(marketContext)
-}
-
-function requestAccountThrottle(account: AccountRecord) {
-  if (ws.status !== 'ready') return
-  const marketContext = marketContextForAccount(account)
-  if (!marketContext) return
-  ws.requestOrderThrottleSnapshot(marketContext)
-}
-
-function requestVisibleCapabilities() {
-  if (ws.status !== 'ready') return
-  for (const account of accounts.accounts) {
-    requestAccountCapabilities(account)
-  }
-}
-
-function requestSelectedThrottle() {
-  const account = accounts.selectedAccount
-  if (!account) return
-  requestAccountThrottle(account)
-}
-
-function capabilityStatus(account: AccountRecord): string {
-  if (capabilitiesForAccount(account)) return 'Capabilities loaded'
-  if (requestedCapabilityAccountIds.value.has(account.id)) return 'Capabilities pending'
-  if (ws.status !== 'ready') return 'Server offline'
-  return 'Capabilities not loaded'
-}
-
 function validateLeverage(account: AccountRecord): boolean {
-  const capabilities = capabilitiesForAccount(account)
   const form = leverageForms[account.id]
-  if (!capabilities?.supports_leverage) return false
+  if (!supportsLeverageControl(account)) return false
   if (!form) return false
   const symbols = parseLeverageSymbols(account, form.symbols)
   if (symbols.length === 0) return false
-  if (!Number.isFinite(form.leverage) || form.leverage <= 0) return false
-  return ws.status === 'ready'
+  if (!Number.isInteger(form.leverage) || form.leverage <= 0) return false
+  return gateway.isConnected
+}
+
+function supportsLeverageControl(account: AccountRecord): boolean {
+  return (
+    account.exchange === ExchangeType.Binance ||
+    account.exchange === ExchangeType.Bybit ||
+    account.exchange === ExchangeType.Hyperliquid
+  )
 }
 
 function canSaveHyperliquidLeveragePrefs(account: AccountRecord): boolean {
@@ -348,18 +278,11 @@ function canSaveHyperliquidLeveragePrefs(account: AccountRecord): boolean {
   return true
 }
 
-function canCheckLeverage(account: AccountRecord): boolean {
-  if (account.exchange !== ExchangeType.Bybit) return false
-  const marketContext = marketContextForAccount(account)
-  const form = leverageForms[account.id]
-  if (!marketContext || !form) return false
-  if (parseLeverageSymbols(account, form.symbols).length === 0) return false
-  return ws.status === 'ready'
-}
-
 function canSetHedgeMode(account: AccountRecord): boolean {
-  const capabilities = capabilitiesForAccount(account)
-  return ws.status === 'ready' && !!capabilities?.supports_hedge_mode
+  return (
+    gateway.isConnected &&
+    (account.exchange === ExchangeType.Binance || account.exchange === ExchangeType.Bybit)
+  )
 }
 
 function targetTotalTenthsBps(account: AccountRecord): number | null {
@@ -614,56 +537,39 @@ function approvalErrorMessage(error: unknown): string {
   return message
 }
 
-function setLeverage(account: AccountRecord) {
+async function setLeverage(account: AccountRecord) {
   controlError.value = null
   controlMessage.value = null
-  const marketContext = marketContextForAccount(account)
   const form = leverageForms[account.id]
-  if (!marketContext || !form || !validateLeverage(account)) {
+  if (!form || !validateLeverage(account)) {
     controlError.value = 'Leverage settings are unavailable for this account.'
     return
   }
   const symbols = parseLeverageSymbols(account, form.symbols)
-  for (const symbol of symbols) {
-    const payload: Extract<UserCommandPayload, { kind: 'SetLeverage' }> = {
-      kind: 'SetLeverage',
-      data: {
-        symbol,
-        leverage: form.leverage,
-        market_context: marketContext,
-        margin_mode: account.exchange === ExchangeType.Hyperliquid ? form.marginMode : null,
-      },
+  try {
+    for (const symbol of symbols) {
+      const outcome = await gateway.submitCommand(
+        {
+          kind: 'set_leverage',
+          parameters: {
+            symbol,
+            leverage: form.leverage,
+            ...(account.exchange === ExchangeType.Hyperliquid
+              ? { margin_mode: form.marginMode }
+              : {}),
+          },
+        },
+        account.id,
+      )
+      if (outcome.kind === 'rejected') throw new Error(outcome.rejection.reason)
     }
-    ws.sendUserCommand(payload)
+    controlMessage.value =
+      symbols.length === 1
+        ? `Applying leverage update for ${symbols[0]}.`
+        : `Applying leverage updates for ${symbols.length} symbols: ${summarizeSymbols(symbols)}.`
+  } catch (error) {
+    controlError.value = error instanceof Error ? error.message : String(error)
   }
-  window.setTimeout(() => requestAccountLeverage(account), 2500)
-  controlMessage.value =
-    symbols.length === 1
-      ? `Submitted leverage update for ${symbols[0]}.`
-      : `Submitted leverage updates for ${symbols.length} symbols: ${summarizeSymbols(symbols)}.`
-}
-
-function requestAccountLeverage(account: AccountRecord) {
-  controlError.value = null
-  const marketContext = marketContextForAccount(account)
-  const form = leverageForms[account.id]
-  if (!marketContext || !form || account.exchange !== ExchangeType.Bybit) return
-  const symbols = parseLeverageSymbols(account, form.symbols)
-  if (symbols.length === 0) {
-    controlError.value = 'Enter at least one Bybit USDT perpetual symbol.'
-    return
-  }
-  if (ws.status !== 'ready') {
-    controlError.value = 'Leverage check requires an active server connection.'
-    return
-  }
-  refreshingLeverageAccountIds.value = new Set([...refreshingLeverageAccountIds.value, account.id])
-  ws.requestSymbolLeverage(marketContext, symbols)
-  window.setTimeout(() => {
-    const next = new Set(refreshingLeverageAccountIds.value)
-    next.delete(account.id)
-    refreshingLeverageAccountIds.value = next
-  }, 2500)
 }
 
 function parseLeverageSymbols(account: AccountRecord, raw: string): string[] {
@@ -724,104 +630,55 @@ function summarizeSymbols(symbols: string[]): string {
   return symbols.length > 4 ? `${shown}, ...` : shown
 }
 
-function formatMs(ms: number | null | undefined): string {
-  if (ms == null) return '-'
-  if (ms < 1000) return `${ms}ms`
-  return `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`
-}
-
-function formatBybitRateLimit(snapshot: OrderThrottleSnapshotData | null): string {
-  const rate = snapshot?.bybit_rate_limit
-  if (!rate) return '-'
-  const remaining = rate.remaining?.trim() || '-'
-  const limit = rate.limit?.trim() || '-'
-  return `${remaining}/${limit}`
-}
-
-function formatBybitRateLimitAge(snapshot: OrderThrottleSnapshotData | null): string {
-  const observedAt = snapshot?.bybit_rate_limit?.observed_at_unix_ms
-  if (!observedAt) return '-'
-  return formatMs(Math.max(0, Date.now() - observedAt))
-}
-
-function formatBybitRateLimitReset(snapshot: OrderThrottleSnapshotData | null): string {
-  const rate = snapshot?.bybit_rate_limit
-  if (!rate) return ''
-  if (rate.exhausted) {
-    return `hold ${formatMs(rate.reset_in_ms)}`
-  }
-  if (rate.reset_in_ms != null && rate.reset_in_ms > 0) {
-    return `reset ${formatMs(rate.reset_in_ms)}`
-  }
-  return ''
-}
-
-function formatHyperliquidRestBudget(snapshot: OrderThrottleSnapshotData | null): string {
-  const budget = snapshot?.hyperliquid_rest_budget
-  if (!budget) return 'Not observed'
-  return `${budget.used_weight}/${budget.open_limit} open budget`
-}
-
-function formatHyperliquidRestStatus(snapshot: OrderThrottleSnapshotData | null): string {
-  const budget = snapshot?.hyperliquid_rest_budget
-  if (!budget) return ''
-  if (budget.cooldown_remaining_ms != null && budget.cooldown_remaining_ms > 0) {
-    return `cooldown ${formatMs(budget.cooldown_remaining_ms)}`
-  }
-  return `${budget.rejected_total} local reject / ${budget.observed_429_total} HTTP 429`
-}
-
-function formatHyperliquidAddressBudget(snapshot: OrderThrottleSnapshotData | null): string {
-  const budget = snapshot?.hyperliquid_address_budget
-  if (!budget) return 'Not observed'
-  const used = budget.requests_used == null ? '?' : budget.requests_used
-  const cap = budget.requests_cap == null ? '?' : budget.requests_cap
-  return `${used}+${budget.local_actions_since_observation}/${cap} actions`
-}
-
-function formatHyperliquidAddressStatus(snapshot: OrderThrottleSnapshotData | null): string {
-  const budget = snapshot?.hyperliquid_address_budget
-  if (!budget) return ''
-  const open = budget.observed_open_orders == null ? '?' : budget.observed_open_orders
-  const freshness = budget.stale ? 'stale' : 'fresh'
-  return `${open}+${budget.local_open_order_reservations} open · ${freshness} ${formatMs(budget.observation_age_ms)}`
-}
-
-function formatLeverageValue(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return '?'
-  return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2)}x`
-}
-
-function formatSymbolLeverage(account: AccountRecord): string {
-  const snapshot = symbolLeverageForAccount(account)
-  if (!snapshot) return 'Not checked'
-  const parts = snapshot.leverages.slice(0, 4).map((item) => {
-    return `${item.symbol} L/S ${formatLeverageValue(item.long_leverage)} / ${formatLeverageValue(item.short_leverage)}`
-  })
-  if (snapshot.leverages.length > 4) parts.push(`+${snapshot.leverages.length - 4} more`)
-  if (snapshot.unavailable_symbols.length > 0) {
-    parts.push(`unknown ${snapshot.unavailable_symbols.slice(0, 3).join(',')}`)
-  }
-  return parts.length > 0 ? parts.join(' | ') : 'Unknown'
-}
-
-function enableHedgeMode(account: AccountRecord) {
+async function enableHedgeMode(account: AccountRecord) {
   controlError.value = null
   controlMessage.value = null
-  const marketContext = marketContextForAccount(account)
-  if (!marketContext || !canSetHedgeMode(account)) {
+  if (!canSetHedgeMode(account)) {
     controlError.value = 'Hedge mode is unavailable for this account.'
     return
   }
-  const payload: Extract<UserCommandPayload, { kind: 'SetHedgeMode' }> = {
-    kind: 'SetHedgeMode',
-    data: {
-      enabled: true,
-      market_context: marketContext,
-    },
+  try {
+    const outcome = await gateway.submitCommand(
+      { kind: 'set_position_mode', parameters: { mode: 'hedge' } },
+      account.id,
+    )
+    if (outcome.kind === 'rejected') throw new Error(outcome.rejection.reason)
+    controlMessage.value = `Applying hedge-mode enable for ${account.label}.`
+  } catch (error) {
+    controlError.value = error instanceof Error ? error.message : String(error)
   }
-  ws.sendUserCommand(payload)
-  controlMessage.value = `Submitted hedge-mode enable for ${account.label}.`
+}
+
+function projectedAccountControls(account: AccountRecord) {
+  if (accounts.selectedAccountId !== account.id) return []
+  const acceptedAt = new Map(
+    (projections.selectedLive?.commands ?? []).map((command) => [
+      command.command_id,
+      command.accepted_at,
+    ]),
+  )
+  return (projections.selectedLive?.account_controls ?? [])
+    .slice()
+    .sort((left, right) => {
+      const timestamp =
+        (acceptedAt.get(right.command_id) ?? 0) - (acceptedAt.get(left.command_id) ?? 0)
+      return timestamp || right.control_id.localeCompare(left.control_id)
+    })
+    .slice(0, 5)
+}
+
+function controlLabel(control: ReturnType<typeof projectedAccountControls>[number]): string {
+  if (control.request.kind === 'set_position_mode') {
+    return `Position mode: ${control.request.mode}`
+  }
+  const margin = control.request.margin_mode ? ` ${control.request.margin_mode}` : ''
+  return `${control.request.symbol}: ${control.request.leverage}x${margin}`
+}
+
+function controlStatusClass(lifecycle: string): string {
+  if (lifecycle === 'succeeded') return 'text-[var(--color-success)]'
+  if (lifecycle === 'applying') return 'text-warning'
+  return 'text-error'
 }
 
 onMounted(() => {
@@ -831,38 +688,12 @@ onMounted(() => {
     })
   }
   accounts.accounts.forEach(ensureLeverageForm)
-  requestVisibleCapabilities()
-  requestSelectedThrottle()
-  throttleRefreshTimer = window.setInterval(requestSelectedThrottle, 2000)
-})
-
-onUnmounted(() => {
-  if (throttleRefreshTimer != null) {
-    window.clearInterval(throttleRefreshTimer)
-    throttleRefreshTimer = null
-  }
 })
 
 watch(
   () => accounts.accounts.map((account) => account.id).join('|'),
   () => {
     accounts.accounts.forEach(ensureLeverageForm)
-    requestVisibleCapabilities()
-  },
-)
-
-watch(
-  () => ws.status,
-  () => {
-    requestVisibleCapabilities()
-    requestSelectedThrottle()
-  },
-)
-
-watch(
-  () => accounts.selectedAccountId,
-  () => {
-    requestSelectedThrottle()
   },
 )
 </script>
@@ -891,9 +722,6 @@ watch(
       <p v-if="accounts.error" class="text-center text-xs text-error">
         {{ accounts.error }}
       </p>
-      <p v-if="refreshError" class="text-center text-xs text-error">
-        {{ refreshError }}
-      </p>
       <p v-if="controlError" class="text-center text-xs text-error">
         {{ controlError }}
       </p>
@@ -901,10 +729,7 @@ watch(
         {{ controlMessage }}
       </p>
 
-      <p
-        v-else-if="accounts.loading && accounts.accounts.length === 0"
-        class="text-center text-xs dim"
-      >
+      <p v-if="accounts.loading && accounts.accounts.length === 0" class="text-center text-xs dim">
         Loading accounts...
       </p>
 
@@ -923,6 +748,8 @@ watch(
         <li
           v-for="account in sortedAccounts"
           :key="account.id"
+          :data-account-id="account.id"
+          data-testid="trading-account-row"
           :class="[
             'flex items-center gap-2 border border-[var(--panel-border-inner)] bg-[color-mix(in_srgb,var(--panel-bg)_95%,transparent)] transition-colors',
             {
@@ -953,12 +780,6 @@ watch(
                   >
                     Active
                   </span>
-                  <span
-                    v-if="accounts.selectedAccountId === account.id"
-                    class="pill pill-xs text-[10px]"
-                  >
-                    {{ capabilityStatus(account) }}
-                  </span>
                 </span>
                 <span
                   v-if="accountMetadataStatus(account)"
@@ -971,7 +792,13 @@ watch(
 
               <div
                 v-if="showAccountDetails(account)"
-                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(132px,1fr)_96px_auto_auto_auto]"
+                class="account-settings-grid border-t border-[var(--panel-border-inner)] pt-2"
+                :class="{
+                  'account-settings-grid--hyperliquid':
+                    account.exchange === ExchangeType.Hyperliquid,
+                  'account-settings-grid--hedged': account.exchange !== ExchangeType.Hyperliquid,
+                }"
+                data-testid="account-leverage-controls"
               >
                 <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
                   <span>{{ account.exchange === ExchangeType.Bybit ? 'Symbols' : 'Symbol' }}</span>
@@ -984,7 +811,7 @@ watch(
                         ? 'BTC, ETH, SOL'
                         : account.exchange === ExchangeType.Hyperliquid
                           ? 'BTC'
-                          : 'BTCUSDT or ALL'
+                          : 'BTCUSDT'
                     "
                     @focus="ensureLeverageForm(account)"
                   />
@@ -1041,7 +868,7 @@ watch(
                   </select>
                 </label>
                 <button
-                  class="btn btn-secondary btn-xs self-end"
+                  class="btn btn-secondary btn-xs account-settings-action"
                   type="button"
                   :disabled="!validateLeverage(account)"
                   @click="setLeverage(account)"
@@ -1050,7 +877,7 @@ watch(
                 </button>
                 <button
                   v-if="account.exchange === ExchangeType.Hyperliquid"
-                  class="btn btn-secondary btn-xs self-end"
+                  class="btn btn-secondary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canSaveHyperliquidLeveragePrefs(account)"
                   @click="saveHyperliquidLeveragePrefs(account)"
@@ -1058,24 +885,35 @@ watch(
                   Save Prefs
                 </button>
                 <button
-                  v-if="account.exchange === ExchangeType.Bybit"
-                  class="btn btn-secondary btn-xs self-end"
-                  type="button"
-                  :disabled="
-                    !canCheckLeverage(account) || refreshingLeverageAccountIds.has(account.id)
-                  "
-                  @click="requestAccountLeverage(account)"
-                >
-                  Check Lev
-                </button>
-                <button
-                  class="btn btn-secondary btn-xs self-end"
+                  v-if="account.exchange !== ExchangeType.Hyperliquid"
+                  class="btn btn-secondary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canSetHedgeMode(account)"
                   @click="enableHedgeMode(account)"
                 >
                   Enable Hedge
                 </button>
+              </div>
+              <div
+                v-if="showAccountDetails(account) && projectedAccountControls(account).length > 0"
+                class="grid gap-1 border-t border-[var(--panel-border-inner)] pt-2 text-[11px]"
+              >
+                <div
+                  v-for="control in projectedAccountControls(account)"
+                  :key="control.control_id"
+                  class="flex items-start justify-between gap-3"
+                  :data-account-control-id="control.control_id"
+                  :data-control-lifecycle="control.lifecycle"
+                  data-testid="account-control-row"
+                >
+                  <span class="font-mono text-primary">{{ controlLabel(control) }}</span>
+                  <span class="text-right" :class="controlStatusClass(control.lifecycle)">
+                    {{ control.lifecycle }}
+                    <span v-if="control.last_reason" class="block max-w-[42rem] normal-case">
+                      {{ control.last_reason }}
+                    </span>
+                  </span>
+                </div>
               </div>
               <p
                 v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
@@ -1099,7 +937,7 @@ watch(
               </p>
               <div
                 v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
-                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[repeat(3,minmax(110px,1fr))_auto]"
+                class="account-guard-grid border-t border-[var(--panel-border-inner)] pt-2"
               >
                 <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
                   <span>Market Entry Guard</span>
@@ -1147,7 +985,7 @@ watch(
                   >
                 </label>
                 <button
-                  class="btn btn-secondary btn-xs self-end"
+                  class="btn btn-secondary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canSaveHyperliquidGuards(account)"
                   @click="saveHyperliquidGuards(account)"
@@ -1166,16 +1004,14 @@ watch(
                 v-if="showAccountDetails(account) && account.exchange === ExchangeType.Bybit"
                 class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)]"
               >
-                Current Lev:
-                <span class="font-mono text-primary">{{ formatSymbolLeverage(account) }}</span>
-                <br />
                 Bybit leverage is persistent per-symbol exchange state. Attached TP/SL is
                 exchange-managed after acceptance, but fills remain subject to liquidity, gaps, and
-                liquidation risk.
+                liquidation risk. Applied leverage commands and their exchange-confirmed lifecycle
+                are shown above.
               </p>
               <div
                 v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
-                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(190px,1fr)_auto_auto]"
+                class="account-agent-grid border-t border-[var(--panel-border-inner)] pt-2"
               >
                 <div class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
                   <span>Agent Wallet</span>
@@ -1190,7 +1026,7 @@ watch(
                   </span>
                 </div>
                 <button
-                  class="btn btn-primary btn-xs self-end"
+                  class="btn btn-primary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canApproveHyperliquidAgent(account)"
                   @click="approveHyperliquidAgent(account)"
@@ -1199,7 +1035,7 @@ watch(
                   <span v-else>Approve Agent</span>
                 </button>
                 <button
-                  class="btn btn-secondary btn-xs self-end"
+                  class="btn btn-secondary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canRefreshHyperliquidAgent(account)"
                   @click="refreshHyperliquidAgent(account)"
@@ -1219,7 +1055,7 @@ watch(
               </div>
               <div
                 v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
-                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(190px,1fr)_96px_auto_auto_auto]"
+                class="account-builder-grid border-t border-[var(--panel-border-inner)] pt-2"
               >
                 <div
                   class="flex min-w-0 flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim"
@@ -1251,9 +1087,7 @@ watch(
                   />
                   <span v-else class="input flex h-7 items-center text-xs">
                     {{
-                      (
-                        hyperliquidTargetTotalTenthsBps(account.exchange_metadata) / 10
-                      ).toFixed(1)
+                      (hyperliquidTargetTotalTenthsBps(account.exchange_metadata) / 10).toFixed(1)
                     }}
                     bps
                   </span>
@@ -1263,7 +1097,7 @@ watch(
                 </label>
                 <button
                   v-if="account.exchange_metadata?.builder_fee_manager === true"
-                  class="btn btn-secondary btn-xs self-end"
+                  class="btn btn-secondary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canSaveHyperliquidBuilder(account)"
                   @click="saveHyperliquidBuilder(account)"
@@ -1272,7 +1106,7 @@ watch(
                   <span v-else>Save</span>
                 </button>
                 <button
-                  class="btn btn-primary btn-xs self-end"
+                  class="btn btn-primary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canApproveHyperliquidBuilder(account)"
                   @click="approveHyperliquidBuilder(account)"
@@ -1281,7 +1115,7 @@ watch(
                   <span v-else>Approve</span>
                 </button>
                 <button
-                  class="btn btn-secondary btn-xs self-end"
+                  class="btn btn-secondary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canRefreshHyperliquidBuilder(account)"
                   @click="refreshHyperliquidBuilder(account)"
@@ -1314,89 +1148,6 @@ watch(
                   {{ builderApprovalFeedback[account.id]!.message }}
                 </p>
               </div>
-              <div
-                v-if="showAccountDetails(account)"
-                class="grid gap-2 text-[10px] uppercase tracking-[0.06em] dim sm:grid-cols-4 xl:grid-cols-9"
-              >
-                <div class="flex flex-col gap-1">
-                  <span>Queue</span>
-                  <span class="font-mono text-primary">
-                    {{ throttleForAccount(account)?.total_queued ?? 0 }} queued /
-                    {{ throttleForAccount(account)?.total_in_flight ?? 0 }} live
-                  </span>
-                </div>
-                <div class="flex flex-col gap-1">
-                  <span>Oldest</span>
-                  <span class="font-mono text-primary">
-                    {{ formatMs(throttleForAccount(account)?.accounts[0]?.oldest_queued_age_ms) }}
-                  </span>
-                </div>
-                <div class="flex flex-col gap-1">
-                  <span>Drain Est</span>
-                  <span class="font-mono text-primary">
-                    {{ formatMs(throttleForAccount(account)?.accounts[0]?.estimated_drain_ms) }}
-                  </span>
-                </div>
-                <div class="flex flex-col gap-1">
-                  <span>Errors</span>
-                  <span class="font-mono text-primary">
-                    {{ throttleForAccount(account)?.errored_total ?? 0 }} err /
-                    {{ throttleForAccount(account)?.canceled_total ?? 0 }} cancel
-                  </span>
-                </div>
-                <div class="flex flex-col gap-1">
-                  <span>Stale</span>
-                  <span class="font-mono text-primary">
-                    {{ throttleForAccount(account)?.stale_rejected_total ?? 0 }}
-                  </span>
-                </div>
-                <div class="flex flex-col gap-1">
-                  <span>Rate Limit</span>
-                  <span class="font-mono text-primary">
-                    {{ throttleForAccount(account)?.rate_limit_rejected_total ?? 0 }}
-                  </span>
-                </div>
-                <div class="flex flex-col gap-1">
-                  <span>Delayed</span>
-                  <span class="font-mono text-primary">
-                    {{ throttleForAccount(account)?.delayed_by_limiter_total ?? 0 }}
-                  </span>
-                </div>
-                <div v-if="account.exchange === ExchangeType.Bybit" class="flex flex-col gap-1">
-                  <span>Bybit Remain</span>
-                  <span class="font-mono text-primary">
-                    {{ formatBybitRateLimit(throttleForAccount(account)) }}
-                    <span class="dim normal-case">
-                      {{ formatBybitRateLimitAge(throttleForAccount(account)) }}
-                      {{ formatBybitRateLimitReset(throttleForAccount(account)) }}
-                    </span>
-                  </span>
-                </div>
-                <div
-                  v-if="account.exchange === ExchangeType.Hyperliquid"
-                  class="flex flex-col gap-1"
-                >
-                  <span>HL REST</span>
-                  <span class="font-mono text-primary">
-                    {{ formatHyperliquidRestBudget(throttleForAccount(account)) }}
-                    <span class="dim normal-case">
-                      {{ formatHyperliquidRestStatus(throttleForAccount(account)) }}
-                    </span>
-                  </span>
-                </div>
-                <div
-                  v-if="account.exchange === ExchangeType.Hyperliquid"
-                  class="flex flex-col gap-1"
-                >
-                  <span>HL Address</span>
-                  <span class="font-mono text-primary">
-                    {{ formatHyperliquidAddressBudget(throttleForAccount(account)) }}
-                    <span class="dim normal-case">
-                      {{ formatHyperliquidAddressStatus(throttleForAccount(account)) }}
-                    </span>
-                  </span>
-                </div>
-              </div>
             </div>
 
             <button
@@ -1419,29 +1170,88 @@ watch(
             <button
               class="btn btn-secondary btn-xs"
               type="button"
-              title="Refresh credentials and exchange metadata"
-              :disabled="ws.status !== 'ready' || refreshingAccountIds.has(account.id)"
-              @click="refreshAccountKeys(account)"
+              :disabled="accounts.loading"
+              title="Refresh account and exchange metadata"
+              @click.stop="refreshAccounts"
             >
               Refresh
             </button>
             <button
-              class="btn icon-btn btn-sm"
+              class="btn btn-danger btn-xs shrink-0 self-start"
               type="button"
-              title="Delete"
-              @click="deleteAccount(account)"
+              aria-label="Delete flat account"
+              title="Delete flat account"
+              :disabled="deletingAccountIds.has(account.id)"
+              @click="requestAccountDeletion(account)"
             >
-              <X :size="12" />
+              <Trash2 :size="12" />
+              DELETE
             </button>
           </div>
         </li>
       </ul>
     </div>
     <CreateAccountModal :open="isCreateModalOpen" @close="isCreateModalOpen = false" />
-    <HyperliquidPositionOwnershipModal
-      :open="positionAccount !== null"
-      :account="positionAccount"
-      @close="positionAccount = null"
+    <AccountPositionInspector :open="positionsOpen" @close="positionsOpen = false" />
+    <ActionConfirmationModal
+      :open="deletionTarget !== null"
+      title="Delete trading account"
+      :message="
+        deletionTarget
+          ? `Delete ${deletionTarget.label}? Trad will first reconcile the exchange and will refuse deletion if any position, order, protection, unresolved execution, or pending exchange action remains. Encrypted credentials are erased only after those checks pass.`
+          : ''
+      "
+      confirm-label="Check and delete"
+      @cancel="deletionTarget = null"
+      @confirm="confirmAccountDeletion"
     />
   </section>
 </template>
+
+<style scoped>
+.account-settings-grid,
+.account-guard-grid,
+.account-agent-grid,
+.account-builder-grid {
+  display: grid;
+  align-items: start;
+  gap: 0.5rem;
+}
+
+.account-settings-grid :is(.input, .btn),
+.account-guard-grid :is(.input, .btn),
+.account-agent-grid .btn,
+.account-builder-grid :is(.input, .btn) {
+  box-sizing: border-box;
+  height: 28px;
+  min-height: 28px;
+}
+
+.account-settings-action {
+  align-self: start;
+  margin-top: 1.125rem;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .account-settings-grid--hyperliquid {
+    grid-template-columns: minmax(13rem, 2fr) repeat(3, minmax(5.5rem, 0.7fr)) auto auto;
+  }
+
+  .account-settings-grid--hedged {
+    grid-template-columns: minmax(13rem, 2fr) minmax(5.5rem, 0.7fr) auto auto;
+  }
+
+  .account-guard-grid {
+    grid-template-columns: repeat(3, minmax(8rem, 1fr)) auto;
+  }
+
+  .account-agent-grid {
+    grid-template-columns: minmax(18rem, 1fr) auto auto;
+  }
+
+  .account-builder-grid {
+    grid-template-columns: minmax(18rem, 1fr) minmax(7rem, 9rem) auto auto auto;
+  }
+}
+</style>

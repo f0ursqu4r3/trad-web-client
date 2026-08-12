@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, reactive } from 'vue'
 
-import EngineOrdersColumn from '@/components/engine/EngineOrdersColumn.vue'
+import OrdersColumn from '@/components/terminal/layout/OrdersColumn.vue'
 import ProjectionDetails from '@/components/engine/ProjectionDetails.vue'
 import { ExchangeType, NetworkType } from '@/lib/ws/protocol'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
@@ -126,7 +126,7 @@ onMounted(() => void run())
 
 <template>
   <main class="engine-load" data-testid="engine-projection-load">
-    <EngineOrdersColumn />
+    <OrdersColumn />
     <ProjectionDetails />
   </main>
 </template>

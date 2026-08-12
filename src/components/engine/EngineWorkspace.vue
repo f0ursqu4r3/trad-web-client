@@ -25,11 +25,24 @@ const trailingEntry = computed<TrailingEntryProjection | null>(() => {
     :min-pane-percent="18"
   >
     <template #chart>
-      <TrailingEntryWorkspace :trailing-entry="trailingEntry" />
+      <section class="workspace-panel">
+        <header class="panel-header"><span class="panel-title">Chart</span></header>
+        <TrailingEntryWorkspace :trailing-entry="trailingEntry" />
+      </section>
     </template>
     <template #details>
-      <ProjectionDetails :show-actions="false" />
+      <ProjectionDetails />
     </template>
   </SplitView>
   <ProjectionDetails v-else />
 </template>
+
+<style scoped>
+.workspace-panel {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+</style>

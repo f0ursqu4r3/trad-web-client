@@ -9,11 +9,6 @@ import './assets/main.css'
 import App from './App.vue'
 import router from './router'
 
-import ChartPanel from '@/components/terminal/panels/ChartPanel.vue'
-import DeviceTreePanel from '@/components/terminal/panels/DeviceTreePanel.vue'
-import DeviceDetailsPanel from '@/components/terminal/panels/DeviceDetailsPanel.vue'
-import InboundDebugPanel from './components/terminal/panels/InboundDebugPanel.vue'
-
 import { createBffAuthProvider } from '@/plugins/bffAuth'
 import { clearLegacyAuthStorage, setAuthProvider } from '@/lib/auth'
 import { useUiStore } from '@/stores/ui'
@@ -31,11 +26,6 @@ clearLegacyAuthStorage()
 setAuthProvider(createBffAuthProvider())
 
 app.use(router)
-
-app.component('ChartPanel', ChartPanel)
-app.component('DeviceTreePanel', DeviceTreePanel)
-app.component('DeviceDetailsPanel', DeviceDetailsPanel)
-app.component('InboundDebugPanel', InboundDebugPanel)
 
 app.mount('#app')
 

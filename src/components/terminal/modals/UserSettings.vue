@@ -2,9 +2,10 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { useWsStore } from '@/stores/ws'
+import { useGatewayStore } from '@/stores/gateway'
 import { useUiStore } from '@/stores/ui'
 import { useAccountsStore } from '@/stores/accounts'
+import { useProjectionUiStore } from '@/stores/projectionUi'
 import { useBillingStore } from '@/stores/billing'
 // import { apiPut } from '@/lib/apiClient'
 import { useAuth } from '@/lib/auth'
@@ -18,9 +19,10 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 // Stores
 const router = useRouter()
 const userStore = useUserStore()
-const wsStore = useWsStore()
+const gateway = useGatewayStore()
 const uiStore = useUiStore()
 const accountsStore = useAccountsStore()
+const projectionUi = useProjectionUiStore()
 const billing = useBillingStore()
 const { logout, isAuthenticated } = useAuth()
 
@@ -113,13 +115,9 @@ async function refreshAccount() {
   await accountsStore.fetchAccounts()
 }
 
-// WS helpers
-function reconnectWs() {
-  wsStore.disconnect()
-  setTimeout(() => wsStore.connect(), 50)
-}
-function sendPing() {
-  wsStore.sendSystemPing()
+function reconnectGateway() {
+  gateway.disconnect()
+  setTimeout(() => gateway.connect(), 50)
 }
 
 function close() {
@@ -425,38 +423,31 @@ const returnToOrigin = window.location.origin
                     <div>{{ isAuthenticated ? 'authenticated' : 'anonymous' }}</div>
                   </div>
                   <div>
-                    <div class="dim text-[11px]">WS Status</div>
+                    <div class="dim text-[11px]">Gateway Status</div>
                     <div>
                       <span
                         :class="{
-                          'pill-info': wsStore.status === 'connecting',
-                          'pill-ok': wsStore.status === 'ready',
-                          'pill-warn': wsStore.status === 'reconnecting',
-                          'pill-err': wsStore.status === 'error',
+                          'pill-info': ['connecting', 'authenticating'].includes(gateway.status),
+                          'pill-ok': gateway.status === 'ready',
+                          'pill-warn': gateway.status === 'reconnecting',
+                          'pill-err': gateway.status === 'error',
                         }"
                         class="pill"
                       >
-                        {{ wsStore.status }}
+                        {{ gateway.status }}
                       </span>
                     </div>
                   </div>
                   <div>
                     <div class="dim text-[11px]">Latency</div>
                     <div>
-                      {{ wsStore.latencyMs != null ? wsStore.latencyMs.toFixed(0) + ' ms' : '—' }}
+                      {{ gateway.latencyMs != null ? gateway.latencyMs.toFixed(0) + ' ms' : '—' }}
                     </div>
                   </div>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-2">
-                  <button
-                    class="btn btn-secondary btn-sm"
-                    @click="sendPing"
-                    :disabled="wsStore.status !== 'ready'"
-                  >
-                    Ping
-                  </button>
-                  <button class="btn btn-secondary btn-sm" @click="reconnectWs">
-                    Reconnect WS
+                  <button class="btn btn-secondary btn-sm" @click="reconnectGateway">
+                    Reconnect Gateway
                   </button>
                   <button
                     class="btn btn-danger btn-sm"
@@ -487,6 +478,14 @@ const returnToOrigin = window.location.origin
                 <label class="mt-2 flex items-center gap-2 text-[12px]">
                   <input v-model="newestCommandsFirst" type="checkbox" class="checkbox" />
                   <span>Newest commands first</span>
+                </label>
+                <label class="mt-2 flex items-center gap-2 text-[12px]">
+                  <input
+                    v-model="projectionUi.autoSelectNewCommands"
+                    type="checkbox"
+                    class="checkbox"
+                  />
+                  <span>Auto-select new commands</span>
                 </label>
                 <label class="mt-2 flex items-center gap-2 text-[12px]">
                   <input v-model="confirmPositionCloses" type="checkbox" class="checkbox" />

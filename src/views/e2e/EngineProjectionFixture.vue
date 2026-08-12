@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 
 import OrdersColumn from '@/components/terminal/layout/OrdersColumn.vue'
 import EngineWorkspace from '@/components/engine/EngineWorkspace.vue'
@@ -37,7 +37,6 @@ accounts.accountsRaw = [
     exchange: ExchangeType.Hyperliquid,
   },
 ]
-accounts.selectedAccountId = ENGINE_ACCOUNT_ID
 projections.install(
   ENGINE_ACCOUNT_ID,
   ENGINE_SUBSCRIPTION_ID,
@@ -71,7 +70,6 @@ gateway.subscribeMarket = (accountId, symbol) => {
   })
 }
 gateway.unsubscribeMarket = (accountId, symbol) => markets.remove(accountId, symbol)
-gateway.status = 'ready'
 gateway.submitCommand = async (intent, accountId): Promise<BrowserCommandOutcome> => {
   latestAction.value = { accountId: accountId ?? '', intent }
   return {
@@ -107,6 +105,10 @@ gateway.refreshReconciliation = async (
   }
   return { kind: 'accepted', cycle_id: cycleId, duplicate: false }
 }
+accounts.selectedAccountId = ENGINE_ACCOUNT_ID
+onMounted(() => {
+  gateway.status = 'ready'
+})
 </script>
 
 <template>

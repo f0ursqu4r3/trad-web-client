@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { ChevronDown, Pin } from 'lucide-vue-next'
+import { ChevronDown, EllipsisVertical, Pin } from 'lucide-vue-next'
 
-import DropMenu, { type DropMenuItem } from '@/components/general/DropMenu.vue'
 import ProjectionCommandSummary from './ProjectionCommandSummary.vue'
 import type { CommandProjection, ProjectionGraph } from '@/lib/gateway'
-import type { LifecycleAction } from '@/lib/engineCommands/lifecycle'
 import { commandLabel } from '@/lib/projection/presentation'
 import type { ProjectionCommandMeta } from '@/stores/projectionUi'
 
@@ -14,20 +12,15 @@ const props = defineProps<{
   graph: ProjectionGraph
   meta: ProjectionCommandMeta
   selected: boolean
-  actions: LifecycleAction[]
-  canDuplicate: boolean
 }>()
 
 const emit = defineEmits<{
   select: [commandId: string]
-  duplicate: [command: CommandProjection]
-  rename: [command: CommandProjection]
   pin: [commandId: string]
-  action: [action: LifecycleAction]
+  menu: [command: CommandProjection, x: number, y: number]
 }>()
 
 const expanded = ref(false)
-const menu = ref<InstanceType<typeof DropMenu> | null>(null)
 const shortId = computed(() => props.command.command_id.slice(0, 8))
 const label = computed(() => props.meta.nickname || commandLabel(props.command))
 const createdAt = computed(() =>
@@ -40,29 +33,18 @@ const createdAt = computed(() =>
   }),
 )
 const statusClass = computed(() => `command-status-${statusTone(props.command.lifecycle)}`)
-const menuItems = computed<DropMenuItem[]>(() => [
-  { label: 'Inspect', action: () => emit('select', props.command.command_id) },
-  { label: 'Nickname', action: () => emit('rename', props.command) },
-  ...(props.canDuplicate
-    ? [{ label: 'Duplicate', action: () => emit('duplicate', props.command) }]
-    : []),
-  {
-    label: props.meta.pinned ? 'Unpin' : 'Pin',
-    action: () => emit('pin', props.command.command_id),
-  },
-  ...props.actions.map((action) => ({
-    label: action.label,
-    title: action.danger ? 'Risk-reducing action; review the confirmation carefully.' : undefined,
-    className: action.danger ? 'context-danger' : undefined,
-    action: () => emit('action', action),
-  })),
-])
 
 function openContextMenu(event: MouseEvent): void {
   if (event.shiftKey) return
   event.preventDefault()
   event.stopPropagation()
-  menu.value?.openAt(event.clientX, event.clientY)
+  emit('menu', props.command, event.clientX, event.clientY)
+}
+
+function openButtonMenu(event: MouseEvent): void {
+  event.stopPropagation()
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  emit('menu', props.command, rect.right, rect.bottom)
 }
 
 async function copyId(): Promise<void> {
@@ -114,7 +96,14 @@ function statusTone(status: string): string {
         >
           <Pin :size="10" :class="{ 'pin-active': meta.pinned }" />
         </button>
-        <DropMenu ref="menu" :items="menuItems" trigger-class="command-action-btn" />
+        <button
+          class="btn btn-sm icon-btn command-action-btn"
+          title="Menu"
+          aria-label="Command menu"
+          @click="openButtonMenu"
+        >
+          <EllipsisVertical :size="10" />
+        </button>
         <button
           class="btn btn-sm icon-btn command-action-btn"
           :title="expanded ? 'Collapse' : 'Expand'"
@@ -161,10 +150,18 @@ function statusTone(status: string): string {
   width: 4px;
 }
 
-.command-status-success { background: var(--color-success); }
-.command-status-error { background: var(--color-error); }
-.command-status-warning { background: var(--color-warning); }
-.command-status-info { background: var(--color-info); }
+.command-status-success {
+  background: var(--color-success);
+}
+.command-status-error {
+  background: var(--color-error);
+}
+.command-status-warning {
+  background: var(--color-warning);
+}
+.command-status-info {
+  background: var(--color-info);
+}
 
 .command-row-content {
   align-items: flex-start;
@@ -222,8 +219,13 @@ function statusTone(status: string): string {
   width: 24px;
 }
 
-.pin-active { color: var(--accent-color); transform: rotate(-90deg); }
-.expanded { transform: rotate(180deg); }
+.pin-active {
+  color: var(--accent-color);
+  transform: rotate(-90deg);
+}
+.expanded {
+  transform: rotate(180deg);
+}
 
 .command-error {
   border-left: 2px solid var(--color-error);
@@ -242,7 +244,13 @@ function statusTone(status: string): string {
 }
 
 @media (max-width: 760px) {
-  .command-row-content { align-items: stretch; flex-direction: column; gap: 4px; }
-  .command-tail { justify-content: flex-start; }
+  .command-row-content {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .command-tail {
+    justify-content: flex-start;
+  }
 }
 </style>

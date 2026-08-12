@@ -29,12 +29,14 @@ const symbol = computed(() => {
 </script>
 
 <template>
-  <div class="projection-tree-panel">
+  <div class="projection-tree-panel" data-testid="projection-entity-tree">
     <div v-if="account" class="market-context-strip">
       <span class="context-label">Exchange</span>
       <span class="context-value">{{ account.exchange }}</span>
       <span class="context-label">Product</span>
-      <span class="context-value">{{ formatAccountProduct(account.exchange_metadata?.product) ?? '-' }}</span>
+      <span class="context-value">{{
+        formatAccountProduct(account.exchange_metadata?.product) ?? '-'
+      }}</span>
       <span class="context-label">Account</span>
       <span class="context-value" :title="account.id">{{ account.id.slice(0, 8) }}...</span>
       <span v-if="symbol" class="context-label">Symbol</span>

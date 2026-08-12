@@ -38,7 +38,9 @@ test('Bybit command and device filters are explicit, not selected-account scoped
   await expect(deviceRows.filter({ hasText: 'Binance' })).toHaveCount(0)
 })
 
-test('Bybit account panel renders order queue telemetry', async ({ page }) => {
+test('Bybit account panel preserves verified exchange metadata without actor telemetry', async ({
+  page,
+}) => {
   await page.route('**/auth/session', async (route) => {
     await route.fulfill({
       status: 200,
@@ -52,21 +54,17 @@ test('Bybit account panel renders order queue telemetry', async ({ page }) => {
   const accountPanel = page.getByTestId('accounts-panel')
 
   await expect(accountPanel.getByText('Bybit QA')).toBeVisible()
-  await expect(accountPanel.getByText('DOGEUSDT L/S 2x / 3x')).toBeVisible()
-  await expect(accountPanel.getByText('ETHUSDT L/S ? / 1x')).toBeVisible()
-  await expect(accountPanel.getByText('unknown MISSINGUSDT')).toBeVisible()
-  await expect(accountPanel.getByText('20 queued / 5 live')).toBeVisible()
-  await expect(accountPanel.getByText('8.5s')).toBeVisible()
-  await expect(accountPanel.getByText('4.0s')).toBeVisible()
-  await expect(accountPanel.getByText('2 err / 3 cancel')).toBeVisible()
-  await expect(accountPanel.getByText('1', { exact: true })).toBeVisible()
-  await expect(accountPanel.getByText('4', { exact: true })).toBeVisible()
-  await expect(accountPanel.getByText('16', { exact: true })).toBeVisible()
-  await expect(accountPanel.getByText('0/10')).toBeVisible()
-  await expect(accountPanel.getByText('hold 2.5s')).toBeVisible()
+  await expect(accountPanel.getByText('USDT perp')).toBeVisible()
+  await expect(accountPanel.getByText('Hedge only')).toBeVisible()
+  await expect(
+    accountPanel.getByText('Exchange metadata verified: unified / regular_margin'),
+  ).toBeVisible()
+  await expect(accountPanel.getByText('20 queued / 5 live')).toHaveCount(0)
 })
 
-test('Hyperliquid account panel renders exchange-keyed queue telemetry', async ({ page }) => {
+test('Hyperliquid account panel preserves account readiness without actor telemetry', async ({
+  page,
+}) => {
   await page.route('**/auth/session', async (route) => {
     await route.fulfill({
       status: 200,
@@ -82,17 +80,10 @@ test('Hyperliquid account panel renders exchange-keyed queue telemetry', async (
 
   await expect(accountPanel.getByText('Hyperliquid QA')).toBeVisible()
   await expect(accountPanel.getByText('USDC perp')).toBeVisible()
-  await expect(accountPanel.getByText('7 queued / 2 live')).toBeVisible()
-  await expect(accountPanel.getByText('12s')).toBeVisible()
-  await expect(accountPanel.getByText('6.0s')).toBeVisible()
-  await expect(accountPanel.getByText('5 err / 1 cancel')).toBeVisible()
-  await expect(accountPanel.getByText('6', { exact: true })).toBeVisible()
-  await expect(accountPanel.getByText('8', { exact: true })).toBeVisible()
-  await expect(accountPanel.getByText('9', { exact: true })).toBeVisible()
-  await expect(accountPanel.getByText('375/1000 open budget')).toBeVisible()
-  await expect(accountPanel.getByText('3 local reject / 1 HTTP 429')).toBeVisible()
-  await expect(accountPanel.getByText('120+5/500 actions')).toBeVisible()
-  await expect(accountPanel.getByText('15+3 open · fresh 2.0s')).toBeVisible()
+  await expect(accountPanel.getByText('Agent approved')).toBeVisible()
+  await expect(accountPanel.getByText('Builder approved')).toBeVisible()
+  await expect(accountPanel.getByText('Hyperliquid account metadata is ready.')).toBeVisible()
+  await expect(accountPanel.getByText('7 queued / 2 live')).toHaveCount(0)
 })
 
 test('flatten operations retain reciprocal command links without reparenting devices', async ({
@@ -163,7 +154,7 @@ test('flatten operations retain reciprocal command links without reparenting dev
   ).toBeVisible()
 })
 
-test('Hyperliquid position view exposes ownership and requires explicit full flatten confirmation', async ({
+test('Hyperliquid position view exposes authoritative projection ownership and typed flatten', async ({
   page,
 }) => {
   await page.goto('/e2e/bybit-terminal')
@@ -173,48 +164,19 @@ test('Hyperliquid position view exposes ownership and requires explicit full fla
   await accountPanel.getByRole('button', { name: 'Positions' }).click()
 
   const dialog = page.getByRole('dialog', { name: /Hyperliquid Positions/ })
-  await expect(dialog.getByText('external surplus')).toBeVisible()
-  await expect(dialog.getByText('0.003', { exact: true })).toBeVisible()
-  await expect(dialog.getByText('0.002', { exact: true }).first()).toBeVisible()
-  await expect(dialog.getByText('0.001', { exact: true })).toBeVisible()
-  await expect(dialog.getByRole('button', { name: /Limit Order #21212121/ })).toBeVisible()
-  await expect(dialog.getByRole('button', { name: /Market Order #99999999/ })).toHaveCount(0)
+  await expect(dialog.getByText('Projection revision')).toBeVisible()
+  await expect(dialog.getByText('Private stream')).toBeVisible()
+  await expect(dialog.getByText('Trad-owned exposure').first()).toBeVisible()
+  await expect(dialog.getByText('0.025 remaining')).toBeVisible()
+  await expect(dialog.getByText('0.00420001 remaining')).toBeVisible()
 
-  await dialog.getByRole('button', { name: 'Refresh Exchange State' }).first().click()
-  const evidence = dialog.getByTestId('hyperliquid-reconciliation-evidence')
-  await expect(evidence).toBeVisible()
-  await expect(evidence.getByText('connected / fresh')).toBeVisible()
-  await expect(evidence.getByText('4 (2 Trad / 2 external)')).toBeVisible()
-  await expect(evidence.getByText('recorded', { exact: true })).toBeVisible()
-  await expect(dialog.getByText('Unknown external open orders: 2')).toBeVisible()
-  await expect
-    .poll(() => page.evaluate(() => (window as any).__tradBybitTerminalFixture?.getCommandSends()))
-    .toContainEqual({
-      kind: 'RefreshHyperliquidReconciliation',
-      data: {
-        market_context: {
-          hyperliquid: { account_id: '17171717-1717-4717-8717-171717171717' },
-        },
-        symbol: null,
-        command_id: null,
-        protection_device_id: null,
-      },
-    })
-
-  await dialog.getByRole('button', { name: 'Flatten Symbol' }).click()
-  await expect(
-    dialog.getByText('It also closes external or manually created quantity.'),
-  ).toBeVisible()
-  const confirm = dialog.getByLabel(/I understand this closes the entire account position/)
-  await expect(dialog.getByRole('button', { name: 'Confirm Flatten' })).toBeDisabled()
+  await dialog.getByRole('button', { name: 'Flatten symbol' }).first().click()
+  const flatten = page.getByRole('dialog', { name: 'Flatten Exposure' })
+  await expect(flatten.getByText('authoritative reduce-only close workflows')).toBeVisible()
+  const confirm = flatten.getByLabel(/Confirm flatten this symbol/)
+  await expect(flatten.getByRole('button', { name: 'Flatten', exact: true })).toBeDisabled()
   await confirm.check()
-  await dialog.getByRole('button', { name: 'Confirm Flatten' }).click()
-
-  await expect
-    .poll(() =>
-      page.evaluate(() => (window as any).__tradBybitTerminalFixture?.getFlattenSymbolSends()),
-    )
-    .toContain('BTC')
+  await expect(confirm).toBeChecked()
 })
 
 test('account safety commands are discoverable and dispatched through the command palette', async ({
@@ -622,7 +584,9 @@ test('Hyperliquid market order explains optional protection and rejects an inval
   })
 })
 
-test('Hyperliquid market order submits an exact multi-level take-profit ladder', async ({ page }) => {
+test('Hyperliquid market order submits an exact multi-level take-profit ladder', async ({
+  page,
+}) => {
   await page.route('https://api.hyperliquid-testnet.xyz/info', async (route) => {
     await route.fulfill({
       status: 200,
@@ -1569,7 +1533,9 @@ test('Hyperliquid protection edit can replace ladder legs while retaining the st
   await expect(protectionRow).toBeVisible()
   await page.evaluate(() => window.__tradBybitTerminalFixture?.setChaseProtectionLadder())
   await expect
-    .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getChaseProtectionLadderSize()))
+    .poll(() =>
+      page.evaluate(() => window.__tradBybitTerminalFixture?.getChaseProtectionLadderSize()),
+    )
     .toBe(2)
   await protectionRow.click()
   const details = page.getByTestId('device-details-panel')
@@ -1665,7 +1631,7 @@ test('Hyperliquid partial close previews normalized remainder and emits stale-sa
         expected_owned_quantity: 0.0005,
         execution: { kind: 'market' },
       },
-  })
+    })
 })
 
 test('Hyperliquid command exposure supports partial limit/chase and full market/limit/chase closes', async ({
@@ -1739,9 +1705,7 @@ test('Hyperliquid command exposure supports partial limit/chase and full market/
   })
 
   dialog = await openClose(true)
-  await dialog
-    .getByRole('button', { name: 'Cancel Entry And Close Command Exposure' })
-    .click()
+  await dialog.getByRole('button', { name: 'Cancel Entry And Close Command Exposure' }).click()
   await expect.poll(sends).toContainEqual({
     kind: 'CloseCommandPosition',
     data: {
@@ -1754,9 +1718,7 @@ test('Hyperliquid command exposure supports partial limit/chase and full market/
   await dialog.getByRole('button', { name: 'limit' }).click()
   await dialog.getByLabel('Limit price').fill('49900')
   await dialog.getByLabel('Time in force').selectOption('gtc')
-  await dialog
-    .getByRole('button', { name: 'Cancel Entry And Close Command Exposure' })
-    .click()
+  await dialog.getByRole('button', { name: 'Cancel Entry And Close Command Exposure' }).click()
   await expect.poll(sends).toContainEqual({
     kind: 'CloseCommandPosition',
     data: {
@@ -1769,9 +1731,7 @@ test('Hyperliquid command exposure supports partial limit/chase and full market/
   await dialog.getByRole('button', { name: 'chase' }).click()
   await dialog.getByLabel('Maximum distance (bps)').fill('35')
   await dialog.getByLabel('Run until canceled').check()
-  await dialog
-    .getByRole('button', { name: 'Cancel Entry And Close Command Exposure' })
-    .click()
+  await dialog.getByRole('button', { name: 'Cancel Entry And Close Command Exposure' }).click()
   await expect.poll(sends).toContainEqual({
     kind: 'CloseCommandPosition',
     data: {
@@ -2604,9 +2564,7 @@ test('Bybit account creation submits exchange credentials through account API', 
   await expect(
     accountPanel.getByText('Exchange metadata verified: UTA 1.0 Pro / REGULAR_MARGIN'),
   ).toBeVisible()
-  await expect(accountPanel.getByText('Queue', { exact: true })).toBeVisible()
-  await expect(accountPanel.getByText(/queued\s*\/\s*\d+\s+live/)).toBeVisible()
-  await expect(accountPanel.getByText('Bybit Remain')).toBeVisible()
+  await expect(accountPanel.getByRole('button', { name: 'Refresh' }).last()).toBeVisible()
 })
 
 test('Hyperliquid account creation submits wallet agent and exchange metadata', async ({

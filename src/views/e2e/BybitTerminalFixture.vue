@@ -12,11 +12,16 @@ import TrailingEntryOrderModal from '@/components/terminal/modals/commands/Trail
 import CommandModalContainer from '@/components/terminal/modals/commands/CommandModalContainer.vue'
 import CommandInputModal from '@/components/terminal/modals/commands/CommandInputModal.vue'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
+import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useCommandStore } from '@/stores/command'
 import { useDeviceStore } from '@/stores/devices'
 import { useWsStore } from '@/stores/ws'
 import { useSplitPreviewStore } from '@/stores/splitPreview'
 import { bybitProtocolFixtures } from '@/lib/bybitProtocolFixtures'
+import {
+  ENGINE_SUBSCRIPTION_ID,
+  engineProjectionSnapshot,
+} from '@/views/e2e/engineProjectionFixtureData'
 import {
   CommandEffectKind,
   CommandStatus,
@@ -45,6 +50,7 @@ import {
 
 const commandPanelRef = ref<InstanceType<typeof CommandPanel> | null>(null)
 const accountStore = useAccountsStore()
+const projectionStore = useAccountProjectionStore()
 const commandStore = useCommandStore()
 const wsStore = useWsStore()
 const continueMissedEntrySends = ref<string[]>([])
@@ -748,6 +754,12 @@ const accounts = [
 accountStore.accountsRaw = accounts
 accountStore.accountOrder = accounts.map((account) => account.id)
 accountStore.selectedAccountId = bybitProtocolFixtures.bybitAccountId
+projectionStore.install(
+  hyperliquidAccountId,
+  ENGINE_SUBSCRIPTION_ID,
+  { kind: 'initial' },
+  engineProjectionSnapshot(),
+)
 accountStore.lastFetchedAt = Date.now()
 wsStore.applyOrderThrottleSnapshot({
   request_uuid: '55555555-5555-4555-8555-555555555555',
