@@ -33,6 +33,8 @@ export const useProjectionUiStore = defineStore(
     const selectedCommandId = ref<Uuid | null>(null)
     const selectedNode = ref<ProjectionNodeId | null>(null)
     const selectedProtectionId = ref<Uuid | null>(null)
+    const selectedProtectionChild = ref<{ protectionId: Uuid; childId: Uuid } | null>(null)
+    const selectedOrderGeneration = ref<{ orderId: Uuid; generation: number } | null>(null)
     const autoSelectNewCommands = ref(true)
     const commandMeta = ref<Record<Uuid, ProjectionCommandMeta>>({})
     const commandFilters = ref<ProjectionCommandFilters>(defaultProjectionCommandFilters())
@@ -71,9 +73,11 @@ export const useProjectionUiStore = defineStore(
       return projectionEntities(graph.value).get(nodeKey(selectedNode.value)) ?? null
     })
     const selectedProtection = computed(() => {
-      const id = selectedProtectionId.value
+      const id = selectedProtectionChild.value?.protectionId ?? selectedProtectionId.value
       if (id === null) return null
-      return projections.selectedLive?.native_protections.find((row) => row.protection_id === id) ?? null
+      return (
+        projections.selectedLive?.native_protections.find((row) => row.protection_id === id) ?? null
+      )
     })
 
     watch(
@@ -82,6 +86,8 @@ export const useProjectionUiStore = defineStore(
         selectedCommandId.value = null
         selectedNode.value = null
         selectedProtectionId.value = null
+        selectedProtectionChild.value = null
+        selectedOrderGeneration.value = null
       },
     )
 
@@ -116,16 +122,36 @@ export const useProjectionUiStore = defineStore(
         commands.value.find((command) => command.command_id === commandId)?.root ??
         ({ kind: 'command', id: commandId } as const)
       selectedProtectionId.value = null
+      selectedProtectionChild.value = null
+      selectedOrderGeneration.value = null
     }
 
     function selectEntity(node: ProjectionNodeId): void {
       selectedNode.value = node
       selectedProtectionId.value = null
+      selectedProtectionChild.value = null
+      selectedOrderGeneration.value = null
     }
 
     function selectProtection(protectionId: Uuid): void {
       selectedNode.value = null
       selectedProtectionId.value = protectionId
+      selectedProtectionChild.value = null
+      selectedOrderGeneration.value = null
+    }
+
+    function selectProtectionChild(protectionId: Uuid, childId: Uuid): void {
+      selectedNode.value = null
+      selectedProtectionId.value = null
+      selectedProtectionChild.value = { protectionId, childId }
+      selectedOrderGeneration.value = null
+    }
+
+    function selectOrderGeneration(orderId: Uuid, generation: number): void {
+      selectedNode.value = null
+      selectedProtectionId.value = null
+      selectedProtectionChild.value = null
+      selectedOrderGeneration.value = { orderId, generation }
     }
 
     function togglePinned(commandId: Uuid): void {
@@ -159,6 +185,8 @@ export const useProjectionUiStore = defineStore(
       selectedCommandId,
       selectedNode,
       selectedProtectionId,
+      selectedProtectionChild,
+      selectedOrderGeneration,
       autoSelectNewCommands,
       commandMeta,
       commandFilters,
@@ -174,6 +202,8 @@ export const useProjectionUiStore = defineStore(
       selectCommand,
       selectEntity,
       selectProtection,
+      selectProtectionChild,
+      selectOrderGeneration,
       togglePinned,
       setNickname,
       resetCommandFilters,

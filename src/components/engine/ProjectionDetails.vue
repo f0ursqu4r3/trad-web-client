@@ -11,6 +11,8 @@ import OrderDetails from '@/components/engine/details/OrderDetails.vue'
 import ProtectionEvidence from '@/components/engine/details/ProtectionEvidence.vue'
 import TrailingEntryDetails from '@/components/engine/details/TrailingEntryDetails.vue'
 import NativeProtectionDetails from '@/components/engine/details/NativeProtectionDetails.vue'
+import ProtectionChildDetails from '@/components/engine/details/ProtectionChildDetails.vue'
+import OrderGenerationDetails from '@/components/engine/details/OrderGenerationDetails.vue'
 import {
   activeProtectionAmendment,
   commandNativeProtection,
@@ -46,6 +48,13 @@ const ui = useProjectionUiStore()
 
 const entity = computed(() => ui.selectedEntity)
 const directlySelectedProtection = computed(() => ui.selectedProtection)
+const directlySelectedProtectionChild = computed(() => ui.selectedProtectionChild)
+const directlySelectedOrderGeneration = computed(() => {
+  const selected = ui.selectedOrderGeneration
+  if (selected === null || ui.graph === null) return null
+  const order = ui.graph.orders.find((row) => row.order_id === selected.orderId)
+  return order === undefined ? null : { order, generation: selected.generation }
+})
 const selectedCommand = computed<CommandProjection | null>(() => {
   if (entity.value === null || ui.graph === null) return null
   const commandId = entityCommandId(entity.value)
@@ -115,12 +124,23 @@ const operationalEntity = computed<OperationalEntity | null>(() => {
   return selected !== null && isOperational(selected) ? selected : null
 })
 const selectedId = computed(
-  () => directlySelectedProtection.value?.protection_id ?? entity.value?.id ?? null,
+  () =>
+    directlySelectedProtectionChild.value?.childId ??
+    (directlySelectedOrderGeneration.value === null
+      ? null
+      : `${directlySelectedOrderGeneration.value.order.order_id}:${directlySelectedOrderGeneration.value.generation}`) ??
+    directlySelectedProtection.value?.protection_id ??
+    entity.value?.id ??
+    null,
 )
 const acceptedAt = computed(() => selectedCommand.value?.accepted_at ?? null)
 const detailStatus = computed(
   () =>
     directlySelectedProtection.value?.status ??
+    directlySelectedOrderGeneration.value?.order.generations[
+      String(directlySelectedOrderGeneration.value.generation)
+    ]?.lifecycle ??
+    null ??
     (entity.value === null ? null : entityStatus(entity.value)),
 )
 const detailTone = computed(() => statusTone(detailStatus.value))
@@ -184,7 +204,45 @@ function formatDate(value: number | null): string {
       <span class="panel-title">Device Details</span>
     </header>
 
-    <div v-if="directlySelectedProtection" class="details-scroll">
+    <div
+      v-if="directlySelectedProtectionChild && directlySelectedProtection"
+      class="details-scroll"
+    >
+      <div class="entity-meta">
+        <span
+          >Device ID: <strong>{{ selectedId }}</strong></span
+        >
+        <span>Created: <strong>-</strong></span>
+      </div>
+      <div class="entity-heading">
+        <div class="entity-title">Protection Order</div>
+        <span class="entity-status">{{ detailStatus }}</span>
+      </div>
+      <ProjectionActions v-if="showActions" />
+      <ProtectionChildDetails
+        :protection="directlySelectedProtection"
+        :child-id="directlySelectedProtectionChild.childId"
+      />
+    </div>
+    <div v-else-if="directlySelectedOrderGeneration" class="details-scroll">
+      <div class="entity-meta">
+        <span
+          >Device ID: <strong>{{ selectedId }}</strong></span
+        >
+        <span
+          >Created: <strong>{{ formatDate(acceptedAt) }}</strong></span
+        >
+      </div>
+      <div class="entity-heading">
+        <div class="entity-title">Order Generation</div>
+        <span class="entity-status">{{ detailStatus }}</span>
+      </div>
+      <OrderGenerationDetails
+        :order="directlySelectedOrderGeneration.order"
+        :generation="directlySelectedOrderGeneration.generation"
+      />
+    </div>
+    <div v-else-if="directlySelectedProtection" class="details-scroll">
       <div class="entity-meta">
         <span
           >Device ID: <strong>{{ selectedId }}</strong></span

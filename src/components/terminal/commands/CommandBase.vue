@@ -6,6 +6,7 @@ import { ChevronDown, Pin } from 'lucide-vue-next'
 import { formatName } from '@/lib/utils'
 import type { CommandActionContextStatus } from '@/stores/command'
 import { CommandEffectKind, type CommandEffectRecord } from '@/lib/ws/protocol'
+import type { CommandMenuAction } from './presentation'
 
 const props = withDefaults(
   defineProps<{
@@ -34,6 +35,7 @@ const props = withDefaults(
     result?: string | null
     flattenedByEffects?: CommandEffectRecord[]
     flattenEffects?: CommandEffectRecord[]
+    menuActions?: CommandMenuAction[]
   }>(),
   {
     commandKind: '',
@@ -59,6 +61,7 @@ const props = withDefaults(
     result: null,
     flattenedByEffects: () => [],
     flattenEffects: () => [],
+    menuActions: () => [],
   },
 )
 
@@ -80,6 +83,7 @@ const emit = defineEmits<{
   (e: 'pin', commandId: string): void
   (e: 'request-action-context', commandId: string): void
   (e: 'inspect-related', commandId: string): void
+  (e: 'menu-action', actionId: string): void
 }>()
 
 const shortId = computed(() => props.commandId.slice(0, 8))
@@ -148,6 +152,9 @@ const statusClass = computed(() => {
     Running: 'info',
     Succeeded: 'success',
     Failed: 'error',
+    Canceled: 'warning',
+    'Partially Succeeded': 'warning',
+    'Reconciliation Required': 'error',
   }
   const key = map[props.commandStatus] || 'neutral'
   return `command-status-${key}`
@@ -160,7 +167,7 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
       action: () => emit('inspect', props.commandId),
     },
     {
-      label: 'Nickname',
+      label: 'Nickname / Color...',
       action: () => emit('rename', props.commandId),
     },
   ]
@@ -181,7 +188,8 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
   if (actionContextReady && props.canEnterTrailingEntry) {
     items.push({
       label: 'Enter Now...',
-      title: 'Bypass the trailing wait and submit the entry through the normal protection pipeline.',
+      title:
+        'Bypass the trailing wait and submit the entry through the normal protection pipeline.',
       action: () => emit('enter-trailing-entry', props.commandId),
     })
   }
@@ -238,6 +246,15 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
     items.push({
       label: 'Edit Protection',
       action: () => emit('edit-protection', props.commandId),
+    })
+  }
+  for (const action of props.menuActions) {
+    items.push({
+      label: action.label,
+      title: action.title,
+      disabled: action.disabled,
+      className: action.danger ? 'text-[var(--color-error)]' : undefined,
+      action: () => emit('menu-action', action.id),
     })
   }
   if (props.actionContextStatus === 'loading') {

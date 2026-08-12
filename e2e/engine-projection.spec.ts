@@ -309,3 +309,24 @@ test('opens protection from its owning execution relationship', async ({ page })
   await modal.getByRole('button', { name: 'Back' }).click()
   await expect(modal).not.toBeVisible()
 })
+
+test('inspects an individual protection child without exposing it as a command', async ({
+  page,
+}) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await fixture.getByTestId('projection-command-list').getByText('Market Order').click()
+
+  const takeProfit = fixture
+    .getByTestId('projection-entity-tree')
+    .locator('[data-node-kind="protection_child"]')
+    .filter({ hasText: 'Take Profit' })
+  await expect(takeProfit).toContainText('2100.125')
+  await takeProfit.click()
+
+  const details = fixture.getByTestId('projection-details')
+  await expect(details.getByText('Protection Order', { exact: true }).first()).toBeVisible()
+  await expect(details.getByText('take profit', { exact: true })).toBeVisible()
+  await expect(details.getByText('2,100.125', { exact: true })).toBeVisible()
+  await expect(details.getByText('0.002100005', { exact: true }).first()).toBeVisible()
+  await expect(details.getByText('Exchange evidence (1)', { exact: true })).toBeVisible()
+})

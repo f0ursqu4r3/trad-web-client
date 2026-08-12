@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, ref } from 'vue'
 
-import DropMenu, { type DropMenuItem } from '@/components/general/DropMenu.vue'
 import SplitView from '@/components/general/SplitView.vue'
 import StickyScroller from '@/components/general/StickyScroller.vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
@@ -11,9 +10,8 @@ import ProjectionCommandFilters from '@/components/engine/ProjectionCommandFilte
 import ProjectionCommandCard from './ProjectionCommandCard.vue'
 import type { CommandProjection } from '@/lib/gateway'
 import { duplicateCommandPrefill } from '@/lib/engineCommands/prefill'
-import { lifecycleActions, type LifecycleAction } from '@/lib/engineCommands/lifecycle'
-import { nodeKey } from '@/lib/projection'
-import { commandLabel, commandSymbolIndex, projectionEntities } from '@/lib/projection/presentation'
+import type { LifecycleAction } from '@/lib/engineCommands/lifecycle'
+import { commandLabel, commandSymbolIndex } from '@/lib/projection/presentation'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
@@ -38,8 +36,6 @@ const loadingHistory = ref(false)
 const renameCommand = ref<CommandProjection | null>(null)
 const renameValue = ref('')
 const renameColor = ref<string | null>(null)
-const contextMenu = ref<InstanceType<typeof DropMenu> | null>(null)
-const contextCommand = ref<CommandProjection | null>(null)
 const nicknameColors = [
   { label: 'Default', value: null },
   { label: 'Blue', value: '#5cc8ff' },
@@ -97,40 +93,6 @@ function toggleFilters(): void {
   projectionUi.showCommandFilters = showFilters.value
 }
 
-const contextActions = computed<LifecycleAction[]>(() => {
-  const command = contextCommand.value
-  if (command === null || projectionUi.graph === null) return []
-  const root = projectionEntities(projectionUi.graph).get(nodeKey(command.root)) ?? null
-  return lifecycleActions(root, projectionUi.graph, projections.selectedLive?.positions ?? [])
-})
-
-const contextItems = computed<DropMenuItem[]>(() => {
-  const command = contextCommand.value
-  if (command === null) return []
-  const meta = projectionUi.meta(command.command_id)
-  const prefill =
-    accounts.selectedAccountId === null
-      ? null
-      : duplicateCommandPrefill(command, accounts.selectedAccountId)
-  return [
-    { label: 'Inspect', action: () => projectionUi.selectCommand(command.command_id) },
-    ...(prefill === null ? [] : [{ label: 'Duplicate', action: () => duplicate(command) }]),
-    {
-      label: meta.pinned ? 'Unpin' : 'Pin',
-      action: () => projectionUi.togglePinned(command.command_id),
-    },
-    { label: 'Nickname / Color...', action: () => openRename(command) },
-    ...contextActions.value.map((action) => ({
-      label: action.label,
-      title: action.danger ? 'Risk-reducing action; review the confirmation carefully.' : undefined,
-      className: action.danger ? 'context-danger' : undefined,
-      action: () => {
-        selectedAction.value = action
-      },
-    })),
-  ]
-})
-
 function duplicate(command: CommandProjection): void {
   const accountId = accounts.selectedAccountId
   if (accountId === null) return
@@ -140,17 +102,16 @@ function duplicate(command: CommandProjection): void {
   }
 }
 
+function canDuplicate(command: CommandProjection): boolean {
+  const accountId = accounts.selectedAccountId
+  return accountId !== null && duplicateCommandPrefill(command, accountId) !== null
+}
+
 function openRename(command: CommandProjection): void {
   const meta = projectionUi.meta(command.command_id)
   renameCommand.value = command
   renameValue.value = meta.nickname ?? ''
   renameColor.value = meta.nicknameColor
-}
-
-async function openMenu(command: CommandProjection, x: number, y: number): Promise<void> {
-  contextCommand.value = command
-  await nextTick()
-  await contextMenu.value?.openAt(x, y)
 }
 
 function saveRename(): void {
@@ -222,9 +183,12 @@ async function loadOlder(): Promise<void> {
                   :graph="projectionUi.graph!"
                   :meta="projectionUi.meta(command.command_id)"
                   :selected="projectionUi.selectedCommandId === command.command_id"
+                  :can-duplicate="canDuplicate(command)"
                   @select="projectionUi.selectCommand"
+                  @duplicate="duplicate"
                   @pin="projectionUi.togglePinned"
-                  @menu="openMenu"
+                  @rename="openRename"
+                  @action="selectedAction = $event"
                 />
               </div>
             </StickyScroller>
@@ -245,9 +209,12 @@ async function loadOlder(): Promise<void> {
                 :graph="projectionUi.graph!"
                 :meta="projectionUi.meta(command.command_id)"
                 :selected="projectionUi.selectedCommandId === command.command_id"
+                :can-duplicate="canDuplicate(command)"
                 @select="projectionUi.selectCommand"
+                @duplicate="duplicate"
                 @pin="projectionUi.togglePinned"
-                @menu="openMenu"
+                @rename="openRename"
+                @action="selectedAction = $event"
               />
             </div>
           </StickyScroller>
@@ -271,17 +238,16 @@ async function loadOlder(): Promise<void> {
           :graph="projectionUi.graph!"
           :meta="projectionUi.meta(command.command_id)"
           :selected="projectionUi.selectedCommandId === command.command_id"
+          :can-duplicate="canDuplicate(command)"
           @select="projectionUi.selectCommand"
+          @duplicate="duplicate"
           @pin="projectionUi.togglePinned"
-          @menu="openMenu"
+          @rename="openRename"
+          @action="selectedAction = $event"
         />
         <div v-if="visibleCommands.length === 0" class="empty-state">No commands</div>
       </div>
     </StickyScroller>
-
-    <DropMenu ref="contextMenu" :items="contextItems">
-      <template #trigger><span /></template>
-    </DropMenu>
 
     <LifecycleActionModal
       :open="selectedAction !== null"

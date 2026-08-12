@@ -46,7 +46,7 @@ const positionsOpen = ref(false)
     </template>
     <template #device-tree>
       <div class="panel">
-        <div class="panel-header"><span class="panel-title">Execution</span></div>
+        <div class="panel-header"><span class="panel-title">Devices</span></div>
         <ProjectionTreePanel />
       </div>
     </template>
