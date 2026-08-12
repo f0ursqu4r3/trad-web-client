@@ -134,6 +134,21 @@ export interface AccountRecord {
   exchange_metadata?: ExchangeAccountMetadata | null
 }
 
+export interface AccountDeletionBlocker {
+  kind: string
+  count?: number
+}
+
+export interface AccountDeletionResult {
+  deleted: true
+  owner_release: 'completed' | 'pending'
+}
+
+interface AccountDeletionFailure {
+  error?: string
+  blockers?: AccountDeletionBlocker[]
+}
+
 export {
   accountMetadataChips,
   accountMetadataStatus,
@@ -316,10 +331,19 @@ export const useAccountsStore = defineStore('accounts', () => {
     return response
   }
 
-  async function removeAccount(label: string): Promise<void> {
+  async function removeAccount(label: string): Promise<AccountDeletionResult> {
     const encodedLabel = encodeURIComponent(label)
-    await apiDelete(`/accounts/${encodedLabel}`)
+    const response = await apiDelete<AccountDeletionResult | AccountDeletionFailure>(
+      `/accounts/${encodedLabel}`,
+    )
+    if (!isAccountDeletionResult(response)) {
+      const details = response.blockers?.map(accountDeletionBlockerLabel).join('; ')
+      throw new Error(
+        [response.error || 'Trading account deletion failed.', details].filter(Boolean).join(' '),
+      )
+    }
     await fetchAccounts()
+    return response
   }
 
   function reorderAccounts(nextOrder: AccountRecord[]): void {
@@ -490,3 +514,14 @@ export const useAccountsStore = defineStore('accounts', () => {
     loadPersistedState,
   }
 })
+
+function accountDeletionBlockerLabel(blocker: AccountDeletionBlocker): string {
+  const label = blocker.kind.replace(/_/g, ' ')
+  return blocker.count == null ? label : `${label}: ${blocker.count}`
+}
+
+function isAccountDeletionResult(
+  response: AccountDeletionResult | AccountDeletionFailure,
+): response is AccountDeletionResult {
+  return 'deleted' in response && response.deleted === true
+}
