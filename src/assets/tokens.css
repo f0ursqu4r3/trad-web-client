@@ -153,7 +153,8 @@
   --btn-alpha-ghost-active: 20%;
 
   --font-mono:
-    'SFMono-Regular', ui-monospace, 'JetBrains Mono', 'Source Code Pro', Menlo, Consolas, monospace;
+    'Trad Monaspace Neon', 'SFMono-Regular', ui-monospace, 'JetBrains Mono', 'Source Code Pro',
+    Menlo, Consolas, monospace;
 
   /* Account rail palette (used to colorize per-account visuals) */
   --account-color-1: #56cfe1;

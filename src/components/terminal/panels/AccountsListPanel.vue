@@ -12,7 +12,7 @@ import { useGatewayStore } from '@/stores/gateway'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 import ActionConfirmationModal from '@/components/terminal/modals/ActionConfirmationModal.vue'
-import { X } from 'lucide-vue-next'
+import { Trash2 } from 'lucide-vue-next'
 import {
   isValidBybitUsdtSymbol,
   normalizeBybitUsdtSymbol,
@@ -785,7 +785,12 @@ watch(
 
               <div
                 v-if="showAccountDetails(account)"
-                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(132px,1fr)_96px_auto_auto_auto]"
+                class="account-settings-grid border-t border-[var(--panel-border-inner)] pt-2"
+                :class="{
+                  'account-settings-grid--hyperliquid':
+                    account.exchange === ExchangeType.Hyperliquid,
+                  'account-settings-grid--hedged': account.exchange !== ExchangeType.Hyperliquid,
+                }"
                 data-testid="account-leverage-controls"
               >
                 <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
@@ -856,7 +861,7 @@ watch(
                   </select>
                 </label>
                 <button
-                  class="btn btn-secondary btn-xs self-end"
+                  class="btn btn-secondary btn-xs account-settings-action"
                   type="button"
                   :disabled="!validateLeverage(account)"
                   @click="setLeverage(account)"
@@ -865,7 +870,7 @@ watch(
                 </button>
                 <button
                   v-if="account.exchange === ExchangeType.Hyperliquid"
-                  class="btn btn-secondary btn-xs self-end"
+                  class="btn btn-secondary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canSaveHyperliquidLeveragePrefs(account)"
                   @click="saveHyperliquidLeveragePrefs(account)"
@@ -873,7 +878,8 @@ watch(
                   Save Prefs
                 </button>
                 <button
-                  class="btn btn-secondary btn-xs self-end"
+                  v-if="account.exchange !== ExchangeType.Hyperliquid"
+                  class="btn btn-secondary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canSetHedgeMode(account)"
                   @click="enableHedgeMode(account)"
@@ -924,7 +930,7 @@ watch(
               </p>
               <div
                 v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
-                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[repeat(3,minmax(110px,1fr))_auto]"
+                class="account-guard-grid border-t border-[var(--panel-border-inner)] pt-2"
               >
                 <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
                   <span>Market Entry Guard</span>
@@ -972,7 +978,7 @@ watch(
                   >
                 </label>
                 <button
-                  class="btn btn-secondary btn-xs self-end"
+                  class="btn btn-secondary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canSaveHyperliquidGuards(account)"
                   @click="saveHyperliquidGuards(account)"
@@ -998,7 +1004,7 @@ watch(
               </p>
               <div
                 v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
-                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(190px,1fr)_auto_auto]"
+                class="account-agent-grid border-t border-[var(--panel-border-inner)] pt-2"
               >
                 <div class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
                   <span>Agent Wallet</span>
@@ -1013,7 +1019,7 @@ watch(
                   </span>
                 </div>
                 <button
-                  class="btn btn-primary btn-xs self-end"
+                  class="btn btn-primary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canApproveHyperliquidAgent(account)"
                   @click="approveHyperliquidAgent(account)"
@@ -1022,7 +1028,7 @@ watch(
                   <span v-else>Approve Agent</span>
                 </button>
                 <button
-                  class="btn btn-secondary btn-xs self-end"
+                  class="btn btn-secondary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canRefreshHyperliquidAgent(account)"
                   @click="refreshHyperliquidAgent(account)"
@@ -1042,7 +1048,7 @@ watch(
               </div>
               <div
                 v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
-                class="grid gap-2 border-t border-[var(--panel-border-inner)] pt-2 md:grid-cols-[minmax(190px,1fr)_96px_auto_auto_auto]"
+                class="account-builder-grid border-t border-[var(--panel-border-inner)] pt-2"
               >
                 <div
                   class="flex min-w-0 flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim"
@@ -1084,7 +1090,7 @@ watch(
                 </label>
                 <button
                   v-if="account.exchange_metadata?.builder_fee_manager === true"
-                  class="btn btn-secondary btn-xs self-end"
+                  class="btn btn-secondary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canSaveHyperliquidBuilder(account)"
                   @click="saveHyperliquidBuilder(account)"
@@ -1093,7 +1099,7 @@ watch(
                   <span v-else>Save</span>
                 </button>
                 <button
-                  class="btn btn-primary btn-xs self-end"
+                  class="btn btn-primary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canApproveHyperliquidBuilder(account)"
                   @click="approveHyperliquidBuilder(account)"
@@ -1102,7 +1108,7 @@ watch(
                   <span v-else>Approve</span>
                 </button>
                 <button
-                  class="btn btn-secondary btn-xs self-end"
+                  class="btn btn-secondary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canRefreshHyperliquidBuilder(account)"
                   @click="refreshHyperliquidBuilder(account)"
@@ -1147,13 +1153,15 @@ watch(
               {{ accountReady(account) ? 'Manage' : 'Setup' }}
             </button>
             <button
-              class="btn icon-btn btn-sm"
+              class="btn btn-danger btn-xs shrink-0 self-start"
               type="button"
+              aria-label="Delete flat account"
               title="Delete flat account"
               :disabled="deletingAccountIds.has(account.id)"
               @click="requestAccountDeletion(account)"
             >
-              <X :size="12" />
+              <Trash2 :size="12" />
+              DELETE
             </button>
           </div>
         </li>
@@ -1174,3 +1182,51 @@ watch(
     />
   </section>
 </template>
+
+<style scoped>
+.account-settings-grid,
+.account-guard-grid,
+.account-agent-grid,
+.account-builder-grid {
+  display: grid;
+  align-items: start;
+  gap: 0.5rem;
+}
+
+.account-settings-grid :is(.input, .btn),
+.account-guard-grid :is(.input, .btn),
+.account-agent-grid .btn,
+.account-builder-grid :is(.input, .btn) {
+  box-sizing: border-box;
+  height: 28px;
+  min-height: 28px;
+}
+
+.account-settings-action {
+  align-self: start;
+  margin-top: 1.125rem;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .account-settings-grid--hyperliquid {
+    grid-template-columns: minmax(13rem, 2fr) repeat(3, minmax(5.5rem, 0.7fr)) auto auto;
+  }
+
+  .account-settings-grid--hedged {
+    grid-template-columns: minmax(13rem, 2fr) minmax(5.5rem, 0.7fr) auto auto;
+  }
+
+  .account-guard-grid {
+    grid-template-columns: repeat(3, minmax(8rem, 1fr)) auto;
+  }
+
+  .account-agent-grid {
+    grid-template-columns: minmax(18rem, 1fr) auto auto;
+  }
+
+  .account-builder-grid {
+    grid-template-columns: minmax(18rem, 1fr) minmax(7rem, 9rem) auto auto auto;
+  }
+}
+</style>

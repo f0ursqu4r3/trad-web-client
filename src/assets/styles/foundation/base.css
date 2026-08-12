@@ -1,4 +1,12 @@
 /* Foundation: base reset, typography, scrollbars */
+@font-face {
+  font-family: 'Trad Monaspace Neon';
+  src: url('/fonts/MonaspaceNeon-Regular.otf') format('opentype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
 @layer base {
   html,
   body {
