@@ -83,7 +83,6 @@ const contextItems = computed<DropMenuItem[]>(() => {
   const node = contextNode.value
   if (node === null) return []
   return [
-    { label: 'Inspect', action: () => select(node.id) },
     ...contextActions.value.map((action) => ({
       label: action.label,
       className: action.danger ? 'text-[var(--color-error)]' : undefined,

@@ -156,7 +156,7 @@ test('right-click exposes projected actions without changing the inspected comma
   await expect(chase).toHaveClass(/selected/)
 
   await market.click({ button: 'right' })
-  await expect(page.getByRole('menuitem', { name: 'Inspect' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Inspect' })).toHaveCount(0)
   await expect(page.getByRole('menuitem', { name: 'Close Exposure' })).toBeVisible()
   await expect(chase).toHaveClass(/selected/)
   await expect(market).not.toHaveClass(/selected/)

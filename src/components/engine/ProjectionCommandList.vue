@@ -72,7 +72,6 @@ const contextItems = computed<DropMenuItem[]>(() => {
       ? null
       : duplicateCommandPrefill(command, accounts.selectedAccountId)
   return [
-    { label: 'Inspect', action: () => ui.selectCommand(command.command_id) },
     ...(duplicate === null
       ? []
       : [

@@ -163,10 +163,6 @@ const statusClass = computed(() => {
 const menuItems = computed<Array<DropMenuItem>>(() => {
   const items: Array<DropMenuItem> = [
     {
-      label: 'Inspect',
-      action: () => emit('inspect', props.commandId),
-    },
-    {
       label: 'Nickname / Color...',
       action: () => emit('rename', props.commandId),
     },
