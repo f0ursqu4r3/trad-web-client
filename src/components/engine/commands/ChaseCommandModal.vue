@@ -5,6 +5,7 @@ import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandM
 import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmission'
 import type { PositionSideIntent } from '@/lib/gateway'
 import {
+  copyProtectionState,
   newProtectionState,
   sizingModeFromPreference,
   sizingModePreference,
@@ -70,7 +71,7 @@ function reset(): void {
   boundaryValue.value = prefill?.boundaryValue ?? ''
   expirySeconds.value = prefill?.expirySeconds ?? ''
   remainder.value = prefill?.remainder ?? 'cancel'
-  protection.value = structuredClone(prefill?.protection ?? newProtectionState())
+  protection.value = copyProtectionState(prefill?.protection ?? newProtectionState())
   validationError.value = null
   submission.clearSubmissionError()
 }

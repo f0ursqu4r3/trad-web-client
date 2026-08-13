@@ -149,6 +149,7 @@ async function openContext(id: string, x: number, y: number): Promise<void> {
   if (contextNode.value === null) return
   select(id)
   await nextTick()
+  if (contextItems.value.length === 0) return
   contextMenu.value?.openAt(x, y)
 }
 </script>

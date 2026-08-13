@@ -5,6 +5,7 @@ import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandM
 import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmission'
 import type { PositionSideIntent, TimeInForceIntent } from '@/lib/gateway'
 import {
+  copyProtectionState,
   newProtectionState,
   sizingModeFromPreference,
   sizingModePreference,
@@ -84,7 +85,7 @@ function reset(): void {
   shapeMode.value = prefill?.shapeMode ?? 'single'
   targetChildNotional.value = prefill?.targetChildNotional ?? ''
   maxChildren.value = prefill?.maxChildren ?? '20'
-  protection.value = structuredClone(prefill?.protection ?? newProtectionState())
+  protection.value = copyProtectionState(prefill?.protection ?? newProtectionState())
   validationError.value = null
   submission.clearSubmissionError()
 }

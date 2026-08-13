@@ -63,7 +63,28 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
         reduce_only: false,
       },
       position_intent: { kind: 'open', scope_id: 'scope-filled' },
-      protection: { scope_id: 'protection-scope-filled' },
+      protection: {
+        scope_id: 'protection-scope-filled',
+        controller: {
+          kind: 'native',
+          children: [
+            {
+              protection_kind: 'take_profit',
+              trigger_price: '2100.125',
+              trigger_source: 'mark_price',
+              execution: { kind: 'bounded_market', worst_price: '2090.125' },
+              allocation: { kind: 'fraction', value: '0.5' },
+            },
+            {
+              protection_kind: 'stop_loss',
+              trigger_price: '1800.125',
+              trigger_source: 'mark_price',
+              execution: { kind: 'bounded_market', worst_price: '1790.125' },
+              allocation: { kind: 'full_remaining' },
+            },
+          ],
+        },
+      },
     },
   )
   const trailingCommand = command(

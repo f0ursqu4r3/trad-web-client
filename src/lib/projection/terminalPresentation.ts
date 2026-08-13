@@ -4,6 +4,7 @@ import type {
   ProjectionGraph,
   ProjectionNodeId,
 } from '../gateway/index.ts'
+import { isExactZero } from '../exactDecimalMath.ts'
 import {
   commandProtectionScopeId,
   commandTree,
@@ -155,13 +156,7 @@ function protectionChildNode(
 ): TerminalTreeNode {
   const plan = protection.plan.children.find((child) => child.child_id === childId)!
   const state = protection.children[childId]
-  const status = state?.failure_reason
-    ? 'Failed'
-    : state?.pending_operation_id
-      ? 'Waiting'
-      : state === undefined
-        ? 'Waiting'
-        : 'Running'
+  const status = protectionChildStatus(protection, state)
   const key = `protection_child:${protection.protection_id}:${childId}`
   return {
     id: key,
@@ -169,7 +164,7 @@ function protectionChildNode(
     kind: 'protection_child',
     label: title(plan.protection_kind),
     status,
-    tone: state?.failure_reason ? 'error' : lifecycleTone(protection.status),
+    tone: lifecycleTone(status),
     relationship: 'protection child',
     badges: [
       badge(plan.trigger_source, 'dim'),
@@ -190,6 +185,22 @@ function protectionChildNode(
     market: null,
     lifecycle: null,
   }
+}
+
+function protectionChildStatus(
+  protection: NativeProtectionProjection,
+  state: NativeProtectionProjection['children'][string] | undefined,
+): string {
+  if (state?.failure_reason) return 'Failed'
+  if (state?.pending_operation_id) return 'Waiting'
+  if (state === undefined)
+    return isTerminalStatus(protection.status) ? terminalStatus(protection.status) : 'Waiting'
+
+  if (protection.status === 'flat') {
+    return isExactZero(state.cumulative_filled_quantity) ? 'Canceled' : 'Completed'
+  }
+  if (isTerminalStatus(protection.status)) return terminalStatus(protection.status)
+  return 'Running'
 }
 
 function generationNode(

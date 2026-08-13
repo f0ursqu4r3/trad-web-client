@@ -196,6 +196,13 @@ export function newProtectionState(): ProtectionFormState {
   }
 }
 
+export function copyProtectionState(state: ProtectionFormState): ProtectionFormState {
+  return {
+    takeProfits: state.takeProfits.map((takeProfit) => ({ ...takeProfit })),
+    stopLoss: { ...state.stopLoss },
+  }
+}
+
 function protectionExecution(
   state: { executionKind: 'market' | 'limit'; executionPrice: string },
   label: string,

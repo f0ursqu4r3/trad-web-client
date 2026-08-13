@@ -192,6 +192,45 @@ test('duplicates an accepted command into a fresh exact form without submitting 
   await expect(fixture.getByTestId('latest-lifecycle-intent')).toHaveText('none')
 })
 
+test('duplicates a protected market order without cloning reactive proxies', async ({ page }) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  const market = fixture
+    .getByTestId('projection-command-list')
+    .locator('[data-command-id]')
+    .filter({ hasText: 'Market Order' })
+
+  await market.click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Duplicate' }).click()
+
+  const modal = page.getByRole('dialog', { name: 'Market Order' })
+  await expect(modal.getByLabel('Symbol')).toHaveValue('ETH')
+  await expect(modal.getByRole('textbox', { name: 'Base Quantity', exact: true })).toHaveValue(
+    '0.00420001',
+  )
+  await expect(modal.getByLabel('TP 1 Trigger')).toHaveValue('2100.125')
+  await expect(modal.getByLabel('Stop loss')).toBeChecked()
+  await expect(modal.getByLabel('SL Trigger')).toHaveValue('1800.125')
+  await expect(fixture.getByTestId('latest-lifecycle-intent')).toHaveText('none')
+})
+
+test('right-clicking a device with no actions selects it without opening an empty menu', async ({
+  page,
+}) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await fixture.getByRole('button', { name: 'Command filters' }).click()
+  await fixture.getByRole('button', { name: /Older/ }).click()
+  await fixture.locator('[data-command-id="40000000-0000-4000-8000-000000000001"]').click()
+  const failedOrder = fixture
+    .getByTestId('projection-entity-tree')
+    .locator('[data-node-kind="order"]')
+    .first()
+
+  await failedOrder.click({ button: 'right' })
+
+  await expect(page.getByRole('menu')).toHaveCount(0)
+  await expect(fixture.getByTestId('projection-details')).toContainText('insufficient margin')
+})
+
 test('projection-native command filters combine without polling device state', async ({ page }) => {
   const fixture = page.getByTestId('engine-projection-fixture')
   const commands = fixture.getByTestId('projection-command-list')
