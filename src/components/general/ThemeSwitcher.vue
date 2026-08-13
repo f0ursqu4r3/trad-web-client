@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import { Sun, Moon, Monitor, Sparkles, type LucideIcon } from 'lucide-vue-next'
+import { ChevronDown, Sun, Moon, Monitor, Sparkles, type LucideIcon } from 'lucide-vue-next'
 import { useUiStore, type ThemeMode } from '@/stores/ui'
 
 const uiStore = useUiStore()
@@ -137,6 +137,7 @@ onBeforeUnmount(() => {
     >
       <component :is="currentThemeIcon" :size="16" />
       {{ currentThemeLabel }}
+      <ChevronDown :size="12" aria-hidden="true" />
     </button>
 
     <div

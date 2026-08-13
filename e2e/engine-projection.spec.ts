@@ -354,6 +354,31 @@ test('sizes a partial close from authoritative owned exposure inside the modal',
   )
 })
 
+test('native dropdowns retain a visible chevron affordance', async ({ page }) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  const market = fixture
+    .getByTestId('projection-command-list')
+    .locator('[data-command-id]')
+    .filter({ hasText: 'Market Order' })
+
+  await market.click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Close Exposure' }).click()
+
+  const selects = page.getByRole('dialog', { name: 'Close Exposure' }).locator('select')
+  await expect(selects).toHaveCount(2)
+  for (const select of await selects.all()) {
+    const affordance = await select.evaluate((element) => {
+      const style = getComputedStyle(element)
+      return {
+        backgroundImage: style.backgroundImage,
+        paddingRight: Number.parseFloat(style.paddingRight),
+      }
+    })
+    expect(affordance.backgroundImage).not.toBe('none')
+    expect(affordance.paddingRight).toBeGreaterThanOrEqual(24)
+  }
+})
+
 test('edits logical native protection without exposing exchange order identity', async ({
   page,
 }) => {
