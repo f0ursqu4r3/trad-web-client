@@ -24,6 +24,17 @@ test('projected Chase actions target authoritative identities', () => {
     kind: 'cancel_chase',
     parameters: { chase_id: graph.chases[0]!.chase_id },
   })
+  assert.deepEqual(
+    lifecycleIntent(actions[1]!, { closeMode: 'percent', closePercent: '50' }),
+    {
+      kind: 'close_exposure',
+      parameters: {
+        source_command_id: command.command_id,
+        quantity: { kind: 'percent', percent: '50' },
+        execution: { kind: 'market' },
+      },
+    },
+  )
   assert.deepEqual(lifecycleIntent(actions[1]!, { closeMode: 'base', closeQuantity: '0.01000' }), {
     kind: 'close_exposure',
     parameters: {

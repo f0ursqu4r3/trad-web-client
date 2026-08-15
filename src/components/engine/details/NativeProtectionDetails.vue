@@ -23,6 +23,14 @@ const coverageTone = computed(() => {
   return 'warning'
 })
 
+function childStatus(childId: string): string {
+  const child = props.protection.children[childId]
+  if (child?.failure_reason) return 'failed'
+  if (props.protection.status === 'canceled' || props.protection.status === 'flat') return 'canceled'
+  if (props.protection.status === 'triggered') return 'triggered'
+  return 'active'
+}
+
 async function copyRemoteOrderId(value: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(value)
@@ -66,9 +74,7 @@ async function copyRemoteOrderId(value: string): Promise<void> {
         >
           <header>
             <span>{{ child.protection_kind.replace(/_/g, ' ') }}</span>
-            <span>{{
-              protection.children[child.child_id]?.failure_reason ? 'failed' : 'active'
-            }}</span>
+            <span>{{ childStatus(child.child_id) }}</span>
           </header>
           <DetailGrid
             :rows="[

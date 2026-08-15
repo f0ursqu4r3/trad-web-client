@@ -107,7 +107,8 @@ export function actionOwnedExposure(
 export function lifecycleIntent(
   action: LifecycleAction,
   fields: {
-    closeMode?: 'full' | 'base'
+    closeMode?: 'full' | 'percent' | 'base'
+    closePercent?: string
     closeQuantity?: string
     targetPrice?: string
     targetQuantity?: string
@@ -196,7 +197,12 @@ export function lifecycleIntent(
                   kind: 'base',
                   quantity: exactDecimal(fields.closeQuantity ?? '', 'close quantity'),
                 }
-              : { kind: 'full' },
+              : fields.closeMode === 'percent'
+                ? {
+                    kind: 'percent',
+                    percent: exactDecimal(fields.closePercent ?? '', 'close percentage'),
+                  }
+                : { kind: 'full' },
           execution: closeExecutionIntent(fields),
         },
       }

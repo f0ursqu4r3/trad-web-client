@@ -127,7 +127,10 @@ export interface ModifyOrderIntent {
   target_base_quantity: ExactDecimal
 }
 
-export type CloseQuantityIntent = { kind: 'full' } | { kind: 'base'; quantity: ExactDecimal }
+export type CloseQuantityIntent =
+  | { kind: 'full' }
+  | { kind: 'base'; quantity: ExactDecimal }
+  | { kind: 'percent'; percent: ExactDecimal }
 
 export type CloseExecutionIntent =
   | { kind: 'market' }

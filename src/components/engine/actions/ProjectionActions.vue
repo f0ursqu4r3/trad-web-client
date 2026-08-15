@@ -54,7 +54,7 @@ function close(): void {
     </button>
   </div>
   <div
-    v-if="selectedProtection"
+    v-if="selectedProtection && canEditProtection"
     class="projection-actions protection-actions"
     data-testid="projection-protection-actions"
   >

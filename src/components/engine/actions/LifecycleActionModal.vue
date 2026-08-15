@@ -189,7 +189,8 @@ async function submit(): Promise<void> {
   validationError.value = null
   try {
     const intent = lifecycleIntent(props.action, {
-      closeMode: closeMode.value === 'full' ? 'full' : 'base',
+      closeMode: closeMode.value,
+      closePercent: closePercent.value,
       closeQuantity: closeQuantityResolved.value,
       closeExecutionMode: closeExecutionMode.value,
       closeLimitPrice: closeLimitPrice.value,
