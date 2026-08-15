@@ -100,6 +100,35 @@ export function marketSampleForTrade(
   )
 }
 
+export function marketSamplesThroughTrade(
+  samples: BrowserMarketSample[],
+  trade: TrailingEntryTradeProjection | null,
+): BrowserMarketSample[] {
+  if (trade === null) return []
+
+  let exactIndex = -1
+  for (let index = samples.length - 1; index >= 0; index -= 1) {
+    const sample = samples[index]
+    if (
+      sample !== undefined &&
+      sample.generation === trade.generation &&
+      sample.trade_id === trade.trade_id &&
+      sample.exchange_time_ms === trade.exchange_time
+    ) {
+      exactIndex = index
+      break
+    }
+  }
+  if (exactIndex >= 0) return samples.slice(0, exactIndex + 1)
+
+  return samples.filter(
+    (sample) =>
+      sample.generation < trade.generation ||
+      (sample.generation === trade.generation &&
+        sample.exchange_time_ms < trade.exchange_time),
+  )
+}
+
 export function sampleAtTrailingEntryPoint(
   samples: BrowserMarketSample[],
   entry: TrailingEntryProjection,

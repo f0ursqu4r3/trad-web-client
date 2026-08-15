@@ -164,6 +164,23 @@ test('renders the projection-native Trailing Entry market workspace and typed co
   await modal.getByRole('button', { name: 'Back' }).click()
 })
 
+test('freezes Trailing Entry market history when its lifecycle becomes terminal', async ({
+  page,
+}) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await fixture.getByTestId('projection-command-list').getByText('Trailing Entry').click()
+
+  const chart = fixture.getByTestId('engine-te-chart')
+  await expect(chart).toContainText('Recent node history · 128 trades')
+
+  await page.evaluate(() => {
+    window.__tradEngineProjectionFixture?.applyDelta({ trailingEntryLifecycle: 'canceled' })
+  })
+
+  await expect(chart).toContainText('Terminal snapshot · 128 trades')
+  await expect(chart).toContainText('144.80')
+})
+
 test('keeps the Trailing Entry workspace usable at a narrow viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const fixture = page.getByTestId('engine-projection-fixture')

@@ -19,12 +19,13 @@ import {
   type DraggablePriceLinesPluginApi,
 } from '@/lib/chart/draggablePriceLines'
 import {
+  marketSamplesThroughTrade,
   sampleAtTrailingEntryPoint,
   trailingEntryChartLines,
   type TrailingEntryChartLine,
   type TrailingEntryLineId,
 } from '@/lib/chart/trailingEntryChart'
-import type { TrailingEntryProjection } from '@/lib/gateway'
+import type { BrowserMarketSample, TrailingEntryProjection } from '@/lib/gateway'
 import { formatNumberShort } from '@/lib/numberFormat'
 import { useGatewayStore } from '@/stores/gateway'
 import { useMarketStore } from '@/stores/market'
@@ -42,6 +43,7 @@ const markets = useMarketStore()
 const container = ref<HTMLDivElement | null>(null)
 const offScale = ref<OffScaleIndicator[]>([])
 const rightAxisWidth = ref(0)
+const terminalSamples = ref<BrowserMarketSample[] | null>(null)
 
 let chart: IChartApi | null = null
 let series: ISeriesApi<'Line'> | null = null
@@ -50,6 +52,7 @@ let linesPlugin: DraggablePriceLinesPluginApi | null = null
 let resizeObserver: ResizeObserver | null = null
 let themeObserver: MutationObserver | null = null
 let offScaleFrame: number | null = null
+let marketDemand: { accountId: string; symbol: string } | null = null
 
 const PRICE_AXIS_WHEEL_FACTOR = 1.12
 const OFF_SCALE_PADDING = 0.05
@@ -69,7 +72,10 @@ interface PriceRange {
 
 const symbol = computed(() => props.trailingEntry.plan.symbol)
 const stream = computed(() => markets.stream(props.accountId, symbol.value))
-const samples = computed(() => stream.value?.samples ?? [])
+const terminal = computed(() =>
+  ['canceled', 'failed', 'succeeded'].includes(props.trailingEntry.lifecycle),
+)
+const samples = computed(() => terminalSamples.value ?? stream.value?.samples ?? [])
 const latestSample = computed(() => samples.value[samples.value.length - 1] ?? null)
 const chartModel = computed<{ lines: TrailingEntryChartLine[]; error: string | null }>(() => {
   try {
@@ -98,8 +104,15 @@ const lowerIndicators = computed(() =>
     .sort((left, right) => right.price - left.price || left.id.localeCompare(right.id)),
 )
 const streamSummary = computed(() => {
+  if (terminalSamples.value !== null) {
+    return terminalSamples.value.length === 0
+      ? 'Terminal history unavailable'
+      : `Terminal snapshot · ${terminalSamples.value.length} trades`
+  }
   const current = stream.value
-  if (current === null) return 'Waiting for market subscription'
+  if (current === null) {
+    return terminal.value ? 'Loading terminal market history' : 'Waiting for market subscription'
+  }
   if (current.status === 'subscribing') return 'Loading recent node history'
   if (current.status === 'error') return current.error ?? 'Market stream unavailable'
   if (current.samples.length === 0) return 'Live stream ready; waiting for trades'
@@ -142,11 +155,20 @@ function buildLineDefinitions(lines: TrailingEntryChartLine[]): DraggablePriceLi
 }
 
 watch(
-  () => [props.accountId, symbol.value] as const,
-  ([accountId, nextSymbol], previous) => {
-    if (previous !== undefined) gateway.unsubscribeMarket(previous[0], previous[1])
-    if (accountId !== '' && nextSymbol !== '') gateway.subscribeMarket(accountId, nextSymbol)
+  () => [props.accountId, symbol.value, props.trailingEntry.trailing_entry_id] as const,
+  ([accountId, nextSymbol]) => {
+    releaseMarketDemand()
+    terminalSamples.value = null
+    if (accountId === '' || nextSymbol === '') return
+    gateway.subscribeMarket(accountId, nextSymbol)
+    marketDemand = { accountId, symbol: nextSymbol }
   },
+  { immediate: true },
+)
+
+watch(
+  () => [terminal.value, stream.value?.status, stream.value?.nextSequence] as const,
+  () => freezeTerminalMarketHistory(),
   { immediate: true },
 )
 
@@ -155,7 +177,10 @@ watch(
   (data) => {
     series?.setData(data)
     syncMarkers()
-    if (data.length > 0 && stream.value?.status === 'ready') {
+    if (
+      data.length > 0 &&
+      (stream.value?.status === 'ready' || terminalSamples.value !== null)
+    ) {
       chart?.timeScale().fitContent()
     }
     scheduleOffScaleUpdate()
@@ -239,9 +264,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  if (props.accountId !== '' && symbol.value !== '') {
-    gateway.unsubscribeMarket(props.accountId, symbol.value)
-  }
+  releaseMarketDemand()
   if (container.value !== null) {
     container.value.removeEventListener('wheel', handlePriceAxisWheel, { capture: true })
     container.value.removeEventListener('dblclick', handleDoubleClick)
@@ -258,6 +281,21 @@ onBeforeUnmount(() => {
   markers = null
   linesPlugin = null
 })
+
+function freezeTerminalMarketHistory(): void {
+  if (!terminal.value || terminalSamples.value !== null || stream.value?.status !== 'ready') return
+  terminalSamples.value = marketSamplesThroughTrade(
+    stream.value.samples,
+    props.trailingEntry.latest_trade,
+  )
+  releaseMarketDemand()
+}
+
+function releaseMarketDemand(): void {
+  if (marketDemand === null) return
+  gateway.unsubscribeMarket(marketDemand.accountId, marketDemand.symbol)
+  marketDemand = null
+}
 
 function syncSize(): void {
   if (chart === null || container.value === null) return

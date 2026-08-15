@@ -120,6 +120,7 @@ accounts.selectedAccountId = ENGINE_ACCOUNT_ID
 function applyFixtureDelta(options: {
   commandId?: string
   lifecycle?: CommandLifecycle
+  trailingEntryLifecycle?: string
   reconciliationReady?: boolean
 }): void {
   const live = projections.selectedLive
@@ -133,6 +134,13 @@ function applyFixtureDelta(options: {
   if (options.commandId !== undefined && command.length !== 1) {
     throw new Error(`fixture command ${options.commandId} is not present`)
   }
+  const trailingEntries =
+    options.trailingEntryLifecycle === undefined
+      ? []
+      : live.trailing_entries.map((row) => ({
+          ...row,
+          lifecycle: options.trailingEntryLifecycle ?? row.lifecycle,
+        }))
   const update: BrowserAccountDelta = {
     checkpoint: {
       ...live.checkpoint,
@@ -146,7 +154,7 @@ function applyFixtureDelta(options: {
     commands: command,
     execution_groups: [],
     chases: [],
-    trailing_entries: [],
+    trailing_entries: trailingEntries,
     close_workflows: [],
     flatten_workflows: [],
     entry_cancellations: [],

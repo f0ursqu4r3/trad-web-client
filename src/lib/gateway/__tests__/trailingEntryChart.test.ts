@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   jumpBasisPointsForPrice,
   jumpTriggerPrice,
+  marketSamplesThroughTrade,
   sampleAtTrailingEntryPoint,
   trailingEntryChartLines,
 } from '../../chart/trailingEntryChart.ts'
@@ -42,6 +43,44 @@ test('projected point indices map through the exact latest trade identity', () =
 
   assert.equal(sampleAtTrailingEntryPoint(samples, row, 6)?.trade_id, 'activation')
   assert.equal(sampleAtTrailingEntryPoint(samples, row, 7)?.trade_id, 'latest')
+})
+
+test('terminal chart history stops at the exact final trade', () => {
+  const samples = [
+    sample(20, 'before', 100),
+    sample(21, 'terminal', 200),
+    sample(22, 'same-millisecond-later-trade', 200),
+    sample(23, 'after', 300),
+  ]
+
+  assert.deepEqual(
+    marketSamplesThroughTrade(samples, {
+      generation: 2,
+      exchange_time: 200,
+      trade_id: 'terminal',
+      price: '50000',
+    }).map((row) => row.trade_id),
+    ['before', 'terminal'],
+  )
+})
+
+test('terminal chart history fails closed when the exact final trade is outside the window', () => {
+  const samples = [
+    sample(20, 'before', 100),
+    sample(21, 'same-millisecond-unknown', 200),
+    sample(22, 'after', 300),
+  ]
+
+  assert.deepEqual(
+    marketSamplesThroughTrade(samples, {
+      generation: 2,
+      exchange_time: 200,
+      trade_id: 'terminal-not-in-window',
+      price: '50000',
+    }).map((row) => row.trade_id),
+    ['before'],
+  )
+  assert.deepEqual(marketSamplesThroughTrade(samples, null), [])
 })
 
 function entry(): TrailingEntryProjection {
