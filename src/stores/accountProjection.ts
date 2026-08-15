@@ -81,10 +81,7 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
       )
     }
     try {
-      const next = applyDelta(entry.view, delta)
-      Object.assign(entry.view.live, next.live)
-      entry.view.history = next.history
-      entry.view.legacyHistory = next.legacyHistory
+      entry.view = applyDelta(entry.view, delta)
       entry.status = 'ready'
       entry.error = null
     } catch (error) {

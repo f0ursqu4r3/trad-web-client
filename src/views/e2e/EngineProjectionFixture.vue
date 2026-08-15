@@ -5,9 +5,11 @@ import OrdersColumn from '@/components/terminal/layout/OrdersColumn.vue'
 import EngineWorkspace from '@/components/engine/EngineWorkspace.vue'
 import EngineCommandModalContainer from '@/components/engine/commands/EngineCommandModalContainer.vue'
 import type {
+  BrowserAccountDelta,
   BrowserCommandIntent,
   BrowserCommandOutcome,
   BrowserReconciliationRefreshOutcome,
+  CommandLifecycle,
 } from '@/lib/gateway'
 import { ExchangeType, NetworkType } from '@/lib/ws/protocol'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
@@ -114,6 +116,63 @@ gateway.refreshReconciliation = async (
   return { kind: 'accepted', cycle_id: cycleId, duplicate: false }
 }
 accounts.selectedAccountId = ENGINE_ACCOUNT_ID
+
+function applyFixtureDelta(options: {
+  commandId?: string
+  lifecycle?: CommandLifecycle
+  reconciliationReady?: boolean
+}): void {
+  const live = projections.selectedLive
+  if (live === null) throw new Error('fixture projection is not installed')
+  const command =
+    options.commandId === undefined
+      ? []
+      : live.commands
+          .filter((row) => row.command_id === options.commandId)
+          .map((row) => ({ ...row, lifecycle: options.lifecycle ?? row.lifecycle }))
+  if (options.commandId !== undefined && command.length !== 1) {
+    throw new Error(`fixture command ${options.commandId} is not present`)
+  }
+  const update: BrowserAccountDelta = {
+    checkpoint: {
+      ...live.checkpoint,
+      projection_revision: live.checkpoint.projection_revision + 1,
+      summary: {
+        ...live.checkpoint.summary,
+        reconciliation_ready:
+          options.reconciliationReady ?? live.checkpoint.summary.reconciliation_ready,
+      },
+    },
+    commands: command,
+    execution_groups: [],
+    chases: [],
+    trailing_entries: [],
+    close_workflows: [],
+    flatten_workflows: [],
+    entry_cancellations: [],
+    account_controls: [],
+    protection_amendments: [],
+    native_protections: [],
+    orders: [],
+    positions: [],
+    executions: [],
+    balances: [],
+    protections: [],
+    relationships: [],
+  }
+  projections.apply(ENGINE_ACCOUNT_ID, ENGINE_SUBSCRIPTION_ID, update)
+}
+
+declare global {
+  interface Window {
+    __tradEngineProjectionFixture?: {
+      applyDelta: typeof applyFixtureDelta
+    }
+  }
+}
+
+window.__tradEngineProjectionFixture = { applyDelta: applyFixtureDelta }
+
 onMounted(() => {
   gateway.status = 'ready'
 })

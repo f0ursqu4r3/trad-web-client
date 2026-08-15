@@ -32,6 +32,37 @@ test('renders the typed command graph and exact execution evidence', async ({ pa
   await expect(details.getByText('stop_loss @ 1800.125', { exact: true }).first()).toBeVisible()
 })
 
+test('repaints a command lifecycle from a contiguous live projection delta', async ({ page }) => {
+  const card = page
+    .getByTestId('projection-command-list')
+    .locator('[data-command-id]')
+    .filter({ hasText: 'Chase Order' })
+  const commandId = await card.getAttribute('data-command-id')
+  expect(commandId).not.toBeNull()
+  await expect(card.getByText('Running', { exact: true })).toBeVisible()
+
+  await page.evaluate((id) => {
+    window.__tradEngineProjectionFixture?.applyDelta({ commandId: id, lifecycle: 'canceled' })
+  }, commandId!)
+
+  await expect(card.getByText('Canceled', { exact: true })).toBeVisible()
+})
+
+test('does not describe an exposure-blocked account as reconciled', async ({ page }) => {
+  const control = page.getByTestId('reconciliation-control')
+  await expect(control).toContainText('reconciled')
+
+  await page.evaluate(() => {
+    window.__tradEngineProjectionFixture?.applyDelta({ reconciliationReady: false })
+  })
+
+  await expect(control).toContainText('sync blocked')
+  await expect(control).toHaveAttribute(
+    'title',
+    'Account reconciliation is not ready for new exposure',
+  )
+})
+
 test('keeps execution identity badges in mature semantic order without duplicates', async ({
   page,
 }) => {
@@ -326,7 +357,7 @@ test('submits an exact reduce-only Chase policy for owned exposure', async ({ pa
   await expect(evidence).toContainText('"quantity":{"kind":"full"}')
 })
 
-test('sizes a partial close from authoritative owned exposure inside the modal', async ({
+test('previews a percentage close from authoritative owned exposure inside the modal', async ({
   page,
 }) => {
   const fixture = page.getByTestId('engine-projection-fixture')
@@ -350,7 +381,7 @@ test('sizes a partial close from authoritative owned exposure inside the modal',
   await modal.getByRole('button', { name: 'Close Exposure' }).click()
 
   await expect(fixture.getByTestId('latest-lifecycle-intent')).toContainText(
-    '"quantity":{"kind":"base","quantity":"0.002100005"}',
+    '"quantity":{"kind":"percent","percent":"50"}',
   )
 })
 

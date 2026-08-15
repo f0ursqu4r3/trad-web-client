@@ -27,7 +27,9 @@ const phase = computed(() => {
   ) {
     return 'queued'
   }
-  return summary.value?.reconciliation_status ?? 'unknown'
+  const status = summary.value?.reconciliation_status ?? 'unknown'
+  if (status === 'ready' && summary.value?.reconciliation_ready === false) return 'blocked'
+  return status
 })
 const label = computed(() => {
   switch (phase.value) {
@@ -39,6 +41,8 @@ const label = computed(() => {
       return 'reconciling'
     case 'ready':
       return 'reconciled'
+    case 'blocked':
+      return 'sync blocked'
     case 'failed':
       return 'reconcile failed'
     case 'unavailable':
@@ -56,6 +60,23 @@ const disabled = computed(
 const title = computed(() => {
   if (request.value?.error !== null && request.value?.error !== undefined) {
     return request.value.error
+  }
+  if (phase.value === 'blocked') {
+    const current = summary.value
+    if (current === null) return 'Account reconciliation is not ready for new exposure'
+    const reasons = [
+      !current.position_inventory_ready ? 'position inventory is not ready' : null,
+      current.unresolved_external_orders > 0
+        ? `${current.unresolved_external_orders} external orders are unresolved`
+        : null,
+      current.unresolved_protection_inventory > 0
+        ? `${current.unresolved_protection_inventory} protection orders are unresolved`
+        : null,
+      current.reconciliation_required ? 'authoritative reconciliation is required' : null,
+    ].filter((reason): reason is string => reason !== null)
+    return reasons.length === 0
+      ? 'Account reconciliation is not ready for new exposure'
+      : `Account reconciliation is blocked: ${reasons.join('; ')}`
   }
   const cycle = summary.value?.reconciliation_cycle_id
   return cycle === null || cycle === undefined
@@ -115,6 +136,7 @@ async function refresh(): Promise<void> {
   color: var(--status-danger, #ff6b76);
 }
 
+.reconciliation-state[data-phase='blocked'],
 .reconciliation-state[data-phase='reconciling'],
 .reconciliation-state[data-phase='queued'],
 .reconciliation-state[data-phase='submitting'] {
