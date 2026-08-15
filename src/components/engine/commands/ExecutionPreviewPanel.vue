@@ -10,11 +10,13 @@ const props = defineProps<{
   active: boolean
   quoteAsset?: string | null
 }>()
+const emit = defineEmits<{ (event: 'update:ready', ready: boolean): void }>()
 
 const gateway = useGatewayStore()
 const preview = ref<CommandPreview | null>(null)
 const error = ref<string | null>(null)
 const pending = ref(false)
+const ready = computed(() => preview.value !== null && error.value === null && !pending.value)
 let timer: number | null = null
 let generation = 0
 
@@ -37,6 +39,7 @@ watch([() => props.active, () => props.accountId, () => props.intent], schedule,
   deep: true,
   immediate: true,
 })
+watch(ready, (value) => emit('update:ready', value), { immediate: true })
 
 function schedule(): void {
   if (timer !== null) window.clearTimeout(timer)

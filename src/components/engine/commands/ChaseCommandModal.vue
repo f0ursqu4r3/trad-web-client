@@ -43,12 +43,17 @@ const expirySeconds = ref('')
 const remainder = ref<'cancel' | 'market_fill'>('cancel')
 const protection = ref<ProtectionFormState>(newProtectionState())
 const validationError = ref<string | null>(null)
+const previewReady = ref(false)
 const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
 )
 const units = computed(() => marketUnits(selectedAccount.value, symbol.value))
 const canSubmit = computed(
-  () => gateway.isConnected && selectedAccountId.value !== '' && !submission.submitting.value,
+  () =>
+    gateway.isConnected &&
+    selectedAccountId.value !== '' &&
+    previewReady.value &&
+    !submission.submitting.value,
 )
 const planningIntent = computed(() => {
   if (!props.open) return null
@@ -73,6 +78,7 @@ function reset(): void {
   remainder.value = prefill?.remainder ?? 'cancel'
   protection.value = copyProtectionState(prefill?.protection ?? newProtectionState())
   validationError.value = null
+  previewReady.value = false
   submission.clearSubmissionError()
 }
 
@@ -194,6 +200,7 @@ function buildIntent() {
         :intent="planningIntent"
         :active="open"
         :quote-asset="units.quote"
+        @update:ready="previewReady = $event"
       />
       <p v-if="validationError || submission.submissionError.value" class="submission-error">
         {{ validationError || submission.submissionError.value }}

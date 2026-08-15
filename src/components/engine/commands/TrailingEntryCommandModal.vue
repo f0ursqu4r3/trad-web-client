@@ -35,6 +35,7 @@ const targetChildNotional = ref('')
 const maxChildren = ref('20')
 const oneWaySemantics = ref<'delta' | 'target_side_exposure'>('delta')
 const validationError = ref<string | null>(null)
+const previewReady = ref(false)
 
 const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
@@ -42,7 +43,11 @@ const selectedAccount = computed(
 const isHyperliquid = computed(() => selectedAccount.value?.exchange === 'hyperliquid')
 const units = computed(() => marketUnits(selectedAccount.value, symbol.value))
 const canSubmit = computed(
-  () => gateway.isConnected && selectedAccountId.value !== '' && !submission.submitting.value,
+  () =>
+    gateway.isConnected &&
+    selectedAccountId.value !== '' &&
+    previewReady.value &&
+    !submission.submitting.value,
 )
 const planningIntent = computed(() => {
   if (!props.open) return null
@@ -76,6 +81,7 @@ function reset(): void {
   maxChildren.value = prefill?.maxChildren ?? '20'
   oneWaySemantics.value = prefill?.oneWaySemantics ?? 'delta'
   validationError.value = null
+  previewReady.value = false
   submission.clearSubmissionError()
 }
 
@@ -209,6 +215,7 @@ function buildIntent() {
         :intent="planningIntent"
         :active="open"
         :quote-asset="units.quote"
+        @update:ready="previewReady = $event"
       />
 
       <p v-if="validationError || submission.submissionError.value" class="submission-error">
