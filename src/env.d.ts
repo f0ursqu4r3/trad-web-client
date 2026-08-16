@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly VITE_API_BASE?: string
   readonly VITE_API_TARGET?: string
+  readonly VITE_TEST_AUTH_EMAIL?: string
   readonly VITE_WS_TARGET?: string
   readonly VITE_WS_URL?: string
   readonly VITE_LOG_LEVEL?: string

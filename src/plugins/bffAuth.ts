@@ -22,6 +22,20 @@ export function createBffAuthProvider(): AuthProvider {
   let lastActivityAt = Date.now()
   let lastRefreshAt = 0
   let sessionExpiryHandled = false
+  const testAuthEmail = import.meta.env.DEV
+    ? import.meta.env.VITE_TEST_AUTH_EMAIL?.trim() || null
+    : null
+
+  function currentTarget(): string {
+    return `${window.location.pathname}${window.location.search}${window.location.hash}`
+  }
+
+  function loginUrl(target: string): string {
+    if (testAuthEmail) {
+      return `/auth/test-login?email=${encodeURIComponent(testAuthEmail)}&return_to=${encodeURIComponent(target)}`
+    }
+    return `/auth/login?return_to=${encodeURIComponent(target)}`
+  }
 
   async function handleSessionExpiry() {
     if (sessionExpiryHandled) return
@@ -33,7 +47,11 @@ export function createBffAuthProvider(): AuthProvider {
     } catch {
       // Navigation still tears down the browser websocket if the store is unavailable.
     }
-    const target = `${window.location.pathname}${window.location.search}${window.location.hash}`
+    const target = currentTarget()
+    if (testAuthEmail) {
+      window.location.replace(loginUrl(target))
+      return
+    }
     window.location.assign(`/login?redirect=${encodeURIComponent(target)}&reason=session_expired`)
   }
 
@@ -58,6 +76,11 @@ export function createBffAuthProvider(): AuthProvider {
       lastRefreshAt = Date.now()
       sessionExpiryHandled = false
       error.value = null
+      if (!session.authenticated && options.initial && testAuthEmail) {
+        sessionExpiryHandled = true
+        window.location.replace(loginUrl(currentTarget()))
+        return
+      }
       if (!session.authenticated && !options.initial) await handleSessionExpiry()
     } catch (err) {
       error.value = err instanceof Error ? err : new Error(String(err))
@@ -104,10 +127,8 @@ export function createBffAuthProvider(): AuthProvider {
     error,
     user,
     async login(options?: LoginOptions) {
-      const target =
-        (options?.appState?.target as string | undefined) ||
-        `${window.location.pathname}${window.location.search}${window.location.hash}`
-      window.location.assign(`/auth/login?return_to=${encodeURIComponent(target)}`)
+      const target = (options?.appState?.target as string | undefined) || currentTarget()
+      window.location.assign(loginUrl(target))
     },
     async logout(options?: LogoutOptions) {
       await fetch('/auth/logout', {
