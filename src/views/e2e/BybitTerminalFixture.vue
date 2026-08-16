@@ -13,6 +13,7 @@ import CommandModalContainer from '@/components/terminal/modals/commands/Command
 import CommandInputModal from '@/components/terminal/modals/commands/CommandInputModal.vue'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
+import { useGatewayStore } from '@/stores/gateway'
 import { useCommandStore } from '@/stores/command'
 import { useDeviceStore } from '@/stores/devices'
 import { useWsStore } from '@/stores/ws'
@@ -51,6 +52,7 @@ import {
 const commandPanelRef = ref<InstanceType<typeof CommandPanel> | null>(null)
 const accountStore = useAccountsStore()
 const projectionStore = useAccountProjectionStore()
+const gatewayStore = useGatewayStore()
 const commandStore = useCommandStore()
 const wsStore = useWsStore()
 const continueMissedEntrySends = ref<string[]>([])
@@ -675,6 +677,10 @@ const hyperliquidMissedTeDeviceId = '68686868-6868-4868-8868-686868686868'
 const hyperliquidMissedOrderId = '69696969-6969-4969-8969-696969696969'
 const feeManagerFixtureEnabled =
   new URLSearchParams(window.location.search).get('fee_manager') !== '0'
+const accountEngineReadyFixture =
+  new URLSearchParams(window.location.search).get('account_engine_ready') !== '0'
+const hyperliquidAgentApprovedFixture =
+  new URLSearchParams(window.location.search).get('agent_approved') !== '0'
 const binanceContext = {
   binance: { account_id: binanceAccountId },
 } satisfies MarketContext
@@ -731,7 +737,7 @@ const accounts = [
       hedge_mode_only: false,
       user_address: '0x1111111111111111111111111111111111111111',
       agent_address: '0x2222222222222222222222222222222222222222',
-      agent_approved: true,
+      agent_approved: hyperliquidAgentApprovedFixture,
       agent_approval_verified_at_ms: 1_780_000_000_000,
       builder_address: '0x3333333333333333333333333333333333333333',
       builder_config_version: 'test-fixture',
@@ -753,13 +759,25 @@ const accounts = [
 
 accountStore.accountsRaw = accounts
 accountStore.accountOrder = accounts.map((account) => account.id)
-accountStore.selectedAccountId = bybitProtocolFixtures.bybitAccountId
-projectionStore.install(
-  hyperliquidAccountId,
-  ENGINE_SUBSCRIPTION_ID,
-  { kind: 'initial' },
-  engineProjectionSnapshot(),
-)
+accountStore.selectedAccountId = hyperliquidAgentApprovedFixture
+  ? bybitProtocolFixtures.bybitAccountId
+  : hyperliquidAccountId
+function installHyperliquidAccountProjection() {
+  projectionStore.install(
+    hyperliquidAccountId,
+    ENGINE_SUBSCRIPTION_ID,
+    { kind: 'initial' },
+    engineProjectionSnapshot(),
+  )
+}
+
+if (accountEngineReadyFixture) {
+  installHyperliquidAccountProjection()
+  if (!hyperliquidAgentApprovedFixture) gatewayStore.status = 'ready'
+} else {
+  gatewayStore.status = 'ready'
+  projectionStore.beginSubscription(hyperliquidAccountId)
+}
 accountStore.lastFetchedAt = Date.now()
 wsStore.applyOrderThrottleSnapshot({
   request_uuid: '55555555-5555-4555-8555-555555555555',

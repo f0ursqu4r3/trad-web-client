@@ -18,6 +18,7 @@ import { getWebSocketToken } from '@/lib/auth'
 import { createLogger } from '@/lib/utils'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
+import { accountCommandReadiness } from '@/lib/gateway/accountCommandReadiness'
 import { marketKey, useMarketStore } from '@/stores/market'
 
 const logger = createLogger('gateway')
@@ -171,6 +172,15 @@ export const useGatewayStore = defineStore('gateway', () => {
     requestId = uuid(),
   ): Promise<BrowserCommandOutcome> {
     if (accountId === null) return Promise.reject(new Error('no trading account is selected'))
+    const account = accounts.accounts.find((candidate) => candidate.id === accountId)
+    const exchangeCredentialReady =
+      account?.exchange !== 'hyperliquid' || account.exchange_metadata?.agent_approved === true
+    const readiness = accountCommandReadiness(
+      status.value === 'ready',
+      projections.byAccount[accountId]?.status,
+      exchangeCredentialReady,
+    )
+    if (!readiness.ready) return Promise.reject(new Error(readiness.reason!))
     if (pendingCommands.has(requestId)) {
       return Promise.reject(new Error(`command request ${requestId} is already pending`))
     }

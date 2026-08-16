@@ -10,6 +10,7 @@ import {
 } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
+import { accountCommandReadiness } from '@/lib/gateway/accountCommandReadiness'
 import AccountPositionInspector from '@/components/engine/AccountPositionInspector.vue'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 import ActionConfirmationModal from '@/components/terminal/modals/ActionConfirmationModal.vue'
@@ -23,6 +24,7 @@ import {
   signHyperliquidAgentApproval,
   signHyperliquidBuilderApproval,
 } from '@/lib/hyperliquidBuilderApproval'
+import { hyperliquidAgentName } from '@/lib/gateway/hyperliquidAgentName'
 import { createLogger } from '@/lib/utils'
 import {
   HYPERLIQUID_TARGET_TOTAL_MAX_TENTHS_BPS,
@@ -65,6 +67,7 @@ const savingGuardAccountIds = ref<Set<string>>(new Set())
 const refreshingBuilderAccountIds = ref<Set<string>>(new Set())
 const approvingAgentAccountIds = ref<Set<string>>(new Set())
 const refreshingAgentAccountIds = ref<Set<string>>(new Set())
+const rotatingAgentAccountIds = ref<Set<string>>(new Set())
 const controlError = ref<string | null>(null)
 const controlMessage = ref<string | null>(null)
 const deletionTarget = ref<AccountRecord | null>(null)
@@ -257,7 +260,22 @@ function validateLeverage(account: AccountRecord): boolean {
   const symbols = parseLeverageSymbols(account, form.symbols)
   if (symbols.length === 0) return false
   if (!Number.isInteger(form.leverage) || form.leverage <= 0) return false
-  return gateway.isConnected
+  return accountCommandState(account).ready
+}
+
+function accountCommandState(account: AccountRecord) {
+  const exchangeCredentialReady =
+    account.exchange !== ExchangeType.Hyperliquid ||
+    account.exchange_metadata?.agent_approved === true
+  return accountCommandReadiness(
+    gateway.isConnected,
+    projections.byAccount[account.id]?.status,
+    exchangeCredentialReady,
+  )
+}
+
+function accountCommandStatus(account: AccountRecord): string | null {
+  return accountCommandState(account).reason
 }
 
 function supportsLeverageControl(account: AccountRecord): boolean {
@@ -280,7 +298,7 @@ function canSaveHyperliquidLeveragePrefs(account: AccountRecord): boolean {
 
 function canSetHedgeMode(account: AccountRecord): boolean {
   return (
-    gateway.isConnected &&
+    accountCommandState(account).ready &&
     (account.exchange === ExchangeType.Binance || account.exchange === ExchangeType.Bybit)
   )
 }
@@ -339,6 +357,45 @@ function canApproveHyperliquidAgent(account: AccountRecord): boolean {
   )
 }
 
+function canRotateHyperliquidAgent(account: AccountRecord): boolean {
+  if (account.exchange !== ExchangeType.Hyperliquid) return false
+  if (rotatingAgentAccountIds.value.has(account.id)) return false
+  return account.exchange_metadata?.agent_approved === false
+}
+
+async function rotateHyperliquidAgent(account: AccountRecord) {
+  controlError.value = null
+  controlMessage.value = null
+  if (!canRotateHyperliquidAgent(account)) {
+    controlError.value = 'Refresh the Hyperliquid agent status before generating a replacement.'
+    return
+  }
+  if (
+    !window.confirm(
+      `Generate a fresh agent wallet for ${account.label}? The existing unapproved agent key will be replaced.`,
+    )
+  ) {
+    return
+  }
+  rotatingAgentAccountIds.value = new Set([...rotatingAgentAccountIds.value, account.id])
+  try {
+    const updated = await accounts.rotateHyperliquidAgent(account.id)
+    agentApprovalFeedback[account.id] = {
+      kind: 'info',
+      message: `Generated fresh agent ${updated.exchange_metadata?.agent_address ?? ''}. Approve it with your wallet next.`,
+    }
+  } catch (error) {
+    agentApprovalFeedback[account.id] = {
+      kind: 'error',
+      message: approvalErrorMessage(error),
+    }
+  } finally {
+    const next = new Set(rotatingAgentAccountIds.value)
+    next.delete(account.id)
+    rotatingAgentAccountIds.value = next
+  }
+}
+
 function canRefreshHyperliquidAgent(account: AccountRecord): boolean {
   if (account.exchange !== ExchangeType.Hyperliquid) return false
   if (refreshingAgentAccountIds.value.has(account.id)) return false
@@ -392,7 +449,7 @@ async function approveHyperliquidAgent(account: AccountRecord) {
       network: account.network,
       userAddress,
       agentAddress,
-      agentName: 'trad',
+      agentName: hyperliquidAgentName(account.id),
     })
     const response = await accounts.approveHyperliquidAgent(account.id, {
       ...signed,
@@ -540,6 +597,11 @@ function approvalErrorMessage(error: unknown): string {
 async function setLeverage(account: AccountRecord) {
   controlError.value = null
   controlMessage.value = null
+  const readiness = accountCommandState(account)
+  if (!readiness.ready) {
+    controlError.value = readiness.reason
+    return
+  }
   const form = leverageForms[account.id]
   if (!form || !validateLeverage(account)) {
     controlError.value = 'Leverage settings are unavailable for this account.'
@@ -800,6 +862,13 @@ watch(
                 }"
                 data-testid="account-leverage-controls"
               >
+                <p
+                  v-if="accountCommandStatus(account)"
+                  class="account-command-readiness m-0 text-[11px] leading-relaxed text-warning"
+                  data-testid="account-command-readiness"
+                >
+                  {{ accountCommandStatus(account) }}
+                </p>
                 <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
                   <span>{{ account.exchange === ExchangeType.Bybit ? 'Symbols' : 'Symbol' }}</span>
                   <input
@@ -1026,6 +1095,15 @@ watch(
                   </span>
                 </div>
                 <button
+                  class="btn btn-secondary btn-xs account-settings-action"
+                  type="button"
+                  :disabled="!canRotateHyperliquidAgent(account)"
+                  @click="rotateHyperliquidAgent(account)"
+                >
+                  <span v-if="rotatingAgentAccountIds.has(account.id)">Generating</span>
+                  <span v-else>Fresh Agent</span>
+                </button>
+                <button
                   class="btn btn-primary btn-xs account-settings-action"
                   type="button"
                   :disabled="!canApproveHyperliquidAgent(account)"
@@ -1233,6 +1311,10 @@ watch(
   white-space: nowrap;
 }
 
+.account-command-readiness {
+  grid-column: 1 / -1;
+}
+
 @media (min-width: 768px) {
   .account-settings-grid--hyperliquid {
     grid-template-columns: minmax(13rem, 2fr) repeat(3, minmax(5.5rem, 0.7fr)) auto auto;
@@ -1247,7 +1329,7 @@ watch(
   }
 
   .account-agent-grid {
-    grid-template-columns: minmax(18rem, 1fr) auto auto;
+    grid-template-columns: minmax(18rem, 1fr) auto auto auto;
   }
 
   .account-builder-grid {

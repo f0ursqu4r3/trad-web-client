@@ -106,6 +106,7 @@ export interface ExchangeAccountMetadata {
   key_permissions?: string[] | null
   user_address?: string | null
   agent_address?: string | null
+  agent_name?: string | null
   vault_address?: string | null
   builder_address?: string | null
   builder_config_version?: string | null
@@ -321,6 +322,16 @@ export const useAccountsStore = defineStore('accounts', () => {
     return response
   }
 
+  async function rotateHyperliquidAgent(accountId: string): Promise<AccountRecord> {
+    const response = await apiPost<AccountRecord>(
+      `/accounts/${encodeURIComponent(accountId)}/hyperliquid/agent/rotate`,
+      undefined,
+      { throwOnHTTPError: true },
+    )
+    replaceAccount(response)
+    return response
+  }
+
   async function refreshHyperliquidAgentApproval(
     accountId: string,
   ): Promise<HyperliquidAgentApprovalResponse> {
@@ -508,6 +519,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     approveHyperliquidBuilderFee,
     refreshHyperliquidBuilderApproval,
     approveHyperliquidAgent,
+    rotateHyperliquidAgent,
     refreshHyperliquidAgentApproval,
     removeAccount,
     reorderAccounts,

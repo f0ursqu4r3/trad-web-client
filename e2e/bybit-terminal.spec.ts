@@ -414,6 +414,74 @@ test('ordinary Hyperliquid user sees target total as read-only', async ({ page }
   ).toHaveCount(0)
 })
 
+test('Hyperliquid exchange controls stay disabled while the account engine initializes', async ({
+  page,
+}) => {
+  await page.goto('/e2e/bybit-terminal?account_engine_ready=0')
+
+  const accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
+  await expect(accountPanel.getByTestId('account-command-readiness')).toHaveText(
+    'Account engine is initializing. Exchange controls will unlock automatically when it is ready.',
+  )
+  await expect(accountPanel.getByRole('button', { name: 'Set Leverage' })).toBeDisabled()
+})
+
+test('Hyperliquid exchange controls stay disabled until the agent wallet is approved', async ({
+  page,
+}) => {
+  await page.goto('/e2e/bybit-terminal?agent_approved=0')
+
+  const accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
+  await expect(accountPanel.getByTestId('account-command-readiness')).toHaveText(
+    'Approve the Hyperliquid agent wallet before using exchange controls.',
+  )
+  await expect(accountPanel.getByRole('button', { name: 'Set Leverage' })).toBeDisabled()
+  await expect(accountPanel.getByRole('button', { name: 'Approve Agent' })).toBeEnabled()
+})
+
+test('an unapproved Hyperliquid account can generate a fresh agent without deletion', async ({
+  page,
+}) => {
+  let rotateRequested = false
+  await page.route('**/api/accounts/**/hyperliquid/agent/rotate', async (route) => {
+    rotateRequested = true
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: '17171717-1717-4717-8717-171717171717',
+        label: 'Hyperliquid QA',
+        key: 'redacted',
+        network: 'testnet',
+        exchange: 'hyperliquid',
+        exchange_metadata: {
+          product: 'usdc_perp',
+          user_address: '0x1111111111111111111111111111111111111111',
+          agent_address: '0x4444444444444444444444444444444444444444',
+          agent_approved: false,
+        },
+      }),
+    })
+  })
+  page.on('dialog', (dialog) => dialog.accept())
+
+  await page.goto('/e2e/bybit-terminal?agent_approved=0')
+  const accountPanel = page.getByTestId('accounts-panel')
+  await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
+  await accountPanel.getByRole('button', { name: 'Fresh Agent', exact: true }).click()
+
+  await expect.poll(() => rotateRequested).toBe(true)
+  await expect(
+    accountPanel.getByText('0x4444444444444444444444444444444444444444', { exact: true }),
+  ).toBeVisible()
+  await expect(
+    accountPanel.getByText(/Generated fresh agent .* Approve it with your wallet next\./),
+  ).toBeVisible()
+  await expect(accountPanel.getByRole('button', { name: 'Approve Agent' })).toBeEnabled()
+})
+
 test('Hyperliquid account panel shows and saves independent execution guards', async ({ page }) => {
   await page.route('**/auth/session', async (route) => {
     await route.fulfill({
