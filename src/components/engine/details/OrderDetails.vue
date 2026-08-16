@@ -48,6 +48,11 @@ const generations = computed(() =>
       {{ order.failure_reason }}
     </div>
 
+    <div v-if="order.blocking_reason" class="blocking-block">
+      <span>Order Blocked</span>
+      {{ order.blocking_reason }}
+    </div>
+
     <EvidenceDisclosure :title="`Order Generations (${generations.length})`">
       <div class="generation-list">
         <article v-for="generation in generations" :key="generation.generation">
@@ -76,6 +81,19 @@ const generations = computed(() =>
 }
 
 .failure-block span {
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.blocking-block {
+  display: grid;
+  gap: 4px;
+  padding: 9px 12px;
+  color: var(--color-warning);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.blocking-block span {
   font-size: 10px;
   text-transform: uppercase;
 }

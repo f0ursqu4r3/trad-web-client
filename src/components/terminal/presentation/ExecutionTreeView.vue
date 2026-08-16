@@ -28,6 +28,7 @@ export interface ExecutionTreeItem extends TreeItem {
   protection?: { text: string; className: string } | null
   badges?: ExecutionTreeBadge[]
   tone?: ExecutionTreeBadge['tone']
+  blockedReason?: string | null
   children?: ExecutionTreeItem[]
 }
 
@@ -48,6 +49,8 @@ function rowClass(item: ExecutionTreeItem): string {
   switch (item.status) {
     case 'Failed':
       return 'device-row-failed'
+    case 'Blocked':
+      return 'device-row-blocked'
     case 'Canceled':
       return 'device-row-canceled'
     case 'Completed':
@@ -57,6 +60,14 @@ function rowClass(item: ExecutionTreeItem): string {
     default:
       return 'device-row-active'
   }
+}
+
+function blockedReasonLabel(reason: string): string {
+  const normalized = reason.toLowerCase()
+  if (normalized.includes('instrument rules') && normalized.includes('stale')) {
+    return 'Stale instrument rules'
+  }
+  return 'Preparation blocked'
 }
 
 function openContext(item: ExecutionTreeItem, event: MouseEvent): void {
@@ -102,6 +113,13 @@ function openContext(item: ExecutionTreeItem, event: MouseEvent): void {
             <span class="wrap-none">{{ rawItem.label || rawItem.id }}</span>
             <span v-if="rawItem.intent" class="pill pill-xs">{{ rawItem.intent }}</span>
             <span v-if="rawItem.throttled" class="pill pill-xs pill-warn">Throttled</span>
+            <span
+              v-if="rawItem.blockedReason"
+              class="pill pill-xs pill-warn"
+              :title="rawItem.blockedReason"
+            >
+              {{ blockedReasonLabel(rawItem.blockedReason) }}
+            </span>
             <span
               v-if="rawItem.protection"
               class="pill pill-xs"
@@ -150,6 +168,9 @@ function openContext(item: ExecutionTreeItem, event: MouseEvent): void {
 }
 .device-row-failed {
   background-color: color-mix(in srgb, var(--color-error) 14%, transparent);
+}
+.device-row-blocked {
+  background-color: color-mix(in srgb, var(--color-warning) 18%, transparent);
 }
 .device-row-canceled {
   background-color: color-mix(in srgb, var(--color-error) 10%, transparent);

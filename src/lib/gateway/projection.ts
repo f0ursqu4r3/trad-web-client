@@ -454,6 +454,7 @@ export interface OrderProjection {
   active_generation: number
   generations: Record<string, OrderGenerationProjection>
   failure_reason: string | null
+  blocking_reason?: string | null
 }
 
 export interface PositionQuantityProjection {

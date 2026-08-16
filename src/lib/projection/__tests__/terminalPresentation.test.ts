@@ -26,3 +26,19 @@ test('flat native protection renders filled and retired children as terminal', (
   assert.equal(nativeProtection?.children[0]?.status, 'Canceled')
   assert.equal(nativeProtection?.children[1]?.status, 'Completed')
 })
+
+test('order preparation blocks are named and visible in the terminal tree', () => {
+  const snapshot = engineProjectionSnapshot()
+  const command = snapshot.commands.find((candidate) => candidate.accepted.kind === 'place_order')!
+  const order = snapshot.orders.find((candidate) => candidate.command_id === command.command_id)!
+  order.blocking_reason = 'command planning failed: instrument rules is stale'
+
+  const tree = terminalCommandTree(snapshot, snapshot, command.command_id)
+
+  assert.equal(tree?.status, 'Blocked')
+  assert.equal(tree?.blockedReason, order.blocking_reason)
+  assert.deepEqual(
+    tree?.badges.slice(0, 2).map((badge) => badge.label),
+    ['Exchange Order', 'Opening Execution'],
+  )
+})

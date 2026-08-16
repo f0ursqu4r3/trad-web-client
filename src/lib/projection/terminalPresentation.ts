@@ -57,6 +57,7 @@ export interface TerminalTreeNode {
     network?: string | null
   } | null
   lifecycle?: string | null
+  blockedReason?: string | null
 }
 
 export function terminalCommandTree(
@@ -94,15 +95,25 @@ function convertTree(tree: ProjectionTreeNode): TerminalTreeNode {
   }
   const status = entityStatus(entity)
   const key = `${entity.kind}:${entity.id}`
+  const directBlockedReason =
+    entity.kind === 'order' ? entity.row.blocking_reason?.trim() || null : null
+  const inheritedBlockedReason = isTerminalStatus(status)
+    ? null
+    : (children.find((child) => child.blockedReason)?.blockedReason ?? null)
+  const blockedReason = directBlockedReason ?? inheritedBlockedReason
   return {
     id: key,
     key,
     kind: entity.kind,
     label: terminalEntityLabel(entity),
-    status: terminalStatus(status),
-    tone: lifecycleTone(status),
+    status: blockedReason === null ? terminalStatus(status) : 'Blocked',
+    tone: blockedReason === null ? lifecycleTone(status) : 'warning',
     relationship: tree.relationship,
-    badges: entityBadges(entity),
+    badges: compactBadges([
+      roleBadge(entity),
+      relationshipBadge(tree.relationship, entity),
+      ...entityBadges(entity),
+    ]),
     entity: {
       kind: 'projection',
       node: { kind: entity.kind, id: entity.id },
@@ -116,6 +127,7 @@ function convertTree(tree: ProjectionTreeNode): TerminalTreeNode {
     market: null,
     lifecycle:
       entity.kind === 'trailing_entry' && !isTerminalStatus(status) ? entity.row.phase : null,
+    blockedReason,
   }
 }
 
@@ -332,6 +344,44 @@ function entityBadges(entity: ProjectionEntity): TerminalBadge[] {
       return [badge(entity.row.request.kind, 'dim')]
     case 'protection_amendment':
       return [badge(`${entity.row.completed_steps}/${entity.row.steps.length} steps`, 'dim')]
+  }
+}
+
+function roleBadge(entity: ProjectionEntity): TerminalBadge {
+  if (entity.kind === 'command') return badge('Command', 'info')
+  if (entity.kind === 'order') return badge('Exchange order', 'info')
+  return badge('Workflow', 'dim')
+}
+
+function relationshipBadge(
+  relationship: string | null,
+  entity: ProjectionEntity,
+): TerminalBadge | null {
+  switch (relationship) {
+    case 'command_root':
+      if (entity.kind !== 'order') return null
+      return badge(
+        entity.row.current_request.reduce_only ? 'Closing execution' : 'Opening execution',
+        'dim',
+      )
+    case 'execution_child':
+      return badge('Child execution', 'dim')
+    case 'chase_order':
+      return badge('Chase execution', 'dim')
+    case 'trailing_entry_execution':
+      return badge('Entry execution', 'dim')
+    case 'trailing_entry_close':
+      return badge('Generated close', 'dim')
+    case 'close_execution':
+      return badge('Close execution', 'dim')
+    case 'flatten_close':
+      return badge('Generated close', 'dim')
+    case 'flatten_affected_command':
+      return badge('Affected command', 'dim')
+    case 'entry_cancellation_affected_command':
+      return badge('Affected command', 'dim')
+    default:
+      return null
   }
 }
 
