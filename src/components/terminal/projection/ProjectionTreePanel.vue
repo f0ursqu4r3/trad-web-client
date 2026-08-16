@@ -7,7 +7,12 @@ import ProtectionAmendmentModal from '@/components/engine/actions/ProtectionAmen
 import ExecutionTreeView, {
   type ExecutionTreeItem,
 } from '@/components/terminal/presentation/ExecutionTreeView.vue'
-import { terminalCommandTree, type TerminalTreeNode } from '@/lib/projection/terminalPresentation'
+import {
+  terminalCommandTree,
+  terminalNodeCommandId,
+  terminalNodeDeviceId,
+  type TerminalTreeNode,
+} from '@/lib/projection/terminalPresentation'
 import { commandSymbol } from '@/lib/projection/presentation'
 import { lifecycleActions, type LifecycleAction } from '@/lib/engineCommands/lifecycle'
 import { activeProtectionAmendment } from '@/lib/engineCommands/protectionAmendment'
@@ -73,6 +78,10 @@ const contextAmendment = computed(() =>
     projections.selectedLive?.protection_amendments ?? [],
   ),
 )
+const contextCommandId = computed(() => {
+  const node = contextNode.value
+  return node === null ? null : terminalNodeCommandId(node, projectionUi.graph)
+})
 const canEditContextProtection = computed(
   () =>
     projections.selectedLive?.checkpoint.shard.exchange === 'hyperliquid' &&
@@ -82,7 +91,29 @@ const canEditContextProtection = computed(
 const contextItems = computed<DropMenuItem[]>(() => {
   const node = contextNode.value
   if (node === null) return []
+  const commandId = contextCommandId.value
+  const isCommandDevice = node.entity.kind === 'projection' && node.entity.entity.kind === 'command'
   return [
+    ...(commandId === null
+      ? []
+      : [
+          {
+            label: isCommandDevice ? 'Open Command' : 'Open Owning Command',
+            action: () => projectionUi.selectCommand(commandId),
+          },
+        ]),
+    {
+      label: 'Copy Device ID',
+      action: () => void copyText(terminalNodeDeviceId(node)),
+    },
+    ...(commandId === null
+      ? []
+      : [
+          {
+            label: 'Copy Command ID',
+            action: () => void copyText(commandId),
+          },
+        ]),
     ...contextActions.value.map((action) => ({
       label: action.label,
       className: action.danger ? 'text-[var(--color-error)]' : undefined,
@@ -102,6 +133,14 @@ const contextItems = computed<DropMenuItem[]>(() => {
       : []),
   ]
 })
+
+async function copyText(value: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(value)
+  } catch {
+    // Clipboard access can be blocked outside a secure browser context.
+  }
+}
 
 function addMarketContext(node: TerminalTreeNode): TerminalTreeNode {
   const selected = account.value

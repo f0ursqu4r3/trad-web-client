@@ -8,6 +8,7 @@ import { isExactZero } from '../exactDecimalMath.ts'
 import {
   commandProtectionScopeId,
   commandTree,
+  entityCommandId,
   entityLabel,
   entityStatus,
   type ProjectionEntity,
@@ -81,6 +82,39 @@ export function terminalCommandTree(
   const root = convertTree(tree)
   attachProtection(root, protections)
   return root
+}
+
+export function terminalNodeDeviceId(node: TerminalTreeNode): string {
+  switch (node.entity.kind) {
+    case 'projection':
+      return node.entity.entity.id
+    case 'native_protection':
+      return node.entity.id
+    case 'protection_child':
+      return node.entity.childId
+    case 'order_generation':
+      return `${node.entity.orderId}:${node.entity.generation}`
+  }
+}
+
+export function terminalNodeCommandId(
+  node: TerminalTreeNode,
+  graph: ProjectionGraph | null,
+): string | null {
+  switch (node.entity.kind) {
+    case 'projection':
+      return entityCommandId(node.entity.entity)
+    case 'order_generation':
+      return node.entity.entity.row.command_id
+    case 'native_protection':
+    case 'protection_child': {
+      const scopeId = node.entity.protection.scope_id
+      return (
+        graph?.commands.find((command) => commandProtectionScopeId(command) === scopeId)
+          ?.command_id ?? null
+      )
+    }
+  }
 }
 
 function convertTree(tree: ProjectionTreeNode): TerminalTreeNode {

@@ -2,7 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { engineProjectionSnapshot } from '../../../views/e2e/engineProjectionFixtureData.ts'
-import { terminalCommandTree } from '../terminalPresentation.ts'
+import {
+  terminalCommandTree,
+  terminalNodeCommandId,
+  terminalNodeDeviceId,
+} from '../terminalPresentation.ts'
 
 test('flat native protection renders filled and retired children as terminal', () => {
   const snapshot = engineProjectionSnapshot()
@@ -41,4 +45,6 @@ test('order preparation blocks are named and visible in the terminal tree', () =
     tree?.badges.slice(0, 2).map((badge) => badge.label),
     ['Exchange Order', 'Opening Execution'],
   )
+  assert.equal(terminalNodeDeviceId(tree!), order.order_id)
+  assert.equal(terminalNodeCommandId(tree!, snapshot), command.command_id)
 })
