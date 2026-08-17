@@ -12,7 +12,7 @@ test('test.trad.lol uses the visibly slashed test icon', () => {
   })
 })
 
-test('local development uses the green L icon', () => {
+test('local development uses the red L icon', () => {
   for (const hostname of ['127.0.0.1', 'localhost', '::1', '[::1]', '0.0.0.0']) {
     assert.deepEqual(resolveEnvironmentBranding(hostname), {
       isTestDeployment: false,
