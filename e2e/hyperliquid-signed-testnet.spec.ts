@@ -2,10 +2,18 @@ import { expect, test, type APIRequestContext, type Locator, type Page } from '@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
-const enabled = process.env.HYPERLIQUID_SIGNED_TESTNET_E2E === '1'
+const testnetEnabled = process.env.HYPERLIQUID_SIGNED_TESTNET_E2E === '1'
+const mainnetEnabled = process.env.HYPERLIQUID_SIGNED_MAINNET_E2E === '1'
+const enabled = testnetEnabled || mainnetEnabled
+const network = mainnetEnabled ? 'mainnet' : 'testnet'
+const exchangeBaseUrl = mainnetEnabled
+  ? 'https://api.hyperliquid.xyz'
+  : 'https://api.hyperliquid-testnet.xyz'
 const terminalBaseUrl = process.env.HYPERLIQUID_TERMINAL_BASE_URL || 'http://localhost:5273'
 const testEmail = process.env.HYPERLIQUID_TEST_EMAIL || 'dev@trad.local'
-const accountLabel = process.env.HYPERLIQUID_TEST_ACCOUNT_LABEL || 'HL Signed Testnet'
+const accountLabel =
+  process.env.HYPERLIQUID_TEST_ACCOUNT_LABEL ||
+  `HL Signed ${network === 'mainnet' ? 'Mainnet' : 'Testnet'}`
 const symbol = process.env.HYPERLIQUID_TEST_SYMBOL || 'BTC'
 const notional = Number(process.env.HYPERLIQUID_TEST_NOTIONAL || '20')
 const commandTimeoutMs = Number(process.env.HYPERLIQUID_TEST_COMMAND_TIMEOUT_MS || '90000')
@@ -34,8 +42,8 @@ type QualificationResult = {
   cleanupCommandIds: string[]
 }
 
-test.describe.serial('Hyperliquid signed testnet through the production terminal', () => {
-  test.skip(!enabled, 'signed Hyperliquid testnet orders are explicitly gated')
+test.describe.serial(`Hyperliquid signed ${network} through the production terminal`, () => {
+  test.skip(!enabled, 'signed Hyperliquid orders are explicitly gated')
 
   test('market and limit lifecycle qualification', async ({ page, request }) => {
     test.setTimeout(8 * 60_000)
@@ -51,7 +59,7 @@ test.describe.serial('Hyperliquid signed testnet through the production terminal
     let exposurePossible = false
 
     try {
-      await loginAndSelectTestnetAccount(page)
+      await loginAndSelectAccount(page)
 
       exposurePossible = true
       result.plainOpenCommandId = await submitMarket(page, {
@@ -192,7 +200,10 @@ test.describe.serial('Hyperliquid signed testnet through the production terminal
       )
       exposurePossible = false
 
-      await page.screenshot({ path: 'test-results/hyperliquid-signed-testnet.png', fullPage: true })
+      await page.screenshot({
+        path: `test-results/hyperliquid-signed-${network}.png`,
+        fullPage: true,
+      })
     } finally {
       await bestEffortCloseModal(page)
       if (restingLimitCommandId) {
@@ -219,7 +230,7 @@ test.describe.serial('Hyperliquid signed testnet through the production terminal
     let chaseCommandId: string | null = null
 
     try {
-      await loginAndSelectTestnetAccount(page)
+      await loginAndSelectAccount(page)
       chaseCommandId = await submitChase(page)
       result.chaseCommandId = chaseCommandId
 
@@ -263,16 +274,40 @@ test.describe.serial('Hyperliquid signed testnet through the production terminal
 })
 
 function validateConfiguration() {
-  if (!Number.isFinite(notional) || notional < 10 || notional > 100) {
-    throw new Error('HYPERLIQUID_TEST_NOTIONAL must be between 10 and 100 USDC')
+  if (testnetEnabled && mainnetEnabled) {
+    throw new Error('Hyperliquid Testnet and mainnet qualification gates are mutually exclusive')
+  }
+  const maximumNotional = mainnetEnabled ? 20 : 100
+  if (!Number.isFinite(notional) || notional < 10 || notional > maximumNotional) {
+    throw new Error(
+      `HYPERLIQUID_TEST_NOTIONAL must be between 10 and ${maximumNotional} USDC`,
+    )
   }
   const url = new URL(terminalBaseUrl)
   if (!['http:', 'https:'].includes(url.protocol)) {
     throw new Error('HYPERLIQUID_TERMINAL_BASE_URL must be HTTP(S)')
   }
+  if (mainnetEnabled) validateMainnetConfiguration()
 }
 
-async function loginAndSelectTestnetAccount(page: Page) {
+function validateMainnetConfiguration() {
+  if (process.env.HYPERLIQUID_SIGNED_MAINNET_ACK !== 'I_ACCEPT_BOUNDED_MAINNET_ORDERS') {
+    throw new Error(
+      'HYPERLIQUID_SIGNED_MAINNET_ACK must equal I_ACCEPT_BOUNDED_MAINNET_ORDERS',
+    )
+  }
+  if (walletAddress.toLowerCase() !== '0x7d6cabebf3ab638ee10e0eabe671bfcfb8336dc3') {
+    throw new Error('bounded Hyperliquid mainnet qualification requires the disposable wallet')
+  }
+  if (symbol.toUpperCase() !== 'BTC') {
+    throw new Error('bounded Hyperliquid mainnet qualification only permits BTC')
+  }
+  if (!/mainnet/i.test(accountLabel)) {
+    throw new Error('bounded Hyperliquid mainnet qualification requires a mainnet account label')
+  }
+}
+
+async function loginAndSelectAccount(page: Page) {
   await page.setViewportSize({ width: 1600, height: 1000 })
   const login = new URL('/auth/test-login', terminalBaseUrl)
   login.searchParams.set('email', testEmail)
@@ -289,11 +324,11 @@ async function loginAndSelectTestnetAccount(page: Page) {
   }
   await expect(accountTrigger).toContainText(accountLabel)
   await expect(accountTrigger).toContainText(/HYPERLIQUID/i)
-  await expect(accountTrigger).toContainText(/TESTNET/i)
+  await expect(accountTrigger).toContainText(new RegExp(network, 'i'))
   const accountSummary = await accountTrigger.innerText()
   if (/UNVALIDATED/i.test(accountSummary)) {
     throw new Error(
-      `Hyperliquid testnet account '${accountLabel}' is not ready. Approve its generated agent and Trad builder with the account wallet, then refresh both approvals. Current state: ${accountSummary}`,
+      `Hyperliquid ${network} account '${accountLabel}' is not ready. Approve its generated agent and Trad builder with the account wallet, then refresh both approvals. Current state: ${accountSummary}`,
     )
   }
 }
@@ -301,7 +336,7 @@ async function loginAndSelectTestnetAccount(page: Page) {
 async function hyperliquidMid(request: APIRequestContext, coin: string): Promise<number> {
   let lastFailure = 'no response'
   for (let attempt = 1; attempt <= 4; attempt += 1) {
-    const response = await request.post('https://api.hyperliquid-testnet.xyz/info', {
+    const response = await request.post(`${exchangeBaseUrl}/info`, {
       data: { type: 'allMids' },
     })
     if (response.ok()) {
@@ -314,7 +349,7 @@ async function hyperliquidMid(request: APIRequestContext, coin: string): Promise
     }
     if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, attempt * 500))
   }
-  throw new Error(`Hyperliquid testnet allMids failed after 4 attempts: ${lastFailure}`)
+  throw new Error(`Hyperliquid ${network} allMids failed after 4 attempts: ${lastFailure}`)
 }
 
 async function submitMarket(
@@ -324,7 +359,7 @@ async function submitMarket(
   const before = await commandIds(page)
   await openCommandModal(page, 'mo', 'Market Order')
   const dialog = page.getByRole('dialog')
-  await expectSelectedTestnetAccount(dialog)
+  await expectSelectedAccount(dialog)
   await dialog.getByLabel('Symbol').fill(symbol)
   await dialog.getByLabel('Action').selectOption(order.action)
   await dialog.getByLabel('USD Amount').fill(order.amount.toFixed(2))
@@ -335,8 +370,7 @@ async function submitMarket(
   if (order.stopLoss !== undefined) {
     await dialog.getByLabel('Stop Loss').fill(order.stopLoss.toFixed(8))
   }
-  await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled({ timeout: 15_000 })
-  await dialog.getByRole('button', { name: 'Submit' }).click()
+  await submitDialog(dialog, 'Submit')
   return await waitForNewCommandId(page, before)
 }
 
@@ -354,7 +388,7 @@ async function submitLimit(
   const before = await commandIds(page)
   await openCommandModal(page, 'Limit Order', 'Limit Order')
   const dialog = page.getByRole('dialog')
-  await expectSelectedTestnetAccount(dialog)
+  await expectSelectedAccount(dialog)
   await dialog.getByLabel('Symbol').fill(symbol)
   await dialog.getByLabel('Action').selectOption(order.action)
   await dialog.getByLabel('Position Side').selectOption('Long')
@@ -368,8 +402,7 @@ async function submitLimit(
   if (order.stopLoss !== undefined) {
     await dialog.getByLabel('Stop Loss').fill(order.stopLoss.toFixed(8))
   }
-  await expect(dialog.getByRole('button', { name: 'Submit' })).toBeEnabled({ timeout: 15_000 })
-  await dialog.getByRole('button', { name: 'Submit' }).click()
+  await submitDialog(dialog, 'Submit')
   return await waitForNewCommandId(page, before)
 }
 
@@ -380,7 +413,7 @@ async function submitChase(page: Page): Promise<string> {
   const option = dialog.getByLabel('Hyperliquid Account').locator('option:checked')
   await expect(option).toContainText(accountLabel)
   await expect(option).toContainText(/HYPERLIQUID/i)
-  await expect(option).toContainText(/TESTNET/i)
+  await expect(option).toContainText(new RegExp(network, 'i'))
   await dialog.getByLabel('Symbol').fill(symbol)
   await dialog.getByLabel('Action').selectOption('Open')
   await dialog.getByLabel('Position Side').selectOption('Long')
@@ -389,9 +422,7 @@ async function submitChase(page: Page): Promise<string> {
   await dialog.getByLabel('Adverse Boundary').selectOption('basis_points')
   await dialog.getByLabel('Maximum Distance (bps)').fill('100')
   await dialog.getByLabel('Expiry (minutes)').fill('2')
-  const submit = dialog.getByRole('button', { name: 'Start Chase' })
-  await expect(submit).toBeEnabled({ timeout: 15_000 })
-  await submit.click()
+  await submitDialog(dialog, 'Start Chase')
   return await waitForNewCommandId(page, before)
 }
 
@@ -404,11 +435,25 @@ async function openCommandModal(page: Page, search: string, label: string) {
   await expect(page.getByRole('dialog')).toBeVisible()
 }
 
-async function expectSelectedTestnetAccount(dialog: Locator) {
+async function expectSelectedAccount(dialog: Locator) {
   const option = dialog.getByLabel('Account').locator('option:checked')
   await expect(option).toContainText(accountLabel)
   await expect(option).toContainText(/HYPERLIQUID/i)
-  await expect(option).toContainText(/TESTNET/i)
+  await expect(option).toContainText(new RegExp(network, 'i'))
+}
+
+async function submitDialog(dialog: Locator, buttonName: string) {
+  const submit = dialog.getByRole('button', { name: buttonName })
+  await expect(submit).toBeEnabled({ timeout: 15_000 })
+  await submit.click()
+  try {
+    await expect(dialog).toBeHidden({ timeout: 10_000 })
+  } catch (error) {
+    const submissionError = await dialog.locator('.submission-error').textContent().catch(() => '')
+    throw new Error(submissionError?.trim() || `${buttonName} did not close the command modal`, {
+      cause: error,
+    })
+  }
 }
 
 async function commandIds(page: Page): Promise<Set<string>> {
@@ -586,10 +631,10 @@ async function bestEffortFlattenLong(page: Page): Promise<string | null> {
 
 async function hyperliquidState(request: APIRequestContext) {
   const [positionsResponse, ordersResponse] = await Promise.all([
-    request.post('https://api.hyperliquid-testnet.xyz/info', {
+    request.post(`${exchangeBaseUrl}/info`, {
       data: { type: 'clearinghouseState', user: walletAddress },
     }),
-    request.post('https://api.hyperliquid-testnet.xyz/info', {
+    request.post(`${exchangeBaseUrl}/info`, {
       data: { type: 'openOrders', user: walletAddress },
     }),
   ])
@@ -623,7 +668,9 @@ async function expectHyperliquidFlat(request: APIRequestContext) {
 }
 
 function writeResult(result: QualificationResult) {
-  const path = process.env.HYPERLIQUID_SIGNED_TESTNET_RESULT_PATH
+  const path =
+    process.env.HYPERLIQUID_SIGNED_RESULT_PATH ||
+    process.env.HYPERLIQUID_SIGNED_TESTNET_RESULT_PATH
   if (path) {
     mkdirSync(dirname(path), { recursive: true })
     writeFileSync(path, `${JSON.stringify(result, null, 2)}\n`)
