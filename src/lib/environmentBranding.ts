@@ -22,7 +22,7 @@ export function resolveEnvironmentBranding(hostname: string): EnvironmentBrandin
     faviconPath: isTestDeployment
       ? '/test-brand/favicon.ico'
       : isLocalDeployment
-        ? '/local-brand/favicon-32x32.png?v=local-green-l-1'
+        ? '/local-brand/favicon-32x32.png?v=local-red-l-1'
         : '/favicon.ico',
   }
 }
