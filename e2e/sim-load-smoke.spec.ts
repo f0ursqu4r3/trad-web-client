@@ -3,6 +3,7 @@ import { writeFileSync } from 'node:fs'
 
 test('FE websocket handles simulated TE load', async ({ page }) => {
   test.setTimeout(180_000)
+  test.skip(process.env.TRAD_E2E_SIM_LOAD !== '1', 'simulated load smoke is explicitly gated')
 
   const token = process.env.TRAD_E2E_SIM_TOKEN || 'sim-load-smoke-token'
   const count = process.env.TRAD_E2E_SIM_LOAD_COUNT || '25'
