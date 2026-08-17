@@ -100,6 +100,9 @@ export function applyDelta(
       (row) => row.protection_id,
     ),
     protections: mergeRows(view.live.protections, delta.protections, (row) => row.remote_order_id),
+    external_orders: delta.replace_external_order_inventory
+      ? [...(delta.external_orders ?? [])]
+      : [...(view.live.external_orders ?? [])],
   }
   const topologyChanged = delta.commands.length > 0 || delta.relationships.length > 0
   const live = topologyChanged || exceedsTerminalWindow(merged) ? pruneLiveSnapshot(merged) : merged
@@ -347,6 +350,7 @@ function cloneSnapshot(snapshot: BrowserAccountSnapshot): BrowserAccountSnapshot
     executions: [...snapshot.executions],
     balances: [...snapshot.balances],
     protections: [...snapshot.protections],
+    external_orders: [...(snapshot.external_orders ?? [])],
     relationships: [...snapshot.relationships],
   }
 }

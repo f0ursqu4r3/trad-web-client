@@ -10,6 +10,7 @@ import type {
   CommandLifecycle,
   CommandProjection,
   ExecutionProjection,
+  ExternalOrderProjection,
   LegacyCommandPage,
   NativeProtectionProjection,
   OrderProjection,
@@ -89,6 +90,23 @@ test('logical native protection remains authoritative outside bounded command hi
   assert.equal(next.live.native_protections[0]?.status, 'tracking')
   assert.equal(next.live.native_protections[0]?.plan_revision, 2)
   assert.equal(next.live.native_protections[0]?.covered_quantity, '0.125')
+})
+
+test('external order inventory changes only behind its replacement fence', () => {
+  const initial = snapshot(4, [])
+  initial.external_orders = [externalOrder('first', 'BTC')]
+
+  const ordinary = applyDelta(installSnapshot(initial), delta(initial, 5, []))
+  assert.equal(ordinary.live.external_orders?.[0]?.identity.value, 'first')
+
+  const replacement = delta(ordinary.live, 6, [])
+  replacement.replace_external_order_inventory = true
+  replacement.external_orders = [externalOrder('second', 'ETH')]
+  const next = applyDelta(ordinary, replacement)
+
+  assert.equal(next.live.external_orders?.length, 1)
+  assert.equal(next.live.external_orders?.[0]?.identity.value, 'second')
+  assert.equal(next.live.external_orders?.[0]?.terms?.remaining_quantity, '0.25')
 })
 
 test('protection amendment deltas remain attached to their retained command root', () => {
@@ -383,6 +401,32 @@ function delta(
     balances: [],
     protections: [],
     relationships: [],
+  }
+}
+
+function externalOrder(identity: string, symbol: string): ExternalOrderProjection {
+  return {
+    identity: { kind: 'remote', value: identity },
+    classification: 'system_external',
+    observation: {
+      event_id: `evidence-${identity}`,
+      client_order_id: null,
+      remote_order_id: identity,
+      status: 'working',
+      cumulative_filled_quantity: '0',
+      average_price: null,
+      working_price: '100.125',
+      working_total_quantity: '0.25',
+      reject_reason: null,
+    },
+    terms: {
+      symbol,
+      order_side: 'buy',
+      position_side: 'long',
+      remaining_quantity: '0.25',
+      reduce_only: false,
+      conditional: false,
+    },
   }
 }
 

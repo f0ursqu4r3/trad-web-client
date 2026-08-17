@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { WalletCards } from 'lucide-vue-next'
+import { ListChecks, WalletCards } from 'lucide-vue-next'
 
 import SplitView from '@/components/general/SplitView.vue'
 import AccountPositionInspector from './AccountPositionInspector.vue'
+import ExternalOrderInspector from './ExternalOrderInspector.vue'
 import ProjectionCommandList from './ProjectionCommandList.vue'
 import ProjectionEntityTree from './ProjectionEntityTree.vue'
 import ReconciliationControl from './ReconciliationControl.vue'
 
 const positionsOpen = ref(false)
+const externalOrdersOpen = ref(false)
 </script>
 
 <template>
@@ -18,6 +20,15 @@ const positionsOpen = ref(false)
         <header class="panel-header">
           <span class="panel-title">Commands</span>
           <span class="account-controls">
+            <button
+              class="btn btn-xs btn-neutral position-button"
+              type="button"
+              title="Inspect external orders"
+              aria-label="Inspect external orders"
+              @click="externalOrdersOpen = true"
+            >
+              <ListChecks :size="12" />
+            </button>
             <button
               class="btn btn-xs btn-neutral position-button"
               type="button"
@@ -41,6 +52,7 @@ const positionsOpen = ref(false)
     </template>
   </SplitView>
   <AccountPositionInspector :open="positionsOpen" @close="positionsOpen = false" />
+  <ExternalOrderInspector :open="externalOrdersOpen" @close="externalOrdersOpen = false" />
 </template>
 
 <style scoped>

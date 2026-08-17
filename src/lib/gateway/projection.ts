@@ -488,6 +488,44 @@ export interface PositionProjection {
   unallocated_fills: Record<Uuid, ExactDecimal>
 }
 
+export type ExternalOrderIdentity =
+  | { kind: 'remote'; value: string }
+  | { kind: 'client'; value: string }
+
+export type ExternalOrderClassification =
+  | 'unresolved'
+  | 'system_external'
+  | 'manual_external'
+  | 'legacy_bound'
+
+export interface ExternalOrderTerms {
+  symbol: string
+  order_side: OrderSide
+  position_side: PositionSide | null
+  remaining_quantity: ExactDecimal
+  reduce_only: boolean
+  conditional: boolean
+}
+
+export interface ExternalOrderObservation {
+  event_id: string
+  client_order_id: string | null
+  remote_order_id: string | null
+  status: string
+  cumulative_filled_quantity: ExactDecimal | null
+  average_price: ExactDecimal | null
+  working_price: ExactDecimal | null
+  working_total_quantity: ExactDecimal | null
+  reject_reason: string | null
+}
+
+export interface ExternalOrderProjection {
+  identity: ExternalOrderIdentity
+  classification: ExternalOrderClassification
+  observation: ExternalOrderObservation
+  terms: ExternalOrderTerms | null
+}
+
 export interface AssetAmountProjection {
   asset: string
   amount: ExactDecimal
@@ -651,6 +689,8 @@ export interface BrowserAccountDelta extends ProjectionGraph {
   positions: PositionProjection[]
   balances: BalanceProjection[]
   protections: ProtectionProjection[]
+  external_orders?: ExternalOrderProjection[]
+  replace_external_order_inventory?: boolean
 }
 
 export interface BrowserAccountSnapshot extends BrowserAccountDelta {

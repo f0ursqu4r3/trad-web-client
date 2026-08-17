@@ -111,6 +111,22 @@ test('presents scoped and unscoped external order reconciliation', async ({ page
   )
 })
 
+test('inspects exact external open-order terms without claiming local ownership', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Inspect external orders' }).click()
+
+  const inspector = page.getByTestId('external-order-inspector')
+  await expect(inspector).toBeVisible()
+  const order = inspector.locator('[data-symbol="ETH"]')
+  await expect(order).toContainText('external')
+  await expect(order).toContainText('0.125')
+  await expect(order).toContainText('1850.125')
+  await expect(order).toContainText('Reduce onlyno')
+  await expect(order).toContainText('Conditionalno')
+  await expect(order).toContainText('Remote external-order-eth-1')
+})
+
 test('keeps execution identity badges in mature semantic order without duplicates', async ({
   page,
 }) => {

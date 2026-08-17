@@ -390,6 +390,31 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
         latest_revision: 77,
       },
     ],
+    external_orders: [
+      {
+        identity: { kind: 'remote', value: 'external-order-eth-1' },
+        classification: 'system_external',
+        observation: {
+          event_id: 'external-order-evidence-1',
+          client_order_id: 'manual-eth-entry',
+          remote_order_id: 'external-order-eth-1',
+          status: 'working',
+          cumulative_filled_quantity: '0',
+          average_price: null,
+          working_price: '1850.125',
+          working_total_quantity: '0.125',
+          reject_reason: null,
+        },
+        terms: {
+          symbol: 'ETH',
+          order_side: 'buy',
+          position_side: 'long',
+          remaining_quantity: '0.125',
+          reduce_only: false,
+          conditional: false,
+        },
+      },
+    ],
     relationships: [
       {
         parent: { kind: 'command', id: CHASE_COMMAND_ID },
@@ -577,7 +602,7 @@ function summary(commands: number): AccountProjectionSummary {
     unmatched_executions: 0,
     unresolved_legacy_entities: 0,
     unresolved_external_orders: 0,
-    system_external_orders: 0,
+    system_external_orders: 1,
     unscoped_external_orders: 0,
     balances: 1,
     protections: 1,
