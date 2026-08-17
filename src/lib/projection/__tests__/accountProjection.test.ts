@@ -503,6 +503,8 @@ function summary(commands: number): AccountProjectionSummary {
     unmatched_executions: 0,
     unresolved_legacy_entities: 0,
     unresolved_external_orders: 0,
+    system_external_orders: 0,
+    unscoped_external_orders: 0,
     balances: 0,
     protections: 0,
     active_protections: 0,

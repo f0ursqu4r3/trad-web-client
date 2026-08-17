@@ -17,7 +17,12 @@ const request = computed(() => {
   return selected === null ? null : (gateway.reconciliationRefreshByAccount[selected] ?? null)
 })
 const phase = computed(() => {
-  if (projections.selected?.status !== 'ready') return 'unavailable'
+  const projection = projections.selected
+  if (projection?.status !== 'ready') {
+    if (projection?.failure === 'authorization') return 'authorization_failed'
+    if (projection?.failure === 'resync') return 'resync_failed'
+    return 'unavailable'
+  }
   if (request.value?.error !== null && request.value?.error !== undefined) return 'failed'
   if (request.value !== null && request.value.cycleId === null) return 'submitting'
   if (
@@ -45,6 +50,10 @@ const label = computed(() => {
       return 'sync blocked'
     case 'failed':
       return 'reconcile failed'
+    case 'authorization_failed':
+      return 'access denied'
+    case 'resync_failed':
+      return 'resync failed'
     case 'unavailable':
       return 'sync unavailable'
     case 'never_reconciled':
@@ -58,6 +67,9 @@ const disabled = computed(
   () => accountId.value === null || gateway.status !== 'ready' || busy.value,
 )
 const title = computed(() => {
+  if (projections.selected?.status !== 'ready' && projections.selected?.error !== null) {
+    return projections.selected?.error ?? 'Account projection is unavailable'
+  }
   if (request.value?.error !== null && request.value?.error !== undefined) {
     return request.value.error
   }
@@ -69,6 +81,9 @@ const title = computed(() => {
       current.unresolved_external_orders > 0
         ? `${current.unresolved_external_orders} external orders are unresolved`
         : null,
+      current.unscoped_external_orders > 0
+        ? `${current.unscoped_external_orders} external orders have unknown scope`
+        : null,
       current.unresolved_protection_inventory > 0
         ? `${current.unresolved_protection_inventory} protection orders are unresolved`
         : null,
@@ -79,6 +94,9 @@ const title = computed(() => {
       : `Account reconciliation is blocked: ${reasons.join('; ')}`
   }
   const cycle = summary.value?.reconciliation_cycle_id
+  if ((summary.value?.system_external_orders ?? 0) > 0) {
+    return `${summary.value?.system_external_orders} external open orders are tracked`
+  }
   return cycle === null || cycle === undefined
     ? 'Refresh authoritative exchange state'
     : `Reconciliation cycle ${cycle}`
@@ -94,7 +112,12 @@ async function refresh(): Promise<void> {
 </script>
 
 <template>
-  <div class="reconciliation-control" :title="title" data-testid="reconciliation-control">
+  <div
+    class="reconciliation-control"
+    :title="title"
+    :data-failure="projections.selected?.failure ?? undefined"
+    data-testid="reconciliation-control"
+  >
     <span class="reconciliation-state" :data-phase="phase">{{ label }}</span>
     <button
       class="btn btn-xs btn-neutral refresh-button"
@@ -132,7 +155,9 @@ async function refresh(): Promise<void> {
   color: var(--status-success, #53d18b);
 }
 
-.reconciliation-state[data-phase='failed'] {
+.reconciliation-state[data-phase='failed'],
+.reconciliation-state[data-phase='authorization_failed'],
+.reconciliation-state[data-phase='resync_failed'] {
   color: var(--status-danger, #ff6b76);
 }
 

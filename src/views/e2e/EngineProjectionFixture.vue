@@ -13,6 +13,7 @@ import type {
 } from '@/lib/gateway'
 import { ExchangeType, NetworkType } from '@/lib/ws/protocol'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
+import type { AccountProjectionFailure } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 import { useMarketStore } from '@/stores/market'
@@ -122,6 +123,8 @@ function applyFixtureDelta(options: {
   lifecycle?: CommandLifecycle
   trailingEntryLifecycle?: string
   reconciliationReady?: boolean
+  systemExternalOrders?: number
+  unscopedExternalOrders?: number
 }): void {
   const live = projections.selectedLive
   if (live === null) throw new Error('fixture projection is not installed')
@@ -149,6 +152,10 @@ function applyFixtureDelta(options: {
         ...live.checkpoint.summary,
         reconciliation_ready:
           options.reconciliationReady ?? live.checkpoint.summary.reconciliation_ready,
+        system_external_orders:
+          options.systemExternalOrders ?? live.checkpoint.summary.system_external_orders,
+        unscoped_external_orders:
+          options.unscopedExternalOrders ?? live.checkpoint.summary.unscoped_external_orders,
       },
     },
     commands: command,
@@ -171,15 +178,23 @@ function applyFixtureDelta(options: {
   projections.apply(ENGINE_ACCOUNT_ID, ENGINE_SUBSCRIPTION_ID, update)
 }
 
+function failProjection(failure: AccountProjectionFailure, reason: string): void {
+  projections.fail(ENGINE_ACCOUNT_ID, reason, failure)
+}
+
 declare global {
   interface Window {
     __tradEngineProjectionFixture?: {
       applyDelta: typeof applyFixtureDelta
+      failProjection: typeof failProjection
     }
   }
 }
 
-window.__tradEngineProjectionFixture = { applyDelta: applyFixtureDelta }
+window.__tradEngineProjectionFixture = {
+  applyDelta: applyFixtureDelta,
+  failProjection,
+}
 
 onMounted(() => {
   gateway.status = 'ready'

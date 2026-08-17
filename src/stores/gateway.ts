@@ -468,7 +468,11 @@ export const useGatewayStore = defineStore('gateway', () => {
       message.route.exchange !== message.snapshot.checkpoint.shard.exchange ||
       message.route.network !== message.snapshot.checkpoint.shard.network
     ) {
-      projections.fail(accountId, 'gateway snapshot route does not match its projection shard')
+      projections.fail(
+        accountId,
+        'gateway snapshot route does not match its projection shard',
+        'invalid_data',
+      )
       resubscribe(accountId, message.subscription_id)
       return
     }
@@ -502,7 +506,8 @@ export const useGatewayStore = defineStore('gateway', () => {
       subscriptionAccounts.delete(message.subscription_id)
       if (selectedSubscriptionId === message.subscription_id) selectedSubscriptionId = null
     }
-    projections.fail(message.account_id, subscriptionError(message.error))
+    const failure = subscriptionFailure(message.error)
+    projections.fail(message.account_id, failure.reason, failure.kind)
     if (message.error.kind !== 'unauthorized') scheduleSubscriptionRetry(message.account_id)
   }
 
@@ -973,15 +978,19 @@ export const useGatewayStore = defineStore('gateway', () => {
   }
 })
 
-function subscriptionError(
+function subscriptionFailure(
   error: Extract<BrowserServerMessage, { kind: 'account_error' }>['error'],
-): string {
+): {
+  reason: string
+  kind: 'authorization' | 'availability' | 'resync'
+} {
   switch (error.kind) {
     case 'unauthorized':
-      return 'account subscription is unauthorized'
+      return { reason: 'Account access is not authorized for this user', kind: 'authorization' }
     case 'unavailable':
+      return { reason: error.reason, kind: 'availability' }
     case 'resync_failed':
-      return error.reason
+      return { reason: error.reason, kind: 'resync' }
   }
 }
 

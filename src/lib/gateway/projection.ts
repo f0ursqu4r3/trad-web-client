@@ -45,6 +45,8 @@ export interface AccountProjectionSummary {
   unmatched_executions: number
   unresolved_legacy_entities: number
   unresolved_external_orders: number
+  system_external_orders: number
+  unscoped_external_orders: number
   balances: number
   protections: number
   active_protections: number

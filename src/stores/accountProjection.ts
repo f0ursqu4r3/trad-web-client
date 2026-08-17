@@ -22,10 +22,12 @@ import {
 import { useAccountsStore } from '@/stores/accounts'
 
 export type AccountProjectionStatus = 'idle' | 'subscribing' | 'ready' | 'stale' | 'error'
+export type AccountProjectionFailure = 'authorization' | 'availability' | 'resync' | 'invalid_data'
 
 export interface AccountProjectionState {
   status: AccountProjectionStatus
   error: string | null
+  failure: AccountProjectionFailure | null
   subscriptionId: Uuid | null
   snapshotCause: BrowserSnapshotCause | null
   view: AccountProjectionView | null
@@ -54,6 +56,7 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
     const entry = ensure(accountId)
     entry.status = 'subscribing'
     entry.error = null
+    entry.failure = null
     entry.subscriptionId = null
   }
 
@@ -69,6 +72,7 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
     entry.snapshotCause = cause
     entry.status = 'ready'
     entry.error = null
+    entry.failure = null
   }
 
   function apply(accountId: Uuid, subscriptionId: Uuid, delta: BrowserAccountDelta): void {
@@ -84,6 +88,7 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
       entry.view = applyDelta(entry.view, delta)
       entry.status = 'ready'
       entry.error = null
+      entry.failure = null
     } catch (error) {
       stale(accountId, errorMessage(error))
       throw error
@@ -112,10 +117,15 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
     entry.view = mergeLegacyHistoryPage(entry.view, page)
   }
 
-  function fail(accountId: Uuid, reason: string): void {
+  function fail(
+    accountId: Uuid,
+    reason: string,
+    failure: AccountProjectionFailure = 'availability',
+  ): void {
     const entry = ensure(accountId)
     entry.status = 'error'
     entry.error = reason
+    entry.failure = failure
     entry.subscriptionId = null
   }
 
@@ -123,6 +133,7 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
     const entry = ensure(accountId)
     entry.status = 'stale'
     entry.error = reason
+    entry.failure = 'resync'
     entry.subscriptionId = null
   }
 
@@ -152,6 +163,7 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
     const created: AccountProjectionState = {
       status: 'idle',
       error: null,
+      failure: null,
       subscriptionId: null,
       snapshotCause: null,
       view: null,

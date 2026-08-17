@@ -63,6 +63,54 @@ test('does not describe an exposure-blocked account as reconciled', async ({ pag
   )
 })
 
+test('distinguishes account recovery from authorization failure', async ({ page }) => {
+  const control = page.getByTestId('reconciliation-control')
+  await expect(control).toContainText('reconciled')
+
+  await page.evaluate(() => {
+    window.__tradEngineProjectionFixture?.failProjection(
+      'availability',
+      'account projection is recovering',
+    )
+  })
+  await expect(control).toContainText('sync unavailable')
+  await expect(control).toHaveAttribute('data-failure', 'availability')
+  await expect(control).toHaveAttribute('title', 'account projection is recovering')
+
+  await page.evaluate(() => {
+    window.__tradEngineProjectionFixture?.failProjection(
+      'authorization',
+      'Account access is not authorized for this user',
+    )
+  })
+  await expect(control).toContainText('access denied')
+  await expect(control).toHaveAttribute('data-failure', 'authorization')
+})
+
+test('presents scoped and unscoped external order reconciliation', async ({ page }) => {
+  const control = page.getByTestId('reconciliation-control')
+  await expect(control).toContainText('reconciled')
+
+  await page.evaluate(() => {
+    window.__tradEngineProjectionFixture?.applyDelta({ systemExternalOrders: 2 })
+  })
+  await expect(control).toContainText('reconciled')
+  await expect(control).toHaveAttribute('title', '2 external open orders are tracked')
+
+  await page.evaluate(() => {
+    window.__tradEngineProjectionFixture?.applyDelta({
+      reconciliationReady: false,
+      systemExternalOrders: 2,
+      unscopedExternalOrders: 1,
+    })
+  })
+  await expect(control).toContainText('sync blocked')
+  await expect(control).toHaveAttribute(
+    'title',
+    'Account reconciliation is blocked: 1 external orders have unknown scope',
+  )
+})
+
 test('keeps execution identity badges in mature semantic order without duplicates', async ({
   page,
 }) => {
