@@ -18,7 +18,7 @@ test('local development uses the green L icon', () => {
       isTestDeployment: false,
       isLocalDeployment: true,
       appIconPath: '/local-brand/favicon.png',
-      faviconPath: '/local-brand/favicon.ico',
+      faviconPath: '/local-brand/favicon-32x32.png?v=local-green-l-1',
     })
   }
 })
