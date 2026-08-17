@@ -421,6 +421,10 @@ test('allocates an ambiguous partial deficit across exact owned scopes', async (
   await expect(resolution).toContainText('Allocate 0.01 externally reduced long')
   const inputs = resolution.locator('input')
   await inputs.nth(0).fill('0.006')
+  await page.evaluate(() => {
+    window.__tradEngineProjectionFixture?.applyDelta({ positionDeficit: true })
+  })
+  await expect(inputs.nth(0)).toHaveValue('0.006')
   await expect(resolution.getByRole('button', { name: 'Confirm exact allocation' })).toBeDisabled()
   await inputs.nth(1).fill('0.004')
   await resolution.getByRole('button', { name: 'Confirm exact allocation' }).click()

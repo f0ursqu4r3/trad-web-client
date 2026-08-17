@@ -49,10 +49,19 @@ const exchangeRevision = computed(() =>
     ? props.position.latest_long_exchange_revision
     : props.position.latest_short_exchange_revision,
 )
+const allocationBoundary = computed(() =>
+  JSON.stringify({
+    deficit: deficit.value,
+    scopes: scopes.value
+      .map((scope) => [scope.scope_id, scope.remaining_quantity])
+      .sort(([left], [right]) => left!.localeCompare(right!)),
+  }),
+)
 
 watch(
-  () => [props.position.latest_exchange_event_id, exchangeRevision.value, deficit.value],
+  allocationBoundary,
   () => {
+    // Fresh equivalent venue evidence keeps the user's exact allocation draft.
     for (const key of Object.keys(allocations)) delete allocations[key]
     message.value = null
   },
