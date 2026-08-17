@@ -12,7 +12,19 @@ import type {
   ProjectionRevision,
 } from './projection.ts'
 
-export const BROWSER_PROTOCOL_VERSION = 10
+export const BROWSER_PROTOCOL_VERSION = 11
+
+export interface BrowserPositionResolutionIntent {
+  resolution_id: Uuid
+  expected_account_revision: number
+  cycle_id: Uuid
+  generation: number
+  exchange_event_id: string
+  exchange_revision: number
+  symbol: string
+  side: 'long' | 'short'
+  reductions: Array<{ scope_id: Uuid; quantity: string }>
+}
 
 export type BrowserClientMessage =
   | { kind: 'authenticate'; protocol_version: number; ticket: string }
@@ -39,6 +51,12 @@ export type BrowserClientMessage =
       intent: BrowserPreviewIntent
     }
   | { kind: 'refresh_reconciliation'; request_id: Uuid; account_id: Uuid }
+  | {
+      kind: 'resolve_position_deficit'
+      request_id: Uuid
+      account_id: Uuid
+      resolution: BrowserPositionResolutionIntent
+    }
   | {
       kind: 'request_command_history'
       request_id: Uuid
@@ -107,6 +125,27 @@ export type BrowserReconciliationRefreshOutcome =
       }
     }
 
+export type BrowserPositionResolutionOutcome =
+  | {
+      kind: 'accepted'
+      resolution_id: Uuid
+      account_revision: number
+      duplicate: boolean
+    }
+  | {
+      kind: 'rejected'
+      rejection: {
+        code:
+          | 'invalid_request'
+          | 'unauthorized'
+          | 'account_unavailable'
+          | 'routing_changed'
+          | 'evidence_changed'
+        reason: string
+        retryable: boolean
+      }
+    }
+
 export type BrowserServerMessage =
   | { kind: 'hello'; protocol_version: number; session_valid_for_ms: number }
   | {
@@ -170,6 +209,12 @@ export type BrowserServerMessage =
       request_id: Uuid
       account_id: Uuid
       outcome: BrowserReconciliationRefreshOutcome
+    }
+  | {
+      kind: 'position_resolution_result'
+      request_id: Uuid
+      account_id: Uuid
+      outcome: BrowserPositionResolutionOutcome
     }
   | {
       kind: 'command_history_page'

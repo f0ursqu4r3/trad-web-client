@@ -9,6 +9,8 @@ import {
   type BrowserHistoryError,
   type BrowserPreviewIntent,
   type BrowserPreviewOutcome,
+  type BrowserPositionResolutionIntent,
+  type BrowserPositionResolutionOutcome,
   type BrowserReconciliationRefreshOutcome,
   type BrowserServerMessage,
   type GatewayConnectionStatus,
@@ -24,6 +26,7 @@ import { marketKey, useMarketStore } from '@/stores/market'
 const logger = createLogger('gateway')
 const COMMAND_RESULT_TIMEOUT_MS = 30_000
 const RECONCILIATION_RESULT_TIMEOUT_MS = 30_000
+const POSITION_RESOLUTION_TIMEOUT_MS = 30_000
 const PREVIEW_RESULT_TIMEOUT_MS = 15_000
 const HISTORY_RESULT_TIMEOUT_MS = 30_000
 const PROJECTION_CONFIRM_TIMEOUT_MS = 3_000
@@ -56,6 +59,13 @@ interface PendingReconciliationRefresh {
   accountId: Uuid
   timer: number
   resolve: (outcome: BrowserReconciliationRefreshOutcome) => void
+  reject: (error: Error) => void
+}
+
+interface PendingPositionResolution {
+  accountId: Uuid
+  timer: number
+  resolve: (outcome: BrowserPositionResolutionOutcome) => void
   reject: (error: Error) => void
 }
 
@@ -109,6 +119,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   const pendingPreviews = new Map<Uuid, PendingPreview>()
   const pendingHistories = new Map<Uuid, PendingHistory>()
   const pendingReconciliationRefreshes = new Map<Uuid, PendingReconciliationRefresh>()
+  const pendingPositionResolutions = new Map<Uuid, PendingPositionResolution>()
   let selectedSubscriptionId: Uuid | null = null
   let started = false
 
@@ -253,6 +264,47 @@ export const useGatewayStore = defineStore('gateway', () => {
           error: failure.message,
         }
         reject(failure)
+      }
+    })
+  }
+
+  function resolvePositionDeficit(
+    resolution: BrowserPositionResolutionIntent,
+    accountId = accounts.selectedAccountId,
+    requestId = uuid(),
+  ): Promise<BrowserPositionResolutionOutcome> {
+    if (accountId === null) return Promise.reject(new Error('no trading account is selected'))
+    if (status.value !== 'ready') return Promise.reject(new Error('gateway is not connected'))
+    if (pendingPositionResolutions.has(requestId)) {
+      return Promise.reject(new Error(`position resolution ${requestId} is already pending`))
+    }
+    if (
+      Array.from(pendingPositionResolutions.values()).some(
+        (pending) => pending.accountId === accountId,
+      )
+    ) {
+      return Promise.reject(new Error('an account position resolution is already pending'))
+    }
+    return new Promise((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        pendingPositionResolutions.delete(requestId)
+        updatePendingCounts()
+        reject(new Error(`position resolution ${requestId} timed out; its outcome is unknown`))
+      }, POSITION_RESOLUTION_TIMEOUT_MS)
+      pendingPositionResolutions.set(requestId, { accountId, timer, resolve, reject })
+      updatePendingCounts()
+      try {
+        send({
+          kind: 'resolve_position_deficit',
+          request_id: requestId,
+          account_id: accountId,
+          resolution,
+        })
+      } catch (error) {
+        window.clearTimeout(timer)
+        pendingPositionResolutions.delete(requestId)
+        updatePendingCounts()
+        reject(error instanceof Error ? error : new Error(String(error)))
       }
     })
   }
@@ -434,6 +486,9 @@ export const useGatewayStore = defineStore('gateway', () => {
         return
       case 'reconciliation_refresh_result':
         handleReconciliationRefreshResult(message)
+        return
+      case 'position_resolution_result':
+        handlePositionResolutionResult(message)
         return
       case 'command_history_page':
         handleHistoryPage(message)
@@ -661,6 +716,24 @@ export const useGatewayStore = defineStore('gateway', () => {
           }
     if (message.outcome.kind === 'accepted') {
       confirmReconciliationCycle(message.account_id, message.outcome.cycle_id)
+    }
+    pending.resolve(message.outcome)
+  }
+
+  function handlePositionResolutionResult(
+    message: Extract<BrowserServerMessage, { kind: 'position_resolution_result' }>,
+  ): void {
+    const pending = pendingPositionResolutions.get(message.request_id)
+    if (pending === undefined) return
+    window.clearTimeout(pending.timer)
+    pendingPositionResolutions.delete(message.request_id)
+    updatePendingCounts()
+    if (pending.accountId !== message.account_id) {
+      pending.reject(new Error('position resolution result account does not match its request'))
+      return
+    }
+    if (message.outcome.kind === 'accepted') {
+      confirmProjectionRevision(message.account_id, message.outcome.account_revision)
     }
     pending.resolve(message.outcome)
   }
@@ -947,11 +1020,16 @@ export const useGatewayStore = defineStore('gateway', () => {
       }
     }
     pendingReconciliationRefreshes.clear()
+    for (const [requestId, pending] of pendingPositionResolutions) {
+      window.clearTimeout(pending.timer)
+      pending.reject(new Error(`position resolution ${requestId} interrupted: ${reason}`))
+    }
+    pendingPositionResolutions.clear()
     updatePendingCounts()
   }
 
   function updatePendingCounts(): void {
-    pendingCommandCount.value = pendingCommands.size
+    pendingCommandCount.value = pendingCommands.size + pendingPositionResolutions.size
     pendingHistoryCount.value = pendingHistories.size
     pendingReconciliationCount.value = pendingReconciliationRefreshes.size
   }
@@ -971,6 +1049,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     submitCommand,
     previewCommand,
     refreshReconciliation,
+    resolvePositionDeficit,
     requestOlderHistory,
     requestLegacyHistory,
     subscribeMarket,

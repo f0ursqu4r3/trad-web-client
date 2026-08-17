@@ -125,6 +125,7 @@ function position(scopeId: string, remaining: string): PositionProjection {
     latest_exchange_revision: 1,
     latest_long_exchange_revision: 1,
     latest_short_exchange_revision: 1,
+    latest_external_flatten: null,
     owned_exposure: {
       [scopeId]: {
         scope_id: scopeId,

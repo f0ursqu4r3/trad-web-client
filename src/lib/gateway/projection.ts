@@ -481,9 +481,18 @@ export interface PositionProjection {
   owned_quantity: PositionQuantityProjection
   external_quantity: PositionQuantityProjection
   deficit_quantity: PositionQuantityProjection
+  latest_exchange_event_id: string | null
   latest_exchange_revision: number | null
   latest_long_exchange_revision: number | null
   latest_short_exchange_revision: number | null
+  latest_external_flatten: {
+    cycle_id: Uuid
+    generation: number
+    symbol: string
+    side: PositionSide
+    expected_exchange_revision: number
+    reductions: OwnedReduction[]
+  } | null
   owned_exposure: Record<Uuid, OwnedExposureProjection>
   unallocated_fills: Record<Uuid, ExactDecimal>
 }

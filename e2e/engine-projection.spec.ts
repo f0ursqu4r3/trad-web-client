@@ -138,7 +138,16 @@ test('keeps execution identity badges in mature semantic order without duplicate
     .first()
 
   const pills = await row.locator('.pill').allTextContents()
-  expect(pills).toEqual(['Open', 'ETH', 'hyperliquid', 'USDC perp', '10000000...', 'testnet'])
+  expect(pills).toEqual([
+    'Open',
+    'ETH',
+    'hyperliquid',
+    'USDC perp',
+    '10000000...',
+    'testnet',
+    'Exchange Order',
+    'Opening Execution',
+  ])
 
   const protection = fixture
     .getByTestId('projection-entity-tree')
@@ -325,7 +334,7 @@ test('duplicates a protected market order without cloning reactive proxies', asy
   await expect(fixture.getByTestId('latest-lifecycle-intent')).toHaveText('none')
 })
 
-test('right-clicking a device with no actions selects it without opening an empty menu', async ({
+test('right-clicking a device exposes its owning command and exact identities', async ({
   page,
 }) => {
   const fixture = page.getByTestId('engine-projection-fixture')
@@ -339,6 +348,10 @@ test('right-clicking a device with no actions selects it without opening an empt
 
   await failedOrder.click({ button: 'right' })
 
+  await expect(page.getByRole('menuitem', { name: 'Open Owning Command' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Copy Device ID' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Copy Command ID' })).toBeVisible()
+  await page.getByRole('menuitem', { name: 'Open Owning Command' }).click()
   await expect(page.getByRole('menu')).toHaveCount(0)
   await expect(fixture.getByTestId('projection-details')).toContainText('insufficient margin')
 })
@@ -392,6 +405,43 @@ test('inspects authoritative account positions and pre-fills typed flatten contr
   await eth.getByRole('button', { name: 'scope-filled' }).click()
   await expect(page.getByTestId('account-position-inspector')).not.toBeVisible()
   await expect(fixture.getByTestId('projection-details').getByTestId('order-details')).toBeVisible()
+})
+
+test('allocates an ambiguous partial deficit across exact owned scopes', async ({ page }) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await expect(fixture).toBeVisible()
+  await page.evaluate(() => {
+    window.__tradEngineProjectionFixture?.applyDelta({ positionDeficit: true })
+  })
+  await fixture.getByRole('button', { name: 'Inspect account positions' }).click()
+
+  const resolution = page.locator(
+    '[data-testid="position-deficit-resolution"][data-side="long"]',
+  )
+  await expect(resolution).toContainText('Allocate 0.01 externally reduced long')
+  const inputs = resolution.locator('input')
+  await inputs.nth(0).fill('0.006')
+  await expect(resolution.getByRole('button', { name: 'Confirm exact allocation' })).toBeDisabled()
+  await inputs.nth(1).fill('0.004')
+  await resolution.getByRole('button', { name: 'Confirm exact allocation' }).click()
+
+  await expect(resolution).toContainText('Allocation recorded')
+  const evidence = fixture.getByTestId('latest-position-resolution')
+  await expect(evidence).toContainText('fixture-external-partial-close')
+  await expect(evidence).toContainText('scope-chase-second')
+})
+
+test('notifies the account owner after an automatic external flatten', async ({ page }) => {
+  await expect(page.getByTestId('engine-projection-fixture')).toBeVisible()
+  await page.evaluate(() => {
+    window.__tradEngineProjectionFixture?.applyDelta({ positionExternalFlatten: true })
+  })
+
+  await expect(page.getByTestId('external-flatten-count')).toHaveText('1')
+  await page.getByRole('button', { name: 'Inspect account positions' }).click()
+  const notice = page.getByTestId('external-flatten-notice')
+  await expect(notice).toContainText('automatically settled 0.025 long')
+  await expect(notice).toContainText('No exchange Order was submitted')
 })
 
 test('submits projected lifecycle actions with authoritative entity identity', async ({ page }) => {

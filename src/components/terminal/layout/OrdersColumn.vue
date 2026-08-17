@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Filter, ListChecks, WalletCards } from 'lucide-vue-next'
 
 import AccountPositionInspector from '@/components/engine/AccountPositionInspector.vue'
@@ -8,10 +8,18 @@ import ReconciliationControl from '@/components/engine/ReconciliationControl.vue
 import SplitView from '@/components/general/SplitView.vue'
 import ProjectionCommandPanel from '@/components/terminal/projection/ProjectionCommandPanel.vue'
 import ProjectionTreePanel from '@/components/terminal/projection/ProjectionTreePanel.vue'
+import { useAccountProjectionStore } from '@/stores/accountProjection'
 
 const commandPanel = ref<InstanceType<typeof ProjectionCommandPanel> | null>(null)
 const positionsOpen = ref(false)
 const externalOrdersOpen = ref(false)
+const projections = useAccountProjectionStore()
+const externalFlattenCount = computed(
+  () =>
+    projections.selectedLive?.positions.filter(
+      (position) => position.latest_external_flatten !== null,
+    ).length ?? 0,
+)
 </script>
 
 <template>
@@ -34,12 +42,22 @@ const externalOrdersOpen = ref(false)
               <ListChecks :size="12" />
             </button>
             <button
-              class="btn btn-sm btn-ghost compact-icon"
-              title="Inspect account positions"
+              class="btn btn-sm btn-ghost compact-icon position-button"
+              :title="
+                externalFlattenCount > 0
+                  ? `${externalFlattenCount} externally flattened position changes`
+                  : 'Inspect account positions'
+              "
               aria-label="Inspect account positions"
               @click="positionsOpen = true"
             >
               <WalletCards :size="12" />
+              <span
+                v-if="externalFlattenCount > 0"
+                class="activity-count"
+                data-testid="external-flatten-count"
+                >{{ externalFlattenCount }}</span
+              >
             </button>
             <ReconciliationControl />
             <button
@@ -81,5 +99,22 @@ const externalOrdersOpen = ref(false)
   justify-content: center;
   padding: 0;
   width: 22px;
+}
+
+.position-button {
+  position: relative;
+}
+
+.activity-count {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 14px;
+  padding: 1px 3px;
+  border-radius: 8px;
+  background: var(--color-warning, #d68b2c);
+  color: #111;
+  font-size: 9px;
+  line-height: 12px;
 }
 </style>

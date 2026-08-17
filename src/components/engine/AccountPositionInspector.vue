@@ -3,8 +3,9 @@ import { computed, ref, watch } from 'vue'
 import { RefreshCw } from 'lucide-vue-next'
 
 import FlattenCommandModal from '@/components/engine/commands/FlattenCommandModal.vue'
+import PositionDeficitResolution from '@/components/engine/PositionDeficitResolution.vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
-import { isExactZero } from '@/lib/exactDecimalMath'
+import { isExactZero, sumExact } from '@/lib/exactDecimalMath'
 import type { PositionProjection } from '@/lib/gateway'
 import { commandOwnershipScopeIds } from '@/lib/projection/ownership'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
@@ -73,6 +74,7 @@ function positionRequiresAttention(position: PositionProjection): boolean {
     hasQuantity(position.owned_quantity) ||
     hasQuantity(position.external_quantity) ||
     hasQuantity(position.deficit_quantity) ||
+    position.latest_external_flatten !== null ||
     Object.values(position.owned_exposure).some(
       (exposure) => !isExactZero(exposure.remaining_quantity),
     ) ||
@@ -90,6 +92,12 @@ function hasQuantity(quantity: { long: string; short: string }): boolean {
 
 function scopeCommand(scopeId: string): string | null {
   return scopeCommands.value.get(scopeId) ?? null
+}
+
+function flattenedQuantity(position: PositionProjection): string {
+  return sumExact(
+    (position.latest_external_flatten?.reductions ?? []).map((reduction) => reduction.quantity),
+  )
 }
 
 function inspectScope(scopeId: string): void {
@@ -206,6 +214,16 @@ async function refreshExchange(): Promise<void> {
           </button>
         </header>
 
+        <p
+          v-if="position.latest_external_flatten"
+          class="external-flatten-notice"
+          data-testid="external-flatten-notice"
+        >
+          Trad automatically settled
+          {{ flattenedQuantity(position) }} {{ position.latest_external_flatten.side }} after an
+          external flatten. No exchange Order was submitted by reconciliation.
+        </p>
+
         <div class="quantity-table">
           <span></span><span>Long</span><span>Short</span> <strong>Exchange</strong
           ><span>{{ position.exchange_quantity.long }}</span
@@ -221,6 +239,31 @@ async function refreshExchange(): Promise<void> {
             position.deficit_quantity.short
           }}</span>
         </div>
+
+        <PositionDeficitResolution
+          v-if="
+            !isExactZero(position.deficit_quantity.long) &&
+            summary?.reconciliation_cycle_id &&
+            summary.reconciliation_generation !== null
+          "
+          :position="position"
+          side="long"
+          :account-revision="live!.checkpoint.account_revision"
+          :cycle-id="summary.reconciliation_cycle_id"
+          :generation="summary.reconciliation_generation"
+        />
+        <PositionDeficitResolution
+          v-if="
+            !isExactZero(position.deficit_quantity.short) &&
+            summary?.reconciliation_cycle_id &&
+            summary.reconciliation_generation !== null
+          "
+          :position="position"
+          side="short"
+          :account-revision="live!.checkpoint.account_revision"
+          :cycle-id="summary.reconciliation_cycle_id"
+          :generation="summary.reconciliation_generation"
+        />
 
         <div v-if="Object.keys(position.owned_exposure).length" class="ownership-list">
           <h4>Trad-owned exposure</h4>
@@ -265,6 +308,14 @@ async function refreshExchange(): Promise<void> {
 .position-inspector {
   display: grid;
   gap: 12px;
+}
+
+.external-flatten-notice {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--color-warning, #d68b2c);
+  background: color-mix(in srgb, var(--color-warning, #d68b2c) 9%, transparent);
+  font-size: 11px;
 }
 
 .inspector-toolbar,

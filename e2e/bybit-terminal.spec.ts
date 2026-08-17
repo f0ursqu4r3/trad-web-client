@@ -2048,7 +2048,7 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
       hyperliquidChain: 'Testnet',
       signatureChainId: '0x66eee',
       agentAddress: '0x2222222222222222222222222222222222222222',
-      agentName: 'trad',
+      agentName: 'trad-17171717',
       nonce: 1780000000123,
     },
     nonce: 1780000000123,
@@ -2058,7 +2058,7 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
       v: 27,
     },
     agent_address: '0x2222222222222222222222222222222222222222',
-    agent_name: 'trad',
+    agent_name: 'trad-17171717',
   })
   expect(builderApprovalPayload).toMatchObject({
     action: {
@@ -2128,7 +2128,7 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
     message: {
       hyperliquidChain: 'Testnet',
       agentAddress: '0x2222222222222222222222222222222222222222',
-      agentName: 'trad',
+      agentName: 'trad-17171717',
       nonce: 1780000000123,
     },
   })

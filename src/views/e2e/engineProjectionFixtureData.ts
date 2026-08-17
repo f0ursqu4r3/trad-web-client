@@ -289,9 +289,11 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
         owned_quantity: { long: '0.00420001', short: '0' },
         external_quantity: { long: '0', short: '0' },
         deficit_quantity: { long: '0', short: '0' },
+        latest_exchange_event_id: 'fixture-eth-position',
         latest_exchange_revision: 77,
         latest_long_exchange_revision: 77,
         latest_short_exchange_revision: 77,
+        latest_external_flatten: null,
         owned_exposure: {
           'scope-filled': {
             scope_id: 'scope-filled',
@@ -312,9 +314,11 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
         owned_quantity: { long: '0.025', short: '0' },
         external_quantity: { long: '0', short: '0' },
         deficit_quantity: { long: '0', short: '0' },
+        latest_exchange_event_id: 'fixture-btc-position',
         latest_exchange_revision: 78,
         latest_long_exchange_revision: 78,
         latest_short_exchange_revision: 78,
+        latest_external_flatten: null,
         owned_exposure: {
           'scope-chase': {
             scope_id: 'scope-chase',
@@ -561,7 +565,7 @@ function checkpoint(
   overrides: Partial<AccountProjectionSummary> = {},
 ): ProjectionCheckpoint {
   return {
-    schema_version: 26,
+    schema_version: 28,
     shard: { exchange: 'hyperliquid', network: 'testnet', account_id: ENGINE_ACCOUNT_ID },
     account_revision: revision,
     projection_revision: revision,

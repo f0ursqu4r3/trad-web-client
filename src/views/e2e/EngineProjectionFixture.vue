@@ -8,6 +8,8 @@ import type {
   BrowserAccountDelta,
   BrowserCommandIntent,
   BrowserCommandOutcome,
+  BrowserPositionResolutionIntent,
+  BrowserPositionResolutionOutcome,
   BrowserReconciliationRefreshOutcome,
   CommandLifecycle,
 } from '@/lib/gateway'
@@ -30,6 +32,7 @@ const projections = useAccountProjectionStore()
 const gateway = useGatewayStore()
 const markets = useMarketStore()
 const latestAction = ref<{ accountId: string; intent: BrowserCommandIntent } | null>(null)
+const latestPositionResolution = ref<BrowserPositionResolutionIntent | null>(null)
 
 accounts.accountsRaw = [
   {
@@ -116,6 +119,17 @@ gateway.refreshReconciliation = async (
   }
   return { kind: 'accepted', cycle_id: cycleId, duplicate: false }
 }
+gateway.resolvePositionDeficit = async (
+  resolution,
+): Promise<BrowserPositionResolutionOutcome> => {
+  latestPositionResolution.value = resolution
+  return {
+    kind: 'accepted',
+    resolution_id: resolution.resolution_id,
+    account_revision: resolution.expected_account_revision + 1,
+    duplicate: false,
+  }
+}
 accounts.selectedAccountId = ENGINE_ACCOUNT_ID
 
 function applyFixtureDelta(options: {
@@ -125,6 +139,8 @@ function applyFixtureDelta(options: {
   reconciliationReady?: boolean
   systemExternalOrders?: number
   unscopedExternalOrders?: number
+  positionDeficit?: boolean
+  positionExternalFlatten?: boolean
 }): void {
   const live = projections.selectedLive
   if (live === null) throw new Error('fixture projection is not installed')
@@ -144,6 +160,68 @@ function applyFixtureDelta(options: {
           ...row,
           lifecycle: options.trailingEntryLifecycle ?? row.lifecycle,
         }))
+  const positions = options.positionDeficit
+    ? live.positions
+        .filter((position) => position.symbol === 'BTC')
+        .map((position) => ({
+          ...position,
+          status: 'deficit',
+          reconciliation_required: true,
+          exchange_quantity: { long: '0.015', short: '0' },
+          owned_quantity: { long: '0.025', short: '0' },
+          deficit_quantity: { long: '0.01', short: '0' },
+          latest_exchange_event_id: 'fixture-external-partial-close',
+          latest_exchange_revision: 79,
+          latest_long_exchange_revision: 79,
+          owned_exposure: {
+            'scope-chase': {
+              scope_id: 'scope-chase',
+              side: 'long' as const,
+              opened_quantity: '0.015',
+              reduced_quantity: '0',
+              remaining_quantity: '0.015',
+            },
+            'scope-chase-second': {
+              scope_id: 'scope-chase-second',
+              side: 'long' as const,
+              opened_quantity: '0.01',
+              reduced_quantity: '0',
+              remaining_quantity: '0.01',
+            },
+          },
+        }))
+    : options.positionExternalFlatten
+      ? live.positions
+          .filter((position) => position.symbol === 'BTC')
+          .map((position) => ({
+            ...position,
+            status: 'consistent',
+            reconciliation_required: false,
+            exchange_quantity: { long: '0', short: '0' },
+            owned_quantity: { long: '0', short: '0' },
+            deficit_quantity: { long: '0', short: '0' },
+            latest_exchange_event_id: 'fixture-external-flat',
+            latest_exchange_revision: 80,
+            latest_long_exchange_revision: 80,
+            latest_external_flatten: {
+              cycle_id: 'fixture-external-flatten-cycle',
+              generation: 31,
+              symbol: 'BTC',
+              side: 'long' as const,
+              expected_exchange_revision: 80,
+              reductions: [{ scope_id: 'scope-chase', quantity: '0.025' }],
+            },
+            owned_exposure: {
+              'scope-chase': {
+                scope_id: 'scope-chase',
+                side: 'long' as const,
+                opened_quantity: '0.025',
+                reduced_quantity: '0.025',
+                remaining_quantity: '0',
+              },
+            },
+          }))
+      : []
   const update: BrowserAccountDelta = {
     checkpoint: {
       ...live.checkpoint,
@@ -156,6 +234,11 @@ function applyFixtureDelta(options: {
           options.systemExternalOrders ?? live.checkpoint.summary.system_external_orders,
         unscoped_external_orders:
           options.unscopedExternalOrders ?? live.checkpoint.summary.unscoped_external_orders,
+        reconciliation_required:
+          options.positionDeficit ?? live.checkpoint.summary.reconciliation_required,
+        reconciliation_cycle_id: options.positionDeficit
+          ? 'fixture-reconciliation-cycle'
+          : live.checkpoint.summary.reconciliation_cycle_id,
       },
     },
     commands: command,
@@ -169,7 +252,7 @@ function applyFixtureDelta(options: {
     protection_amendments: [],
     native_protections: [],
     orders: [],
-    positions: [],
+    positions,
     executions: [],
     balances: [],
     protections: [],
@@ -208,6 +291,9 @@ onMounted(() => {
     <EngineCommandModalContainer />
     <pre class="action-evidence" data-testid="latest-lifecycle-intent">{{
       latestAction ? JSON.stringify(latestAction) : 'none'
+    }}</pre>
+    <pre class="action-evidence" data-testid="latest-position-resolution">{{
+      latestPositionResolution ? JSON.stringify(latestPositionResolution) : 'none'
     }}</pre>
   </main>
 </template>

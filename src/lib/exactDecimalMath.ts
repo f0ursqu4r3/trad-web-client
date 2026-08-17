@@ -41,6 +41,11 @@ export function sumExact(values: Iterable<ExactDecimal>): ExactDecimal {
   return total
 }
 
+export function compareExact(left: ExactDecimal, right: ExactDecimal): -1 | 0 | 1 {
+  const difference = parseExact(subtractExact(left, right)).coefficient
+  return difference < 0n ? -1 : difference > 0n ? 1 : 0
+}
+
 export function formatExactDecimal(value: ExactDecimal): string {
   const trimmed = value.trim()
   const match = DECIMAL_PATTERN.exec(trimmed)
