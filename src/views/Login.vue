@@ -5,11 +5,13 @@ import { useAuth } from '@/lib/auth'
 import { useUiStore } from '@/stores/ui'
 import { useRouter } from 'vue-router'
 import { Sun, Moon } from 'lucide-vue-next'
+import { resolveEnvironmentBranding } from '@/lib/environmentBranding'
 
 import WsIndicator from '@/components/general/WsIndicator.vue'
 
 const ui = useUiStore()
 const router = useRouter()
+const brandIconPath = resolveEnvironmentBranding(window.location.hostname).appIconPath
 
 const { login, logout, isAuthenticated, error: authError, user } = useAuth()
 
@@ -66,7 +68,7 @@ onMounted(() => {
       <!-- Header / brand -->
       <div class="panel-header-row">
         <div class="flex items-center gap-2">
-          <img src="/favicon.png" alt="TRAD" class="h-5 w-5 rounded-sm" />
+          <img :src="brandIconPath" alt="TRAD" class="h-5 w-5 rounded-sm" />
           <span class="tracking-wide">TRAD Terminal</span>
         </div>
         <div class="toolbar-section gap-4">

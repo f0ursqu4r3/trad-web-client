@@ -5,7 +5,7 @@
       <!-- Header -->
       <div class="panel-header-row">
         <div class="flex items-center gap-2">
-          <img src="/favicon.png" alt="TRAD" class="h-5 w-5 rounded-sm" />
+          <img :src="brandIconPath" alt="TRAD" class="h-5 w-5 rounded-sm" />
           <span class="tracking-wide">TRAD Terminal</span>
         </div>
         <div class="flex items-center gap-2">
@@ -64,10 +64,12 @@ import { useRoute } from 'vue-router'
 import { useAuth } from '@/lib/auth'
 import { useBillingStore } from '@/stores/billing'
 import PricingTable from '@/components/billing/PricingTable.vue'
+import { resolveEnvironmentBranding } from '@/lib/environmentBranding'
 
 const route = useRoute()
 const { isAuthenticated, login } = useAuth()
 const billing = useBillingStore()
+const brandIconPath = resolveEnvironmentBranding(window.location.hostname).appIconPath
 
 // Fetch plans on mount
 onMounted(() => {

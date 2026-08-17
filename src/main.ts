@@ -11,7 +11,10 @@ import router from './router'
 
 import { createBffAuthProvider } from '@/plugins/bffAuth'
 import { clearLegacyAuthStorage, setAuthProvider } from '@/lib/auth'
+import { applyEnvironmentBranding } from '@/lib/environmentBranding'
 import { useUiStore } from '@/stores/ui'
+
+applyEnvironmentBranding()
 
 const app = createApp(App)
 
