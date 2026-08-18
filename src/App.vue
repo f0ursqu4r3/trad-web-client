@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth'
 import { useUserStore } from '@/stores/user'
 
 import AuthenticatedLayout from '@/layouts/Authenticated.vue'
+import ControlPlaneLayout from '@/layouts/ControlPlane.vue'
 
 const { isAuthenticated } = useAuth()
 const userStore = useUserStore()
@@ -18,6 +19,8 @@ const layoutComponent = computed(() => {
   switch (name) {
     case 'authenticated':
       return AuthenticatedLayout
+    case 'control':
+      return ControlPlaneLayout
     case 'blank':
     case 'default':
     default:

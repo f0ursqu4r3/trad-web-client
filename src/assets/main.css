@@ -11,3 +11,56 @@
 
 @import './styles/integrations/dockview.css'; /* dockview theming */
 @import './styles/utilities/helpers.css'; /* utilities & small helpers */
+
+@layer components {
+  .control-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1rem;
+    font-size: 12px;
+  }
+  .control-detail-grid > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+  }
+  .control-detail-grid span:first-child {
+    color: var(--fg-muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .control-detail-grid strong {
+    color: var(--fg-strong);
+    font-weight: 400;
+  }
+  .control-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+  .control-check {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 34px;
+    color: var(--fg);
+    font-size: 12px;
+  }
+  .control-auth-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .control-auth-row p {
+    margin: 0.25rem 0 0;
+    max-width: 34rem;
+    color: var(--fg-muted);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+}

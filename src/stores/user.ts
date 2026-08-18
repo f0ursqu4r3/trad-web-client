@@ -33,6 +33,9 @@ export const useUserStore = defineStore('user', () => {
   const lastFetchedAt = ref<number | null>(null)
   const isServerAuthenticated = ref<boolean>(false)
   const entitled = ref<boolean | null>(null)
+  const enabled = ref(true)
+  const role = ref<'user' | 'admin'>('user')
+  const capabilities = ref<string[]>([])
 
   const displayName = computed(
     () =>
@@ -41,11 +44,15 @@ export const useUserStore = defineStore('user', () => {
       userId.value ||
       (isAuthenticated.value ? 'authenticated user' : 'guest'),
   )
+  const isAdmin = computed(() => role.value === 'admin' || capabilities.value.includes('admin'))
 
   interface MeResponseShape {
     email: string
     user_id: string
     entitled?: boolean
+    enabled?: boolean
+    role?: 'user' | 'admin'
+    capabilities?: string[]
     client_profile: ClientProfile
     accounts: AccountRecord[]
     error?: string
@@ -85,6 +92,9 @@ export const useUserStore = defineStore('user', () => {
           if (typeof data.entitled === 'boolean') {
             entitled.value = data.entitled
           }
+          enabled.value = data.enabled ?? true
+          role.value = data.role ?? 'user'
+          capabilities.value = data.capabilities ?? []
           accountsStore.accountsRaw = data.accounts || []
           if (userId.value) {
             setSessionUserId(userId.value)
@@ -103,6 +113,26 @@ export const useUserStore = defineStore('user', () => {
       uiStore.theme =
         (profile.value.meta?.preferences?.theme as typeof uiStore.theme | undefined) ||
         uiStore.theme
+      const preferences = profile.value.meta?.preferences
+      if (
+        preferences?.number_display_mode === 'compact' ||
+        preferences?.number_display_mode === 'full'
+      ) {
+        uiStore.numberDisplayMode = preferences.number_display_mode
+      }
+      if (typeof preferences?.newest_commands_first === 'boolean') {
+        uiStore.newestCommandsFirst = preferences.newest_commands_first
+      }
+      if (typeof preferences?.confirm_position_closes === 'boolean') {
+        uiStore.confirmPositionCloses = preferences.confirm_position_closes
+      }
+      if (
+        preferences?.order_quantity_mode === 'base' ||
+        preferences?.order_quantity_mode === 'notional' ||
+        preferences?.order_quantity_mode === 'risk'
+      ) {
+        uiStore.orderQuantityMode = preferences.order_quantity_mode
+      }
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)
       userId.value = null
@@ -134,11 +164,15 @@ export const useUserStore = defineStore('user', () => {
   }
 
   function clear() {
+    email.value = null
     userId.value = null
     profile.value = { display_name: null, meta: { preferences: {} } }
     error.value = null
     lastFetchedAt.value = null
     entitled.value = null
+    enabled.value = true
+    role.value = 'user'
+    capabilities.value = []
     clearSessionUserId()
   }
 
@@ -154,6 +188,7 @@ export const useUserStore = defineStore('user', () => {
 
   return {
     // state
+    email,
     userId,
     profile,
     loading,
@@ -161,8 +196,12 @@ export const useUserStore = defineStore('user', () => {
     lastFetchedAt,
     isServerAuthenticated,
     entitled,
+    enabled,
+    role,
+    capabilities,
     // getters
     displayName,
+    isAdmin,
     // actions
     saveProfile,
     fetchMe,

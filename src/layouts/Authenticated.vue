@@ -7,9 +7,9 @@ import { useUiStore } from '@/stores/ui'
 import { useAccountsStore } from '@/stores/accounts'
 import { useAuth } from '@/lib/auth'
 import { accountColorFromId } from '@/lib/accountColors'
+import { useRouter } from 'vue-router'
 
 import WsIndicator from '@/components/general/WsIndicator.vue'
-import UserSettings from '@/components/terminal/modals/UserSettings.vue'
 import AccountSelect from '@/components/general/AccountSelect.vue'
 import EngineCommandPalette from '@/components/engine/commands/EngineCommandPalette.vue'
 import EngineCommandModalContainer from '@/components/engine/commands/EngineCommandModalContainer.vue'
@@ -18,6 +18,7 @@ const userStore = useUserStore()
 const ui = useUiStore()
 const accounts = useAccountsStore()
 const { logout } = useAuth()
+const router = useRouter()
 
 const username = computed(() => userStore.displayName || 'anonymous')
 const selectedAccount = computed(() => accounts.selectedAccount)
@@ -112,7 +113,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeys))
           <WsIndicator />
           <button
             class="btn icon-btn"
-            @click="ui.openSettings()"
+            @click="router.push('/settings/profile')"
             title="Settings"
             aria-label="Settings"
           >
@@ -120,7 +121,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeys))
           </button>
         </div>
       </div>
-      <UserSettings :open="ui.settingsOpen" @close="ui.closeSettings()" />
       <slot></slot>
       <EngineCommandModalContainer />
     </div>

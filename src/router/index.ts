@@ -16,6 +16,31 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresEntitlement: true, layout: 'authenticated' },
   },
   {
+    path: '/settings',
+    redirect: '/settings/profile',
+    meta: { requiresAuth: true, layout: 'control' },
+  },
+  {
+    path: '/settings/:section(profile|accounts|authorization|preferences|billing)',
+    component: () => import('@/views/settings/SettingsView.vue'),
+    meta: { requiresAuth: true, layout: 'control', controlArea: 'settings' },
+  },
+  {
+    path: '/admin',
+    redirect: '/admin/operations',
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'control' },
+  },
+  {
+    path: '/admin/:section(operations|users|accounts|execution|audit)',
+    component: () => import('@/views/admin/AdminView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      layout: 'control',
+      controlArea: 'admin',
+    },
+  },
+  {
     path: '/style-guide',
     component: () => import('@/views/StyleGuide.vue'),
     meta: { layout: 'blank' },
@@ -105,6 +130,12 @@ router.beforeEach(async (to) => {
     if (userStore.entitled === false) {
       return { path: '/subscriptions', query: { redirect: to.fullPath } }
     }
+  }
+
+  if (to.meta.requiresAdmin && authed) {
+    const userStore = useUserStore()
+    if (!userStore.lastFetchedAt && !userStore.loading) await userStore.fetchMe()
+    if (!userStore.isAdmin) return { path: '/settings/profile' }
   }
 
   if (to.path === '/login' && authed) {
