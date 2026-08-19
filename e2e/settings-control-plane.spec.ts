@@ -155,6 +155,30 @@ test('terminal account rail exposes its address and animation state', async ({ p
   ).toHaveCount(1)
 })
 
+test('authenticated navigation keeps one Gateway connection alive', async ({ page }) => {
+  let opened = 0
+  let closed = 0
+  page.on('websocket', (socket) => {
+    if (!new URL(socket.url()).pathname.endsWith('/ws')) return
+    opened += 1
+    socket.on('close', () => {
+      closed += 1
+    })
+  })
+
+  await page.goto('/auth/test-login?email=668es218pur%40gmail.com&return_to=%2Fterminal')
+  await expect(page.getByLabel(/^Trad connection ready/)).toBeVisible()
+  await expect.poll(() => opened).toBe(1)
+
+  await page.getByRole('link', { name: 'Settings' }).click()
+  await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible()
+  await page.getByRole('link', { name: 'Terminal', exact: true }).click()
+  await expect(page.getByLabel(/^Trad connection ready/)).toBeVisible()
+
+  expect(opened).toBe(1)
+  expect(closed).toBe(0)
+})
+
 test('ready first account hands off directly to the command palette', async ({ page }) => {
   const accountId = '71717171-7171-4717-8717-717171717171'
   const userAddress = '0x1111111111111111111111111111111111111111'

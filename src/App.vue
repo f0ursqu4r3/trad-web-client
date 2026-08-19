@@ -3,12 +3,14 @@ import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRouter, RouterView } from 'vue-router'
 import { useAuth } from '@/lib/auth'
+import { useGatewayStore } from '@/stores/gateway'
 import { useUserStore } from '@/stores/user'
 
 import AuthenticatedLayout from '@/layouts/Authenticated.vue'
 import ControlPlaneLayout from '@/layouts/ControlPlane.vue'
 
 const { isAuthenticated } = useAuth()
+const gateway = useGatewayStore()
 const userStore = useUserStore()
 const router = useRouter()
 
@@ -27,6 +29,17 @@ const layoutComponent = computed(() => {
       return null
   }
 })
+
+// Keep the transport alive for the authenticated browser session. Terminal
+// navigation changes consumers and subscriptions, not connection ownership.
+watch(
+  () => isAuthenticated.value,
+  (authenticated) => {
+    if (authenticated) gateway.connect()
+    else gateway.disconnect()
+  },
+  { immediate: true },
+)
 
 // Only force navigation to login if the CURRENT route actually requires auth.
 // The global router.beforeEach already blocks navigation into protected routes.

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted } from 'vue'
+import { nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import SplitView from '@/components/general/SplitView.vue'
@@ -7,17 +7,14 @@ import OrdersColumn from '@/components/terminal/layout/OrdersColumn.vue'
 import EngineWorkspace from '@/components/engine/EngineWorkspace.vue'
 import TerminalAccountEmptyState from '@/components/terminal/TerminalAccountEmptyState.vue'
 import { useAccountsStore } from '@/stores/accounts'
-import { useGatewayStore } from '@/stores/gateway'
 import { openCommandPalette } from '@/lib/engineCommands/palette'
 
 const accounts = useAccountsStore()
-const gateway = useGatewayStore()
 const route = useRoute()
 const router = useRouter()
 
 onMounted(async () => {
   if (accounts.lastFetchedAt === null && !accounts.loading) await accounts.fetchAccounts()
-  gateway.connect()
   if (route.query.commands === 'open' && accounts.accounts.length > 0) {
     await nextTick()
     openCommandPalette()
@@ -25,10 +22,6 @@ onMounted(async () => {
     delete query.commands
     void router.replace({ query })
   }
-})
-
-onBeforeUnmount(() => {
-  gateway.disconnect()
 })
 </script>
 
