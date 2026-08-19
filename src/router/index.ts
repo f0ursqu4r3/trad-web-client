@@ -36,8 +36,18 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresAdmin: true, layout: 'control' },
   },
   {
-    path: '/admin/:section(operations|users|accounts|execution|audit)',
+    path: '/admin/:section(operations|users|accounts|commerce|execution|audit)',
     component: () => import('@/views/admin/AdminView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      layout: 'control',
+      controlArea: 'admin',
+    },
+  },
+  {
+    path: '/admin/users/:userId',
+    component: () => import('@/views/admin/UserAdminDetail.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: true,

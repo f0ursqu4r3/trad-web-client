@@ -32,6 +32,11 @@ test('settings and administrator control plane are navigable', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'Authorization & fees' })).toBeVisible()
   await expect(page.getByText('Agent wallet', { exact: true })).toBeVisible()
 
+  await page.getByRole('link', { name: 'Billing', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Billing' })).toBeVisible()
+  await expect(page.getByText('Private beta', { exact: true })).toBeVisible()
+  await expect(page.getByText('Invoices', { exact: true })).toBeVisible()
+
   await page.getByRole('link', { name: 'Users & access' }).click()
   await expect(page.getByRole('heading', { name: 'Users & access' })).toBeVisible()
   await expect(page.getByText('kriocrypto@gmail.com')).toBeVisible()
@@ -39,6 +44,10 @@ test('settings and administrator control plane are navigable', async ({ page }) 
   await page.getByRole('link', { name: 'Execution policy' }).click()
   await expect(page.getByRole('heading', { name: 'Execution policy' })).toBeVisible()
   await expect(page.getByText('10.0 bps / 0.100%')).toBeVisible()
+
+  await page.getByRole('link', { name: 'Plans & billing' }).click()
+  await expect(page.getByRole('heading', { name: 'Plans & billing' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'Private beta' })).toBeVisible()
 
   await page.screenshot({ path: 'test-results/settings-control-plane.png', fullPage: true })
   expect(pageErrors).toEqual([])

@@ -6,6 +6,7 @@ import UsersAdmin from './UsersAdmin.vue'
 import AccountsAdmin from './AccountsAdmin.vue'
 import ExecutionAdmin from './ExecutionAdmin.vue'
 import AuditAdmin from './AuditAdmin.vue'
+import CommerceAdmin from './CommerceAdmin.vue'
 
 const route = useRoute()
 const pages = {
@@ -14,6 +15,7 @@ const pages = {
   accounts: AccountsAdmin,
   execution: ExecutionAdmin,
   audit: AuditAdmin,
+  commerce: CommerceAdmin,
 }
 const page = computed(
   () => pages[String(route.params.section) as keyof typeof pages] || OperationsAdmin,

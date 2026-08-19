@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useAdminStore, type AdminUser } from '@/stores/admin'
 import { useUserStore } from '@/stores/user'
 import ControlPageHeader from '@/components/control/ControlPageHeader.vue'
@@ -58,7 +59,7 @@ onMounted(() => admin.fetchUsers())
         <tbody>
           <tr v-for="user in filtered" :key="user.user_id">
             <td>
-              <div>{{ user.email }}</div>
+              <RouterLink :to="`/admin/users/${user.user_id}`" class="text-link">{{ user.email }}</RouterLink>
               <span v-if="user.user_id === currentUser.userId" class="text-[10px] dim">you</span>
             </td>
             <td>
@@ -96,9 +97,8 @@ onMounted(() => admin.fetchUsers())
               </select>
             </td>
             <td>
-              <span class="pill" :class="user.entitled ? 'pill-ok' : 'pill-err'">{{
-                user.subscription_status || 'none'
-              }}</span>
+              <span class="pill" :class="user.entitled ? 'pill-ok' : 'pill-err'">{{ user.plan_key ? `${user.plan_key} v${user.plan_version}` : user.entitlement_source.replace(/_/g, ' ') }}</span>
+              <div class="text-[10px] dim">{{ user.subscription_status || 'no Stripe subscription' }}</div>
             </td>
             <td>{{ user.account_count }}</td>
             <td>

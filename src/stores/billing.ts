@@ -41,11 +41,68 @@ export interface PricingPlan {
   highlighted?: boolean
 }
 
+export type CommercialCapability =
+  | 'terminal_access'
+  | 'advanced_order_types'
+  | 'custom_alerts'
+  | 'webhook_access'
+  | 'api_access'
+  | 'custom_integrations'
+
+export interface CommercialPlan {
+  key: string
+  version: number
+  display_name: string
+  state: 'draft' | 'active' | 'retired'
+  max_accounts: number | null
+  builder_target_total_tenths_bps: number
+  capabilities: CommercialCapability[]
+}
+
+export interface EffectiveEntitlement {
+  entitled: boolean
+  source: string
+  reason: string
+  plan: CommercialPlan | null
+  subscription_status: string | null
+  grant_id: string | null
+  resolved_at: string
+}
+
+export interface EntitlementUsage {
+  entitlement: EffectiveEntitlement
+  account_count: number
+}
+
+export interface BillingInvoice {
+  stripe_invoice_id: string
+  amount_due: number
+  amount_paid: number
+  currency?: string
+  status?: string
+  period_start: string
+  period_end: string
+  created_at: string
+}
+
+export interface BillingOperation {
+  id: string
+  kind: string
+  state: string
+  stripe_object_id: string | null
+  error: string | null
+  created_at: string
+}
+
 export const useBillingStore = defineStore('billing', () => {
   const { isAuthenticated } = useAuth()
 
   const billingInfo = ref<BillingInfo | null>(null)
   const plans = ref<PricingPlan[]>([])
+  const commercialPlans = ref<CommercialPlan[]>([])
+  const entitlementUsage = ref<EntitlementUsage | null>(null)
+  const invoices = ref<BillingInvoice[]>([])
+  const operations = ref<BillingOperation[]>([])
   const checkoutLoading = ref(false)
 
   async function fetchBillingInfo() {
@@ -65,15 +122,47 @@ export const useBillingStore = defineStore('billing', () => {
     try {
       const data = await apiGet<PricingPlan[]>('/billing/plans', { throwOnHTTPError: false })
       if (!data || data.length === 0) {
-        plans.value = getDefaultPlans()
+        plans.value = []
         return
       }
       plans.value = normalizePlans(data)
     } catch (err) {
       logger.warn('Failed to fetch plans', err)
-      // Fallback to hardcoded plans if API fails
-      plans.value = getDefaultPlans()
+      plans.value = []
     }
+  }
+
+  async function fetchEntitlement() {
+    if (!isAuthenticated.value) return
+    entitlementUsage.value = await apiGet<EntitlementUsage>('/billing/entitlement', {
+      throwOnHTTPError: true,
+    })
+  }
+
+  async function fetchCommercialPlans() {
+    commercialPlans.value = await apiGet<CommercialPlan[]>('/billing/commercial-plans', {
+      throwOnHTTPError: true,
+    })
+  }
+
+  async function fetchInvoices() {
+    invoices.value = await apiGet<BillingInvoice[]>('/billing/invoices', {
+      throwOnHTTPError: true,
+    })
+  }
+
+  async function fetchOperations() {
+    operations.value = await apiGet<BillingOperation[]>('/billing/operations', {
+      throwOnHTTPError: true,
+    })
+  }
+
+  async function executeOperation(request: Record<string, unknown>) {
+    await apiPost('/billing/operations', request, {
+      throwOnHTTPError: true,
+      headers: { 'Idempotency-Key': crypto.randomUUID() },
+    })
+    await Promise.all([fetchBillingInfo(), fetchEntitlement(), fetchOperations()])
   }
 
   async function createCheckoutSession(priceId: string) {
@@ -109,8 +198,11 @@ export const useBillingStore = defineStore('billing', () => {
   watch(
     () => isAuthenticated.value,
     (authenticated) => {
-      if (authenticated) fetchBillingInfo()
-      else billingInfo.value = null
+      if (authenticated) Promise.all([fetchBillingInfo(), fetchEntitlement()])
+      else {
+        billingInfo.value = null
+        entitlementUsage.value = null
+      }
     },
     { immediate: true },
   )
@@ -119,103 +211,45 @@ export const useBillingStore = defineStore('billing', () => {
     // state
     billingInfo,
     plans,
+    commercialPlans,
+    entitlementUsage,
+    invoices,
+    operations,
     checkoutLoading,
     // actions
     fetchBillingInfo,
     fetchPlans,
+    fetchEntitlement,
+    fetchCommercialPlans,
+    fetchInvoices,
+    fetchOperations,
+    executeOperation,
     createCheckoutSession,
     openCustomerPortal,
   }
 })
 
-// Default/fallback plans - customize these to match your Stripe products
-function getDefaultPlans(): PricingPlan[] {
-  return [
-    {
-      price_id: import.meta.env.VITE_STRIPE_PRICE_STARTER || 'price_starter',
-      name: 'Starter',
-      description: 'Perfect for individual traders getting started',
-      currency: 'USD',
-      unit_amount: 2900,
-      interval: 'month',
-      interval_count: 1,
-      features: [
-        '1 trading account',
-        'Basic order types',
-        'Real-time market data',
-        'Email support',
-      ],
-    },
-    {
-      price_id: import.meta.env.VITE_STRIPE_PRICE_PRO || 'price_pro',
-      name: 'Pro',
-      description: 'For serious traders who need more power',
-      currency: 'USD',
-      unit_amount: 7900,
-      interval: 'month',
-      interval_count: 1,
-      features: [
-        '5 trading accounts',
-        'Advanced order types',
-        'Real-time market data',
-        'Priority support',
-        'Custom alerts',
-        'API access',
-      ],
-      highlighted: true,
-    },
-    {
-      price_id: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE || 'price_enterprise',
-      name: 'Enterprise',
-      description: 'Full power for professional trading operations',
-      currency: 'USD',
-      unit_amount: 19900,
-      interval: 'month',
-      interval_count: 1,
-      features: [
-        'Unlimited trading accounts',
-        'All order types',
-        'Real-time market data',
-        'Dedicated support',
-        'Custom alerts & webhooks',
-        'Full API access',
-        'Custom integrations',
-      ],
-    },
-  ]
-}
-
 function normalizePlans(remotePlans: PricingPlan[]): PricingPlan[] {
-  const fallbackPlans = getDefaultPlans()
-  const fallbackById = new Map(fallbackPlans.map((plan) => [plan.price_id, plan]))
-  const fallbackByName = new Map(
-    fallbackPlans.map((plan) => [plan.name.toLowerCase(), plan]),
-  )
-
   return remotePlans.map((plan) => {
-    const fallback =
-      fallbackById.get(plan.price_id) || fallbackByName.get(plan.name?.toLowerCase() || '')
-    const features = normalizeFeatures(plan.features, fallback?.features)
+    const features = normalizeFeatures(plan.features)
     return {
       price_id: plan.price_id,
-      product_id: plan.product_id ?? fallback?.product_id ?? null,
-      name: plan.name || fallback?.name || 'Plan',
-      description: plan.description ?? fallback?.description ?? null,
-      currency: plan.currency ?? fallback?.currency ?? 'USD',
-      unit_amount: plan.unit_amount ?? fallback?.unit_amount ?? null,
-      interval: plan.interval ?? fallback?.interval ?? 'month',
-      interval_count: plan.interval_count ?? fallback?.interval_count ?? 1,
+      product_id: plan.product_id ?? null,
+      name: plan.name || 'Plan',
+      description: plan.description ?? null,
+      currency: plan.currency ?? 'USD',
+      unit_amount: plan.unit_amount ?? null,
+      interval: plan.interval ?? 'month',
+      interval_count: plan.interval_count ?? 1,
       features,
-      highlighted: plan.highlighted ?? fallback?.highlighted ?? false,
+      highlighted: plan.highlighted ?? false,
     }
   })
 }
 
 function normalizeFeatures(
   raw: PricingPlan['features'],
-  fallback: PricingPlan['features'],
 ): string[] | undefined {
   if (Array.isArray(raw)) return raw.filter((item): item is string => typeof item === 'string')
-  if (Array.isArray(fallback)) return fallback
   return undefined
 }

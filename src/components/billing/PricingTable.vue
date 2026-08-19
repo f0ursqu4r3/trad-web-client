@@ -48,7 +48,10 @@ const isCurrentPlan = (plan: PricingPlan) => {
 </script>
 
 <template>
-  <div class="pricing-grid my-8">
+  <p v-if="plans.length === 0" class="notice-info my-8">
+    No purchasable plans are configured. Contact a Trad administrator.
+  </p>
+  <div v-else class="pricing-grid my-8">
     <div
       v-for="plan in plans"
       :key="plan.price_id"
@@ -97,9 +100,8 @@ const isCurrentPlan = (plan: PricingPlan) => {
 
 <style scoped>
 .pricing-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -114,7 +116,13 @@ const isCurrentPlan = (plan: PricingPlan) => {
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
-  max-width: 320px;
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .pricing-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .pricing-plan:hover {

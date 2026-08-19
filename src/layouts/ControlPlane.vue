@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
   Activity,
+  Boxes,
   BadgeDollarSign,
   BookOpenCheck,
   CreditCard,
@@ -22,6 +23,8 @@ const brand = resolveEnvironmentBranding(window.location.hostname)
 const section = computed(() =>
   route.path.startsWith('/settings/accounts/')
     ? 'accounts'
+    : route.path.startsWith('/admin/users/')
+      ? 'users'
     : String(route.params.section || 'profile'),
 )
 const area = computed(() => String(route.meta.controlArea || 'settings'))
@@ -37,6 +40,7 @@ const admin = [
   { key: 'operations', label: 'Operations', icon: Activity },
   { key: 'users', label: 'Users & access', icon: UsersRound },
   { key: 'accounts', label: 'Account health', icon: MonitorCog },
+  { key: 'commerce', label: 'Plans & billing', icon: Boxes },
   { key: 'execution', label: 'Execution policy', icon: BadgeDollarSign },
   { key: 'audit', label: 'Audit history', icon: BookOpenCheck },
 ]
