@@ -34,8 +34,9 @@ export const useUserStore = defineStore('user', () => {
   const isServerAuthenticated = ref<boolean>(false)
   const entitled = ref<boolean | null>(null)
   const enabled = ref(true)
-  const role = ref<'user' | 'admin'>('user')
+  const role = ref<'user' | 'admin' | 'super_admin'>('user')
   const capabilities = ref<string[]>([])
+  let fetchInFlight: Promise<void> | null = null
 
   const displayName = computed(
     () =>
@@ -44,14 +45,22 @@ export const useUserStore = defineStore('user', () => {
       userId.value ||
       (isAuthenticated.value ? 'authenticated user' : 'guest'),
   )
-  const isAdmin = computed(() => role.value === 'admin' || capabilities.value.includes('admin'))
+  const isAdmin = computed(
+    () =>
+      role.value === 'admin' ||
+      role.value === 'super_admin' ||
+      capabilities.value.includes('admin'),
+  )
+  const isSuperAdmin = computed(
+    () => role.value === 'super_admin' || capabilities.value.includes('manage_super_admins'),
+  )
 
   interface MeResponseShape {
     email: string
     user_id: string
     entitled?: boolean
     enabled?: boolean
-    role?: 'user' | 'admin'
+    role?: 'user' | 'admin' | 'super_admin'
     capabilities?: string[]
     client_profile: ClientProfile
     accounts: AccountRecord[]
@@ -59,7 +68,7 @@ export const useUserStore = defineStore('user', () => {
     code?: string
   }
 
-  async function fetchMe() {
+  async function fetchMeRequest() {
     if (!isAuthenticated.value) return
     loading.value = true
     error.value = null
@@ -144,6 +153,16 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  function fetchMe(): Promise<void> {
+    if (fetchInFlight) return fetchInFlight
+    const request = fetchMeRequest()
+    fetchInFlight = request
+    void request.finally(() => {
+      if (fetchInFlight === request) fetchInFlight = null
+    })
+    return request
+  }
+
   async function saveProfile() {
     if (!isAuthenticated.value) return
     const uiStore = useUiStore()
@@ -202,6 +221,7 @@ export const useUserStore = defineStore('user', () => {
     // getters
     displayName,
     isAdmin,
+    isSuperAdmin,
     // actions
     saveProfile,
     fetchMe,

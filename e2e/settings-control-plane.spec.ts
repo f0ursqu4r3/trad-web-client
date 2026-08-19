@@ -43,3 +43,27 @@ test('settings and administrator control plane are navigable', async ({ page }) 
   await page.screenshot({ path: 'test-results/settings-control-plane.png', fullPage: true })
   expect(pageErrors).toEqual([])
 })
+
+test('super-admin role controls are capability-scoped', async ({ page }) => {
+  await page.goto('/auth/test-login?email=668es218pur%40gmail.com&return_to=%2Fadmin%2Fusers')
+  const table = page.getByTestId('admin-user-table')
+  const owner = table.getByRole('row').filter({ hasText: '668es218pur@gmail.com' })
+  const delegatedAdmin = table.getByRole('row').filter({ hasText: 'kriocrypto@gmail.com' })
+  await expect(owner.locator('select').first()).toHaveValue('super_admin')
+  await expect(owner.locator('select').first()).toBeDisabled()
+  await expect(delegatedAdmin.locator('select').first()).toHaveValue('admin')
+  await expect(
+    delegatedAdmin.locator('select').first().locator('option[value="super_admin"]'),
+  ).toHaveCount(1)
+
+  await page.goto('/auth/test-login?email=kriocrypto%40gmail.com&return_to=%2Fadmin%2Fusers')
+  const adminTable = page.getByTestId('admin-user-table')
+  const protectedOwner = adminTable.getByRole('row').filter({ hasText: '668es218pur@gmail.com' })
+  const ordinaryUser = adminTable.getByRole('row').filter({ hasText: 'dev@trad.local' })
+  await expect(protectedOwner.locator('select').first()).toHaveValue('super_admin')
+  await expect(protectedOwner.locator('select').first()).toBeDisabled()
+  await expect(protectedOwner.getByRole('button', { name: 'Save' })).toBeDisabled()
+  await expect(
+    ordinaryUser.locator('select').first().locator('option[value="super_admin"]'),
+  ).toHaveCount(0)
+})

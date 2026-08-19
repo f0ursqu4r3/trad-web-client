@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useAdminStore, type AdminUser } from '@/stores/admin'
+import { useUserStore } from '@/stores/user'
 import ControlPageHeader from '@/components/control/ControlPageHeader.vue'
 import ControlSection from '@/components/control/ControlSection.vue'
 
 const admin = useAdminStore()
+const currentUser = useUserStore()
 const query = ref('')
 const saving = ref<string | null>(null)
 const filtered = computed(() =>
@@ -17,6 +19,12 @@ async function save(user: AdminUser) {
   } finally {
     saving.value = null
   }
+}
+function canModify(user: AdminUser): boolean {
+  return currentUser.isSuperAdmin || user.role !== 'super_admin'
+}
+function canChangeRoleOrEnabled(user: AdminUser): boolean {
+  return canModify(user) && user.user_id !== currentUser.userId
 }
 onMounted(() => admin.fetchUsers())
 </script>
@@ -34,7 +42,7 @@ onMounted(() => admin.fetchUsers())
         placeholder="Filter by email"
     /></template>
     <div class="overflow-x-auto">
-      <table class="table-tiny table-compact min-w-[880px]">
+      <table class="table-tiny table-compact min-w-[880px]" data-testid="admin-user-table">
         <thead>
           <tr>
             <th>Email</th>
@@ -49,16 +57,39 @@ onMounted(() => admin.fetchUsers())
         </thead>
         <tbody>
           <tr v-for="user in filtered" :key="user.user_id">
-            <td>{{ user.email }}</td>
             <td>
-              <select v-model="user.role" class="input h-7 text-xs">
+              <div>{{ user.email }}</div>
+              <span v-if="user.user_id === currentUser.userId" class="text-[10px] dim">you</span>
+            </td>
+            <td>
+              <select
+                v-model="user.role"
+                class="input h-7 text-xs"
+                :disabled="!canChangeRoleOrEnabled(user)"
+              >
                 <option value="user">user</option>
                 <option value="admin">admin</option>
+                <option
+                  v-if="currentUser.isSuperAdmin || user.role === 'super_admin'"
+                  value="super_admin"
+                >
+                  super admin
+                </option>
               </select>
             </td>
-            <td><input v-model="user.enabled" type="checkbox" /></td>
             <td>
-              <select v-model="user.entitlement_override" class="input h-7 text-xs">
+              <input
+                v-model="user.enabled"
+                type="checkbox"
+                :disabled="!canChangeRoleOrEnabled(user)"
+              />
+            </td>
+            <td>
+              <select
+                v-model="user.entitlement_override"
+                class="input h-7 text-xs"
+                :disabled="!canModify(user)"
+              >
                 <option :value="null">Stripe</option>
                 <option :value="true">Always allow</option>
                 <option :value="false">Always deny</option>
@@ -76,7 +107,7 @@ onMounted(() => admin.fetchUsers())
             <td>
               <button
                 class="btn btn-secondary btn-xs"
-                :disabled="saving === user.user_id"
+                :disabled="saving === user.user_id || !canModify(user)"
                 @click="save(user)"
               >
                 Save

@@ -129,9 +129,7 @@ router.beforeEach(async (to) => {
 
   if (to.meta.requiresEntitlement && authed) {
     const userStore = useUserStore()
-    if (!userStore.lastFetchedAt && !userStore.loading) {
-      await userStore.fetchMe()
-    }
+    if (!userStore.lastFetchedAt) await userStore.fetchMe()
     if (userStore.entitled === false) {
       return { path: '/subscriptions', query: { redirect: to.fullPath } }
     }
@@ -139,7 +137,7 @@ router.beforeEach(async (to) => {
 
   if (to.meta.requiresAdmin && authed) {
     const userStore = useUserStore()
-    if (!userStore.lastFetchedAt && !userStore.loading) await userStore.fetchMe()
+    if (!userStore.lastFetchedAt) await userStore.fetchMe()
     if (!userStore.isAdmin) return { path: '/settings/profile' }
   }
 

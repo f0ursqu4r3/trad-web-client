@@ -13,7 +13,7 @@ export interface AdminOverview {
 export interface AdminUser {
   user_id: string
   email: string
-  role: 'user' | 'admin'
+  role: 'user' | 'admin' | 'super_admin'
   enabled: boolean
   entitlement_override: boolean | null
   subscription_status: string | null
