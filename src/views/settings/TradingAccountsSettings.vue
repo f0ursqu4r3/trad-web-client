@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-vue-next'
+import { Plus, RefreshCw, SquarePen, Trash2 } from 'lucide-vue-next'
 import ControlPageHeader from '@/components/control/ControlPageHeader.vue'
 import ControlSection from '@/components/control/ControlSection.vue'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
@@ -196,7 +196,7 @@ onMounted(async () => {
                   :title="ready(account) ? 'Manage account' : 'Finish account setup'"
                   @click="accounts.selectedAccountId = account.id"
                 >
-                  <Pencil :size="14" />
+                  <SquarePen :size="14" />
                 </RouterLink>
                 <button
                   type="button"
@@ -280,6 +280,11 @@ onMounted(async () => {
   color: var(--fg-strong);
 }
 .account-row-action--danger {
+  color: var(--state-error);
+}
+.account-row-action--danger:hover {
+  border-color: color-mix(in srgb, var(--state-error) 45%, var(--border-normal));
+  background: color-mix(in srgb, var(--state-error) 8%, transparent);
   color: var(--state-error);
 }
 .account-row-action:disabled {
