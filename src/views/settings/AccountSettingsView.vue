@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { ArrowLeft } from 'lucide-vue-next'
 import AccountsListPanel from '@/components/terminal/panels/AccountsListPanel.vue'
@@ -52,6 +52,7 @@ const tabs: { key: AccountSection; label: string }[] = [
   { key: 'authorization', label: 'Authorization' },
   { key: 'danger', label: 'Danger zone' },
 ]
+const sectionTransition = ref('account-section-forward')
 
 function selectCurrent() {
   if (account.value) accounts.selectedAccountId = account.value.id
@@ -62,6 +63,12 @@ onMounted(async () => {
   selectCurrent()
 })
 watch(account, selectCurrent)
+watch(section, (next, previous) => {
+  const nextIndex = tabs.findIndex((tab) => tab.key === next)
+  const previousIndex = tabs.findIndex((tab) => tab.key === previous)
+  sectionTransition.value =
+    nextIndex < previousIndex ? 'account-section-backward' : 'account-section-forward'
+})
 </script>
 
 <template>
@@ -92,7 +99,7 @@ watch(account, selectCurrent)
         </RouterLink>
       </nav>
 
-      <Transition name="account-section" mode="out-in">
+      <Transition :name="sectionTransition" mode="out-in">
         <section :key="section" class="account-section-view">
           <div v-if="section === 'setup' && !setupComplete" class="account-section-intro">
             <strong>Guided account setup</strong>
@@ -168,7 +175,7 @@ watch(account, selectCurrent)
   margin-bottom: 0.9rem;
   padding: 0 0.45rem;
   overflow-x: auto;
-  border-bottom: 1px solid var(--border-normal);
+  border-bottom: 1px solid var(--border-subtle);
 }
 .account-tab {
   flex: 0 0 auto;
@@ -223,24 +230,36 @@ watch(account, selectCurrent)
   border-left-color: var(--state-error);
   background: color-mix(in srgb, var(--state-error) 6%, var(--surface-base));
 }
-.account-section-enter-active,
-.account-section-leave-active {
+.account-section-forward-enter-active,
+.account-section-forward-leave-active,
+.account-section-backward-enter-active,
+.account-section-backward-leave-active {
   transition:
     opacity 110ms ease,
     transform 110ms ease;
 }
-.account-section-enter-from {
+.account-section-forward-enter-from {
   opacity: 0;
   transform: translateX(6px);
 }
-.account-section-leave-to {
+.account-section-forward-leave-to {
   opacity: 0;
   transform: translateX(-4px);
 }
+.account-section-backward-enter-from {
+  opacity: 0;
+  transform: translateX(-6px);
+}
+.account-section-backward-leave-to {
+  opacity: 0;
+  transform: translateX(4px);
+}
 @media (prefers-reduced-motion: reduce) {
   .account-tab,
-  .account-section-enter-active,
-  .account-section-leave-active {
+  .account-section-forward-enter-active,
+  .account-section-forward-leave-active,
+  .account-section-backward-enter-active,
+  .account-section-backward-leave-active {
     transition: none;
   }
 }
