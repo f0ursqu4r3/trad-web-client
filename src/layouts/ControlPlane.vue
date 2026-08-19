@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   Activity,
   Boxes,
@@ -16,8 +16,10 @@ import {
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { resolveEnvironmentBranding } from '@/lib/environmentBranding'
+import GuidedPointer from '@/components/general/GuidedPointer.vue'
 
 const route = useRoute()
+const router = useRouter()
 const user = useUserStore()
 const brand = resolveEnvironmentBranding(window.location.hostname)
 const section = computed(() =>
@@ -25,9 +27,12 @@ const section = computed(() =>
     ? 'accounts'
     : route.path.startsWith('/admin/users/')
       ? 'users'
-    : String(route.params.section || 'profile'),
+      : String(route.params.section || 'profile'),
 )
 const area = computed(() => String(route.meta.controlArea || 'settings'))
+const touringToAccounts = computed(
+  () => route.path === '/settings/profile' && route.query.tour === 'accounts',
+)
 
 const settings = [
   { key: 'profile', label: 'Profile', icon: UserRound },
@@ -44,6 +49,10 @@ const admin = [
   { key: 'execution', label: 'Execution policy', icon: BadgeDollarSign },
   { key: 'audit', label: 'Audit history', icon: BookOpenCheck },
 ]
+
+function openTradingAccounts(): void {
+  void router.push({ path: '/settings/accounts', query: { tour: 'new-account' } })
+}
 </script>
 
 <template>
@@ -61,6 +70,7 @@ const admin = [
           :to="`/settings/${item.key}`"
           class="control-nav-item"
           :class="{ active: area === 'settings' && section === item.key }"
+          :data-tour="item.key === 'accounts' ? 'trading-accounts' : undefined"
         >
           <component :is="item.icon" :size="14" /><span>{{ item.label }}</span>
         </RouterLink>
@@ -88,9 +98,16 @@ const admin = [
       <header class="control-topbar">
         <RouterLink to="/terminal" class="btn btn-secondary btn-sm">← Terminal</RouterLink>
         <span class="muted">Configuration changes apply to this Trad environment only.</span>
+        <span class="control-tour-origin" data-tour="control-origin" aria-hidden="true"></span>
       </header>
       <div class="control-content"><slot /></div>
     </main>
+    <GuidedPointer
+      v-if="touringToAccounts"
+      source-selector="[data-tour='control-origin']"
+      target-selector="[data-tour='trading-accounts']"
+      @arrive="openTradingAccounts"
+    />
   </div>
 </template>
 
@@ -195,6 +212,13 @@ const admin = [
   background: color-mix(in srgb, var(--surface-muted) 94%, transparent);
   backdrop-filter: blur(8px);
   font-size: 11px;
+}
+.control-tour-origin {
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  width: 1px;
+  height: 1px;
 }
 .control-content {
   width: min(1180px, 100%);

@@ -1,11 +1,22 @@
 <script setup lang="ts">
-import { MousePointer2, Settings, WalletCards, Plus } from 'lucide-vue-next'
+import { ref } from 'vue'
+import { Settings, WalletCards, Plus } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
+import GuidedPointer from '@/components/general/GuidedPointer.vue'
 
 const router = useRouter()
+const touring = ref(false)
 
 function startSetup(): void {
-  void router.push({ path: '/settings/accounts', query: { create: '1' } })
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    void router.push({ path: '/settings/accounts', query: { create: '1' } })
+    return
+  }
+  touring.value = true
+}
+
+function openSettings(): void {
+  void router.push({ path: '/settings/profile', query: { tour: 'accounts' } })
 }
 </script>
 
@@ -24,15 +35,25 @@ function startSetup(): void {
         <span><WalletCards :size="13" /> Trading accounts</span>
         <i>→</i>
         <span><Plus :size="13" /> New account</span>
-        <MousePointer2 class="terminal-empty-pointer" :size="17" />
       </div>
-      <button class="btn btn-primary terminal-empty-action" type="button" @click="startSetup">
-        <Plus :size="14" /> Add trading account
+      <button
+        class="btn btn-primary terminal-empty-action"
+        type="button"
+        :disabled="touring"
+        @click="startSetup"
+      >
+        <Plus :size="14" /> {{ touring ? 'Opening settings…' : 'Add trading account' }}
       </button>
       <small
         >You can return to the terminal at any time. Nothing is submitted until you save.</small
       >
     </section>
+    <GuidedPointer
+      v-if="touring"
+      source-selector=".terminal-empty-action"
+      target-selector="[data-tour='terminal-settings']"
+      @arrive="openSettings"
+    />
   </main>
 </template>
 
@@ -105,14 +126,6 @@ p {
   color: var(--fg-disabled);
   font-style: normal;
 }
-.terminal-empty-pointer {
-  position: absolute;
-  right: 7%;
-  bottom: -7px;
-  color: var(--state-warning);
-  filter: drop-shadow(0 1px 1px #000);
-  animation: setup-pointer 2.8s ease-in-out infinite;
-}
 .terminal-empty-action {
   display: inline-flex;
   align-items: center;
@@ -125,25 +138,6 @@ small {
   margin-top: 0.8rem;
   color: var(--fg-disabled);
   font-size: 10px;
-}
-@keyframes setup-pointer {
-  0%,
-  18% {
-    transform: translateX(-315px) translateY(0);
-  }
-  42%,
-  58% {
-    transform: translateX(-160px) translateY(0);
-  }
-  82%,
-  100% {
-    transform: translateX(0) translateY(0);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .terminal-empty-pointer {
-    animation: none;
-  }
 }
 @media (max-width: 620px) {
   .terminal-empty-state {
@@ -158,9 +152,6 @@ small {
   }
   .terminal-empty-route i {
     transform: rotate(90deg);
-  }
-  .terminal-empty-pointer {
-    display: none;
   }
 }
 </style>

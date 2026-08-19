@@ -112,12 +112,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeys))
         <div class="toolbar-section">
           <WsIndicator />
           <button
-            class="btn icon-btn"
+            class="btn btn-ghost settings-button"
+            data-tour="terminal-settings"
             @click="router.push('/settings/profile')"
             title="Settings"
-            aria-label="Settings"
           >
-            <Settings :size="12" />
+            <Settings :size="12" /> Settings
           </button>
         </div>
       </div>

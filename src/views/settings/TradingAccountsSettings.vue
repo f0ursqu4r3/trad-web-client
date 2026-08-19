@@ -15,12 +15,14 @@ import {
 } from '@/stores/accounts'
 import { accountColorFromId } from '@/lib/accountColors'
 import { ExchangeType } from '@/lib/ws/protocol'
+import GuidedPointer from '@/components/general/GuidedPointer.vue'
 
 const accounts = useAccountsStore()
 const route = useRoute()
 const router = useRouter()
 const query = ref('')
 const createOpen = ref(false)
+const touringToNewAccount = computed(() => route.query.tour === 'new-account')
 const rows = computed(() => {
   const needle = query.value.trim().toLowerCase()
   return accounts.accounts.filter((account) =>
@@ -48,6 +50,13 @@ function builderStatus(account: AccountRecord): string {
 
 function manageRoute(account: AccountRecord): string {
   return `/settings/accounts/${account.id}/${ready(account) ? 'overview' : 'setup'}`
+}
+
+function finishAccountTour(): void {
+  createOpen.value = true
+  const query = { ...route.query }
+  delete query.tour
+  void router.replace({ query })
 }
 
 onMounted(async () => {
@@ -84,7 +93,7 @@ onMounted(async () => {
       >
         <RefreshCw :size="13" /> Refresh
       </button>
-      <button class="btn btn-primary btn-sm" @click="createOpen = true">
+      <button class="btn btn-primary btn-sm" data-tour="new-account" @click="createOpen = true">
         <Plus :size="13" /> New account
       </button>
     </template>
@@ -165,6 +174,12 @@ onMounted(async () => {
       </button>
     </div>
   </ControlSection>
+  <GuidedPointer
+    v-if="touringToNewAccount"
+    source-selector="[data-tour='trading-accounts']"
+    target-selector="[data-tour='new-account']"
+    @arrive="finishAccountTour"
+  />
   <CreateAccountModal :open="createOpen" @close="createOpen = false" />
 </template>
 

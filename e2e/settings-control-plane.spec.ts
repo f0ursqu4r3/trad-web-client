@@ -76,3 +76,27 @@ test('super-admin role controls are capability-scoped', async ({ page }) => {
     ordinaryUser.locator('select').first().locator('option[value="super_admin"]'),
   ).toHaveCount(0)
 })
+
+test('zero-account onboarding tours through the real settings controls', async ({ page }) => {
+  const visited: string[] = []
+  page.on('framenavigated', (frame) => {
+    if (frame === page.mainFrame()) visited.push(new URL(frame.url()).pathname)
+  })
+  await page.route('**/api/accounts', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+      return
+    }
+    await route.continue()
+  })
+
+  await page.goto('/auth/test-login?email=dev%40trad.local&return_to=%2Fterminal')
+  await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible()
+  await page.getByRole('button', { name: 'Add trading account' }).click()
+
+  await expect(page.getByRole('dialog', { name: 'Create Account' })).toBeVisible({
+    timeout: 6_000,
+  })
+  expect(visited).toContain('/settings/profile')
+  expect(visited).toContain('/settings/accounts')
+})
