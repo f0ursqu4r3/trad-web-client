@@ -15,14 +15,12 @@ import {
   WalletCards,
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
-import { resolveEnvironmentBranding } from '@/lib/environmentBranding'
 import GuidedPointer from '@/components/general/GuidedPointer.vue'
-import UserAccountMenu from '@/components/general/UserAccountMenu.vue'
+import AppHeader from '@/components/general/AppHeader.vue'
 
 const route = useRoute()
 const router = useRouter()
 const user = useUserStore()
-const brand = resolveEnvironmentBranding(window.location.hostname)
 const section = computed(() =>
   route.path.startsWith('/settings/accounts/')
     ? 'accounts'
@@ -58,11 +56,9 @@ function openTradingAccounts(): void {
 
 <template>
   <div class="control-shell">
+    <AppHeader class="control-app-header" />
+    <span class="control-tour-origin" data-tour="control-origin" aria-hidden="true"></span>
     <aside class="control-sidebar">
-      <RouterLink to="/terminal" class="control-brand">
-        <img :src="brand.appIconPath" alt="TRAD" />
-        <span>TRAD CONTROL</span>
-      </RouterLink>
       <nav aria-label="Settings">
         <div class="control-nav-label">User settings</div>
         <RouterLink
@@ -96,12 +92,6 @@ function openTradingAccounts(): void {
       </div>
     </aside>
     <main class="control-main">
-      <header class="control-topbar">
-        <RouterLink to="/terminal" class="btn btn-secondary btn-sm">← Terminal</RouterLink>
-        <span class="muted">Configuration changes apply to this Trad environment only.</span>
-        <span class="control-account-menu"><UserAccountMenu /></span>
-        <span class="control-tour-origin" data-tour="control-origin" aria-hidden="true"></span>
-      </header>
       <div class="control-content"><slot /></div>
     </main>
     <GuidedPointer
@@ -117,32 +107,24 @@ function openTradingAccounts(): void {
 .control-shell {
   display: grid;
   grid-template-columns: 238px minmax(0, 1fr);
+  grid-template-rows: 46px minmax(0, 1fr);
   min-height: 100vh;
   background: var(--surface-canvas);
 }
-.control-sidebar {
+.control-app-header {
   position: sticky;
   top: 0;
+  z-index: 10;
+  grid-column: 1 / -1;
+}
+.control-sidebar {
+  position: sticky;
+  top: 46px;
   display: flex;
-  height: 100vh;
+  height: calc(100vh - 46px);
   flex-direction: column;
   border-right: 1px solid var(--border-normal);
-  background: var(--surface-base);
-}
-.control-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  height: 56px;
-  padding: 0 0.85rem;
-  border-bottom: 1px solid var(--border-subtle);
-  color: var(--fg-strong);
-  font-size: 14px;
-  letter-spacing: 0.08em;
-}
-.control-brand img {
-  width: 24px;
-  height: 24px;
+  background: var(--surface-muted);
 }
 .control-sidebar nav {
   padding: 0.75rem 0.5rem 0;
@@ -200,36 +182,13 @@ function openTradingAccounts(): void {
 }
 .control-main {
   min-width: 0;
-}
-.control-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: grid;
-  min-height: 56px;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0 1rem;
-  border-bottom: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--surface-muted) 94%, transparent);
-  backdrop-filter: blur(8px);
-  font-size: 12px;
-}
-.control-account-menu {
-  justify-self: end;
-}
-.control-topbar > .btn {
-  justify-self: start;
-}
-.control-topbar > .muted {
-  justify-self: center;
-  text-align: center;
+  grid-column: 2;
+  grid-row: 2;
 }
 .control-tour-origin {
-  position: absolute;
-  top: 50%;
+  position: fixed;
+  z-index: 11;
+  top: 23px;
   right: 1rem;
   width: 1px;
   height: 1px;
@@ -242,27 +201,16 @@ function openTradingAccounts(): void {
   .control-shell {
     grid-template-columns: 58px minmax(0, 1fr);
   }
-  .control-brand span,
   .control-nav-item span,
   .control-nav-label,
   .control-sidebar-footer span:not(.pill) {
     display: none;
   }
-  .control-brand,
   .control-nav-item {
     justify-content: center;
   }
   .control-content {
     padding: 0.75rem;
-  }
-  .control-topbar .muted {
-    display: none;
-  }
-  .control-topbar {
-    grid-template-columns: 1fr auto;
-  }
-  .control-account-menu {
-    grid-column: 2;
   }
 }
 </style>

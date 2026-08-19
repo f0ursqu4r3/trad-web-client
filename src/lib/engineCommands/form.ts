@@ -196,6 +196,12 @@ export function newProtectionState(): ProtectionFormState {
   }
 }
 
+export function newEntryProtectionState(): ProtectionFormState {
+  const state = newProtectionState()
+  state.stopLoss.enabled = true
+  return state
+}
+
 export function copyProtectionState(state: ProtectionFormState): ProtectionFormState {
   return {
     takeProfits: state.takeProfits.map((takeProfit) => ({ ...takeProfit })),

@@ -54,7 +54,7 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
 <template>
   <section class="protection-fields">
     <div class="section-heading">
-      <span>Attached Protection</span>
+      <span>Position Protection</span>
       <button
         class="btn btn-sm btn-ghost icon-label"
         type="button"
@@ -167,8 +167,12 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
 
     <label class="stop-toggle">
       <input v-model="model.stopLoss.enabled" type="checkbox" />
-      Stop loss
+      Protective stop <span class="recommended">recommended</span>
     </label>
+    <p class="stop-guidance">
+      New entries default to a stop-market: it prioritizes exiting once the trigger is reached.
+      Disable it only when this position is protected elsewhere.
+    </p>
     <div v-if="model.stopLoss.enabled" class="stop-row">
       <FormField
         :label="labelWithUnit('SL Trigger', props.quoteAsset)"
@@ -187,7 +191,7 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
       </FormField>
       <FormField
         label="Trigger Source"
-        help="The exchange price feed used to decide when the stop has been reached."
+        help="The exchange price feed used to decide when the stop has been reached. Hyperliquid TP/SL triggers use mark price."
         required
       >
         <span v-if="markPriceOnly" class="readonly-value">Mark Price</span>
@@ -251,6 +255,20 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
 .icon-label,
 .stop-toggle {
   gap: 5px;
+}
+
+.recommended {
+  color: var(--color-success);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.stop-guidance {
+  margin: -2px 0 0;
+  color: var(--fg-muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .tp-row {

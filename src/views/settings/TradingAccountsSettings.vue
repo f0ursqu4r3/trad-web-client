@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { Plus, RefreshCw, SquarePen, Trash2 } from 'lucide-vue-next'
+import { Plus, RefreshCw, SquarePen, Trash2, WalletCards } from 'lucide-vue-next'
 import ControlPageHeader from '@/components/control/ControlPageHeader.vue'
 import ControlSection from '@/components/control/ControlSection.vue'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
@@ -17,6 +17,7 @@ import {
 import { accountColorFromId } from '@/lib/accountColors'
 import { ExchangeType } from '@/lib/ws/protocol'
 import GuidedPointer from '@/components/general/GuidedPointer.vue'
+import PanelEmptyState from '@/components/general/PanelEmptyState.vue'
 
 const accounts = useAccountsStore()
 const route = useRoute()
@@ -214,20 +215,20 @@ onMounted(async () => {
         </tbody>
       </table>
     </div>
-    <div v-else-if="!accounts.loading" class="py-10 text-center">
-      <p class="m-0 text-sm text-primary">
-        {{
-          accounts.accounts.length ? 'No accounts match this filter.' : 'No trading accounts yet.'
-        }}
-      </p>
-      <p class="mx-auto mb-4 mt-2 max-w-lg text-[13px] leading-relaxed dim">
-        Add an exchange account, then Trad will guide you through only the approvals and checks
-        required to make it command-ready.
-      </p>
-      <button v-if="!accounts.accounts.length" class="btn btn-primary" @click="createOpen = true">
-        Add account
-      </button>
-    </div>
+    <PanelEmptyState
+      v-else-if="!accounts.loading"
+      :title="accounts.accounts.length ? 'No matching accounts' : 'No trading accounts yet'"
+      :description="
+        accounts.accounts.length
+          ? 'Try a different account filter.'
+          : 'Add an exchange account, then Trad will guide you through the approvals and checks required to make it command-ready.'
+      "
+    >
+      <template #icon><WalletCards :size="20" /></template>
+      <template v-if="!accounts.accounts.length" #action>
+        <button class="btn btn-primary" @click="createOpen = true">Add account</button>
+      </template>
+    </PanelEmptyState>
   </ControlSection>
   <GuidedPointer
     v-if="touringToNewAccount"

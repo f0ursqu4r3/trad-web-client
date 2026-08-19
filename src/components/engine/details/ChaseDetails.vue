@@ -20,7 +20,7 @@ const planRows = computed(() =>
 const marketRows = computed(() =>
   compactDetails([
     optionalDetail('Desired Price', props.chase.desired_price),
-    optionalDetail('Boundary Price', props.chase.resolved_boundary_price),
+    optionalDetail('Maximum Chase Price', props.chase.resolved_boundary_price),
     optionalDetail('Best Bid', props.chase.latest_bid),
     optionalDetail('Best Ask', props.chase.latest_ask),
     optionalDetail('Market Generation', props.chase.market_generation),

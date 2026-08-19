@@ -6,7 +6,7 @@ import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmis
 import type { PositionSideIntent, TimeInForceIntent } from '@/lib/gateway'
 import {
   copyProtectionState,
-  newProtectionState,
+  newEntryProtectionState,
   sizingModeFromPreference,
   sizingModePreference,
   type ProtectionFormState,
@@ -46,12 +46,13 @@ const timeInForce = ref<TimeInForceIntent>('good_til_canceled')
 const shapeMode = ref<ShapeMode>('single')
 const targetChildNotional = ref('')
 const maxChildren = ref('20')
-const protection = ref<ProtectionFormState>(newProtectionState())
+const protection = ref<ProtectionFormState>(newEntryProtectionState())
 const validationError = ref<string | null>(null)
 const previewReady = ref(false)
 const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
 )
+const markPriceOnly = computed(() => selectedAccount.value?.exchange === 'hyperliquid')
 const units = computed(() => marketUnits(selectedAccount.value, symbol.value))
 const accountError = computed(() =>
   selectedAccountId.value === '' ? 'Trading account is required' : null,
@@ -99,7 +100,7 @@ function reset(): void {
   shapeMode.value = prefill?.shapeMode ?? 'single'
   targetChildNotional.value = prefill?.targetChildNotional ?? ''
   maxChildren.value = prefill?.maxChildren ?? '20'
-  protection.value = copyProtectionState(prefill?.protection ?? newProtectionState())
+  protection.value = copyProtectionState(prefill ? prefill.protection : newEntryProtectionState())
   validationError.value = null
   previewReady.value = false
   submission.clearSubmissionError()
@@ -224,7 +225,12 @@ function buildIntent() {
         />
       </div>
 
-      <ProtectionFields v-model="protection" :base-asset="units.base" :quote-asset="units.quote" />
+      <ProtectionFields
+        v-model="protection"
+        :mark-price-only="markPriceOnly"
+        :base-asset="units.base"
+        :quote-asset="units.quote"
+      />
       <ExecutionPreviewPanel
         :account-id="selectedAccountId"
         :intent="planningIntent"

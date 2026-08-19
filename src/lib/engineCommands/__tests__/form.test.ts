@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   exactDecimal,
+  newEntryProtectionState,
   newProtectionState,
   newTakeProfit,
   normalizedSymbol,
@@ -38,6 +39,13 @@ test('financial input remains an exact decimal string', () => {
   })
   assert.throws(() => exactDecimal('1e-8', 'quantity'), /plain decimal/)
   assert.throws(() => exactDecimal('0', 'quantity'), /greater than zero/)
+})
+
+test('new entry protection starts with a mark-triggered stop-market', () => {
+  const protection = newEntryProtectionState()
+  assert.equal(protection.stopLoss.enabled, true)
+  assert.equal(protection.stopLoss.triggerSource, 'mark_price')
+  assert.equal(protection.stopLoss.executionKind, 'market')
 })
 
 test('split shape enforces the public protocol bound', () => {

@@ -3,30 +3,21 @@ import { ref, computed } from 'vue'
 import { useUserStore } from './user'
 import type { OrderQuantityMode } from '@/lib/ws/protocol'
 
-export type ThemeMode =
-  | 'dark'
-  | 'light'
-  | 'synthwave'
-  | 'system'
-  | 'legacy'
-  | 'fantasy24'
-  | 'tomorrowNight80s'
-  | 'monokai'
-  | 'dracula'
-  | 'nord'
-  | 'gruvbox'
-  | 'solarized'
-  | 'oneDark'
-  | 'catppuccin'
-  | 'tokyoNight'
-  | 'bloomberg'
-  | 'cyberpunk'
-  | 'rosePine'
-  | 'solarizedLight'
-  | 'githubLight'
-  | 'oneLight'
-  | 'nordLight'
-  | 'rosePineDawn'
+export type ThemeMode = 'dark' | 'light' | 'system'
+
+const LEGACY_LIGHT_THEMES = new Set([
+  'solarizedLight',
+  'githubLight',
+  'oneLight',
+  'nordLight',
+  'rosePineDawn',
+])
+
+export function normalizeTheme(value: unknown): ThemeMode {
+  if (value === 'system' || value === 'dark' || value === 'light') return value
+  if (LEGACY_LIGHT_THEMES.has(String(value))) return 'light'
+  return 'dark'
+}
 
 export type NumberDisplayMode = 'compact' | 'full'
 
@@ -56,9 +47,10 @@ export const useUiStore = defineStore(
       else if ((mql as MediaQueryList).addListener) (mql as MediaQueryList).addListener(handler)
     }
 
-    const effectiveTheme = computed<Exclude<ThemeMode, 'system'>>(() =>
-      theme.value === 'system' ? (systemPrefersDark.value ? 'dark' : 'light') : theme.value,
-    )
+    const effectiveTheme = computed<'dark' | 'light'>(() => {
+      const selected = normalizeTheme(theme.value)
+      return selected === 'system' ? (systemPrefersDark.value ? 'dark' : 'light') : selected
+    })
 
     function setTheme(t: ThemeMode) {
       theme.value = t
@@ -66,7 +58,7 @@ export const useUiStore = defineStore(
     }
 
     function toggleTheme() {
-      setTheme(theme.value === 'dark' ? 'light' : 'dark')
+      setTheme(effectiveTheme.value === 'dark' ? 'light' : 'dark')
     }
 
     function setNumberDisplayMode(mode: NumberDisplayMode) {

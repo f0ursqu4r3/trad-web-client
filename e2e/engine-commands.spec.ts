@@ -1,4 +1,10 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Locator } from '@playwright/test'
+
+async function completeDefaultStop(modal: Locator): Promise<void> {
+  await expect(modal.getByLabel(/Protective stop/)).toBeChecked()
+  await expect(modal.locator('.stop-row select').last()).toHaveValue('market')
+  await modal.getByLabel('SL Trigger').fill('49000')
+}
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/auth/session', async (route) => {
@@ -16,7 +22,9 @@ test('submits an exact protocol-3 market intent and closes only after acceptance
 }) => {
   await page.getByRole('button', { name: /Commands/ }).click()
   await page.getByRole('button', { name: /Market Order/ }).click()
-  await expect(page.getByRole('dialog', { name: 'Market Order' })).toBeVisible()
+  const modal = page.getByRole('dialog', { name: 'Market Order' })
+  await expect(modal).toBeVisible()
+  await completeDefaultStop(modal)
   await page.getByRole('button', { name: 'Submit' }).click()
 
   await expect(page.getByRole('dialog', { name: 'Market Order' })).not.toBeVisible()
@@ -30,6 +38,14 @@ test('submits an exact protocol-3 market intent and closes only after acceptance
           position_side: 'long',
           sizing: { kind: 'quote_notional', amount: '50' },
           execution: { kind: 'market' },
+          protection: {
+            take_profits: [],
+            stop_loss: {
+              trigger_price: '49000',
+              trigger_source: 'mark_price',
+              execution: { kind: 'market' },
+            },
+          },
           shape: { kind: 'single' },
         },
       },
@@ -43,6 +59,7 @@ test('automatically replans order edits without submitting a command', async ({ 
   const modal = page.getByRole('dialog', { name: 'Market Order' })
 
   await expect(modal.getByText('Execution Preview')).toBeVisible()
+  await completeDefaultStop(modal)
   await modal.getByLabel('Quote Amount').fill('75')
 
   await expect(modal.getByText('0.001 BTC', { exact: true })).toBeVisible()
@@ -59,6 +76,7 @@ test('keeps a rejected limit command open with the authoritative reason', async 
   await page.getByRole('button', { name: /Limit Order/ }).click()
   const modal = page.getByRole('dialog', { name: 'Limit Order' })
   await modal.getByLabel('Limit Price').fill('63000.125')
+  await completeDefaultStop(modal)
   await modal.getByRole('button', { name: 'Submit' }).click()
 
   await expect(modal).toBeVisible()
@@ -71,11 +89,13 @@ test('opens chase and trailing-entry forms from their aliases', async ({ page })
   await page.getByRole('button', { name: /Commands/ }).click()
   await page.getByPlaceholder('Search commands').fill('chase')
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('dialog', { name: 'Chase Order' })).toBeVisible()
-  await page
-    .getByRole('dialog', { name: 'Chase Order' })
-    .getByRole('button', { name: 'Cancel' })
-    .click()
+  const chase = page.getByRole('dialog', { name: 'Chase Order' })
+  await expect(chase).toBeVisible()
+  await expect(chase.getByLabel('Maximum Chase Distance')).toHaveValue('basis_points')
+  await expect(chase.getByLabel('Boundary Basis Points')).toHaveValue('10')
+  await expect(chase.getByLabel(/Protective stop/)).toBeChecked()
+  await expect(chase.getByLabel('Execution')).toHaveValue('market')
+  await chase.getByRole('button', { name: 'Cancel' }).click()
 
   await page.getByRole('button', { name: /Commands/ }).click()
   await page.getByPlaceholder('Search commands').fill('te')
@@ -96,7 +116,9 @@ test('identifies required and invalid command fields beside their controls', asy
   await expect(modal.getByText('Fix the highlighted fields to continue.')).toBeVisible()
   await expect(modal.getByRole('button', { name: 'Submit' })).toBeDisabled()
   await expect(
-    modal.locator('.form-field-help[title="The exact exchange price for the resting limit order."]'),
+    modal.locator(
+      '.form-field-help[title="The exact exchange price for the resting limit order."]',
+    ),
   ).toBeVisible()
 })
 
@@ -152,6 +174,7 @@ test('keeps an unknown-outcome command open and forbids blind resubmission', asy
   await page.getByRole('button', { name: /Commands/ }).click()
   await page.getByRole('button', { name: /Market Order/ }).click()
   const modal = page.getByRole('dialog', { name: 'Market Order' })
+  await completeDefaultStop(modal)
   await modal.getByRole('button', { name: 'Submit' }).click()
 
   await expect(modal).toBeVisible()

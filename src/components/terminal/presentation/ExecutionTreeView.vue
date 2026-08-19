@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Folder, FolderOpen, TrendingDown } from 'lucide-vue-next'
+import { Folder, FolderOpen, Network, TrendingDown } from 'lucide-vue-next'
 
 import { TreeView, type TreeItem } from '@/components/general/TreeView'
+import PanelEmptyState from '@/components/general/PanelEmptyState.vue'
 import { formatName } from '@/lib/utils'
 
 export interface ExecutionTreeBadge {
@@ -78,12 +79,9 @@ function openContext(item: ExecutionTreeItem, event: MouseEvent): void {
 </script>
 
 <template>
-  <div
-    v-if="!items.length"
-    class="h-full flex items-center justify-center text-(--color-text-dim) text-center text-xs"
-  >
-    {{ emptyText }}
-  </div>
+  <PanelEmptyState v-if="!items.length" title="Nothing selected" :description="emptyText">
+    <template #icon><Network :size="20" /></template>
+  </PanelEmptyState>
   <TreeView v-else v-model:collapsed-ids="collapsed" :items="items" :indent="24" inline-toggle>
     <template #default="{ item: rawItem, isLeaf, toggle, expanded }">
       <div

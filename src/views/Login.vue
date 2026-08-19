@@ -16,22 +16,10 @@ const brandIconPath = resolveEnvironmentBranding(window.location.hostname).appIc
 const { login, logout, isAuthenticated, error: authError, user } = useAuth()
 
 const themeIcon = computed(() => {
-  // For synthwave show a sun icon to indicate next will be light (reuse)
-  if (ui.theme === 'dark') return Sun
-  if (ui.theme === 'synthwave') return Moon // going to light next, show moon-to-light cue
-  return Moon
+  return ui.effectiveTheme === 'dark' ? Sun : Moon
 })
 const themeToggleLabel = computed(() => {
-  switch (ui.theme) {
-    case 'light':
-      return 'Switch to dark theme'
-    case 'dark':
-      return 'Switch to synthwave theme'
-    case 'synthwave':
-      return 'Switch to light theme'
-    default:
-      return 'Toggle theme'
-  }
+  return ui.effectiveTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'
 })
 
 const showDebug = ref(false)

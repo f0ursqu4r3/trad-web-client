@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { ScanSearch } from 'lucide-vue-next'
+import PanelEmptyState from '@/components/general/PanelEmptyState.vue'
 
 import ProjectionActions from '@/components/engine/actions/ProjectionActions.vue'
 import ChaseDetails from '@/components/engine/details/ChaseDetails.vue'
@@ -292,11 +293,13 @@ function formatDate(value: number | null): string {
         :amendment="selectedProtectionAmendment"
       />
     </div>
-    <div v-else class="empty-state">
-      <ScanSearch :size="20" aria-hidden="true" />
-      <strong>Nothing selected</strong>
-      <span>Select a command or device to inspect its details.</span>
-    </div>
+    <PanelEmptyState
+      v-else
+      title="Nothing selected"
+      description="Select a command or device to inspect its details."
+    >
+      <template #icon><ScanSearch :size="20" /></template>
+    </PanelEmptyState>
   </section>
 </template>
 
@@ -325,19 +328,6 @@ function formatDate(value: number | null): string {
 }
 .details-active {
   background: color-mix(in srgb, var(--color-warning) 7%, transparent);
-}
-
-.empty-state {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 0.45rem;
-  padding: 2rem;
-  color: var(--color-text-dim);
-  text-align: center;
 }
 
 .empty-state svg {

@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import { ChevronDown, Sun, Moon, Monitor, Sparkles, type LucideIcon } from 'lucide-vue-next'
+import { ChevronDown, Sun, Moon, Monitor, type LucideIcon } from 'lucide-vue-next'
 import { useUiStore, type ThemeMode } from '@/stores/ui'
 
 const uiStore = useUiStore()
 const showMenu = ref(false)
 const currentTheme = ref(uiStore.theme)
+watch(
+  () => uiStore.theme,
+  (theme) => (currentTheme.value = theme),
+)
 
 // Refs for dynamic positioning
 const anchorRef = ref<HTMLElement | null>(null)
@@ -17,7 +21,7 @@ const currentThemeLabel = computed(
 )
 
 const currentThemeIcon = computed(
-  () => themeOptions.find((option) => option.value === currentTheme.value)?.icon || Sparkles,
+  () => themeOptions.find((option) => option.value === currentTheme.value)?.icon || Monitor,
 )
 
 interface ThemeOption {
@@ -28,30 +32,8 @@ interface ThemeOption {
 
 const themeOptions: ThemeOption[] = [
   { label: 'System', value: 'system', icon: Monitor },
-  // Light themes
   { label: 'Light', value: 'light', icon: Sun },
-  { label: 'GitHub Light', value: 'githubLight', icon: Sun },
-  { label: 'Solarized Light', value: 'solarizedLight', icon: Sun },
-  { label: 'One Light', value: 'oneLight', icon: Sun },
-  { label: 'Nord Light', value: 'nordLight', icon: Sun },
-  { label: 'Rosé Pine Dawn', value: 'rosePineDawn', icon: Sun },
-  // Dark themes
   { label: 'Dark', value: 'dark', icon: Moon },
-  { label: 'Synthwave', value: 'synthwave', icon: Moon },
-  { label: 'Legacy', value: 'legacy', icon: Moon },
-  { label: 'Fantasy24', value: 'fantasy24', icon: Moon },
-  { label: 'Tomorrow Night 80s', value: 'tomorrowNight80s', icon: Moon },
-  { label: 'Monokai', value: 'monokai', icon: Moon },
-  { label: 'Dracula', value: 'dracula', icon: Moon },
-  { label: 'Nord', value: 'nord', icon: Moon },
-  { label: 'Gruvbox', value: 'gruvbox', icon: Moon },
-  { label: 'Solarized Dark', value: 'solarized', icon: Moon },
-  { label: 'One Dark', value: 'oneDark', icon: Moon },
-  { label: 'Catppuccin', value: 'catppuccin', icon: Moon },
-  { label: 'Tokyo Night', value: 'tokyoNight', icon: Moon },
-  { label: 'Bloomberg', value: 'bloomberg', icon: Moon },
-  { label: 'Cyberpunk', value: 'cyberpunk', icon: Moon },
-  { label: 'Rosé Pine', value: 'rosePine', icon: Moon },
 ]
 
 function toggleMenu() {

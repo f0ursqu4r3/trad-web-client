@@ -1,27 +1,2 @@
-/* Theme Index - All application themes */
-/* Each theme is loaded separately for better maintainability */
-
-/* Dark themes */
+/* The product supports one maintained dark palette and the token-defined light palette. */
 @import './dark.css';
-@import './synthwave.css';
-@import './legacy.css';
-@import './fantasy24.css';
-@import './tomorrow-night-80s.css';
-@import './monokai.css';
-@import './dracula.css';
-@import './nord.css';
-@import './gruvbox.css';
-@import './solarized.css';
-@import './one-dark.css';
-@import './catppuccin.css';
-@import './tokyo-night.css';
-@import './bloomberg.css';
-@import './cyberpunk.css';
-@import './rose-pine.css';
-
-/* Light themes */
-@import './solarized-light.css';
-@import './github-light.css';
-@import './one-light.css';
-@import './nord-light.css';
-@import './rose-pine-dawn.css';

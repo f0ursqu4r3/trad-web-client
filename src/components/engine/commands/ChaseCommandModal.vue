@@ -6,7 +6,7 @@ import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmis
 import type { PositionSideIntent } from '@/lib/gateway'
 import {
   copyProtectionState,
-  newProtectionState,
+  newEntryProtectionState,
   sizingModeFromPreference,
   sizingModePreference,
   type ProtectionFormState,
@@ -39,16 +39,17 @@ const symbol = ref('')
 const positionSide = ref<PositionSideIntent>('long')
 const sizingMode = ref<SizingMode>('quote_notional')
 const amount = ref('50')
-const boundaryKind = ref<'none' | 'basis_points' | 'price'>('none')
-const boundaryValue = ref('')
+const boundaryKind = ref<'none' | 'basis_points' | 'price'>('basis_points')
+const boundaryValue = ref('10')
 const expirySeconds = ref('')
 const remainder = ref<'cancel' | 'market_fill'>('cancel')
-const protection = ref<ProtectionFormState>(newProtectionState())
+const protection = ref<ProtectionFormState>(newEntryProtectionState())
 const validationError = ref<string | null>(null)
 const previewReady = ref(false)
 const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
 )
+const markPriceOnly = computed(() => selectedAccount.value?.exchange === 'hyperliquid')
 const units = computed(() => marketUnits(selectedAccount.value, symbol.value))
 const accountError = computed(() =>
   selectedAccountId.value === '' ? 'Trading account is required' : null,
@@ -89,11 +90,11 @@ function reset(): void {
   positionSide.value = prefill?.positionSide ?? 'long'
   sizingMode.value = prefill?.sizingMode ?? sizingModeFromPreference(ui.orderQuantityMode)
   amount.value = prefill?.amount ?? '50'
-  boundaryKind.value = prefill?.boundaryKind ?? 'none'
-  boundaryValue.value = prefill?.boundaryValue ?? ''
+  boundaryKind.value = prefill?.boundaryKind ?? 'basis_points'
+  boundaryValue.value = prefill?.boundaryValue ?? '10'
   expirySeconds.value = prefill?.expirySeconds ?? ''
   remainder.value = prefill?.remainder ?? 'cancel'
-  protection.value = copyProtectionState(prefill?.protection ?? newProtectionState())
+  protection.value = copyProtectionState(prefill ? prefill.protection : newEntryProtectionState())
   validationError.value = null
   previewReady.value = false
   submission.clearSubmissionError()
@@ -190,14 +191,14 @@ function buildIntent() {
           @update:mode="rememberSizingMode"
         />
         <FormField
-          label="Adverse Boundary"
-          help="Optional hard boundary that stops chasing when price moves too far against the order."
-          optional
+          label="Maximum Chase Distance"
+          help="Stops repricing after the market has moved this far against the original reference. A bounded chase avoids following a runaway market."
+          required
         >
           <select v-model="boundaryKind" class="input">
-            <option value="none">None</option>
             <option value="basis_points">Basis Points</option>
             <option value="price">Fixed Price</option>
+            <option value="none">Unbounded (advanced)</option>
           </select>
         </FormField>
         <FormField
@@ -231,18 +232,16 @@ function buildIntent() {
             placeholder="No expiry"
           />
         </FormField>
-        <FormField
-          label="On Expiry / Boundary"
-          help="What Trad does with any unfilled remainder after the chase stops."
-          required
-        >
-          <select v-model="remainder" class="input">
-            <option value="cancel">Cancel Remainder</option>
-            <option value="market_fill" disabled>Market Fill (not implemented)</option>
-          </select>
-        </FormField>
       </div>
-      <ProtectionFields v-model="protection" :base-asset="units.base" :quote-asset="units.quote" />
+      <p class="chase-policy-note">
+        When the maximum distance or expiry is reached, Trad cancels the unfilled remainder.
+      </p>
+      <ProtectionFields
+        v-model="protection"
+        :mark-price-only="markPriceOnly"
+        :base-asset="units.base"
+        :quote-asset="units.quote"
+      />
       <ExecutionPreviewPanel
         :account-id="selectedAccountId"
         :intent="planningIntent"
@@ -290,6 +289,11 @@ function buildIntent() {
 .submission-error {
   color: var(--color-error);
   overflow-wrap: anywhere;
+}
+.chase-policy-note {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 12px;
 }
 .form-readiness {
   margin: 0;

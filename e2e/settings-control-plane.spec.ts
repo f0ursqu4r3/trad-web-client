@@ -6,6 +6,10 @@ test('settings and administrator control plane are navigable', async ({ page }) 
 
   await page.goto('/auth/test-login?email=668es218pur%40gmail.com&return_to=%2Fsettings%2Fprofile')
   await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible()
+  const areaNav = page.getByRole('navigation', { name: 'Trad areas' })
+  await expect(areaNav.getByRole('link', { name: 'Terminal' })).toBeVisible()
+  await expect(areaNav.getByRole('link', { name: 'Settings' })).toHaveClass(/active/)
+  await expect(areaNav.getByRole('link', { name: 'Admin' })).toBeVisible()
   await expect(page.getByRole('main').getByText('668es218pur@gmail.com')).toBeVisible()
   await page.getByRole('button', { name: 'Account and settings' }).click()
   await expect(page.getByRole('menuitem', { name: 'Trading accounts' })).toBeVisible()
@@ -50,6 +54,7 @@ test('settings and administrator control plane are navigable', async ({ page }) 
 
   await page.getByRole('link', { name: 'Plans & billing' }).click()
   await expect(page.getByRole('heading', { name: 'Plans & billing' })).toBeVisible()
+  await expect(areaNav.getByRole('link', { name: 'Admin' })).toHaveClass(/active/)
   await expect(page.getByRole('cell', { name: 'Private beta' })).toBeVisible()
 
   await page.screenshot({ path: 'test-results/settings-control-plane.png', fullPage: true })

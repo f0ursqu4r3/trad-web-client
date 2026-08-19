@@ -75,7 +75,7 @@ function formatContext(): string {
       <dd class="m-0 text-[12px] font-mono">{{ formatAmount() }}</dd>
     </div>
     <div>
-      <dt class="dt-label">Adverse Boundary</dt>
+      <dt class="dt-label">Maximum Chase</dt>
       <dd class="m-0 text-[12px] font-mono">{{ formatBoundary() }}</dd>
     </div>
     <div>
@@ -89,9 +89,17 @@ function formatContext(): string {
     <template v-if="command.attached_exit_plan">
       <div>
         <dt class="dt-label">Take Profit</dt>
-        <dd v-if="command.attached_exit_plan.take_profit_ladder" class="m-0 text-[12px] font-mono space-y-1">
+        <dd
+          v-if="command.attached_exit_plan.take_profit_ladder"
+          class="m-0 text-[12px] font-mono space-y-1"
+        >
           <div v-for="leg in command.attached_exit_plan.take_profit_ladder.legs" :key="leg.leg_id">
-            ${{ formatNumber(leg.trigger_price) }} · {{ leg.allocation.kind === 'fraction' ? `${leg.allocation.value * 100}%` : `${leg.allocation.value} base` }}
+            ${{ formatNumber(leg.trigger_price) }} ·
+            {{
+              leg.allocation.kind === 'fraction'
+                ? `${leg.allocation.value * 100}%`
+                : `${leg.allocation.value} base`
+            }}
           </div>
         </dd>
         <dd v-else class="m-0 text-[12px] font-mono">

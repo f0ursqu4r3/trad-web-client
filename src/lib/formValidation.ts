@@ -13,7 +13,9 @@ export function decimalError(
   label: string,
   options: { optional?: boolean; allowZero?: boolean } = {},
 ): string | null {
-  if (options.optional && value.trim() === '') return null
+  if (value.trim() === '') {
+    return options.optional ? null : `${sentenceCase(label)} is required`
+  }
   return validationError(() => exactDecimal(value, label, options.allowZero))
 }
 

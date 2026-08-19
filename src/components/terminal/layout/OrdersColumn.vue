@@ -5,6 +5,7 @@ import { Filter, ListChecks, WalletCards } from 'lucide-vue-next'
 import AccountPositionInspector from '@/components/engine/AccountPositionInspector.vue'
 import ExternalOrderInspector from '@/components/engine/ExternalOrderInspector.vue'
 import ReconciliationControl from '@/components/engine/ReconciliationControl.vue'
+import EngineCommandPalette from '@/components/engine/commands/EngineCommandPalette.vue'
 import SplitView from '@/components/general/SplitView.vue'
 import ProjectionCommandPanel from '@/components/terminal/projection/ProjectionCommandPanel.vue'
 import ProjectionTreePanel from '@/components/terminal/projection/ProjectionTreePanel.vue'
@@ -27,7 +28,9 @@ const externalFlattenCount = computed(
     <template #command-history>
       <div class="panel">
         <div class="panel-header">
-          <span class="panel-title">Commands</span>
+          <span class="panel-title command-heading">
+            <span>Commands</span><EngineCommandPalette compact />
+          </span>
           <span class="panel-options">
             <span class="text-xs">{{ commandPanel?.shownCommandCount ?? 0 }} shown</span>
             <span v-if="commandPanel?.hiddenCommandCount" class="text-xs">
@@ -90,6 +93,15 @@ const externalFlattenCount = computed(
   flex-direction: column;
   height: 100%;
   width: 100%;
+}
+.command-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.command-heading :deep(.btn) {
+  min-height: 24px;
+  padding: 2px 6px;
 }
 
 .compact-icon {

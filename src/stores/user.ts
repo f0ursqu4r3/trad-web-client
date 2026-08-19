@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth'
 import { apiGet, apiPut } from '@/lib/apiClient'
 import { setv } from '@/lib/utils'
 import { clearSessionUserId, setSessionUserId } from '@/lib/userSession'
-import { useUiStore } from '@/stores/ui'
+import { normalizeTheme, useUiStore } from '@/stores/ui'
 import { type AccountRecord, useAccountsStore } from '@/stores/accounts'
 import { normalizeProfileIcon, type ProfileIconKey } from '@/lib/profileIcons'
 
@@ -131,9 +131,7 @@ export const useUserStore = defineStore('user', () => {
         entitled.value = null
       }
       lastFetchedAt.value = Date.now()
-      uiStore.theme =
-        (profile.value.meta?.preferences?.theme as typeof uiStore.theme | undefined) ||
-        uiStore.theme
+      uiStore.theme = normalizeTheme(profile.value.meta?.preferences?.theme ?? uiStore.theme)
       const preferences = profile.value.meta?.preferences
       if (
         preferences?.number_display_mode === 'compact' ||

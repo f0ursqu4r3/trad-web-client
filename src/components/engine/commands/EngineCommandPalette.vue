@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { X } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
 
 import { useAccountsStore } from '@/stores/accounts'
 import { useModalStore } from '@/stores/modals'
+import { commandPaletteShortcut, listenForCommandPaletteOpen } from '@/lib/engineCommands/palette'
+
+withDefaults(defineProps<{ compact?: boolean }>(), { compact: false })
 
 interface EngineCommandOption {
   modal: string
@@ -19,19 +22,19 @@ const commands: EngineCommandOption[] = [
   {
     modal: 'EngineMarketOrder',
     label: 'Market Order',
-    description: 'Submit a market order with optional exchange protection',
+    description: 'Enter immediately with a protective stop-market enabled by default',
     aliases: ['mo'],
   },
   {
     modal: 'EngineLimitOrder',
     label: 'Limit Order',
-    description: 'Place a resting or post-only limit order',
+    description: 'Place a resting or post-only entry with protection attached',
     aliases: ['lo'],
   },
   {
     modal: 'EngineChaseOrder',
     label: 'Chase Order',
-    description: 'Follow the same-side top of book with a post-only order',
+    description: 'Follow the book within a maximum distance, then cancel the remainder',
     aliases: ['chase'],
   },
   {
@@ -76,8 +79,7 @@ const filtered = computed(() => {
       (left, right) => Number(right.aliases.includes(query)) - Number(left.aliases.includes(query)),
     )
 })
-const isMac = computed(() => /Mac|iPhone|iPad|iPod/.test(navigator.platform))
-const shortcut = computed(() => (isMac.value ? '⌘+K' : 'Ctrl+K'))
+const shortcut = commandPaletteShortcut()
 
 watch(filtered, (options) => {
   if (activeIndex.value >= options.length) activeIndex.value = Math.max(0, options.length - 1)
@@ -128,14 +130,21 @@ function onKeydown(event: KeyboardEvent): void {
   }
 }
 
-window.addEventListener('keydown', onKeydown)
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+let stopListening: (() => void) | null = null
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown)
+  stopListening = listenForCommandPaletteOpen(show)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+  stopListening?.()
+})
 </script>
 
 <template>
   <div>
-    <button class="btn btn-ghost" type="button" @click="toggle">
-      Commands <span class="kbd">{{ shortcut }}</span>
+    <button data-command-palette-trigger class="btn btn-ghost" type="button" @click="toggle">
+      {{ compact ? 'New' : 'Commands' }} <span class="kbd">{{ shortcut }}</span>
     </button>
 
     <Teleport to="body">

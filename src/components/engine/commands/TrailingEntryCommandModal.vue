@@ -211,7 +211,7 @@ function buildIntent() {
         </FormField>
         <FormField
           :label="labelWithUnit('Stop Loss Price', units.quote)"
-          help="Mandatory protective stop used both for risk sizing and post-entry protection."
+          help="Mandatory stop-market triggered by mark price. It is used both for risk sizing and post-entry protection."
           :error="stopError"
           required
         >

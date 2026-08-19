@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { SquareTerminal } from 'lucide-vue-next'
 
 import SplitView from '@/components/general/SplitView.vue'
 import StickyScroller from '@/components/general/StickyScroller.vue'
+import PanelEmptyState from '@/components/general/PanelEmptyState.vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import LegacyCommandHistory from '@/components/engine/LegacyCommandHistory.vue'
 import LifecycleActionModal from '@/components/engine/actions/LifecycleActionModal.vue'
@@ -18,6 +20,7 @@ import { useGatewayStore } from '@/stores/gateway'
 import { useModalStore } from '@/stores/modals'
 import { useProjectionUiStore } from '@/stores/projectionUi'
 import { useUiStore } from '@/stores/ui'
+import { commandPaletteShortcut, openCommandPalette } from '@/lib/engineCommands/palette'
 
 defineOptions({ inheritAttrs: false })
 
@@ -27,6 +30,7 @@ const modals = useModalStore()
 const projections = useAccountProjectionStore()
 const projectionUi = useProjectionUiStore()
 const ui = useUiStore()
+const paletteShortcut = commandPaletteShortcut()
 
 const showFilters = ref(false)
 const query = ref('')
@@ -222,6 +226,19 @@ async function loadOlder(): Promise<void> {
       </SplitView>
     </div>
 
+    <PanelEmptyState
+      v-else-if="visibleCommands.length === 0"
+      title="No commands yet"
+      description="Open the command menu to place your first order or start an execution workflow."
+    >
+      <template #icon><SquareTerminal :size="20" /></template>
+      <template #action>
+        <button class="btn btn-primary" type="button" @click="openCommandPalette">
+          Open commands <span class="kbd">{{ paletteShortcut }}</span>
+        </button>
+      </template>
+    </PanelEmptyState>
+
     <StickyScroller
       v-else
       class="command-list-body"
@@ -245,7 +262,6 @@ async function loadOlder(): Promise<void> {
           @rename="openRename"
           @action="selectedAction = $event"
         />
-        <div v-if="visibleCommands.length === 0" class="empty-state">No commands</div>
       </div>
     </StickyScroller>
 

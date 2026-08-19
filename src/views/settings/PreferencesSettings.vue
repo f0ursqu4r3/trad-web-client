@@ -38,21 +38,7 @@ async function save() {
         ><span class="field-label">Theme</span
         ><select v-model="ui.theme" class="input">
           <option
-            v-for="theme in [
-              'system',
-              'dark',
-              'light',
-              'bloomberg',
-              'tokyoNight',
-              'oneDark',
-              'nord',
-              'gruvbox',
-              'solarized',
-              'monokai',
-              'dracula',
-              'catppuccin',
-              'rosePine',
-            ]"
+            v-for="theme in ['system', 'dark', 'light']"
             :key="theme"
             :value="theme as ThemeMode"
           >
