@@ -1,15 +1,22 @@
 import { expect, test } from '@playwright/test'
 
-test('durable Hyperliquid agent connections expose slots without unsafe replacement', async ({
-  page,
-}) => {
+test('durable Hyperliquid agent connections respect attached-account safety', async ({ page }) => {
   await page.goto('/auth/test-login?email=dev%40trad.local&return_to=%2Fsettings%2Fauthorization')
   await expect(page.getByRole('heading', { name: 'Authorization & fees' })).toBeVisible()
   await expect(page.getByText('Trad agent connections', { exact: true })).toBeVisible()
   await expect(page.getByText('trad-c13bf78a', { exact: true }).first()).toBeVisible()
   await expect(page.getByText('this Trad', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Generate replacement' })).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Forget local key' })).toBeDisabled()
+  const attachedAccounts = Number(
+    await page
+      .locator('.connection-facts > div')
+      .filter({ hasText: 'Attached accounts' })
+      .locator('dd')
+      .textContent(),
+  )
+  const forget = page.getByRole('button', { name: 'Forget local key' })
+  if (attachedAccounts > 0) await expect(forget).toBeDisabled()
+  else await expect(forget).toBeEnabled()
   await expect(page.getByRole('button', { name: 'Use this slot' }).first()).toBeDisabled()
   await page.screenshot({ path: 'test-results/agent-connections.png', fullPage: true })
 })
