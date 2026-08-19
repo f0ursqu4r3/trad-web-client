@@ -16,7 +16,7 @@ import { accountCommandReadiness } from '@/lib/gateway/accountCommandReadiness'
 import AccountPositionInspector from '@/components/engine/AccountPositionInspector.vue'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
 import ActionConfirmationModal from '@/components/terminal/modals/ActionConfirmationModal.vue'
-import { Trash2 } from 'lucide-vue-next'
+import { LoaderCircle, Trash2 } from 'lucide-vue-next'
 import {
   isValidBybitUsdtSymbol,
   normalizeBybitUsdtSymbol,
@@ -134,6 +134,7 @@ async function confirmAccountDeletion() {
   if (!account) return
   deletionTarget.value = null
   deletingAccountIds.value = new Set(deletingAccountIds.value).add(account.id)
+  controlMessage.value = `Checking ${account.label} against the live exchange before deletion…`
   try {
     const result = await accounts.removeAccount(account.label)
     controlMessage.value =
@@ -141,6 +142,7 @@ async function confirmAccountDeletion() {
         ? `Deleted ${account.label}.`
         : `Deleted ${account.label}; owner cleanup is completing in the background.`
   } catch (err) {
+    controlMessage.value = null
     logger.error('delete failed', err)
     controlError.value = err instanceof Error ? err.message : String(err)
   } finally {
@@ -1360,8 +1362,13 @@ watch(
               :disabled="deletingAccountIds.has(account.id)"
               @click="requestAccountDeletion(account)"
             >
-              <Trash2 :size="12" />
-              DELETE
+              <LoaderCircle
+                v-if="deletingAccountIds.has(account.id)"
+                :size="12"
+                class="animate-spin"
+              />
+              <Trash2 v-else :size="12" />
+              {{ deletingAccountIds.has(account.id) ? 'CHECKING…' : 'DELETE' }}
             </button>
           </div>
         </li>

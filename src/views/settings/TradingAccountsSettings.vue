@@ -82,6 +82,7 @@ async function confirmAccountDeletion(): Promise<void> {
   if (!account) return
   deletionTarget.value = null
   deletingAccountIds.value = new Set(deletingAccountIds.value).add(account.id)
+  deletionMessage.value = `Checking ${account.label} against the live exchange before deletion…`
   try {
     const result = await accounts.removeAccount(account.label)
     deletionMessage.value =
@@ -89,6 +90,7 @@ async function confirmAccountDeletion(): Promise<void> {
         ? `Deleted ${account.label}.`
         : `Deleted ${account.label}; owner cleanup is completing in the background.`
   } catch (error) {
+    deletionMessage.value = null
     deletionError.value = error instanceof Error ? error.message : String(error)
   } finally {
     const next = new Set(deletingAccountIds.value)
@@ -207,7 +209,12 @@ onMounted(async () => {
                   :disabled="deletingAccountIds.has(account.id)"
                   @click="requestAccountDeletion(account)"
                 >
-                  <Trash2 :size="14" />
+                  <RefreshCw
+                    v-if="deletingAccountIds.has(account.id)"
+                    :size="14"
+                    class="animate-spin"
+                  />
+                  <Trash2 v-else :size="14" />
                 </button>
               </div>
             </td>
