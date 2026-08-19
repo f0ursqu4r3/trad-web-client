@@ -59,6 +59,12 @@ function finishAccountTour(): void {
   void router.replace({ query })
 }
 
+function openCreatedAccount(account: AccountRecord): void {
+  createOpen.value = false
+  accounts.selectedAccountId = account.id
+  void router.push(`/settings/accounts/${account.id}/${ready(account) ? 'overview' : 'setup'}`)
+}
+
 onMounted(async () => {
   await accounts.fetchAccounts()
   if (route.query.create === '1') {
@@ -180,7 +186,11 @@ onMounted(async () => {
     target-selector="[data-tour='new-account']"
     @arrive="finishAccountTour"
   />
-  <CreateAccountModal :open="createOpen" @close="createOpen = false" />
+  <CreateAccountModal
+    :open="createOpen"
+    @close="createOpen = false"
+    @created="openCreatedAccount"
+  />
 </template>
 
 <style scoped>

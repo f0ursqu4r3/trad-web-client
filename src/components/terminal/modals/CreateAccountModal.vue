@@ -4,14 +4,21 @@ import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandM
 import { buildAccountFormPayload } from '@/lib/accountFormPayload'
 import { enumKeyName } from '@/lib/utils'
 import { NetworkType, ExchangeType } from '@/lib/ws/protocol'
-import { useAccountsStore, type AccountKeyValidationResponse } from '@/stores/accounts'
+import {
+  useAccountsStore,
+  type AccountKeyValidationResponse,
+  type AccountRecord,
+} from '@/stores/accounts'
 import { HYPERLIQUID_TARGET_TOTAL_DEFAULT_TENTHS_BPS } from '@/lib/accountMetadata'
 import FormField from '@/components/forms/FormField.vue'
 import { integerError, requiredText } from '@/lib/formValidation'
 import AccountPermissionCheck from './AccountPermissionCheck.vue'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
-const emit = defineEmits<{ (e: 'close'): void }>()
+const emit = defineEmits<{
+  (event: 'close'): void
+  (event: 'created', account: AccountRecord): void
+}>()
 
 const accounts = useAccountsStore()
 
@@ -228,6 +235,7 @@ async function submit() {
     )
     if (createdAccount) {
       accounts.selectedAccountId = createdAccount.id
+      emit('created', createdAccount)
     }
     close()
   } catch (err) {

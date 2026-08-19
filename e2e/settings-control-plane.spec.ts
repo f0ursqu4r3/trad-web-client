@@ -100,3 +100,74 @@ test('zero-account onboarding tours through the real settings controls', async (
   expect(visited).toContain('/settings/profile')
   expect(visited).toContain('/settings/accounts')
 })
+
+test('new accounts continue into required setup instead of stopping at the directory', async ({
+  page,
+}) => {
+  const accountId = '71717171-7171-4717-8717-717171717171'
+  let created = false
+  await page.route('**/api/accounts**', async (route) => {
+    const request = route.request()
+    if (request.method() === 'POST' && request.url().includes('/api/accounts/validate')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          valid: true,
+          skipped: false,
+          exchange: 'hyperliquid',
+          network: 'mainnet',
+          present_permissions: ['User wallet address valid', 'Read-only account state reachable'],
+          missing_requirements: [],
+          warnings: ['Approve the generated agent wallet before trading.'],
+        }),
+      })
+      return
+    }
+    if (request.method() === 'PUT') {
+      created = true
+      await route.fulfill({ status: 204, body: '' })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        created
+          ? [
+              {
+                id: accountId,
+                label: 'Setup Route QA',
+                key: 'redacted',
+                network: 'mainnet',
+                exchange: 'hyperliquid',
+                exchange_metadata: {
+                  product: 'usdc_perp',
+                  user_address: '0x1111111111111111111111111111111111111111',
+                  agent_approved: false,
+                  builder_approved: false,
+                },
+              },
+            ]
+          : [],
+      ),
+    })
+  })
+
+  await page.goto(
+    '/auth/test-login?email=dev%40trad.local&return_to=%2Fsettings%2Faccounts%3Fcreate%3D1',
+  )
+  const dialog = page.getByRole('dialog', { name: 'Create Account' })
+  await dialog.locator('select').nth(1).selectOption('hyperliquid')
+  await dialog.getByPlaceholder('Account alias').fill('Setup Route QA')
+  await dialog.getByPlaceholder('0x...').fill('0x1111111111111111111111111111111111111111')
+  await dialog.getByRole('button', { name: 'Check permissions — required' }).click()
+  await expect(dialog.getByText('Wallet and read-only account access are valid.')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Create' }).click()
+
+  await expect(page).toHaveURL(`/settings/accounts/${accountId}/setup`)
+  await expect(page.getByRole('heading', { name: 'Setup Route QA' })).toBeVisible()
+  await expect(page.getByText('Required setup only')).toBeVisible()
+  await expect(page.getByText('Agent wallet').last()).toBeVisible()
+  await expect(page.getByText('Builder authorization')).toBeVisible()
+})
