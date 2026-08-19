@@ -167,6 +167,7 @@ function approvedBuilderMaxLabel(): string {
             <div class="setup-value">
               <span class="setup-label">Trad agent wallet</span>
               <code>{{ account.exchange_metadata?.agent_address || 'missing' }}</code>
+              <span>Named slot: {{ account.exchange_metadata?.agent_name || 'not assigned' }}</span>
               <span>Status: {{ agentComplete ? 'approved' : 'approval required' }}</span>
             </div>
             <div class="setup-actions">
@@ -214,6 +215,10 @@ function approvedBuilderMaxLabel(): string {
             aria-live="polite"
           >
             {{ agentFeedback.message }}
+          </p>
+          <p v-if="agentFeedback?.kind === 'error'" class="setup-recovery-link">
+            Agent slots full or an old connection in the way?
+            <RouterLink to="/settings/authorization">Manage Hyperliquid agent slots</RouterLink>
           </p>
         </div>
       </li>

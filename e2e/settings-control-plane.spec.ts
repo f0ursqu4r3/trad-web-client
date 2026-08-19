@@ -1,5 +1,19 @@
 import { expect, test } from '@playwright/test'
 
+test('durable Hyperliquid agent connections expose slots without unsafe replacement', async ({
+  page,
+}) => {
+  await page.goto('/auth/test-login?email=dev%40trad.local&return_to=%2Fsettings%2Fauthorization')
+  await expect(page.getByRole('heading', { name: 'Authorization & fees' })).toBeVisible()
+  await expect(page.getByText('Trad agent connections', { exact: true })).toBeVisible()
+  await expect(page.getByText('trad-c13bf78a', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('this Trad', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Generate replacement' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Forget local key' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Use this slot' }).first()).toBeDisabled()
+  await page.screenshot({ path: 'test-results/agent-connections.png', fullPage: true })
+})
+
 test('settings and administrator control plane are navigable', async ({ page }) => {
   const pageErrors: string[] = []
   page.on('pageerror', (error) => pageErrors.push(error.message))

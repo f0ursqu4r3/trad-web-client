@@ -26,7 +26,6 @@ import {
   signHyperliquidAgentApproval,
   signHyperliquidBuilderApproval,
 } from '@/lib/hyperliquidBuilderApproval'
-import { hyperliquidAgentName } from '@/lib/gateway/hyperliquidAgentName'
 import { createLogger } from '@/lib/utils'
 import { hyperliquidTargetTotalTenthsBps } from '@/lib/accountMetadata'
 import { HYPERLIQUID_MAX_BUILDER_FEE_TENTHS_BPS } from '@/lib/hyperliquidBuilderApproval'
@@ -438,7 +437,7 @@ async function approveHyperliquidAgent(account: AccountRecord) {
       network: account.network,
       userAddress,
       agentAddress,
-      agentName: hyperliquidAgentName(account.id),
+      agentName: account.exchange_metadata?.agent_name || undefined,
     })
     const response = await accounts.approveHyperliquidAgent(account.id, {
       ...signed,
