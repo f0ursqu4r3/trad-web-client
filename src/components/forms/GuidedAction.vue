@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MousePointerClick } from 'lucide-vue-next'
+import { ArrowDown } from 'lucide-vue-next'
 
 withDefaults(
   defineProps<{
@@ -14,7 +14,7 @@ withDefaults(
   <div class="guided-action" :class="{ 'guided-action--active': active }">
     <span v-if="active" class="guided-action__cue" aria-hidden="true">
       <span>{{ label }}</span>
-      <MousePointerClick :size="15" />
+      <ArrowDown :size="14" />
     </span>
     <slot />
   </div>
@@ -24,16 +24,19 @@ withDefaults(
 .guided-action {
   display: inline-flex;
   align-items: center;
+  flex-direction: column;
   justify-content: flex-end;
-  gap: 0.45rem;
+  gap: 0.2rem;
 }
 
 .guided-action__cue {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  flex-direction: column;
+  gap: 0.05rem;
   color: var(--state-warning);
   font-size: 10px;
+  line-height: 1;
   white-space: nowrap;
   animation: guided-nudge 1.25s ease-in-out infinite;
 }
@@ -48,10 +51,10 @@ withDefaults(
 @keyframes guided-nudge {
   0%,
   100% {
-    transform: translateX(0);
+    transform: translateY(0);
   }
   50% {
-    transform: translateX(4px);
+    transform: translateY(3px);
   }
 }
 

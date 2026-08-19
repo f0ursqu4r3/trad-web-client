@@ -182,6 +182,14 @@ function showAuthorizationSection(): boolean {
   return props.mode !== 'detail' || props.detailSection === 'authorization'
 }
 
+function showGuidedHyperliquidSetup(account: AccountRecord): boolean {
+  return (
+    props.mode === 'detail' &&
+    showDetailSection('setup') &&
+    account.exchange === ExchangeType.Hyperliquid
+  )
+}
+
 async function refreshAccounts() {
   await accounts.fetchAccounts()
 }
@@ -738,7 +746,10 @@ watch(
 </script>
 
 <template>
-  <section class="panel-card flex h-full flex-col">
+  <section
+    class="flex h-full flex-col"
+    :class="props.mode === 'detail' ? 'account-detail-shell' : 'panel-card'"
+  >
     <div v-if="props.mode !== 'detail'" class="panel-header-row">
       <div class="inline-flex items-center gap-2">
         <span class="font-semibold tracking-[0.04em] text-primary">Trading Accounts</span>
@@ -757,7 +768,10 @@ watch(
       </div>
     </div>
 
-    <div class="flex flex-1 flex-col gap-3 overflow-auto p-3">
+    <div
+      class="flex flex-1 flex-col gap-3 overflow-auto"
+      :class="props.mode === 'detail' ? 'account-detail-content' : 'p-3'"
+    >
       <p v-if="accounts.error" class="text-center text-xs text-error">
         {{ accounts.error }}
       </p>
@@ -790,24 +804,24 @@ watch(
           :data-account-id="account.id"
           data-testid="trading-account-row"
           :class="[
-            'flex items-center gap-2 border border-[var(--panel-border-inner)] bg-[color-mix(in_srgb,var(--panel-bg)_95%,transparent)] transition-colors',
+            'flex items-center gap-2 transition-colors',
+            showGuidedHyperliquidSetup(account)
+              ? 'account-guided-row'
+              : 'border border-[var(--panel-border-inner)] bg-[color-mix(in_srgb,var(--panel-bg)_95%,transparent)]',
             {
               'border-[var(--accent-color)] bg-[color-mix(in_srgb,var(--accent-color)_18%,var(--panel-bg))]':
-                accounts.selectedAccountId === account.id,
+                accounts.selectedAccountId === account.id && !showGuidedHyperliquidSetup(account),
             },
           ]"
           :style="{ borderRadius: 'var(--radius-base)' }"
         >
-          <div class="flex flex-1 items-start justify-between gap-3 px-3 py-2">
+          <div
+            class="flex flex-1 items-start justify-between gap-3"
+            :class="showGuidedHyperliquidSetup(account) ? '' : 'px-3 py-2'"
+          >
             <div class="flex flex-1 flex-col gap-2">
               <button
-                v-if="
-                  !(
-                    props.mode === 'detail' &&
-                    showDetailSection('setup') &&
-                    account.exchange === ExchangeType.Hyperliquid
-                  )
-                "
+                v-if="!showGuidedHyperliquidSetup(account)"
                 class="flex flex-col items-start gap-2 text-left"
                 type="button"
                 @click="selectAccount(account)"
@@ -837,11 +851,7 @@ watch(
               </button>
 
               <HyperliquidSetupFlow
-                v-if="
-                  props.mode === 'detail' &&
-                  showDetailSection('setup') &&
-                  account.exchange === ExchangeType.Hyperliquid
-                "
+                v-if="showGuidedHyperliquidSetup(account)"
                 :account="account"
                 :can-rotate-agent="canRotateHyperliquidAgent(account)"
                 :can-approve-agent="canApproveHyperliquidAgent(account)"
@@ -1342,6 +1352,17 @@ watch(
 </template>
 
 <style scoped>
+.account-detail-shell,
+.account-detail-content,
+.account-guided-row {
+  overflow: visible;
+}
+
+.account-guided-row {
+  border: 0;
+  background: transparent;
+}
+
 .account-settings-grid,
 .account-guard-grid,
 .account-agent-grid,

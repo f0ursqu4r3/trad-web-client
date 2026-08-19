@@ -101,8 +101,11 @@ function approvedBuilderMaxLabel(): string {
               <h3>Account details</h3>
               <p>Your Hyperliquid account identity and Trad label are saved.</p>
             </div>
-            <span class="pill" :class="identityComplete ? 'pill-ok' : 'pill-warn'">
-              {{ identityComplete ? 'complete' : 'action required' }}
+            <span
+              class="pill setup-step__status"
+              :class="identityComplete ? 'pill-ok' : 'pill-warn'"
+            >
+              {{ identityComplete ? 'complete' : 'required' }}
             </span>
           </header>
           <div class="setup-identity">
@@ -147,8 +150,11 @@ function approvedBuilderMaxLabel(): string {
                 every order. Your wallet will open once for this authorization.
               </p>
             </div>
-            <span class="pill" :class="agentComplete ? 'pill-ok' : agentCurrent ? 'pill-warn' : ''">
-              {{ agentComplete ? 'complete' : agentCurrent ? 'current step' : 'waiting' }}
+            <span
+              class="pill setup-step__status"
+              :class="agentComplete ? 'pill-ok' : agentCurrent ? 'pill-warn' : ''"
+            >
+              {{ agentComplete ? 'complete' : agentCurrent ? 'current' : 'waiting' }}
             </span>
           </header>
           <div class="setup-action-row">
@@ -228,10 +234,10 @@ function approvedBuilderMaxLabel(): string {
               </p>
             </div>
             <span
-              class="pill"
+              class="pill setup-step__status"
               :class="builderComplete ? 'pill-ok' : builderCurrent ? 'pill-warn' : ''"
             >
-              {{ builderComplete ? 'complete' : builderCurrent ? 'current step' : 'waiting' }}
+              {{ builderComplete ? 'complete' : builderCurrent ? 'current' : 'waiting' }}
             </span>
           </header>
           <div class="setup-action-row">
