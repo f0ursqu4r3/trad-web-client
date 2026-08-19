@@ -138,6 +138,18 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeys))
     color-mix(in srgb, var(--_rail-color) var(--account-rail-border-alpha), var(--border-color));
 }
 
+.settings-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  line-height: 1;
+}
+
+.settings-button svg {
+  display: block;
+  flex: none;
+}
+
 .logout-arrow {
   opacity: 0;
   transform: translateX(4px);

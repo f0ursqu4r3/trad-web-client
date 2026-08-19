@@ -4,8 +4,14 @@ import { RouterLink, useRoute } from 'vue-router'
 import { ArrowLeft } from 'lucide-vue-next'
 import AccountsListPanel from '@/components/terminal/panels/AccountsListPanel.vue'
 import ControlPageHeader from '@/components/control/ControlPageHeader.vue'
-import { accountMetadataStatus, useAccountsStore } from '@/stores/accounts'
+import {
+  accountMetadataStatus,
+  isBybitMetadataVerified,
+  isHyperliquidMetadataReady,
+  useAccountsStore,
+} from '@/stores/accounts'
 import { accountColorFromId } from '@/lib/accountColors'
+import { ExchangeType } from '@/lib/ws/protocol'
 
 type AccountSection = 'overview' | 'setup' | 'defaults' | 'safety' | 'authorization' | 'danger'
 
@@ -23,6 +29,21 @@ const section = computed<AccountSection>(() =>
     : 'overview',
 )
 const color = computed(() => accountColorFromId(accountId.value))
+const setupComplete = computed(() => {
+  if (!account.value) return false
+  if (account.value.exchange === ExchangeType.Hyperliquid) {
+    return isHyperliquidMetadataReady(account.value)
+  }
+  if (account.value.exchange === ExchangeType.Bybit) {
+    return isBybitMetadataVerified(account.value)
+  }
+  return true
+})
+const accountAddress = computed(() => {
+  const value = account.value?.exchange_metadata?.user_address || account.value?.key || ''
+  if (value.length <= 18) return value
+  return `${value.slice(0, 8)}…${value.slice(-6)}`
+})
 const tabs: { key: AccountSection; label: string }[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'setup', label: 'Setup' },
@@ -53,7 +74,7 @@ watch(account, selectCurrent)
       :title="account?.label || 'Account unavailable'"
       :description="
         account
-          ? `${account.exchange} · ${account.network} · ${accountMetadataStatus(account) || 'Configuration available.'}`
+          ? `${account.exchange} · ${account.network}${accountAddress ? ` · ${accountAddress}` : ''} · ${accountMetadataStatus(account) || 'Configuration available.'}`
           : 'This account may have been removed or is not available to this user.'
       "
     />
@@ -71,32 +92,40 @@ watch(account, selectCurrent)
         </RouterLink>
       </nav>
 
-      <div v-if="section === 'setup'" class="account-section-intro">
-        <strong>Guided account setup</strong>
-        <span
-          >Follow the highlighted step. Trad will show exactly which wallet action is required
-          next.</span
-        >
-      </div>
-      <div v-else-if="section === 'authorization'" class="account-section-intro">
-        <strong>Wallet authorization</strong>
-        <span
-          >The agent signs orders. The builder address is read-only platform identity; your wallet
-          approves its fee ceiling.</span
-        >
-      </div>
-      <div
-        v-else-if="section === 'danger'"
-        class="account-section-intro account-section-intro--danger"
-      >
-        <strong>Destructive maintenance</strong>
-        <span
-          >Trad refuses deletion while exchange positions, orders, protections, or unresolved
-          executions remain.</span
-        >
-      </div>
+      <Transition name="account-section" mode="out-in">
+        <section :key="section" class="account-section-view">
+          <div v-if="section === 'setup' && !setupComplete" class="account-section-intro">
+            <strong>Guided account setup</strong>
+            <span
+              >Follow the highlighted step. Trad will show exactly which wallet action is required
+              next.</span
+            >
+          </div>
+          <div v-else-if="section === 'authorization'" class="account-section-intro">
+            <strong>Wallet authorization</strong>
+            <span
+              >The agent signs orders. The builder address is read-only platform identity; your
+              wallet approves its fee ceiling.</span
+            >
+          </div>
+          <div
+            v-else-if="section === 'danger'"
+            class="account-section-intro account-section-intro--danger"
+          >
+            <strong>Destructive maintenance</strong>
+            <span
+              >Trad refuses deletion while exchange positions, orders, protections, or unresolved
+              executions remain.</span
+            >
+          </div>
 
-      <AccountsListPanel mode="detail" :detail-account-id="account.id" :detail-section="section" />
+          <AccountsListPanel
+            mode="detail"
+            :detail-account-id="account.id"
+            :detail-section="section"
+          />
+        </section>
+      </Transition>
     </template>
     <div v-else-if="accounts.loading" class="panel-card p-6 text-sm dim">Loading account…</div>
     <div v-else class="panel-card p-6">
@@ -109,12 +138,17 @@ watch(account, selectCurrent)
 </template>
 
 <style scoped>
-.account-workspace :deep(.control-section-header),
-.account-workspace :deep(.panel-card) {
-  border-top-color: var(--account-context-color);
+.account-workspace {
+  position: relative;
+  padding-left: 0.8rem;
 }
-.account-workspace :deep(.panel-card) {
-  border-top-width: 2px;
+.account-workspace::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--account-context-color);
+  content: '';
 }
 .account-back-link {
   display: inline-flex;
@@ -129,31 +163,44 @@ watch(account, selectCurrent)
 }
 .account-tabs {
   display: flex;
-  gap: 0.25rem;
-  margin-bottom: 1rem;
-  padding: 0.3rem;
+  align-items: end;
+  gap: 0.2rem;
+  margin-bottom: 0.9rem;
+  padding: 0 0.45rem;
   overflow-x: auto;
-  border: 1px solid var(--border-normal);
-  background: var(--surface-base);
+  border-bottom: 1px solid var(--border-normal);
 }
 .account-tab {
   flex: 0 0 auto;
-  padding: 0.5rem 0.7rem;
-  border-left: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 0.55rem 0.75rem 0.5rem;
+  border: 1px solid transparent;
+  border-bottom-color: var(--border-normal);
+  border-radius: 4px 4px 0 0;
   color: var(--fg-muted);
   font-size: 11px;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease,
+    transform 120ms ease;
 }
 .account-tab:hover {
   background: var(--row-hover-bg);
   color: var(--fg-strong);
+  transform: translateY(-1px);
 }
 .account-tab.active {
-  border-left-color: var(--account-context-color);
-  background: color-mix(in srgb, var(--account-context-color) 10%, var(--surface-muted));
+  border-color: var(--border-normal);
+  border-top-color: var(--accent-color);
+  border-bottom-color: var(--surface-canvas);
+  background: var(--surface-canvas);
+  box-shadow: inset 0 2px 0 var(--accent-color);
   color: var(--fg-strong);
+  transform: none;
 }
 .account-tab.danger.active {
-  border-left-color: var(--state-error);
+  border-top-color: var(--state-error);
+  box-shadow: inset 0 2px 0 var(--state-error);
 }
 .account-section-intro {
   display: flex;
@@ -161,8 +208,8 @@ watch(account, selectCurrent)
   gap: 0.75rem;
   margin-bottom: 0.75rem;
   padding: 0.75rem 0.85rem;
-  border-left: 3px solid var(--account-context-color);
-  background: color-mix(in srgb, var(--account-context-color) 7%, var(--surface-base));
+  border-left: 3px solid var(--accent-color);
+  background: color-mix(in srgb, var(--accent-color) 6%, var(--surface-base));
   font-size: 11px;
 }
 .account-section-intro strong {
@@ -175,5 +222,26 @@ watch(account, selectCurrent)
 .account-section-intro--danger {
   border-left-color: var(--state-error);
   background: color-mix(in srgb, var(--state-error) 6%, var(--surface-base));
+}
+.account-section-enter-active,
+.account-section-leave-active {
+  transition:
+    opacity 110ms ease,
+    transform 110ms ease;
+}
+.account-section-enter-from {
+  opacity: 0;
+  transform: translateX(6px);
+}
+.account-section-leave-to {
+  opacity: 0;
+  transform: translateX(-4px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .account-tab,
+  .account-section-enter-active,
+  .account-section-leave-active {
+    transition: none;
+  }
 }
 </style>
