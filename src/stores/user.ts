@@ -7,6 +7,7 @@ import { clearSessionUserId, setSessionUserId } from '@/lib/userSession'
 import { normalizeTheme, useUiStore } from '@/stores/ui'
 import { type AccountRecord, useAccountsStore } from '@/stores/accounts'
 import { normalizeProfileIcon, type ProfileIconKey } from '@/lib/profileIcons'
+import { normalizeProfileImage } from '@/lib/profileImages'
 
 export interface ClientProfile {
   display_name?: string | null
@@ -58,12 +59,27 @@ export const useUserStore = defineStore('user', () => {
   const profileIcon = computed(() =>
     normalizeProfileIcon(profile.value.meta?.preferences?.profile_icon),
   )
+  const profileImage = computed(() =>
+    normalizeProfileImage(profile.value.meta?.preferences?.profile_image),
+  )
 
   function setProfileIcon(icon: ProfileIconKey) {
     const preferences = profile.value.meta?.preferences || {}
     profile.value.meta = {
       ...profile.value.meta,
-      preferences: { ...preferences, profile_icon: normalizeProfileIcon(icon) },
+      preferences: {
+        ...preferences,
+        profile_icon: normalizeProfileIcon(icon),
+        profile_image: null,
+      },
+    }
+  }
+
+  function setProfileImage(image: string | null) {
+    const preferences = profile.value.meta?.preferences || {}
+    profile.value.meta = {
+      ...profile.value.meta,
+      preferences: { ...preferences, profile_image: normalizeProfileImage(image) },
     }
   }
 
@@ -144,6 +160,9 @@ export const useUserStore = defineStore('user', () => {
       }
       if (typeof preferences?.confirm_position_closes === 'boolean') {
         uiStore.confirmPositionCloses = preferences.confirm_position_closes
+      }
+      if (typeof preferences?.animate_account_rail === 'boolean') {
+        uiStore.animateAccountRail = preferences.animate_account_rail
       }
       if (
         preferences?.order_quantity_mode === 'base' ||
@@ -233,9 +252,11 @@ export const useUserStore = defineStore('user', () => {
     isAdmin,
     isSuperAdmin,
     profileIcon,
+    profileImage,
     // actions
     saveProfile,
     setProfileIcon,
+    setProfileImage,
     fetchMe,
     clear,
   }

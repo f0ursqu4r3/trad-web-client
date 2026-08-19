@@ -18,6 +18,7 @@ async function save() {
     number_display_mode: ui.numberDisplayMode,
     newest_commands_first: ui.newestCommandsFirst,
     confirm_position_closes: ui.confirmPositionCloses,
+    animate_account_rail: ui.animateAccountRail,
     order_quantity_mode: ui.orderQuantityMode,
   }
   saved.value = false
@@ -70,6 +71,9 @@ async function save() {
       ><label class="control-check control-field-panel"
         ><input v-model="ui.confirmPositionCloses" type="checkbox" />Confirm position-closing
         actions</label
+      ><label class="control-check control-field-panel"
+        ><input v-model="ui.animateAccountRail" type="checkbox" />Animate account identity
+        rail</label
       >
     </div>
   </ControlSection>

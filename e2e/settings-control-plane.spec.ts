@@ -78,6 +78,57 @@ test('profile icon choice is saved with user preferences', async ({ page }) => {
   await expect.poll(() => savedProfile?.meta?.preferences?.profile_icon).toBe('bolt')
 })
 
+test('custom profile image is prepared and saved with user preferences', async ({ page }) => {
+  let savedProfile: { meta?: { preferences?: { profile_image?: unknown } } } | null = null
+  await page.route('**/api/me', async (route) => {
+    if (route.request().method() !== 'PUT') {
+      await route.continue()
+      return
+    }
+    savedProfile = route.request().postDataJSON() as typeof savedProfile
+    await route.fulfill({ status: 204, body: '' })
+  })
+
+  await page.goto('/auth/test-login?email=668es218pur%40gmail.com&return_to=%2Fsettings%2Fprofile')
+  const imageBytes = await page.evaluate(async () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 8
+    canvas.height = 8
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Canvas unavailable')
+    context.fillStyle = '#58a6ff'
+    context.fillRect(0, 0, 8, 8)
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+    if (!blob) throw new Error('PNG unavailable')
+    return [...new Uint8Array(await blob.arrayBuffer())]
+  })
+  await page.getByTestId('profile-image-input').setInputFiles({
+    name: 'avatar.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(imageBytes),
+  })
+  await expect(page.getByRole('button', { name: 'Replace image' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Account and settings' }).locator('img')).toBeVisible()
+  await page.getByRole('button', { name: 'Save profile' }).click()
+  await expect
+    .poll(() => savedProfile?.meta?.preferences?.profile_image)
+    .toMatch(/^data:image\/webp;base64,/)
+})
+
+test('terminal account rail exposes its address and animation state', async ({ page }) => {
+  await page.goto('/auth/test-login?email=668es218pur%40gmail.com&return_to=%2Fterminal')
+  const rail = page.getByTestId('account-identity-rail')
+  await expect(rail).toHaveAttribute('aria-label', /Copy account address 0x/i)
+  await expect(rail.locator('.account-rail-track')).toHaveCount(1)
+  await expect(rail).toContainText(/tester.*hyperliquid.*mainnet/i)
+
+  await page.getByRole('link', { name: 'Settings' }).click()
+  await page.getByRole('link', { name: 'Preferences' }).click()
+  await page.getByRole('checkbox', { name: 'Animate account identity rail' }).uncheck()
+  await page.getByRole('link', { name: 'Terminal', exact: true }).click()
+  await expect(page.getByTestId('account-identity-rail').locator('.account-rail-static')).toHaveCount(1)
+})
+
 test('super-admin role controls are capability-scoped', async ({ page }) => {
   await page.goto('/auth/test-login?email=668es218pur%40gmail.com&return_to=%2Fadmin%2Fusers')
   const table = page.getByTestId('admin-user-table')

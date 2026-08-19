@@ -18,8 +18,8 @@
     min-height: 48px;
     align-items: center;
     padding: 0.65rem 1rem;
-    background: var(--surface-muted);
-    border-bottom: 1px solid var(--border-subtle);
+    background: color-mix(in srgb, var(--surface-muted) 94%, var(--fg-strong));
+    border-bottom: 1px solid var(--border-normal);
   }
   .control-section-title {
     color: var(--fg-strong);
@@ -41,7 +41,7 @@
     flex-wrap: wrap;
     gap: 0.5rem;
     padding: 0.55rem 1rem;
-    background: color-mix(in srgb, var(--surface-muted) 45%, transparent);
+    background: color-mix(in srgb, var(--surface-muted) 72%, var(--surface-base));
     border-bottom: 1px solid var(--border-subtle);
   }
   .control-section-toolbar > .input,
@@ -50,6 +50,17 @@
   }
   .control-section-body {
     padding: 1rem;
+    background: color-mix(in srgb, var(--surface-base) 97%, var(--fg-strong));
+    color: var(--fg);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .control-copy {
+    margin: 0;
+    max-width: 52rem;
+    color: var(--fg-muted);
+    font-size: 13px;
+    line-height: 1.55;
   }
   .control-actions {
     display: flex;
@@ -103,8 +114,8 @@
     min-height: 58px;
     align-items: stretch;
     padding: 0.75rem;
-    border: 1px solid var(--border-subtle);
-    background: color-mix(in srgb, var(--surface-muted) 32%, transparent);
+    border: 1px solid var(--border-normal);
+    background: color-mix(in srgb, var(--surface-muted) 62%, var(--surface-base));
   }
   .control-check {
     display: flex;

@@ -7,7 +7,7 @@
   .panel-card {
     @apply border shadow-sm;
     border-radius: var(--radius-card);
-    background: var(--surface-base);
+    background: color-mix(in srgb, var(--surface-base) 97%, var(--fg-strong));
     border-color: var(--border-normal);
   }
   .panel {

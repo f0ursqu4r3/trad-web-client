@@ -49,7 +49,12 @@ function signOut(): void {
         @click.stop="toggle"
       >
         <span class="user-avatar">
-          <ProfileIcon :icon="user.profileIcon" :initial="initial" :size="18" />
+          <ProfileIcon
+            :icon="user.profileIcon"
+            :initial="initial"
+            :image="user.profileImage"
+            :size="18"
+          />
         </span>
         <ChevronDown :size="13" aria-hidden="true" />
       </button>
@@ -58,7 +63,12 @@ function signOut(): void {
       <div class="user-menu">
         <div class="user-menu-identity">
           <div class="user-menu-avatar">
-            <ProfileIcon :icon="user.profileIcon" :initial="initial" :size="22" />
+            <ProfileIcon
+              :icon="user.profileIcon"
+              :initial="initial"
+              :image="user.profileImage"
+              :size="22"
+            />
           </div>
           <div class="min-w-0">
             <strong>{{ identity }}</strong>

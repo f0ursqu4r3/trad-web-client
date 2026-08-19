@@ -184,6 +184,8 @@ function openTradingAccounts(): void {
   min-width: 0;
   grid-column: 2;
   grid-row: 2;
+  font-size: 13px;
+  line-height: 1.5;
 }
 .control-tour-origin {
   position: fixed;

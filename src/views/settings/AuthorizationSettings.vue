@@ -84,7 +84,7 @@ onMounted(() => accounts.fetchAccounts())
     </div>
   </ControlSection>
   <ControlSection v-else title="No Hyperliquid accounts">
-    <p class="m-0 dim">Add a Hyperliquid account before wallet authorization is available.</p>
+    <p class="control-copy">Add a Hyperliquid account before wallet authorization is available.</p>
     <div class="control-actions">
       <RouterLink to="/settings/accounts" class="btn btn-primary btn-sm"
         >Add trading account</RouterLink

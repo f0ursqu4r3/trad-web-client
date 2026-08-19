@@ -28,6 +28,7 @@ export const useUiStore = defineStore(
     const numberDisplayMode = ref<NumberDisplayMode>('compact')
     const newestCommandsFirst = ref(false)
     const confirmPositionCloses = ref(true)
+    const animateAccountRail = ref(true)
     const orderQuantityMode = ref<OrderQuantityMode>('notional')
     const systemPrefersDark = ref<boolean>(
       typeof window !== 'undefined'
@@ -106,6 +107,7 @@ export const useUiStore = defineStore(
       numberDisplayMode,
       newestCommandsFirst,
       confirmPositionCloses,
+      animateAccountRail,
       orderQuantityMode,
       effectiveTheme,
       systemPrefersDark,
@@ -132,6 +134,7 @@ export const useUiStore = defineStore(
         'numberDisplayMode',
         'newestCommandsFirst',
         'confirmPositionCloses',
+        'animateAccountRail',
         'orderQuantityMode',
         'showInboundPanel',
       ],

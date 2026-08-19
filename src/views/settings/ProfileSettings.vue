@@ -6,10 +6,14 @@ import ControlPageHeader from '@/components/control/ControlPageHeader.vue'
 import ControlSection from '@/components/control/ControlSection.vue'
 import ProfileIcon from '@/components/general/ProfileIcon.vue'
 import { PROFILE_ICON_CHOICES } from '@/lib/profileIcons'
+import { prepareProfileImage } from '@/lib/profileImages'
 
 const user = useUserStore()
 const { logout } = useAuth()
 const saved = ref(false)
+const imageInput = ref<HTMLInputElement | null>(null)
+const imageError = ref<string | null>(null)
+const preparingImage = ref(false)
 const returnToOrigin = window.location.origin
 const initial = () => (user.displayName.trim().charAt(0) || '?').toUpperCase()
 
@@ -17,6 +21,23 @@ async function save() {
   saved.value = false
   await user.saveProfile()
   saved.value = !user.error
+}
+
+async function chooseImage(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  imageError.value = null
+  preparingImage.value = true
+  try {
+    user.setProfileImage(await prepareProfileImage(file))
+  } catch (error) {
+    imageError.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    preparingImage.value = false
+    input.value = ''
+  }
 }
 </script>
 
@@ -66,7 +87,7 @@ async function save() {
           <input
             type="radio"
             name="profile-icon"
-            :checked="user.profileIcon === choice.key"
+            :checked="!user.profileImage && user.profileIcon === choice.key"
             @change="user.setProfileIcon(choice.key)"
           />
           <span class="profile-icon-choice">
@@ -75,6 +96,45 @@ async function save() {
           <span>{{ choice.label }}</span>
         </label>
       </div>
+      <div class="profile-upload-row">
+        <span class="profile-upload-preview" :class="{ selected: user.profileImage }">
+          <ProfileIcon
+            :icon="user.profileIcon"
+            :initial="initial()"
+            :image="user.profileImage"
+            :size="24"
+          />
+        </span>
+        <div class="profile-upload-copy">
+          <strong>Custom image</strong>
+          <span>PNG, JPEG, or WebP. Trad crops it to a square and stores a small copy.</span>
+        </div>
+        <input
+          ref="imageInput"
+          class="sr-only"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          data-testid="profile-image-input"
+          @change="chooseImage"
+        />
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          :disabled="preparingImage"
+          @click="imageInput?.click()"
+        >
+          {{ preparingImage ? 'Preparing…' : user.profileImage ? 'Replace image' : 'Upload image' }}
+        </button>
+        <button
+          v-if="user.profileImage"
+          type="button"
+          class="btn btn-ghost btn-sm"
+          @click="user.setProfileImage(null)"
+        >
+          Remove
+        </button>
+      </div>
+      <p v-if="imageError" class="field-error" role="alert">{{ imageError }}</p>
     </fieldset>
     <div class="mt-4 flex items-center gap-3">
       <button class="btn btn-primary" :disabled="user.loading" @click="save">Save profile</button
@@ -142,5 +202,52 @@ async function save() {
   background: var(--surface-muted);
   color: var(--fg-strong);
   font-weight: 700;
+}
+.profile-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 0.75rem;
+}
+.profile-upload-preview {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--border-normal);
+  border-radius: 9999px;
+  background: var(--surface-muted);
+}
+.profile-upload-preview.selected {
+  border-color: var(--accent-color);
+  box-shadow: var(--focus-ring);
+}
+.profile-upload-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.2rem;
+  color: var(--fg-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.profile-upload-copy strong {
+  color: var(--fg-strong);
+  font-size: 13px;
+  font-weight: 500;
+}
+@media (max-width: 640px) {
+  .profile-upload-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .profile-upload-copy {
+    flex-basis: calc(100% - 3.5rem);
+  }
 }
 </style>

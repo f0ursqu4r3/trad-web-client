@@ -1,21 +1,39 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useAccountsStore } from '@/stores/accounts'
+import { useUiStore } from '@/stores/ui'
 import { accountColorFromId } from '@/lib/accountColors'
 import AccountSelect from '@/components/general/AccountSelect.vue'
 import EngineCommandModalContainer from '@/components/engine/commands/EngineCommandModalContainer.vue'
 import AppHeader from '@/components/general/AppHeader.vue'
 
 const accounts = useAccountsStore()
+const ui = useUiStore()
 const selectedAccount = computed(() => accounts.selectedAccount)
+const copiedAddress = ref(false)
+let copiedTimer: ReturnType<typeof setTimeout> | null = null
+
+const railAddress = computed(() => {
+  const metadata = selectedAccount.value?.exchange_metadata
+  return metadata?.user_address || metadata?.exchange_account_id || ''
+})
+
+const abbreviatedAddress = computed(() => {
+  const address = railAddress.value
+  if (address.length <= 18) return address
+  return `${address.slice(0, 10)}…${address.slice(-6)}`
+})
 
 const railLabel = computed(() => {
   if (!selectedAccount.value) return 'No account selected'
   const label = selectedAccount.value.label
   const exchange = selectedAccount.value.exchange
   const network = selectedAccount.value.network
-  return `${label} • ${exchange} • ${network}`
+  const address = abbreviatedAddress.value ? ` • ${abbreviatedAddress.value}` : ''
+  return copiedAddress.value
+    ? `Address copied • ${label} • ${exchange} • ${network}${address}`
+    : `${label} • ${exchange} • ${network}${address}`
 })
 
 const railColor = computed(() => {
@@ -28,21 +46,52 @@ const railTextColor = computed(() => {
   // Match AccountSelect: light text on colored bg, dim text when no account
   return selectedAccount.value ? '#f5f7fa' : 'var(--color-text-dim)'
 })
+
+async function copyAccountAddress(): Promise<void> {
+  if (!railAddress.value) return
+  try {
+    await navigator.clipboard.writeText(railAddress.value)
+    copiedAddress.value = true
+    if (copiedTimer) clearTimeout(copiedTimer)
+    copiedTimer = setTimeout(() => {
+      copiedAddress.value = false
+      copiedTimer = null
+    }, 1800)
+  } catch {
+    copiedAddress.value = false
+  }
+}
+
+onBeforeUnmount(() => {
+  if (copiedTimer) clearTimeout(copiedTimer)
+})
 </script>
 
 <template>
   <div class="relative w-full h-full overflow-hidden flex">
-    <div
-      class="account-rail flex justify-center items-end px-1 py-2 h-full"
+    <button
+      class="account-rail"
       :style="railColor ? { '--account-rail-color': railColor } : {}"
+      type="button"
+      :disabled="!railAddress"
+      :title="railAddress ? `Copy account address: ${railAddress}` : railLabel"
+      :aria-label="railAddress ? `Copy account address ${railAddress}` : railLabel"
+      data-testid="account-identity-rail"
+      @click="copyAccountAddress"
     >
-      <div
-        class="writing-sideways-lr text-xs tracking-wide uppercase whitespace-nowrap"
+      <span
+        v-if="ui.animateAccountRail"
+        class="account-rail-track"
         :style="{ color: railTextColor }"
       >
-        {{ railLabel }}
-      </div>
-    </div>
+        <span v-for="copy in 2" :key="copy" class="account-rail-segment">
+          <span class="account-rail-label">{{ railLabel }}</span>
+        </span>
+      </span>
+      <span v-else class="account-rail-static" :style="{ color: railTextColor }">
+        <span class="account-rail-label">{{ railLabel }}</span>
+      </span>
+    </button>
     <div class="flex flex-col w-full h-full overflow-hidden">
       <AppHeader show-connection />
       <div class="toolbar-row terminal-context-toolbar">
@@ -66,6 +115,69 @@ const railTextColor = computed(() => {
   background: color-mix(in srgb, var(--_rail-color) 70%, var(--panel-header-bg));
   border-right: 1px solid
     color-mix(in srgb, var(--_rail-color) var(--account-rail-border-alpha), var(--border-color));
+  position: relative;
+  width: 24px;
+  height: 100%;
+  flex: none;
+  overflow: hidden;
+  padding: 0;
+  color: inherit;
+  cursor: copy;
+}
+.account-rail:disabled {
+  cursor: default;
+}
+.account-rail:hover:not(:disabled),
+.account-rail:focus-visible {
+  filter: brightness(1.12);
+}
+.account-rail-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  animation: account-rail-scroll 18s linear infinite;
+}
+.account-rail:hover .account-rail-track,
+.account-rail:focus-visible .account-rail-track {
+  animation-play-state: paused;
+}
+.account-rail-segment {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  flex: none;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 0.5rem;
+}
+.account-rail-static {
+  position: absolute;
+  right: 0;
+  bottom: 0.5rem;
+  left: 0;
+  display: flex;
+  justify-content: center;
+}
+.account-rail-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 11px;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+@keyframes account-rail-scroll {
+  to {
+    transform: translateY(-100vh);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .account-rail-track {
+    animation: none;
+  }
 }
 
 .terminal-context-toolbar {
