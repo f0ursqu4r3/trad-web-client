@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { Plus, RefreshCw } from 'lucide-vue-next'
+import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-vue-next'
 import ControlPageHeader from '@/components/control/ControlPageHeader.vue'
 import ControlSection from '@/components/control/ControlSection.vue'
 import CreateAccountModal from '@/components/terminal/modals/CreateAccountModal.vue'
+import ActionConfirmationModal from '@/components/terminal/modals/ActionConfirmationModal.vue'
 import {
   accountMetadataStatus,
   formatAccountProduct,
@@ -22,6 +23,10 @@ const route = useRoute()
 const router = useRouter()
 const query = ref('')
 const createOpen = ref(false)
+const deletionTarget = ref<AccountRecord | null>(null)
+const deletingAccountIds = ref<Set<string>>(new Set())
+const deletionError = ref<string | null>(null)
+const deletionMessage = ref<string | null>(null)
 const touringToNewAccount = computed(() => route.query.tour === 'new-account')
 const rows = computed(() => {
   const needle = query.value.trim().toLowerCase()
@@ -65,6 +70,32 @@ function openCreatedAccount(account: AccountRecord): void {
   void router.push(`/settings/accounts/${account.id}/${ready(account) ? 'overview' : 'setup'}`)
 }
 
+function requestAccountDeletion(account: AccountRecord): void {
+  deletionError.value = null
+  deletionMessage.value = null
+  deletionTarget.value = account
+}
+
+async function confirmAccountDeletion(): Promise<void> {
+  const account = deletionTarget.value
+  if (!account) return
+  deletionTarget.value = null
+  deletingAccountIds.value = new Set(deletingAccountIds.value).add(account.id)
+  try {
+    const result = await accounts.removeAccount(account.label)
+    deletionMessage.value =
+      result.owner_release === 'completed'
+        ? `Deleted ${account.label}.`
+        : `Deleted ${account.label}; owner cleanup is completing in the background.`
+  } catch (error) {
+    deletionError.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    const next = new Set(deletingAccountIds.value)
+    next.delete(account.id)
+    deletingAccountIds.value = next
+  }
+}
+
 onMounted(async () => {
   await accounts.fetchAccounts()
   if (route.query.create === '1') {
@@ -104,7 +135,10 @@ onMounted(async () => {
       </button>
     </template>
 
-    <p v-if="accounts.error" class="control-notice">{{ accounts.error }}</p>
+    <p v-if="accounts.error || deletionError" class="control-notice control-notice--error">
+      {{ deletionError || accounts.error }}
+    </p>
+    <p v-if="deletionMessage" class="control-notice">{{ deletionMessage }}</p>
     <div v-if="rows.length" class="overflow-x-auto">
       <table class="table-tiny table-compact min-w-[880px]" data-testid="account-settings-index">
         <thead>
@@ -151,15 +185,30 @@ onMounted(async () => {
                 {{ builderStatus(account) }}
               </span>
             </td>
-            <td class="text-right">
-              <RouterLink
-                :to="manageRoute(account)"
-                class="btn btn-sm"
-                :class="ready(account) ? 'btn-secondary' : 'btn-primary'"
-                @click="accounts.selectedAccountId = account.id"
-              >
-                {{ ready(account) ? 'Manage' : 'Set up' }}
-              </RouterLink>
+            <td>
+              <div class="account-row-actions">
+                <RouterLink
+                  :to="manageRoute(account)"
+                  class="account-row-action"
+                  :aria-label="
+                    ready(account) ? `Manage ${account.label}` : `Set up ${account.label}`
+                  "
+                  :title="ready(account) ? 'Manage account' : 'Finish account setup'"
+                  @click="accounts.selectedAccountId = account.id"
+                >
+                  <Pencil :size="14" />
+                </RouterLink>
+                <button
+                  type="button"
+                  class="account-row-action account-row-action--danger"
+                  :aria-label="`Delete ${account.label}`"
+                  title="Delete account"
+                  :disabled="deletingAccountIds.has(account.id)"
+                  @click="requestAccountDeletion(account)"
+                >
+                  <Trash2 :size="14" />
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -191,11 +240,50 @@ onMounted(async () => {
     @close="createOpen = false"
     @created="openCreatedAccount"
   />
+  <ActionConfirmationModal
+    :open="deletionTarget !== null"
+    title="Delete trading account"
+    :message="
+      deletionTarget
+        ? `Delete ${deletionTarget.label}? Trad will first reconcile the exchange and will refuse deletion if any position, order, protection, unresolved execution, or pending exchange action remains. Encrypted credentials are erased only after those checks pass.`
+        : ''
+    "
+    confirm-label="Check and delete"
+    @cancel="deletionTarget = null"
+    @confirm="confirmAccountDeletion"
+  />
 </template>
 
 <style scoped>
 .account-context-cell {
   box-shadow: inset 3px 0 0 var(--account-context-color);
   padding-left: 0.85rem;
+}
+.account-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+.account-row-action {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  color: var(--fg-muted);
+}
+.account-row-action:hover {
+  border-color: var(--border-normal);
+  background: var(--row-hover-bg);
+  color: var(--fg-strong);
+}
+.account-row-action--danger {
+  color: var(--state-error);
+}
+.account-row-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
 }
 </style>
