@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useAdminStore } from '@/stores/admin'
 import ControlPageHeader from '@/components/control/ControlPageHeader.vue'
 import ControlSection from '@/components/control/ControlSection.vue'
+import { accountColorFromId } from '@/lib/accountColors'
 
 const admin = useAdminStore()
 const query = ref('')
@@ -27,7 +28,10 @@ onMounted(() => admin.fetchAccounts())
   />
   <ControlSection title="Configured accounts" :description="`${rows.length} shown`"
     ><template #actions
-      ><input v-model.trim="query" class="input h-7 w-64 text-xs" placeholder="Filter accounts"
+      ><input
+        v-model.trim="query"
+        class="input control-filter h-8 text-xs"
+        placeholder="Filter accounts"
     /></template>
     <div class="overflow-x-auto">
       <table class="table-tiny table-compact min-w-[900px]">
@@ -43,8 +47,12 @@ onMounted(() => admin.fetchAccounts())
           </tr>
         </thead>
         <tbody>
-          <tr v-for="account in rows" :key="account.account_id">
-            <td>{{ account.email }}</td>
+          <tr
+            v-for="account in rows"
+            :key="account.account_id"
+            :style="{ '--account-context-color': accountColorFromId(account.account_id) }"
+          >
+            <td class="admin-account-cell">{{ account.email }}</td>
             <td>{{ account.label }}</td>
             <td>{{ account.exchange }}</td>
             <td>{{ account.network }}</td>
@@ -74,3 +82,10 @@ onMounted(() => admin.fetchAccounts())
   >
   <p v-if="admin.error" class="notice-err">{{ admin.error }}</p>
 </template>
+
+<style scoped>
+.admin-account-cell {
+  box-shadow: inset 3px 0 0 var(--account-context-color);
+  padding-left: 0.85rem;
+}
+</style>

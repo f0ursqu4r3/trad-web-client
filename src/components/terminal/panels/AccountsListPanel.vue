@@ -45,10 +45,12 @@ const props = withDefaults(
   defineProps<{
     mode?: 'full' | 'compact' | 'detail'
     detailAccountId?: string | null
+    detailSection?: 'overview' | 'setup' | 'defaults' | 'safety' | 'authorization' | 'danger'
   }>(),
   {
     mode: 'full',
     detailAccountId: null,
+    detailSection: 'overview',
   },
 )
 const emit = defineEmits<{
@@ -168,7 +170,24 @@ function openPositions(account: AccountRecord) {
 }
 
 function showAccountDetails(account: AccountRecord): boolean {
-  return props.mode !== 'compact' && accounts.selectedAccountId === account.id
+  return (
+    props.mode !== 'compact' &&
+    (props.mode === 'detail' || accounts.selectedAccountId === account.id)
+  )
+}
+
+function showDetailSection(
+  section: 'overview' | 'setup' | 'defaults' | 'safety' | 'authorization' | 'danger',
+): boolean {
+  return props.mode !== 'detail' || props.detailSection === section
+}
+
+function showAuthorizationSection(): boolean {
+  return (
+    props.mode !== 'detail' ||
+    props.detailSection === 'setup' ||
+    props.detailSection === 'authorization'
+  )
 }
 
 async function refreshAccounts() {
@@ -853,7 +872,7 @@ watch(
               </button>
 
               <div
-                v-if="showAccountDetails(account)"
+                v-if="showAccountDetails(account) && showDetailSection('defaults')"
                 class="account-settings-grid border-t border-[var(--panel-border-inner)] pt-2"
                 :class="{
                   'account-settings-grid--hyperliquid':
@@ -964,7 +983,11 @@ watch(
                 </button>
               </div>
               <div
-                v-if="showAccountDetails(account) && projectedAccountControls(account).length > 0"
+                v-if="
+                  showAccountDetails(account) &&
+                  (showDetailSection('overview') || showDetailSection('defaults')) &&
+                  projectedAccountControls(account).length > 0
+                "
                 class="grid gap-1 border-t border-[var(--panel-border-inner)] pt-2 text-[11px]"
               >
                 <div
@@ -985,7 +1008,11 @@ watch(
                 </div>
               </div>
               <p
-                v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
+                v-if="
+                  showAccountDetails(account) &&
+                  showDetailSection('overview') &&
+                  account.exchange === ExchangeType.Hyperliquid
+                "
                 class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)]"
               >
                 Wallet:
@@ -1000,12 +1027,16 @@ watch(
                 <span v-if="account.exchange_metadata?.vault_address"> (vault/subaccount)</span>
                 <span v-else> (main account)</span>
                 <br />
-                Hyperliquid leverage is one-way per-symbol exchange state. Save prefs records the
-                account default, margin mode, and symbol overrides in Trad; Set Leverage applies the
-                current leverage and margin mode to the exchange for the symbols entered above.
+                Trad routes this account through its approved agent and reconciles exchange state
+                before command execution. Trading defaults, safety limits, and wallet maintenance
+                are separated into the tabs above.
               </p>
               <div
-                v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
+                v-if="
+                  showAccountDetails(account) &&
+                  showDetailSection('safety') &&
+                  account.exchange === ExchangeType.Hyperliquid
+                "
                 class="account-guard-grid border-t border-[var(--panel-border-inner)] pt-2"
               >
                 <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
@@ -1070,7 +1101,11 @@ watch(
                 </p>
               </div>
               <p
-                v-if="showAccountDetails(account) && account.exchange === ExchangeType.Bybit"
+                v-if="
+                  showAccountDetails(account) &&
+                  (showDetailSection('overview') || showDetailSection('defaults')) &&
+                  account.exchange === ExchangeType.Bybit
+                "
                 class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)]"
               >
                 Bybit leverage is persistent per-symbol exchange state. Attached TP/SL is
@@ -1079,7 +1114,11 @@ watch(
                 are shown above.
               </p>
               <div
-                v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
+                v-if="
+                  showAccountDetails(account) &&
+                  showAuthorizationSection() &&
+                  account.exchange === ExchangeType.Hyperliquid
+                "
                 class="account-agent-grid border-t border-[var(--panel-border-inner)] pt-2"
               >
                 <div class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
@@ -1132,7 +1171,11 @@ watch(
                 </p>
               </div>
               <div
-                v-if="showAccountDetails(account) && account.exchange === ExchangeType.Hyperliquid"
+                v-if="
+                  showAccountDetails(account) &&
+                  showAuthorizationSection() &&
+                  account.exchange === ExchangeType.Hyperliquid
+                "
                 class="account-builder-grid border-t border-[var(--panel-border-inner)] pt-2"
               >
                 <div
@@ -1238,7 +1281,10 @@ watch(
               {{ accountReady(account) ? 'Manage' : 'Setup' }}
             </button>
             <button
-              v-if="account.exchange === ExchangeType.Hyperliquid"
+              v-if="
+                account.exchange === ExchangeType.Hyperliquid &&
+                (props.mode !== 'detail' || showDetailSection('overview'))
+              "
               class="btn btn-secondary btn-xs"
               type="button"
               @click.stop="openPositions(account)"
@@ -1246,6 +1292,7 @@ watch(
               Positions
             </button>
             <button
+              v-if="props.mode !== 'detail' || showDetailSection('overview')"
               class="btn btn-secondary btn-xs"
               type="button"
               :disabled="accounts.loading"
@@ -1255,6 +1302,7 @@ watch(
               Refresh
             </button>
             <button
+              v-if="props.mode !== 'detail' || showDetailSection('danger')"
               class="btn btn-danger btn-xs shrink-0 self-start"
               type="button"
               aria-label="Delete flat account"

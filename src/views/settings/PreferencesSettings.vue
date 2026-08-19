@@ -34,7 +34,7 @@ async function save() {
   />
   <ControlSection title="Appearance">
     <div class="control-form-grid">
-      <label class="field"
+      <label class="field control-field-panel"
         ><span class="field-label">Theme</span
         ><select v-model="ui.theme" class="input">
           <option
@@ -60,7 +60,7 @@ async function save() {
           </option>
         </select></label
       >
-      <label class="field"
+      <label class="field control-field-panel"
         ><span class="field-label">Number display</span
         ><select v-model="ui.numberDisplayMode" class="input">
           <option :value="'compact' as NumberDisplayMode">Compact</option>
@@ -71,7 +71,7 @@ async function save() {
   </ControlSection>
   <ControlSection title="Trading terminal">
     <div class="control-form-grid">
-      <label class="field"
+      <label class="field control-field-panel"
         ><span class="field-label">Default quantity</span
         ><select v-model="ui.orderQuantityMode" class="input">
           <option :value="'notional' as OrderQuantityMode">Notional</option>
@@ -79,15 +79,17 @@ async function save() {
           <option :value="'risk' as OrderQuantityMode">Risk</option>
         </select></label
       >
-      <label class="control-check"
+      <label class="control-check control-field-panel"
         ><input v-model="ui.newestCommandsFirst" type="checkbox" />Newest commands first</label
-      ><label class="control-check"
+      ><label class="control-check control-field-panel"
         ><input v-model="ui.confirmPositionCloses" type="checkbox" />Confirm position-closing
         actions</label
       >
     </div>
   </ControlSection>
-  <div class="flex items-center gap-3">
+  <div
+    class="control-actions mt-0 border border-[var(--border-normal)] bg-[var(--surface-base)] px-4 pb-4"
+  >
     <button class="btn btn-primary" :disabled="user.loading" @click="save">Save preferences</button
     ><span v-if="saved" class="notice-ok m-0">Saved.</span
     ><span v-if="user.error" class="notice-err m-0">{{ user.error }}</span>

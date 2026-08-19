@@ -19,7 +19,11 @@ import { resolveEnvironmentBranding } from '@/lib/environmentBranding'
 const route = useRoute()
 const user = useUserStore()
 const brand = resolveEnvironmentBranding(window.location.hostname)
-const section = computed(() => String(route.params.section || 'profile'))
+const section = computed(() =>
+  route.path.startsWith('/settings/accounts/')
+    ? 'accounts'
+    : String(route.params.section || 'profile'),
+)
 const area = computed(() => String(route.meta.controlArea || 'settings'))
 
 const settings = [
@@ -57,8 +61,10 @@ const admin = [
           <component :is="item.icon" :size="14" /><span>{{ item.label }}</span>
         </RouterLink>
       </nav>
-      <nav v-if="user.isAdmin" aria-label="Administration">
-        <div class="control-nav-label">Administration</div>
+      <nav v-if="user.isAdmin" class="control-admin-nav" aria-label="Administration">
+        <div class="control-nav-label">
+          <span>Administration</span><span class="control-admin-tag">admin</span>
+        </div>
         <RouterLink
           v-for="item in admin"
           :key="item.key"
@@ -118,12 +124,27 @@ const admin = [
 .control-sidebar nav {
   padding: 0.75rem 0.5rem 0;
 }
+.control-sidebar .control-admin-nav {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border-subtle);
+}
 .control-nav-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 0.35rem 0.5rem;
   color: var(--fg-muted);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.09em;
+}
+.control-admin-tag {
+  padding: 0.1rem 0.3rem;
+  border: 1px solid color-mix(in srgb, var(--state-warning) 45%, var(--border-normal));
+  color: var(--state-warning);
+  font-size: 8px;
+  letter-spacing: 0.08em;
 }
 .control-nav-item {
   display: flex;

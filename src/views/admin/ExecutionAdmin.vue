@@ -48,12 +48,12 @@ onMounted(async () => {
         <div><span>Business boundary</span><strong>0.0–5.2 bps</strong></div>
       </div>
     </div>
-    <div class="mt-4 flex items-center gap-3">
+    <div class="control-actions">
       <button class="btn btn-primary" :disabled="!valid || admin.loading" @click="save">
         Apply policy</button
       ><span v-if="saved" class="notice-ok m-0">Applied and audited.</span>
     </div>
-    <p class="notice-warn">
+    <p class="control-notice">
       Changing this value increments every Hyperliquid account configuration revision. Lower
       existing wallet approvals remain valid only when they still cover the target.
     </p></ControlSection

@@ -43,7 +43,7 @@ onMounted(() => billing.fetchBillingInfo())
       </div>
     </div>
     <p v-else class="dim">No subscription record is attached to this user.</p>
-    <div class="mt-4 flex gap-2">
+    <div class="control-actions">
       <button
         v-if="billing.billingInfo"
         class="btn btn-primary"

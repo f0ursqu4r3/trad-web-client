@@ -154,12 +154,12 @@
     @apply w-full text-[12px];
   }
   .table-tiny thead th {
-    @apply py-1 text-left font-medium border-b;
+    @apply px-2 py-2 align-middle text-left font-medium border-b;
     color: var(--fg-muted);
     border-bottom-color: var(--border-subtle);
   }
   .table-tiny tbody td {
-    @apply py-1 align-top border-b;
+    @apply px-2 py-2 align-middle border-b;
     border-bottom-color: var(--border-subtle);
   }
   .table-compact tbody tr:hover {

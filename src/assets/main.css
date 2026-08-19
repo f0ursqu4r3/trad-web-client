@@ -13,6 +13,63 @@
 @import './styles/utilities/helpers.css'; /* utilities & small helpers */
 
 @layer components {
+  .control-section-header {
+    display: flex;
+    min-height: 48px;
+    align-items: center;
+    padding: 0.65rem 1rem;
+    background: var(--surface-muted);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .control-section-title {
+    color: var(--fg-strong);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .control-section-description {
+    margin-top: 0.2rem;
+    color: var(--fg-muted);
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .control-section-toolbar {
+    display: flex;
+    min-height: 48px;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.55rem 1rem;
+    background: color-mix(in srgb, var(--surface-muted) 45%, transparent);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .control-section-toolbar > .input,
+  .control-filter {
+    width: min(22rem, 100%);
+  }
+  .control-section-body {
+    padding: 1rem;
+  }
+  .control-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-subtle);
+  }
+  .control-notice {
+    margin: 1rem 0 0;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--state-warning) 40%, var(--border-normal));
+    border-left: 3px solid var(--state-warning);
+    background: color-mix(in srgb, var(--state-warning) 7%, transparent);
+    color: var(--fg-muted);
+    font-size: 11px;
+    line-height: 1.55;
+  }
   .control-detail-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -39,6 +96,14 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 1rem;
+  }
+  .control-field-panel {
+    display: flex;
+    min-height: 58px;
+    align-items: stretch;
+    padding: 0.75rem;
+    border: 1px solid var(--border-subtle);
+    background: color-mix(in srgb, var(--surface-muted) 32%, transparent);
   }
   .control-check {
     display: flex;

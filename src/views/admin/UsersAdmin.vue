@@ -28,7 +28,10 @@ onMounted(() => admin.fetchUsers())
   />
   <ControlSection title="User directory" :description="`${filtered.length} shown`"
     ><template #actions
-      ><input v-model.trim="query" class="input h-7 w-64 text-xs" placeholder="Filter by email"
+      ><input
+        v-model.trim="query"
+        class="input control-filter h-8 text-xs"
+        placeholder="Filter by email"
     /></template>
     <div class="overflow-x-auto">
       <table class="table-tiny table-compact min-w-[880px]">
