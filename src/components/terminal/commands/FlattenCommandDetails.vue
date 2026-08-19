@@ -173,7 +173,7 @@ function copyCommandId(): void {
 .flatten-section h4 {
   color: var(--color-text-dim);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
 }
 .flatten-header h3 {
@@ -186,7 +186,7 @@ function copyCommandId(): void {
   border: 1px solid var(--color-info);
   color: var(--color-info);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   padding: 2px 5px;
   text-transform: uppercase;
 }
@@ -194,7 +194,7 @@ function copyCommandId(): void {
   color: var(--color-text-dim);
   flex-wrap: wrap;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
 }
 .flatten-identifiers button {
   background: transparent;
@@ -244,7 +244,7 @@ function copyCommandId(): void {
   color: var(--color-text-dim);
   display: grid;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   gap: 8px;
   grid-template-columns: minmax(52px, auto) minmax(76px, auto) 1fr;
   padding: 4px;

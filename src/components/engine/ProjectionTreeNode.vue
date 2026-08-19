@@ -101,7 +101,7 @@ const selected = computed(
 .tree-id,
 .tree-status {
   color: var(--color-text-dim);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .tree-status {

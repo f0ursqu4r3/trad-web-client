@@ -46,7 +46,7 @@ onMounted(() => accounts.fetchAccounts())
           >
             <td class="authorization-account-cell">
               <div class="text-primary">{{ account.label }}</div>
-              <div class="mt-0.5 text-[10px] dim">{{ account.network }}</div>
+              <div class="mt-0.5 text-[11px] dim">{{ account.network }}</div>
             </td>
             <td>
               <span
@@ -67,7 +67,7 @@ onMounted(() => accounts.fetchAccounts())
             <td>
               {{ (hyperliquidTargetTotalTenthsBps(account.exchange_metadata) / 10).toFixed(1) }} bps
             </td>
-            <td class="max-w-56 truncate font-mono text-[10px] dim">
+            <td class="max-w-56 truncate font-mono text-[12px] dim">
               {{ account.exchange_metadata?.builder_address || 'not configured' }}
             </td>
             <td class="text-right">

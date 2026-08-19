@@ -442,7 +442,7 @@ const rowClass = (item: TreeItem): string => {
 
 .filter-label {
   color: var(--color-text-dim);
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
 }
 

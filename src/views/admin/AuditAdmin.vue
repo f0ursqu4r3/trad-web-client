@@ -36,7 +36,7 @@ onMounted(() => admin.fetchAudit())
             <td>{{ event.action }}</td>
             <td>{{ event.target_type }} · {{ event.target_id }}</td>
             <td>
-              <code class="text-[10px] dim">{{ JSON.stringify(event.detail) }}</code>
+              <code class="text-[12px] dim">{{ JSON.stringify(event.detail) }}</code>
             </td>
           </tr>
           <tr v-if="!admin.audit.length">

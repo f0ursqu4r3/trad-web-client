@@ -1,33 +1,19 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount } from 'vue'
-import { Settings, ArrowLeft } from 'lucide-vue-next'
-import { useUserStore } from '@/stores/user'
-import { useUiStore } from '@/stores/ui'
+import { computed } from 'vue'
 import { useAccountsStore } from '@/stores/accounts'
-import { useAuth } from '@/lib/auth'
 import { accountColorFromId } from '@/lib/accountColors'
-import { useRouter } from 'vue-router'
+import { resolveEnvironmentBranding } from '@/lib/environmentBranding'
 
 import WsIndicator from '@/components/general/WsIndicator.vue'
 import AccountSelect from '@/components/general/AccountSelect.vue'
+import UserAccountMenu from '@/components/general/UserAccountMenu.vue'
 import EngineCommandPalette from '@/components/engine/commands/EngineCommandPalette.vue'
 import EngineCommandModalContainer from '@/components/engine/commands/EngineCommandModalContainer.vue'
 
-const userStore = useUserStore()
-const ui = useUiStore()
 const accounts = useAccountsStore()
-const { logout } = useAuth()
-const router = useRouter()
-
-const username = computed(() => userStore.displayName || 'anonymous')
+const brand = resolveEnvironmentBranding(window.location.hostname)
 const selectedAccount = computed(() => accounts.selectedAccount)
-
-function confirmLogout() {
-  if (window.confirm('Are you sure you want to log out?')) {
-    logout({ returnTo: window.location.origin })
-  }
-}
 
 const railLabel = computed(() => {
   if (!selectedAccount.value) return 'No account selected'
@@ -47,31 +33,6 @@ const railTextColor = computed(() => {
   // Match AccountSelect: light text on colored bg, dim text when no account
   return selectedAccount.value ? '#f5f7fa' : 'var(--color-text-dim)'
 })
-
-const isMac = computed(() => /Mac|iPhone|iPad|iPod/.test(navigator.platform))
-const msgsShortcut = computed(() => (isMac.value ? '⌘+M' : 'Ctrl+M'))
-
-function toggleMessagesPanel() {
-  ui.toggleInboundPanel()
-}
-
-function handleGlobalKeys(event: KeyboardEvent) {
-  if (event.defaultPrevented) return
-  const target = event.target as HTMLElement | null
-  if (target) {
-    const tag = target.tagName?.toLowerCase()
-    if (tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable) {
-      return
-    }
-  }
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'm') {
-    event.preventDefault()
-    toggleMessagesPanel()
-  }
-}
-
-onMounted(() => window.addEventListener('keydown', handleGlobalKeys))
-onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeys))
 </script>
 
 <template>
@@ -88,37 +49,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeys))
       </div>
     </div>
     <div class="flex flex-col w-full h-full overflow-hidden">
-      <div class="toolbar-row">
-        <div class="toolbar-section">
-          <span class="muted">logged in as</span>
-          <button
-            class="logout-btn text-primary hover:text-accent cursor-pointer transition-colors"
-            title="Click to log out"
-            @click="confirmLogout"
-          >
-            <ArrowLeft :size="12" class="logout-arrow inline-block" />
-            {{ username }}
-          </button>
-          <span class="muted">|</span>
+      <div class="toolbar-row terminal-toolbar">
+        <div class="toolbar-section terminal-toolbar-left">
           <AccountSelect />
-        </div>
-        <div class="toolbar-section">
+          <span class="terminal-toolbar-divider" aria-hidden="true"></span>
           <EngineCommandPalette />
-          <button class="btn btn-ghost" @click="toggleMessagesPanel" :title="msgsShortcut">
-            {{ ui.showInboundPanel ? 'Hide msgs' : 'Show msgs' }}
-            <span class="kbd">{{ msgsShortcut }}</span>
-          </button>
         </div>
-        <div class="toolbar-section">
+        <RouterLink class="terminal-brand" to="/terminal" aria-label="Trad terminal">
+          <img :src="brand.appIconPath" alt="" />
+          <span>TRAD</span>
+        </RouterLink>
+        <div class="toolbar-section terminal-toolbar-right">
           <WsIndicator />
-          <button
-            class="btn btn-ghost settings-button"
-            data-tour="terminal-settings"
-            @click="router.push('/settings/profile')"
-            title="Settings"
-          >
-            <Settings :size="12" /> Settings
-          </button>
+          <UserAccountMenu />
         </div>
       </div>
       <slot></slot>
@@ -138,41 +81,45 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeys))
     color-mix(in srgb, var(--_rail-color) var(--account-rail-border-alpha), var(--border-color));
 }
 
-.settings-button {
+.terminal-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  padding-block: 0.25rem;
+}
+.terminal-toolbar-left {
+  min-width: 0;
+  justify-self: start;
+}
+.terminal-toolbar-right {
+  justify-self: end;
+}
+.terminal-toolbar-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--border-normal);
+}
+.terminal-brand {
   display: inline-flex;
+  min-height: 36px;
   align-items: center;
-  gap: 0.35rem;
-  line-height: 1;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--fg-strong);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
 }
-
-.settings-button svg {
-  display: block;
-  flex: none;
+.terminal-brand img {
+  width: 22px;
+  height: 22px;
 }
-
-.logout-arrow {
-  opacity: 0;
-  transform: translateX(4px);
-  width: 0;
-  transition:
-    width 0.15s ease,
-    opacity 0.15s ease,
-    transform 0.15s ease;
-}
-
-.logout-btn {
-  /* mr-[12px] hover:mr-0 transition-mr */
-  margin-right: 12px;
-  transition: margin-right 0.15s ease;
-}
-
-.logout-btn:hover {
-  margin-right: 0;
-}
-
-.logout-btn:hover .logout-arrow {
-  opacity: 1;
-  width: 12px;
-  transform: translateX(0);
+@media (max-width: 980px) {
+  .terminal-brand span,
+  .terminal-toolbar-divider {
+    display: none;
+  }
+  .terminal-toolbar-left {
+    gap: 0.35rem;
+  }
 }
 </style>

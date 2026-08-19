@@ -115,7 +115,7 @@ onMounted(async () => {
       <label v-if="operationKind === 'credit'" class="field"><span>Memo</span><input v-model.trim="operationMemo" class="input" /></label>
       <label v-if="operationKind === 'refund'" class="field"><span>Reason</span><select v-model="operationReason" class="input"><option value="requested_by_customer">Requested by customer</option><option value="duplicate">Duplicate</option><option value="fraudulent">Fraudulent</option></select></label>
     </div>
-    <label class="inline-flex items-center gap-2 mt-4 text-[12px]"><input v-model="operationConfirmed" type="checkbox" /> I reviewed this irreversible Stripe request and its proration or refund effect.</label>
+    <label class="inline-flex min-h-7 items-center gap-2 mt-4 text-[14px]"><input v-model="operationConfirmed" type="checkbox" /> I reviewed this irreversible Stripe request and its proration or refund effect.</label>
     <div class="control-actions"><button class="btn btn-primary" :disabled="!operationReady" @click="executeBillingOperation">Execute confirmed operation</button></div>
     <div class="overflow-x-auto mt-4"><table class="table-tiny table-compact min-w-[720px]"><thead><tr><th>Operation</th><th>State</th><th>Requested</th><th>Stripe object</th><th>Error</th></tr></thead><tbody><tr v-for="operation in operations" :key="operation.id"><td>{{ operation.kind.replace(/_/g, ' ') }}</td><td><span class="pill" :class="operation.state === 'succeeded' ? 'pill-ok' : operation.state === 'failed' ? 'pill-err' : 'pill-warn'">{{ operation.state }}</span></td><td>{{ new Date(operation.created_at).toLocaleString() }}</td><td>{{ operation.stripe_object_id || '—' }}</td><td>{{ operation.error || '—' }}</td></tr></tbody></table></div>
   </ControlSection>

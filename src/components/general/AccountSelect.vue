@@ -85,13 +85,13 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .account-trigger {
-  min-width: 280px;
+  min-width: 260px;
   max-width: min(420px, 36vw);
   border-radius: var(--radius-btn);
   background: color-mix(in srgb, var(--account-color) 70%, var(--panel-header-bg));
   border-color: color-mix(in srgb, var(--account-color) 45%, var(--border-color));
   color: #f5f7fa;
-  padding: 0.2rem 0.6rem;
+  padding: 0.3rem 0.65rem;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
@@ -104,11 +104,18 @@ onBeforeUnmount(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: #f5f7fa;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+@media (max-width: 980px) {
+  .account-trigger {
+    min-width: 180px;
+    max-width: 30vw;
+  }
 }
 
 .account-trigger .icon {

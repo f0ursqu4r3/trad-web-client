@@ -6,6 +6,7 @@ import { setv } from '@/lib/utils'
 import { clearSessionUserId, setSessionUserId } from '@/lib/userSession'
 import { useUiStore } from '@/stores/ui'
 import { type AccountRecord, useAccountsStore } from '@/stores/accounts'
+import { normalizeProfileIcon, type ProfileIconKey } from '@/lib/profileIcons'
 
 export interface ClientProfile {
   display_name?: string | null
@@ -54,6 +55,17 @@ export const useUserStore = defineStore('user', () => {
   const isSuperAdmin = computed(
     () => role.value === 'super_admin' || capabilities.value.includes('manage_super_admins'),
   )
+  const profileIcon = computed(() =>
+    normalizeProfileIcon(profile.value.meta?.preferences?.profile_icon),
+  )
+
+  function setProfileIcon(icon: ProfileIconKey) {
+    const preferences = profile.value.meta?.preferences || {}
+    profile.value.meta = {
+      ...profile.value.meta,
+      preferences: { ...preferences, profile_icon: normalizeProfileIcon(icon) },
+    }
+  }
 
   interface MeResponseShape {
     email: string
@@ -222,8 +234,10 @@ export const useUserStore = defineStore('user', () => {
     displayName,
     isAdmin,
     isSuperAdmin,
+    profileIcon,
     // actions
     saveProfile,
+    setProfileIcon,
     fetchMe,
     clear,
   }

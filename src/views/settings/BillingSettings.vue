@@ -78,7 +78,7 @@ onMounted(() =>
     </div>
   </ControlSection>
   <ControlSection title="Subscription lifecycle" description="Stripe remains authoritative; Trad records the request until webhook reconciliation.">
-    <label class="inline-flex items-center gap-2 text-[12px]"><input v-model="confirmCancellation" type="checkbox" /> I understand access remains active until the current billing period ends.</label>
+    <label class="inline-flex min-h-7 items-center gap-2 text-[14px]"><input v-model="confirmCancellation" type="checkbox" /> I understand access remains active until the current billing period ends.</label>
     <div class="control-actions"><button class="btn btn-secondary" :disabled="!confirmCancellation || !billing.billingInfo || billing.billingInfo.status === 'inactive'" @click="scheduleCancellation">Cancel at period end</button></div>
     <div v-if="billing.operations.length" class="overflow-x-auto mt-4"><table class="table-tiny table-compact min-w-[620px]"><thead><tr><th>Request</th><th>Status</th><th>Requested</th><th>Error</th></tr></thead><tbody><tr v-for="operation in billing.operations" :key="operation.id"><td>{{ operation.kind.replace(/_/g, ' ') }}</td><td><span class="pill" :class="operation.state === 'reconciled' || operation.state === 'succeeded' ? 'pill-ok' : operation.state === 'failed' ? 'pill-err' : 'pill-warn'">{{ operation.state }}</span></td><td>{{ new Date(operation.created_at).toLocaleString() }}</td><td>{{ operation.error || '—' }}</td></tr></tbody></table></div>
   </ControlSection>
@@ -101,7 +101,7 @@ onMounted(() =>
     <p v-else class="m-0 dim">No commercial capabilities are active.</p>
   </ControlSection>
   <ControlSection title="What Stripe controls"
-    ><p class="m-0 max-w-3xl text-[12px] leading-relaxed dim">
+    ><p class="m-0 max-w-3xl text-[14px] leading-relaxed dim">
       Payment methods, invoices, cancellation, and renewal are completed in Stripe’s customer
       portal. Trad stores only the subscription state needed to determine access.
     </p></ControlSection

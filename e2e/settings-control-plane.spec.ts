@@ -7,6 +7,9 @@ test('settings and administrator control plane are navigable', async ({ page }) 
   await page.goto('/auth/test-login?email=668es218pur%40gmail.com&return_to=%2Fsettings%2Fprofile')
   await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible()
   await expect(page.getByRole('main').getByText('668es218pur@gmail.com')).toBeVisible()
+  await page.getByRole('button', { name: 'Account and settings' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Trading accounts' })).toBeVisible()
+  await page.keyboard.press('Escape')
 
   await page.getByRole('link', { name: 'Trading accounts' }).click()
   await expect(page.getByRole('heading', { name: 'Trading accounts' })).toBeVisible()
@@ -53,6 +56,23 @@ test('settings and administrator control plane are navigable', async ({ page }) 
   expect(pageErrors).toEqual([])
 })
 
+test('profile icon choice is saved with user preferences', async ({ page }) => {
+  let savedProfile: { meta?: { preferences?: { profile_icon?: unknown } } } | null = null
+  await page.route('**/api/me', async (route) => {
+    if (route.request().method() !== 'PUT') {
+      await route.continue()
+      return
+    }
+    savedProfile = route.request().postDataJSON() as typeof savedProfile
+    await route.fulfill({ status: 204, body: '' })
+  })
+
+  await page.goto('/auth/test-login?email=668es218pur%40gmail.com&return_to=%2Fsettings%2Fprofile')
+  await page.getByText('Bolt', { exact: true }).click()
+  await page.getByRole('button', { name: 'Save profile' }).click()
+  await expect.poll(() => savedProfile?.meta?.preferences?.profile_icon).toBe('bolt')
+})
+
 test('super-admin role controls are capability-scoped', async ({ page }) => {
   await page.goto('/auth/test-login?email=668es218pur%40gmail.com&return_to=%2Fadmin%2Fusers')
   const table = page.getByTestId('admin-user-table')
@@ -91,7 +111,7 @@ test('zero-account onboarding tours through the real settings controls', async (
   })
 
   await page.goto('/auth/test-login?email=dev%40trad.local&return_to=%2Fterminal')
-  await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Account and settings' })).toBeVisible()
   await page.getByRole('button', { name: 'Add trading account' }).click()
 
   await expect(page.getByRole('dialog', { name: 'Create Account' })).toBeVisible({
@@ -161,13 +181,13 @@ test('new accounts continue into required setup instead of stopping at the direc
   await dialog.locator('select').nth(1).selectOption('hyperliquid')
   await dialog.getByPlaceholder('Account alias').fill('Setup Route QA')
   await dialog.getByPlaceholder('0x...').fill('0x1111111111111111111111111111111111111111')
-  await dialog.getByRole('button', { name: 'Check permissions — required' }).click()
+  await dialog.getByRole('button', { name: 'Check permissions', exact: true }).click()
   await expect(dialog.getByText('Wallet and read-only account access are valid.')).toBeVisible()
   await dialog.getByRole('button', { name: 'Create' }).click()
 
   await expect(page).toHaveURL(`/settings/accounts/${accountId}/setup`)
   await expect(page.getByRole('heading', { name: 'Setup Route QA' })).toBeVisible()
-  await expect(page.getByText('Required setup only')).toBeVisible()
+  await expect(page.getByText('Guided account setup', { exact: true })).toBeVisible()
   await expect(page.getByText('Agent wallet').last()).toBeVisible()
-  await expect(page.getByText('Builder authorization')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Authorize the Trad builder' })).toBeVisible()
 })

@@ -68,7 +68,7 @@ onMounted(() => admin.fetchAccounts())
                 >{{ health(account) }}</span
               >
             </td>
-            <td class="max-w-64 break-all text-[10px] dim">
+            <td class="max-w-64 break-all text-[12px] dim">
               {{
                 account.exchange_metadata?.user_address ||
                 account.exchange_metadata?.exchange_account_id ||

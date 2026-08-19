@@ -145,7 +145,7 @@ async function refresh(): Promise<void> {
   overflow: hidden;
   max-width: 132px;
   color: var(--fg-muted);
-  font-size: 10px;
+  font-size: 11px;
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
@@ -169,8 +169,8 @@ async function refresh(): Promise<void> {
 }
 
 .refresh-button {
-  width: 22px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   justify-content: center;
   padding: 0;
 }

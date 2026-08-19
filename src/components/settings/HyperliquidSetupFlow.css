@@ -27,7 +27,7 @@
 .setup-feedback {
   margin: 0.25rem 0 0;
   color: var(--fg-muted);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
@@ -73,7 +73,7 @@
   border: 1px solid var(--border-normal);
   background: var(--surface-base);
   color: var(--fg-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .setup-step--complete .setup-step__number {
@@ -128,7 +128,7 @@
 .setup-step__eyebrow,
 .setup-label {
   color: var(--fg-muted);
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -160,7 +160,7 @@
 .setup-identity code {
   overflow-wrap: anywhere;
   color: var(--fg-strong);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .setup-chip-row {
@@ -180,7 +180,7 @@
 .setup-value {
   flex: 1 1 22rem;
   color: var(--fg-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .setup-actions {

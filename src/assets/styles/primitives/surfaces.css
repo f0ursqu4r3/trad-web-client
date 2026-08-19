@@ -42,7 +42,7 @@
     border-color: var(--border-normal);
   }
   .panel-header-row {
-    @apply flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide;
+    @apply flex items-center justify-between px-2 py-1 text-[12px] uppercase tracking-wide;
     background: var(--surface-muted);
     border-bottom: 1px solid var(--border-subtle);
     color: var(--fg-muted);
@@ -52,7 +52,7 @@
     background: var(--border-subtle);
   }
   .toolbar-row {
-    @apply flex items-center justify-between gap-2 border-b px-2 py-1 text-[12px];
+    @apply flex min-h-11 items-center justify-between gap-2 border-b px-2.5 py-1.5 text-[13px];
     background: var(--surface-muted);
     border-color: var(--border-subtle);
     color: var(--fg-muted);
@@ -110,14 +110,14 @@
   }
   .badge,
   .chip {
-    @apply inline-flex items-center gap-1 border px-1.5 py-0.5 text-[11px];
+    @apply inline-flex items-center gap-1 border px-1.5 py-0.5 text-[12px];
     border-radius: var(--radius-badge);
     background: var(--surface-muted);
     border-color: var(--border-normal);
     color: var(--fg-muted);
   }
   .pill {
-    @apply inline-flex items-center px-2 py-0.5 text-[11px] font-medium;
+    @apply inline-flex items-center px-2 py-0.5 text-[12px] font-medium;
     border-radius: var(--radius-pill);
     box-shadow: none;
     border: 1px solid transparent;
@@ -127,10 +127,10 @@
     border-color: color-mix(in srgb, var(--_c) var(--pill-ring-alpha), transparent);
   }
   .pill-sm {
-    @apply text-[10px]/3 px-1.5 py-0.25;
+    @apply text-[11px]/4 px-1.5 py-0.25;
   }
   .pill-xs {
-    @apply text-[9px]/3 px-1 py-0 font-light;
+    @apply text-[11px]/4 px-1 py-0 font-light;
   }
   .pill-ok,
   .pill-success {
@@ -151,7 +151,7 @@
     @apply text-term-accent underline underline-offset-2 hover:opacity-90;
   }
   .table-tiny {
-    @apply w-full text-[12px];
+    @apply w-full text-[13px];
   }
   .table-tiny thead {
     background: var(--surface-muted);
@@ -161,7 +161,7 @@
     background: var(--surface-muted);
     color: var(--fg-muted);
     border-bottom-color: var(--border-subtle);
-    font-size: 10px;
+    font-size: 11px;
     letter-spacing: 0.045em;
     text-transform: uppercase;
   }

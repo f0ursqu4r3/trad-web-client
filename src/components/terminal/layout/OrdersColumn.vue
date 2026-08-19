@@ -95,10 +95,10 @@ const externalFlattenCount = computed(
 .compact-icon {
   align-items: center;
   display: inline-flex;
-  height: 22px;
+  height: 28px;
   justify-content: center;
   padding: 0;
-  width: 22px;
+  width: 28px;
 }
 
 .position-button {
@@ -114,7 +114,7 @@ const externalFlattenCount = computed(
   border-radius: 8px;
   background: var(--color-warning, #d68b2c);
   color: #111;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 12px;
 }
 </style>

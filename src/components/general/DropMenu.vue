@@ -476,7 +476,8 @@ onBeforeUnmount(() => {
   gap: 8px;
   text-align: left;
   padding: 8px 14px;
-  font-size: 12px;
+  min-height: 36px;
+  font-size: 13px;
   color: var(--color-text);
   background: transparent;
   border-top: 1px solid var(--border-color);

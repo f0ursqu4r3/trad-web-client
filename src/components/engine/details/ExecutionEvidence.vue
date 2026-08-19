@@ -111,7 +111,7 @@ function liquidity(execution: ExecutionProjection): string {
 .fill-meta,
 .fill-ids {
   color: var(--color-text-dim);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .fill-ids span {

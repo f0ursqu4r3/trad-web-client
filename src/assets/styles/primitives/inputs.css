@@ -1,12 +1,12 @@
 /* Primitives: form controls & inputs */
 @layer components {
   .form-control {
-    @apply appearance-none border px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60;
+    @apply min-h-8 appearance-none border px-2.5 py-1.5 text-[14px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60;
     border-radius: var(--radius-input);
     background: var(--control-bg);
     border-color: var(--control-border);
     color: var(--control-fg);
-    line-height: 1.25;
+    line-height: 1.35;
   }
   .form-control:focus {
     border-color: var(--control-border-focus);
@@ -24,12 +24,12 @@
   input[type='tel'],
   select,
   textarea {
-    @apply appearance-none border px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60;
+    @apply min-h-8 appearance-none border px-2.5 py-1.5 text-[14px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60;
     border-radius: var(--radius-input);
     background: var(--control-bg);
     border-color: var(--control-border);
     color: var(--control-fg);
-    line-height: 1.25;
+    line-height: 1.35;
   }
   input[type='text']:focus,
   input[type='password']:focus,
@@ -56,36 +56,36 @@
   /* Generic semantic aliases */
   .input,
   .input-term {
-    @apply flex-1 appearance-none border px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60;
+    @apply min-h-8 flex-1 appearance-none border px-2.5 py-1.5 text-[14px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60;
     border-radius: var(--radius-input);
     background: var(--control-bg);
     border-color: var(--control-border);
     color: var(--control-fg);
-    line-height: 1.25;
+    line-height: 1.35;
   }
   .select,
   .select-term {
-    @apply flex-1 appearance-none border px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60 pr-6;
+    @apply min-h-8 flex-1 appearance-none border px-2.5 py-1.5 text-[14px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60 pr-6;
     border-radius: var(--radius-input);
     background-color: var(--control-bg);
     border-color: var(--control-border);
     color: var(--control-fg);
-    line-height: 1.25;
+    line-height: 1.35;
   }
   .textarea,
   .textarea-term {
-    @apply flex-1 appearance-none border px-2 py-1 text-[13px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60 min-h-[90px];
+    @apply flex-1 appearance-none border px-2.5 py-1.5 text-[14px] outline-none transition disabled:cursor-not-allowed disabled:opacity-60 min-h-[90px];
     border-radius: var(--radius-input);
     background: var(--control-bg);
     border-color: var(--control-border);
     color: var(--control-fg);
-    line-height: 1.25;
+    line-height: 1.4;
     resize: vertical;
   }
   .input-sm,
   .input-term-sm,
   .form-control-sm {
-    @apply px-1.5 py-0.5 text-[12px];
+    @apply min-h-7 px-2 py-1 text-[13px];
   }
   select.input-sm,
   select.input-term-sm,
@@ -101,7 +101,7 @@
   .input-lg,
   .input-term-lg,
   .form-control-lg {
-    @apply px-3 py-2 text-[14px];
+    @apply min-h-9 px-3 py-2 text-[16px];
   }
   .input-invalid,
   .form-control:invalid {
@@ -113,27 +113,27 @@
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--control-invalid) 45%, transparent);
   }
   .form-hint {
-    @apply mt-1 text-[11px];
+    @apply mt-1 text-[12px];
     color: var(--control-hint);
   }
   .field {
-    @apply flex flex-col gap-1 text-[12px];
+    @apply flex flex-col gap-1.5 text-[13px];
     min-width: 0;
   }
   .field > span,
   .field > label {
-    @apply text-[11px] uppercase tracking-[0.5px];
+    @apply text-[12px] uppercase tracking-[0.5px];
     color: var(--fg-muted);
   }
   .field-row {
     @apply grid grid-cols-[10rem_1fr] items-start gap-3;
   }
   .field-error {
-    @apply mt-1 text-[11px];
+    @apply mt-1 text-[12px];
     color: var(--state-error);
   }
   .field-hint {
-    @apply mt-1 text-[11px];
+    @apply mt-1 text-[12px];
     color: var(--control-hint);
   }
   .field > .input,
@@ -152,7 +152,7 @@
   }
   .form-field-required,
   .form-field-optional {
-    font-size: 9px;
+    font-size: 11px;
     letter-spacing: 0.03em;
     text-transform: lowercase;
   }
@@ -458,8 +458,8 @@
     display: inline-grid;
     place-content: center;
     margin: 0;
-    width: 1.05rem;
-    height: 1.05rem;
+    width: 1.25rem;
+    height: 1.25rem;
     border: 1px solid var(--control-border);
     background: color-mix(in srgb, var(--surface-base) 90%, transparent);
     box-shadow: 0 0 0 0 transparent;
@@ -592,8 +592,9 @@
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    font-size: 13px;
-    line-height: 1.2;
+    min-height: 28px;
+    font-size: 14px;
+    line-height: 1.35;
     cursor: pointer;
   }
   .choice-item input[type='checkbox'],

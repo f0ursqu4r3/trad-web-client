@@ -29,7 +29,7 @@ onMounted(() => admin.fetchOverview())
   />
   <div class="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
     <div v-for="card in cards" :key="card[0]" class="panel-card p-4">
-      <div class="text-[10px] uppercase tracking-wide dim">{{ card[0] }}</div>
+      <div class="text-[11px] uppercase tracking-wide dim">{{ card[0] }}</div>
       <div class="mt-2 text-2xl text-primary">{{ card[1] }}</div>
     </div>
   </div>
@@ -55,7 +55,7 @@ onMounted(() => admin.fetchOverview())
     </div></ControlSection
   >
   <ControlSection title="Operational boundary"
-    ><p class="m-0 max-w-4xl text-[12px] leading-relaxed dim">
+    ><p class="m-0 max-w-4xl text-[14px] leading-relaxed dim">
       This surface reports Gateway inventory and browser connectivity. Owner-node hydration and
       reconciliation readiness remain visible per account and in the trading terminal; operator
       repair actions are deliberately not exposed as generic admin buttons.

@@ -252,12 +252,12 @@ async function openContext(id: string, x: number, y: number): Promise<void> {
 .context-label {
   color: var(--color-text-dim);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   text-transform: uppercase;
 }
 .context-value {
   color: var(--color-info);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
 }
 </style>

@@ -35,7 +35,7 @@ withDefaults(
   flex-direction: column;
   gap: 0.05rem;
   color: var(--state-warning);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1;
   white-space: nowrap;
   animation: guided-nudge 1.25s ease-in-out infinite;

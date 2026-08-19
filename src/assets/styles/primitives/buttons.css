@@ -1,7 +1,7 @@
 /* Primitives: button system */
 @layer components {
   .btn {
-    @apply inline-flex items-center gap-1 border px-2 py-1 text-[12px] font-medium tracking-wide cursor-pointer transition select-none;
+    @apply inline-flex min-h-8 items-center justify-center gap-1.5 border px-2.5 py-1.5 text-[13px] font-medium tracking-wide cursor-pointer transition select-none;
     border-radius: var(--radius-btn);
     border-color: var(--button-border);
     background: var(--btn-bg, var(--button-bg));
@@ -37,13 +37,13 @@
       inset 0 0 0 1px var(--focus-ring-color);
   }
   .btn-xs {
-    @apply px-1 py-0.5 text-[10px];
+    @apply min-h-6 px-1.5 py-0.5 text-[11px];
   }
   .btn-sm {
-    @apply px-1.5 py-0.5 text-[11px];
+    @apply min-h-7 px-2 py-1 text-[12px];
   }
   .btn-lg {
-    @apply px-3 py-2 text-[13px];
+    @apply min-h-9 px-3 py-2 text-[14px];
   }
   /* Variants */
   .btn-primary {
@@ -329,7 +329,7 @@
     background: color-mix(in srgb, var(--_c) var(--btn-alpha-ghost-active), transparent);
   }
   .icon-btn {
-    @apply inline-flex items-center justify-center border text-[12px] font-medium tracking-wide cursor-pointer transition select-none px-1.5 py-1 gap-1;
+    @apply inline-flex min-h-8 min-w-8 items-center justify-center border text-[13px] font-medium tracking-wide cursor-pointer transition select-none px-1.5 py-1 gap-1;
     border-radius: var(--radius-btn);
     transition:
       background-color var(--duration-fast) var(--ease-out-standard),
@@ -370,14 +370,14 @@
   }
   .icon-btn.btn-xs,
   .btn-xs.icon-btn {
-    @apply px-1 py-0.5 text-[10px];
+    @apply min-h-6 min-w-6 px-1 py-0.5 text-[11px];
   }
   .icon-btn.btn-sm,
   .btn-sm.icon-btn {
-    @apply px-1.5 py-0.5 text-[11px];
+    @apply min-h-7 min-w-7 px-1.5 py-0.5 text-[12px];
   }
   .icon-btn.btn-lg,
   .btn-lg.icon-btn {
-    @apply px-3 py-2 text-[13px];
+    @apply min-h-9 min-w-9 px-3 py-2 text-[14px];
   }
 }

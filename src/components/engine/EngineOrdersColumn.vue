@@ -72,8 +72,8 @@ const externalOrdersOpen = ref(false)
 }
 
 .position-button {
-  width: 22px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   justify-content: center;
   padding: 0;
 }

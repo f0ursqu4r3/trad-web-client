@@ -27,7 +27,7 @@ defineProps<{
 .detail-section > h3 {
   border-bottom: 1px solid var(--border-color);
   color: var(--color-text-dim);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: normal;
   margin: 0 12px;
   padding: 9px 0 5px;
@@ -52,7 +52,7 @@ defineProps<{
 
 dt {
   color: var(--color-text-dim);
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
 }
 

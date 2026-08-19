@@ -17,6 +17,7 @@ import {
 import { useUserStore } from '@/stores/user'
 import { resolveEnvironmentBranding } from '@/lib/environmentBranding'
 import GuidedPointer from '@/components/general/GuidedPointer.vue'
+import UserAccountMenu from '@/components/general/UserAccountMenu.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -98,6 +99,7 @@ function openTradingAccounts(): void {
       <header class="control-topbar">
         <RouterLink to="/terminal" class="btn btn-secondary btn-sm">← Terminal</RouterLink>
         <span class="muted">Configuration changes apply to this Trad environment only.</span>
+        <span class="control-account-menu"><UserAccountMenu /></span>
         <span class="control-tour-origin" data-tour="control-origin" aria-hidden="true"></span>
       </header>
       <div class="control-content"><slot /></div>
@@ -131,16 +133,16 @@ function openTradingAccounts(): void {
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  height: 48px;
+  height: 56px;
   padding: 0 0.85rem;
   border-bottom: 1px solid var(--border-subtle);
   color: var(--fg-strong);
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.08em;
 }
 .control-brand img {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
 }
 .control-sidebar nav {
   padding: 0.75rem 0.5rem 0;
@@ -156,7 +158,7 @@ function openTradingAccounts(): void {
   justify-content: space-between;
   padding: 0.35rem 0.5rem;
   color: var(--fg-muted);
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.09em;
 }
@@ -164,17 +166,18 @@ function openTradingAccounts(): void {
   padding: 0.1rem 0.3rem;
   border: 1px solid color-mix(in srgb, var(--state-warning) 45%, var(--border-normal));
   color: var(--state-warning);
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 0.08em;
 }
 .control-nav-item {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.55rem 0.6rem;
+  min-height: 38px;
+  padding: 0.6rem 0.65rem;
   border-left: 2px solid transparent;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .control-nav-item:hover {
   background: var(--row-hover-bg);
@@ -193,7 +196,7 @@ function openTradingAccounts(): void {
   padding: 0.75rem;
   border-top: 1px solid var(--border-subtle);
   color: var(--fg-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .control-main {
   min-width: 0;
@@ -202,8 +205,9 @@ function openTradingAccounts(): void {
   position: sticky;
   top: 0;
   z-index: 10;
-  display: flex;
-  height: 48px;
+  display: grid;
+  min-height: 56px;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
@@ -211,7 +215,17 @@ function openTradingAccounts(): void {
   border-bottom: 1px solid var(--border-subtle);
   background: color-mix(in srgb, var(--surface-muted) 94%, transparent);
   backdrop-filter: blur(8px);
-  font-size: 11px;
+  font-size: 12px;
+}
+.control-account-menu {
+  justify-self: end;
+}
+.control-topbar > .btn {
+  justify-self: start;
+}
+.control-topbar > .muted {
+  justify-self: center;
+  text-align: center;
 }
 .control-tour-origin {
   position: absolute;
@@ -243,6 +257,12 @@ function openTradingAccounts(): void {
   }
   .control-topbar .muted {
     display: none;
+  }
+  .control-topbar {
+    grid-template-columns: 1fr auto;
+  }
+  .control-account-menu {
+    grid-column: 2;
   }
 }
 </style>

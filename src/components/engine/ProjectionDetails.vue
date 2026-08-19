@@ -353,7 +353,7 @@ function formatDate(value: number | null): string {
 
 .empty-state span {
   max-width: 22rem;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.5;
 }
 
@@ -362,7 +362,7 @@ function formatDate(value: number | null): string {
   border-bottom: 1px solid var(--border-color);
   color: var(--color-text-dim);
   display: flex;
-  font-size: 10px;
+  font-size: 11px;
   justify-content: space-between;
   gap: 12px;
   padding: 8px 12px;
@@ -390,7 +390,7 @@ function formatDate(value: number | null): string {
 .entity-status {
   border: 1px solid currentColor;
   color: var(--color-text-dim);
-  font-size: 10px;
+  font-size: 11px;
   padding: 2px 7px;
   text-transform: uppercase;
 }

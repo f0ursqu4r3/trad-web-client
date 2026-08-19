@@ -163,7 +163,7 @@ watch(section, (next, previous) => {
   gap: 0.4rem;
   margin-bottom: 0.8rem;
   color: var(--fg-muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 .account-back-link:hover {
   color: var(--fg-strong);
@@ -185,7 +185,7 @@ watch(section, (next, previous) => {
   border-bottom-color: var(--border-normal);
   border-radius: 4px 4px 0 0;
   color: var(--fg-muted);
-  font-size: 11px;
+  font-size: 13px;
   transition:
     color 120ms ease,
     background-color 120ms ease,
@@ -217,7 +217,7 @@ watch(section, (next, previous) => {
   padding: 0.75rem 0.85rem;
   border-left: 3px solid var(--accent-color);
   background: color-mix(in srgb, var(--accent-color) 6%, var(--surface-base));
-  font-size: 11px;
+  font-size: 13px;
 }
 .account-section-intro strong {
   flex: 0 0 auto;

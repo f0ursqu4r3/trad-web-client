@@ -160,18 +160,18 @@ onMounted(async () => {
           >
             <td class="account-context-cell">
               <div class="font-medium text-primary">{{ account.label }}</div>
-              <div class="mt-0.5 text-[10px] dim">{{ account.id.slice(0, 8) }}</div>
+              <div class="mt-0.5 text-[11px] dim">{{ account.id.slice(0, 8) }}</div>
             </td>
             <td>
               <div class="text-primary">{{ account.exchange }}</div>
-              <div class="mt-0.5 text-[10px] dim">{{ account.network }}</div>
+              <div class="mt-0.5 text-[11px] dim">{{ account.network }}</div>
             </td>
             <td>{{ formatAccountProduct(account.exchange_metadata?.product) || '—' }}</td>
             <td>
               <span class="pill" :class="ready(account) ? 'pill-ok' : 'pill-warn'">
                 {{ ready(account) ? 'ready' : 'setup required' }}
               </span>
-              <div v-if="!ready(account)" class="mt-1 max-w-64 text-[10px] text-warning">
+              <div v-if="!ready(account)" class="mt-1 max-w-64 text-[12px] text-warning">
                 {{ accountMetadataStatus(account) }}
               </div>
             </td>
@@ -220,7 +220,7 @@ onMounted(async () => {
           accounts.accounts.length ? 'No accounts match this filter.' : 'No trading accounts yet.'
         }}
       </p>
-      <p class="mx-auto mb-4 mt-2 max-w-lg text-[11px] leading-relaxed dim">
+      <p class="mx-auto mb-4 mt-2 max-w-lg text-[13px] leading-relaxed dim">
         Add an exchange account, then Trad will guide you through only the approvals and checks
         required to make it command-ready.
       </p>

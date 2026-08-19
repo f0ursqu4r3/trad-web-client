@@ -26,7 +26,7 @@ withDefaults(
 summary {
   cursor: pointer;
   color: var(--color-text-dim);
-  font-size: 10px;
+  font-size: 11px;
   padding: 8px 0 5px;
   text-transform: uppercase;
 }

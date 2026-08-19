@@ -127,7 +127,7 @@ function describeValue(value: unknown): string | null {
   if (typeof value === 'number' || typeof value === 'boolean') return String(value)
   if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? '' : 's'}`
   const object = objectValue(value)
-  return object === null ? null : stringValue(object.kind) ?? 'Configured'
+  return object === null ? null : (stringValue(object.kind) ?? 'Configured')
 }
 
 function objectValue(value: unknown): Record<string, unknown> | null {
@@ -168,7 +168,7 @@ function title(value: string): string {
 
 dt {
   color: var(--color-text-dim);
-  font-size: 10px;
+  font-size: 11px;
   margin-bottom: 2px;
   text-transform: uppercase;
 }

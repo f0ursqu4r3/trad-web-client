@@ -305,7 +305,7 @@ function openContextMenu(event: MouseEvent) {
           {{ formatName(label) }}
         </span>
         <span
-          class="font-mono text-[10px] text-[var(--color-text-dim)] cursor-copy select-text rounded-[2px] px-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2"
+          class="inline-flex min-h-6 items-center font-mono text-[11px] text-[var(--color-text-dim)] cursor-copy select-text rounded-[2px] px-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2"
           :title="props.commandId"
           @click.stop="copyId"
           role="button"
@@ -342,7 +342,7 @@ function openContextMenu(event: MouseEvent) {
       </div>
 
       <div class="flex items-center justify-end flex-wrap gap-2">
-        <span v-if="createdAtLabel" class="text-[10px] text-[var(--color-text-dim)] font-mono">
+        <span v-if="createdAtLabel" class="text-[11px] text-[var(--color-text-dim)] font-mono">
           {{ createdAtLabel }}
         </span>
         <span class="text-[11px] text-[var(--color-text-dim)] uppercase tracking-[0.04em]">
@@ -469,7 +469,7 @@ function openContextMenu(event: MouseEvent) {
   background: color-mix(in srgb, var(--color-info) 10%, transparent);
   color: var(--color-text);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.4;
   padding: 1px 4px;
 }
@@ -486,7 +486,7 @@ function openContextMenu(event: MouseEvent) {
 .command-effect-heading {
   color: var(--color-text-dim);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   margin-bottom: 4px;
   text-transform: uppercase;
 }
@@ -497,7 +497,7 @@ function openContextMenu(event: MouseEvent) {
   color: var(--color-text-dim);
   display: grid;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   gap: 8px;
   grid-template-columns: minmax(48px, auto) minmax(72px, auto) 1fr;
   padding: 3px 4px;
@@ -507,7 +507,7 @@ function openContextMenu(event: MouseEvent) {
 .command-result {
   color: var(--color-text-dim);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   margin: 8px 0 0;
   white-space: pre-wrap;
 }
