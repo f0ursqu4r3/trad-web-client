@@ -2769,6 +2769,11 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
   )
   await expect(dialog.getByText('It is never sent to this browser.')).toBeVisible()
   await expect(dialog.getByPlaceholder('32-byte hex private key')).toHaveCount(0)
+  await expect(
+    dialog.getByText('Required: click Check permissions above to unlock Create'),
+  ).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Create' })).toBeDisabled()
+  await expect(dialog.getByRole('button', { name: 'Check permissions — required' })).toBeVisible()
   await dialog
     .getByPlaceholder('Optional 0x vault address')
     .fill('0x4444444444444444444444444444444444444444')
@@ -2902,6 +2907,9 @@ test('Hyperliquid account creation accepts a pasted existing agent key', async (
   await dialog.locator('select').nth(0).selectOption('testnet')
   await dialog.locator('select').nth(1).selectOption('hyperliquid')
   await dialog.getByRole('button', { name: 'Use existing' }).click()
+  await expect(dialog.getByText('Advanced import only.')).toBeVisible()
+  await expect(dialog.getByText('Most users should not use this.')).toBeVisible()
+  await expect(dialog.getByText('Never enter the main wallet private key')).toBeVisible()
   await dialog.getByPlaceholder('Account alias').fill('Existing Agent QA')
   await dialog.getByPlaceholder('0x...').fill('0x1111111111111111111111111111111111111111')
   await dialog.getByPlaceholder('32-byte hex private key').fill(existingSecret)

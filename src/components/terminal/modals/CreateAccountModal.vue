@@ -8,6 +8,7 @@ import { useAccountsStore, type AccountKeyValidationResponse } from '@/stores/ac
 import { HYPERLIQUID_TARGET_TOTAL_DEFAULT_TENTHS_BPS } from '@/lib/accountMetadata'
 import FormField from '@/components/forms/FormField.vue'
 import { integerError, requiredText } from '@/lib/formValidation'
+import AccountPermissionCheck from './AccountPermissionCheck.vue'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -54,15 +55,12 @@ const secretPlaceholder = computed(() =>
   isHyperliquid.value ? '32-byte hex private key' : 'Secret key',
 )
 const productLabel = computed(() => (isHyperliquid.value ? 'USDC Perpetuals' : 'USDT Perpetuals'))
-const validationTitle = computed(() =>
-  isHyperliquid.value ? 'Hyperliquid key check' : 'Bybit permission check',
-)
 const validationCopy = computed(() =>
   isHyperliquid.value
     ? hyperliquidAgentMode.value === 'generated'
-      ? 'Validate the wallet and read-only Hyperliquid account-state access. Trad generates and encrypts the agent key only when the account is saved; agent and builder approvals follow with wallet signatures.'
-      : 'Validate the wallet address, derived existing agent wallet, and read-only Hyperliquid account-state access before saving. Agent and builder approvals are handled separately with wallet signatures.'
-    : 'Validate this key before saving. If permissions are changed on Bybit, run the check again.',
+      ? 'Click the required check before Create. It verifies the wallet and read-only Hyperliquid account-state access; it does not sign or trade. Trad generates the agent only after the account is saved.'
+      : 'Click the required check before Create. It verifies the wallet, imported agent key, and read-only Hyperliquid account-state access; it does not sign or trade.'
+    : 'Click the required check before Create. Trad verifies this key has the required Bybit permissions without placing an order.',
 )
 const validationSuccess = computed(() =>
   isHyperliquid.value
@@ -99,7 +97,22 @@ const leverageError = computed(() =>
 )
 const permissionError = computed(() => {
   if (!requiresValidation.value || !apiKey.value.trim() || secretError.value) return null
-  return validationResult.value?.valid === true ? null : 'Run and pass the permission check'
+  return validationResult.value?.valid === true
+    ? null
+    : 'Required: click Check permissions before creating the account'
+})
+const createBlocker = computed(() => {
+  if (nameError.value) return nameError.value
+  if (!apiKey.value.trim()) return `${keyLabel.value} is required`
+  if (secretError.value) return secretError.value
+  if (leverageError.value) return leverageError.value
+  if (isValidating.value) return 'Wait for the required permission check to finish'
+  if (requiresValidation.value && validationResult.value?.valid !== true) {
+    return hasValidationFailure.value || validationError.value
+      ? 'Resolve the permission-check error above, then run the check again'
+      : 'Required: click Check permissions above to unlock Create'
+  }
+  return null
 })
 
 const isSubmitDisabled = computed(() => {
@@ -313,6 +326,7 @@ function buildExchangeMetadata() {
               class="btn flex-1"
               :class="hyperliquidAgentMode === 'generated' ? 'btn-primary' : 'btn-secondary'"
               :aria-pressed="hyperliquidAgentMode === 'generated'"
+              title="Recommended: let Trad create and encrypt a dedicated agent key for this account."
               @click="hyperliquidAgentMode = 'generated'"
             >
               Generate securely
@@ -322,19 +336,22 @@ function buildExchangeMetadata() {
               class="btn flex-1"
               :class="hyperliquidAgentMode === 'existing' ? 'btn-primary' : 'btn-secondary'"
               :aria-pressed="hyperliquidAgentMode === 'existing'"
+              title="Advanced import only: use a dedicated Hyperliquid API-wallet key you already manage."
               @click="hyperliquidAgentMode = 'existing'"
             >
-              Use existing
+              Use existing (advanced)
             </button>
           </div>
           <small class="field-hint">
             <template v-if="hyperliquidAgentMode === 'generated'">
-              Trad generates the private key while saving and stores it encrypted. It is never sent
-              to this browser.
+              <strong>Recommended for almost everyone.</strong> Trad generates a dedicated private
+              key while saving and stores it encrypted. It is never sent to this browser.
             </template>
             <template v-else>
-              Use a dedicated Hyperliquid API wallet key. The key is sent once over the
-              authenticated connection and stored encrypted.
+              <strong>Advanced import only.</strong> Most users should not use this. Choose it only
+              for a dedicated Hyperliquid API-wallet key you already manage. Never enter the main
+              wallet private key; imported agents may be reused or revoked outside this Trad
+              account.
             </template>
           </small>
         </div>
@@ -358,6 +375,18 @@ function buildExchangeMetadata() {
             :placeholder="secretPlaceholder"
           />
         </FormField>
+        <AccountPermissionCheck
+          v-if="requiresValidation"
+          :copy="validationCopy"
+          :success="validationSuccess"
+          :result="validationResult"
+          :error="validationError"
+          :prompt="permissionError"
+          :checking="isValidating"
+          :can-check="Boolean(apiKey.trim() && (!requiresSecret || secretKey.trim()))"
+          :is-hyperliquid="isHyperliquid"
+          @check="validatePermissions"
+        />
         <template v-if="isHyperliquid">
           <FormField
             label="Vault/Subaccount"
@@ -434,89 +463,24 @@ function buildExchangeMetadata() {
             <span>Builder approval via wallet signature</span>
           </div>
         </div>
-        <div
-          v-if="requiresValidation"
-          class="col-span-2 validation-panel"
-          :class="{
-            'validation-panel-valid': validationResult?.valid,
-            'validation-panel-invalid': hasValidationFailure || validationError,
-          }"
-        >
-          <div class="validation-header">
-            <div>
-              <div class="validation-title">{{ validationTitle }}</div>
-              <div class="validation-copy">
-                {{ validationCopy }}
-              </div>
-            </div>
-            <button
-              type="button"
-              class="btn btn-secondary"
-              :disabled="isValidating || !apiKey.trim() || (requiresSecret && !secretKey.trim())"
-              @click="validatePermissions"
-            >
-              <span v-if="isValidating">Checking...</span>
-              <span v-else>Check permissions</span>
-            </button>
-          </div>
-          <div v-if="validationResult?.valid" class="validation-success">
-            {{ validationSuccess }}
-          </div>
-          <div v-else-if="permissionError" class="validation-error">
-            {{ permissionError }}
-          </div>
-          <div v-if="validationError" class="validation-error">
-            {{ validationError }}
-          </div>
-          <div v-if="validationResult" class="validation-details">
-            <div v-if="validationResult.missing_requirements.length">
-              <div class="validation-section-title">Missing</div>
-              <ul>
-                <li v-for="item in validationResult.missing_requirements" :key="item">
-                  {{ item }}
-                </li>
-              </ul>
-            </div>
-            <div v-if="validationResult.warnings.length">
-              <div class="validation-section-title">
-                {{ isHyperliquid ? 'Next setup step' : 'Change on Bybit' }}
-              </div>
-              <ul>
-                <li v-for="item in validationResult.warnings" :key="item">{{ item }}</li>
-              </ul>
-            </div>
-            <div v-if="validationResult.present_permissions.length">
-              <div class="validation-section-title">Detected</div>
-              <div class="permission-chip-row">
-                <span
-                  v-for="item in validationResult.present_permissions"
-                  :key="item"
-                  class="permission-chip"
-                >
-                  {{ item }}
-                </span>
-              </div>
-            </div>
-            <div v-if="validationResult.exchange_message" class="validation-copy">
-              {{ isHyperliquid ? 'Hyperliquid' : 'Bybit' }}: {{ validationResult.exchange_message }}
-            </div>
-          </div>
-        </div>
       </div>
       <p v-if="formError" class="text-xs text-red-400">{{ formError }}</p>
     </form>
     <template #footer>
-      <div class="flex gap-2 justify-end pt-2">
-        <button type="button" class="btn btn-secondary" @click="close">Cancel</button>
-        <button
-          form="create-account-form"
-          type="submit"
-          class="btn btn-primary"
-          :disabled="isSubmitDisabled || isSubmitting"
-        >
-          <span v-if="isSubmitting">Creating...</span>
-          <span v-else>Create</span>
-        </button>
+      <div class="create-footer">
+        <p v-if="createBlocker" class="create-blocker">{{ createBlocker }}</p>
+        <div class="create-footer-actions">
+          <button type="button" class="btn btn-secondary" @click="close">Cancel</button>
+          <button
+            form="create-account-form"
+            type="submit"
+            class="btn btn-primary"
+            :disabled="isSubmitDisabled || isSubmitting"
+          >
+            <span v-if="isSubmitting">Creating...</span>
+            <span v-else>Create</span>
+          </button>
+        </div>
       </div>
     </template>
   </BaseCommandModal>
@@ -572,6 +536,10 @@ function buildExchangeMetadata() {
 
 .field-hint {
   color: var(--color-text-dim);
+}
+.field-hint strong {
+  color: var(--color-text);
+  font-weight: 500;
 }
 
 .field-error {
@@ -631,86 +599,40 @@ function buildExchangeMetadata() {
   overflow-wrap: anywhere;
 }
 
-.validation-panel {
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-panel);
-  padding: 0.55rem;
-  background: color-mix(in srgb, var(--panel-header-bg) 50%, transparent);
-}
-
-.validation-panel-valid {
-  border-color: color-mix(in srgb, #22c55e 60%, var(--border-color));
-}
-
-.validation-panel-invalid {
-  border-color: color-mix(in srgb, #f87171 70%, var(--border-color));
-}
-
-.validation-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.validation-title,
-.validation-section-title {
-  font-size: 11px;
-  color: var(--color-text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.validation-copy {
-  margin-top: 0.2rem;
-  font-size: 11px;
-  color: var(--color-text-dim);
-  line-height: 1.35;
-}
-
-.validation-success {
-  margin-top: 0.5rem;
-  font-size: 11px;
-  color: #86efac;
-}
-
-.validation-error {
-  margin-top: 0.5rem;
-  font-size: 11px;
-  color: #fca5a5;
-}
-
-.validation-details {
-  display: grid;
-  gap: 0.55rem;
-  margin-top: 0.55rem;
-  font-size: 11px;
-  color: var(--color-text);
-}
-
-.validation-details ul {
-  margin: 0.25rem 0 0;
-  padding-left: 1rem;
-}
-
-.permission-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-top: 0.3rem;
-}
-
-.permission-chip {
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-input);
-  padding: 0.15rem 0.35rem;
-  color: var(--color-text);
-  background: color-mix(in srgb, var(--panel-header-bg) 70%, transparent);
-  overflow-wrap: anywhere;
-}
-
 button[disabled] {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.create-footer {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 0.5rem;
+}
+
+.create-blocker {
+  margin: 0;
+  color: var(--state-warning);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.create-footer-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.5rem;
+}
+
+@media (max-width: 560px) {
+  .create-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .create-footer-actions {
+    justify-content: flex-end;
+  }
 }
 </style>
