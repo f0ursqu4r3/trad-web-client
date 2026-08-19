@@ -4,9 +4,8 @@ import { RouterLink, useRoute } from 'vue-router'
 import { ArrowLeft } from 'lucide-vue-next'
 import AccountsListPanel from '@/components/terminal/panels/AccountsListPanel.vue'
 import ControlPageHeader from '@/components/control/ControlPageHeader.vue'
-import { accountMetadataStatus, isBybitMetadataVerified, useAccountsStore } from '@/stores/accounts'
+import { accountMetadataStatus, useAccountsStore } from '@/stores/accounts'
 import { accountColorFromId } from '@/lib/accountColors'
-import { ExchangeType } from '@/lib/ws/protocol'
 
 type AccountSection = 'overview' | 'setup' | 'defaults' | 'safety' | 'authorization' | 'danger'
 
@@ -24,23 +23,6 @@ const section = computed<AccountSection>(() =>
     : 'overview',
 )
 const color = computed(() => accountColorFromId(accountId.value))
-const setupSteps = computed(() => {
-  if (!account.value) return []
-  if (account.value.exchange !== ExchangeType.Hyperliquid) {
-    return [
-      {
-        label: 'Exchange permissions',
-        complete: isBybitMetadataVerified(account.value),
-      },
-    ]
-  }
-  const metadata = account.value.exchange_metadata
-  return [
-    { label: 'Account identity', complete: Boolean(metadata?.user_address) },
-    { label: 'Agent wallet', complete: metadata?.agent_approved === true },
-    { label: 'Builder authorization', complete: metadata?.builder_approved === true },
-  ]
-})
 const tabs: { key: AccountSection; label: string }[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'setup', label: 'Setup' },
@@ -90,10 +72,10 @@ watch(account, selectCurrent)
       </nav>
 
       <div v-if="section === 'setup'" class="account-section-intro">
-        <strong>Required setup only</strong>
+        <strong>Guided account setup</strong>
         <span
-          >Finish wallet permissions and approvals here. Trading preferences live in their own
-          sections.</span
+          >Follow the highlighted step. Trad will show exactly which wallet action is required
+          next.</span
         >
       </div>
       <div v-else-if="section === 'authorization'" class="account-section-intro">
@@ -113,20 +95,6 @@ watch(account, selectCurrent)
           executions remain.</span
         >
       </div>
-
-      <ol v-if="section === 'setup'" class="account-setup-steps">
-        <li
-          v-for="(step, index) in setupSteps"
-          :key="step.label"
-          :class="{ complete: step.complete }"
-        >
-          <span class="account-step-number">{{ index + 1 }}</span>
-          <span>{{ step.label }}</span>
-          <span class="pill" :class="step.complete ? 'pill-ok' : 'pill-warn'">
-            {{ step.complete ? 'complete' : 'required' }}
-          </span>
-        </li>
-      </ol>
 
       <AccountsListPanel mode="detail" :detail-account-id="account.id" :detail-section="section" />
     </template>
@@ -207,41 +175,5 @@ watch(account, selectCurrent)
 .account-section-intro--danger {
   border-left-color: var(--state-error);
   background: color-mix(in srgb, var(--state-error) 6%, var(--surface-base));
-}
-.account-setup-steps {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.5rem;
-  margin: 0 0 0.75rem;
-  padding: 0;
-  list-style: none;
-}
-.account-setup-steps li {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 0.55rem;
-  min-height: 46px;
-  padding: 0.55rem 0.65rem;
-  border: 1px solid var(--border-normal);
-  background: var(--surface-base);
-  color: var(--fg);
-  font-size: 11px;
-}
-.account-setup-steps li.complete {
-  border-color: color-mix(in srgb, var(--state-success) 35%, var(--border-normal));
-}
-.account-step-number {
-  display: grid;
-  width: 20px;
-  height: 20px;
-  place-items: center;
-  border: 1px solid var(--border-normal);
-  color: var(--fg-muted);
-  font-size: 10px;
-}
-.complete .account-step-number {
-  border-color: var(--state-success);
-  color: var(--state-success);
 }
 </style>

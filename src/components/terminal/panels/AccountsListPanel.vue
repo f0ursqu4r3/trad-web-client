@@ -37,6 +37,7 @@ import {
 import { ExchangeType } from '@/lib/ws/protocol'
 import FormField from '@/components/forms/FormField.vue'
 import { integerError } from '@/lib/formValidation'
+import HyperliquidSetupFlow from '@/components/settings/HyperliquidSetupFlow.vue'
 
 const logger = createLogger('accounts')
 
@@ -178,11 +179,7 @@ function showDetailSection(
 }
 
 function showAuthorizationSection(): boolean {
-  return (
-    props.mode !== 'detail' ||
-    props.detailSection === 'setup' ||
-    props.detailSection === 'authorization'
-  )
+  return props.mode !== 'detail' || props.detailSection === 'authorization'
 }
 
 async function refreshAccounts() {
@@ -804,6 +801,13 @@ watch(
           <div class="flex flex-1 items-start justify-between gap-3 px-3 py-2">
             <div class="flex flex-1 flex-col gap-2">
               <button
+                v-if="
+                  !(
+                    props.mode === 'detail' &&
+                    showDetailSection('setup') &&
+                    account.exchange === ExchangeType.Hyperliquid
+                  )
+                "
                 class="flex flex-col items-start gap-2 text-left"
                 type="button"
                 @click="selectAccount(account)"
@@ -831,6 +835,32 @@ watch(
                   {{ accountMetadataStatus(account) }}
                 </span>
               </button>
+
+              <HyperliquidSetupFlow
+                v-if="
+                  props.mode === 'detail' &&
+                  showDetailSection('setup') &&
+                  account.exchange === ExchangeType.Hyperliquid
+                "
+                :account="account"
+                :can-rotate-agent="canRotateHyperliquidAgent(account)"
+                :can-approve-agent="canApproveHyperliquidAgent(account)"
+                :can-refresh-agent="canRefreshHyperliquidAgent(account)"
+                :can-approve-builder="canApproveHyperliquidBuilder(account)"
+                :can-refresh-builder="canRefreshHyperliquidBuilder(account)"
+                :rotating-agent="rotatingAgentAccountIds.has(account.id)"
+                :approving-agent="approvingAgentAccountIds.has(account.id)"
+                :refreshing-agent="refreshingAgentAccountIds.has(account.id)"
+                :approving-builder="approvingBuilderAccountIds.has(account.id)"
+                :refreshing-builder="refreshingBuilderAccountIds.has(account.id)"
+                :agent-feedback="agentApprovalFeedback[account.id]"
+                :builder-feedback="builderApprovalFeedback[account.id]"
+                @rotate-agent="rotateHyperliquidAgent(account)"
+                @approve-agent="approveHyperliquidAgent(account)"
+                @refresh-agent="refreshHyperliquidAgent(account)"
+                @approve-builder="approveHyperliquidBuilder(account)"
+                @refresh-builder="refreshHyperliquidBuilder(account)"
+              />
 
               <div
                 v-if="showAccountDetails(account) && showDetailSection('defaults')"

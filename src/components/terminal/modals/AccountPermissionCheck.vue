@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AccountKeyValidationResponse } from '@/stores/accounts'
+import GuidedAction from '@/components/forms/GuidedAction.vue'
 
 defineProps<{
   copy: string
@@ -33,17 +34,19 @@ defineEmits<{ check: [] }>()
         </div>
         <div class="validation-copy">{{ copy }}</div>
       </div>
-      <button
-        type="button"
-        class="btn"
-        :class="result?.valid ? 'btn-secondary' : 'btn-primary'"
-        :disabled="checking || !canCheck"
-        @click="$emit('check')"
-      >
-        <span v-if="checking">Checking...</span>
-        <span v-else-if="result?.valid">Recheck permissions</span>
-        <span v-else>Check permissions — required</span>
-      </button>
+      <GuidedAction :active="canCheck && !checking && !result?.valid" label="Click this next">
+        <button
+          type="button"
+          class="btn"
+          :class="result?.valid ? 'btn-secondary' : 'btn-primary'"
+          :disabled="checking || !canCheck"
+          @click="$emit('check')"
+        >
+          <span v-if="checking">Checking...</span>
+          <span v-else-if="result?.valid">Recheck permissions</span>
+          <span v-else>Check permissions</span>
+        </button>
+      </GuidedAction>
     </div>
     <div v-if="result?.valid" class="validation-success">{{ success }}</div>
     <div v-else-if="prompt" class="validation-prompt">{{ prompt }}</div>
@@ -108,6 +111,9 @@ defineEmits<{ check: [] }>()
 .validation-header .btn {
   flex: 0 0 auto;
   white-space: nowrap;
+}
+.validation-header :deep(.guided-action) {
+  flex: 0 0 auto;
 }
 .validation-heading {
   align-items: center;
