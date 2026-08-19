@@ -299,7 +299,28 @@ test('new accounts continue into required setup instead of stopping at the direc
   page,
 }) => {
   const accountId = '71717171-7171-4717-8717-717171717171'
+  const userAddress = '0x1111111111111111111111111111111111111111'
+  const agentAddress = '0x2222222222222222222222222222222222222222'
+  const occupiedAddress = '0x3333333333333333333333333333333333333333'
   let created = false
+  await page.route('**/api/hyperliquid/agent-wallets**', async (route) => {
+    const connection = {
+      credential_id: '81818181-8181-4818-8818-818181818181',
+      network: 'mainnet',
+      user_address: userAddress,
+      agent_name: 'trad-local',
+      agent_address: agentAddress,
+      approved: false,
+      attached_accounts: 1,
+      preferred_name: 'trad-local',
+      remote_agents: [{ name: 'trad-local', address: occupiedAddress }],
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(route.request().method() === 'GET' ? [connection] : connection),
+    })
+  })
   await page.route('**/api/accounts**', async (route) => {
     const request = route.request()
     if (request.method() === 'POST' && request.url().includes('/api/accounts/validate')) {
@@ -337,7 +358,9 @@ test('new accounts continue into required setup instead of stopping at the direc
                 exchange: 'hyperliquid',
                 exchange_metadata: {
                   product: 'usdc_perp',
-                  user_address: '0x1111111111111111111111111111111111111111',
+                  user_address: userAddress,
+                  agent_name: 'trad-local',
+                  agent_address: agentAddress,
                   agent_approved: false,
                   builder_approved: false,
                 },
@@ -354,7 +377,7 @@ test('new accounts continue into required setup instead of stopping at the direc
   const dialog = page.getByRole('dialog', { name: 'Create Account' })
   await dialog.locator('select').nth(1).selectOption('hyperliquid')
   await dialog.getByPlaceholder('Account alias').fill('Setup Route QA')
-  await dialog.getByPlaceholder('0x...').fill('0x1111111111111111111111111111111111111111')
+  await dialog.getByPlaceholder('0x...').fill(userAddress)
   await dialog.getByRole('button', { name: 'Check permissions', exact: true }).click()
   await expect(dialog.getByText('Wallet and read-only account access are valid.')).toBeVisible()
   await dialog.getByRole('button', { name: 'Create' }).click()
@@ -362,6 +385,17 @@ test('new accounts continue into required setup instead of stopping at the direc
   await expect(page).toHaveURL(`/settings/accounts/${accountId}/setup`)
   await expect(page.getByRole('heading', { name: 'Setup Route QA' })).toBeVisible()
   await expect(page.getByText('Guided account setup', { exact: true })).toBeVisible()
-  await expect(page.getByText('Agent wallet').last()).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Choose and approve Trad’s signing connection' }),
+  ).toBeVisible()
+  await expect(page.getByText(agentAddress, { exact: true })).toBeVisible()
+  await expect(page.getByText(occupiedAddress, { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Replace this slot' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Approve agent' })).toBeDisabled()
+  page.once('dialog', (prompt) => prompt.accept())
+  await page.getByRole('button', { name: 'Replace this slot' }).click()
+  await expect(page.getByText('selected', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Approve agent' })).toBeEnabled()
   await expect(page.getByRole('heading', { name: 'Authorize the Trad builder' })).toBeVisible()
+  await page.screenshot({ path: 'test-results/signing-connection-setup.png', fullPage: true })
 })

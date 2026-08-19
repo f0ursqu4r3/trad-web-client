@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ArrowRight, Check, CircleCheckBig, LockKeyhole } from 'lucide-vue-next'
 import GuidedAction from '@/components/forms/GuidedAction.vue'
+import HyperliquidSigningConnection from '@/components/settings/HyperliquidSigningConnection.vue'
 import {
   accountMetadataChips,
   isHyperliquidAgentAuthorizationCurrent,
@@ -17,14 +18,10 @@ type ApprovalFeedback = { kind: 'info' | 'success' | 'error'; message: string }
 
 const props = defineProps<{
   account: AccountRecord
-  canRotateAgent: boolean
   canApproveAgent: boolean
-  canRefreshAgent: boolean
   canApproveBuilder: boolean
   canRefreshBuilder: boolean
-  rotatingAgent: boolean
   approvingAgent: boolean
-  refreshingAgent: boolean
   approvingBuilder: boolean
   refreshingBuilder: boolean
   agentFeedback?: ApprovalFeedback
@@ -33,9 +30,7 @@ const props = defineProps<{
 }>()
 
 defineEmits<{
-  rotateAgent: []
   approveAgent: []
-  refreshAgent: []
   approveBuilder: []
   refreshBuilder: []
 }>()
@@ -46,6 +41,10 @@ const builderComplete = computed(() => isHyperliquidBuilderAuthorizationCurrent(
 const agentCurrent = computed(() => identityComplete.value && !agentComplete.value)
 const builderCurrent = computed(() => agentComplete.value && !builderComplete.value)
 const setupComplete = computed(() => isHyperliquidMetadataReady(props.account))
+const connectionApprovalReady = ref(false)
+const canSubmitAgentApproval = computed(
+  () => props.canApproveAgent && connectionApprovalReady.value,
+)
 
 function feedbackClass(feedback: ApprovalFeedback | undefined): string {
   if (feedback?.kind === 'success') return 'setup-feedback--success'
@@ -150,10 +149,10 @@ function approvedBuilderMaxLabel(): string {
           <header class="setup-step__heading">
             <div>
               <span class="setup-step__eyebrow">Step 2</span>
-              <h3>Approve the agent wallet</h3>
+              <h3>Choose and approve Trad’s signing connection</h3>
               <p>
-                The agent lets Trad submit trading actions without asking your main wallet to sign
-                every order. Your wallet will open once for this authorization.
+                Review the saved Trad key and your Hyperliquid named slots first. Trad will reuse a
+                valid connection automatically and asks before replacing another application.
               </p>
             </div>
             <span
@@ -163,37 +162,26 @@ function approvedBuilderMaxLabel(): string {
               {{ agentComplete ? 'complete' : agentCurrent ? 'current' : 'waiting' }}
             </span>
           </header>
-          <div class="setup-action-row">
+          <HyperliquidSigningConnection
+            :account="account"
+            :locked="agentComplete"
+            @approval-ready="connectionApprovalReady = $event"
+          />
+          <div class="setup-action-row setup-action-row--approval">
             <div class="setup-value">
-              <span class="setup-label">Trad agent wallet</span>
-              <code>{{ account.exchange_metadata?.agent_address || 'missing' }}</code>
-              <span>Named slot: {{ account.exchange_metadata?.agent_name || 'not assigned' }}</span>
-              <span>Status: {{ agentComplete ? 'approved' : 'approval required' }}</span>
+              <span class="setup-label">Wallet authorization</span>
+              <span v-if="agentComplete">This connection is already approved.</span>
+              <span v-else-if="connectionApprovalReady">
+                The selected named slot is ready. Your wallet opens once to authorize Trad’s key.
+              </span>
+              <span v-else>Resolve the highlighted signing-connection choice above first.</span>
             </div>
             <div class="setup-actions">
-              <button
-                class="btn btn-secondary btn-xs"
-                type="button"
-                :disabled="!canRotateAgent"
-                title="Replace this unapproved agent with a newly generated one"
-                @click="$emit('rotateAgent')"
-              >
-                {{ rotatingAgent ? 'Generating' : 'Generate replacement' }}
-              </button>
-              <button
-                class="btn btn-secondary btn-xs"
-                type="button"
-                :disabled="!canRefreshAgent"
-                title="Check whether Hyperliquid already has this approval"
-                @click="$emit('refreshAgent')"
-              >
-                {{ refreshingAgent ? 'Checking' : 'Refresh status' }}
-              </button>
-              <GuidedAction :active="agentCurrent && canApproveAgent" label="Do this next">
+              <GuidedAction :active="agentCurrent && canSubmitAgentApproval" label="Do this next">
                 <button
                   class="btn btn-primary btn-xs"
                   type="button"
-                  :disabled="!canApproveAgent || !agentCurrent"
+                  :disabled="!canSubmitAgentApproval || !agentCurrent"
                   @click="$emit('approveAgent')"
                 >
                   {{
