@@ -38,7 +38,7 @@ const setupSteps = computed(() => {
   return [
     { label: 'Account identity', complete: Boolean(metadata?.user_address) },
     { label: 'Agent wallet', complete: metadata?.agent_approved === true },
-    { label: 'Builder ceiling', complete: metadata?.builder_approved === true },
+    { label: 'Builder authorization', complete: metadata?.builder_approved === true },
   ]
 })
 const tabs: { key: AccountSection; label: string }[] = [

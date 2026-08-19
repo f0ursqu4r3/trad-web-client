@@ -26,10 +26,7 @@ import {
 } from '@/lib/hyperliquidBuilderApproval'
 import { hyperliquidAgentName } from '@/lib/gateway/hyperliquidAgentName'
 import { createLogger } from '@/lib/utils'
-import {
-  HYPERLIQUID_TARGET_TOTAL_MAX_TENTHS_BPS,
-  hyperliquidTargetTotalTenthsBps,
-} from '@/lib/accountMetadata'
+import { hyperliquidTargetTotalTenthsBps } from '@/lib/accountMetadata'
 import { HYPERLIQUID_MAX_BUILDER_FEE_TENTHS_BPS } from '@/lib/hyperliquidBuilderApproval'
 import {
   isValidExecutionGuardPercent,
@@ -64,7 +61,6 @@ const projections = useAccountProjectionStore()
 const isCreateModalOpen = ref(false)
 const positionsOpen = ref(false)
 const approvingBuilderAccountIds = ref<Set<string>>(new Set())
-const savingBuilderAccountIds = ref<Set<string>>(new Set())
 const savingGuardAccountIds = ref<Set<string>>(new Set())
 const refreshingBuilderAccountIds = ref<Set<string>>(new Set())
 const approvingAgentAccountIds = ref<Set<string>>(new Set())
@@ -88,13 +84,11 @@ const leverageForms = reactive<
     }
   >
 >({})
-const builderForms = reactive<Record<string, { targetTotalBps: string }>>({})
 const guardForms = reactive<
   Record<string, { entryPercent: number; takeProfitPercent: number; stopLossPercent: number }>
 >({})
 const sortedAccounts = computed(() => {
   accounts.accounts.forEach(ensureLeverageForm)
-  accounts.accounts.forEach(ensureBuilderForm)
   accounts.accounts.forEach(ensureGuardForm)
   const sorted = accounts.accounts.slice().sort((a, b) => a.label.localeCompare(b.label))
   if (props.mode !== 'detail' || !props.detailAccountId) return sorted
@@ -155,7 +149,6 @@ async function confirmAccountDeletion() {
 function selectAccount(account: AccountRecord) {
   accounts.selectedAccountId = account.id
   ensureLeverageForm(account)
-  ensureBuilderForm(account)
   ensureGuardForm(account)
 }
 
@@ -216,14 +209,6 @@ function ensureLeverageForm(account: AccountRecord) {
 
 function normalizeHyperliquidMarginMode(value: string | null | undefined): 'cross' | 'isolated' {
   return value?.trim().toLowerCase() === 'isolated' ? 'isolated' : 'cross'
-}
-
-function ensureBuilderForm(account: AccountRecord) {
-  if (builderForms[account.id]) return
-  const meta = account.exchange_metadata
-  builderForms[account.id] = {
-    targetTotalBps: (hyperliquidTargetTotalTenthsBps(meta) / 10).toString(),
-  }
 }
 
 function ensureGuardForm(account: AccountRecord) {
@@ -322,30 +307,10 @@ function canSetHedgeMode(account: AccountRecord): boolean {
   )
 }
 
-function targetTotalTenthsBps(account: AccountRecord): number | null {
-  const parsed = Number(builderForms[account.id]?.targetTotalBps)
-  if (!Number.isFinite(parsed) || parsed < 0) return null
-  return Math.round(parsed * 10)
-}
-
-function targetTotalEquivalent(account: AccountRecord): string {
-  const target = targetTotalTenthsBps(account)
-  if (target == null || target > HYPERLIQUID_TARGET_TOTAL_MAX_TENTHS_BPS) return 'Invalid'
-  return `${(target / 10).toFixed(1)} bps = ${(target / 1000).toFixed(3)}%`
-}
-
 function approvedBuilderMaxLabel(account: AccountRecord): string {
   const meta = account.exchange_metadata
   if (meta?.builder_approved !== true) return 'not verified'
   return `${((meta.max_builder_fee_tenths_bps ?? 0) / 10).toFixed(1)} bps`
-}
-
-function canSaveHyperliquidBuilder(account: AccountRecord): boolean {
-  if (account.exchange !== ExchangeType.Hyperliquid) return false
-  if (account.exchange_metadata?.builder_fee_manager !== true) return false
-  const target = targetTotalTenthsBps(account)
-  if (target == null || target > HYPERLIQUID_TARGET_TOTAL_MAX_TENTHS_BPS) return false
-  return !savingBuilderAccountIds.value.has(account.id)
 }
 
 function canApproveHyperliquidBuilder(account: AccountRecord): boolean {
@@ -421,30 +386,6 @@ function canRefreshHyperliquidAgent(account: AccountRecord): boolean {
   return Boolean(
     account.exchange_metadata?.user_address && account.exchange_metadata?.agent_address,
   )
-}
-
-async function saveHyperliquidBuilder(account: AccountRecord) {
-  controlError.value = null
-  controlMessage.value = null
-  if (!canSaveHyperliquidBuilder(account)) {
-    controlError.value = 'Hyperliquid builder settings are invalid.'
-    return
-  }
-  const target = targetTotalTenthsBps(account)
-  if (target == null) return
-  savingBuilderAccountIds.value = new Set([...savingBuilderAccountIds.value, account.id])
-  try {
-    await accounts.updateAccountMetadata(account.id, {
-      builder_target_total_tenths_bps: target,
-    })
-    controlMessage.value = `Saved Hyperliquid target total for ${account.label}.`
-  } catch (err) {
-    controlError.value = err instanceof Error ? err.message : String(err)
-  } finally {
-    const next = new Set(savingBuilderAccountIds.value)
-    next.delete(account.id)
-    savingBuilderAccountIds.value = next
-  }
 }
 
 async function approveHyperliquidAgent(account: AccountRecord) {
@@ -1191,41 +1132,23 @@ watch(
                     }}
                   </span>
                   <span class="normal-case tracking-normal text-[var(--color-text-dim)]">
-                    Trad-controlled recipient. Wallet approval requests the 10 bps / 0.1% maximum.
+                    Trad-controlled recipient. This address receives only the builder component of
+                    the configured target total.
                   </span>
                 </div>
-                <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
-                  <span>Target total / side</span>
-                  <input
-                    v-if="account.exchange_metadata?.builder_fee_manager === true"
-                    v-model.trim="builderForms[account.id].targetTotalBps"
-                    class="input h-7 text-xs"
-                    type="number"
-                    min="0"
-                    :max="HYPERLIQUID_TARGET_TOTAL_MAX_TENTHS_BPS / 10"
-                    step="0.1"
-                    @focus="ensureBuilderForm(account)"
-                  />
-                  <span v-else class="input flex h-7 items-center text-xs">
-                    {{
-                      (hyperliquidTargetTotalTenthsBps(account.exchange_metadata) / 10).toFixed(1)
-                    }}
-                    bps
-                  </span>
+                <div class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
+                  <span>Wallet approval ceiling</span>
+                  <strong class="text-xs font-normal text-primary normal-case tracking-normal">
+                    {{ (HYPERLIQUID_MAX_BUILDER_FEE_TENTHS_BPS / 10).toFixed(1) }} bps /
+                    {{ (HYPERLIQUID_MAX_BUILDER_FEE_TENTHS_BPS / 1000).toFixed(3) }}%
+                  </strong>
                   <span class="normal-case tracking-normal text-[var(--color-text-dim)]">
-                    {{ targetTotalEquivalent(account) }}
+                    Approved maximum: {{ approvedBuilderMaxLabel(account) }} · Status:
+                    {{
+                      account.exchange_metadata?.builder_approved ? 'approved' : 'action required'
+                    }}
                   </span>
-                </label>
-                <button
-                  v-if="account.exchange_metadata?.builder_fee_manager === true"
-                  class="btn btn-secondary btn-xs account-settings-action"
-                  type="button"
-                  :disabled="!canSaveHyperliquidBuilder(account)"
-                  @click="saveHyperliquidBuilder(account)"
-                >
-                  <span v-if="savingBuilderAccountIds.has(account.id)">Saving</span>
-                  <span v-else>Save</span>
-                </button>
+                </div>
                 <button
                   class="btn btn-primary btn-xs account-settings-action"
                   type="button"
@@ -1233,7 +1156,10 @@ watch(
                   @click="approveHyperliquidBuilder(account)"
                 >
                   <span v-if="approvingBuilderAccountIds.has(account.id)">Approving</span>
-                  <span v-else>Approve</span>
+                  <span v-else
+                    >Approve
+                    {{ (HYPERLIQUID_MAX_BUILDER_FEE_TENTHS_BPS / 10).toFixed(1) }} bps</span
+                  >
                 </button>
                 <button
                   class="btn btn-secondary btn-xs account-settings-action"
@@ -1245,23 +1171,23 @@ watch(
                   <span v-else>Refresh</span>
                 </button>
                 <p
-                  class="m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)] md:col-span-5"
+                  class="account-builder-policy m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)]"
                 >
+                  Current Trad target total:
+                  <span class="font-mono text-primary">
+                    {{
+                      (hyperliquidTargetTotalTenthsBps(account.exchange_metadata) / 10).toFixed(1)
+                    }}
+                    bps per side
+                  </span>
+                  · Set by the Trad administrator under Execution policy.
+                  <br />
                   Exchange fee + Trad builder fee equals the target total. The builder fee is
                   calculated from the live account fee tier for each submitted order.
-                  <br />
-                  Approved max:
-                  <span class="font-mono text-primary">
-                    {{ approvedBuilderMaxLabel(account) }}
-                  </span>
-                  · Status:
-                  <span class="font-mono text-primary">
-                    {{ account.exchange_metadata?.builder_approved ? 'approved' : 'unvalidated' }}
-                  </span>
                 </p>
                 <p
                   v-if="builderApprovalFeedback[account.id]"
-                  class="m-0 break-words text-[11px] leading-relaxed normal-case tracking-normal md:col-span-5"
+                  class="account-builder-policy m-0 break-words text-[11px] leading-relaxed normal-case tracking-normal"
                   :class="approvalFeedbackClass(builderApprovalFeedback[account.id]!)"
                   role="status"
                   aria-live="polite"
@@ -1381,7 +1307,11 @@ watch(
   }
 
   .account-builder-grid {
-    grid-template-columns: minmax(18rem, 1fr) minmax(7rem, 9rem) auto auto auto;
+    grid-template-columns: minmax(18rem, 1fr) minmax(13rem, 0.7fr) auto auto;
   }
+}
+
+.account-builder-policy {
+  grid-column: 1 / -1;
 }
 </style>

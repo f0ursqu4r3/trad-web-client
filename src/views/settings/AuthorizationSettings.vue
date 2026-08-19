@@ -32,7 +32,7 @@ onMounted(() => accounts.fetchAccounts())
           <tr>
             <th>Account</th>
             <th>Agent wallet</th>
-            <th>Builder ceiling</th>
+            <th>Builder approval</th>
             <th>Target total</th>
             <th>Builder recipient</th>
             <th></th>
