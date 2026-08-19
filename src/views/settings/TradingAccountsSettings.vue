@@ -149,7 +149,7 @@ onMounted(async () => {
             <th>Readiness</th>
             <th>Agent</th>
             <th>Builder</th>
-            <th class="w-24"></th>
+            <th class="w-24 text-right">Actions</th>
           </tr>
         </thead>
         <tbody>

@@ -153,10 +153,17 @@
   .table-tiny {
     @apply w-full text-[12px];
   }
+  .table-tiny thead {
+    background: var(--surface-muted);
+  }
   .table-tiny thead th {
     @apply px-2 py-2 align-middle text-left font-medium border-b;
+    background: var(--surface-muted);
     color: var(--fg-muted);
     border-bottom-color: var(--border-subtle);
+    font-size: 10px;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
   }
   .table-tiny tbody td {
     @apply px-2 py-2 align-middle border-b;

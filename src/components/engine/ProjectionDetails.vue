@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { ScanSearch } from 'lucide-vue-next'
 
 import ProjectionActions from '@/components/engine/actions/ProjectionActions.vue'
 import ChaseDetails from '@/components/engine/details/ChaseDetails.vue'
@@ -291,7 +292,11 @@ function formatDate(value: number | null): string {
         :amendment="selectedProtectionAmendment"
       />
     </div>
-    <div v-else class="empty-state">Select a command or execution entity</div>
+    <div v-else class="empty-state">
+      <ScanSearch :size="20" aria-hidden="true" />
+      <strong>Nothing selected</strong>
+      <span>Select a command or device to inspect its details.</span>
+    </div>
   </section>
 </template>
 
@@ -320,6 +325,36 @@ function formatDate(value: number | null): string {
 }
 .details-active {
   background: color-mix(in srgb, var(--color-warning) 7%, transparent);
+}
+
+.empty-state {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 2rem;
+  color: var(--color-text-dim);
+  text-align: center;
+}
+
+.empty-state svg {
+  margin-bottom: 0.15rem;
+  opacity: 0.7;
+}
+
+.empty-state strong {
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.empty-state span {
+  max-width: 22rem;
+  font-size: 10px;
+  line-height: 1.5;
 }
 
 .entity-meta {
