@@ -14,6 +14,8 @@ import { useModalStore } from '@/stores/modals'
 import ShapeFields from './ShapeFields.vue'
 import ExecutionPreviewPanel from './ExecutionPreviewPanel.vue'
 import LiveMarketPrice from './LiveMarketPrice.vue'
+import FormField from '@/components/forms/FormField.vue'
+import { decimalError, symbolError } from '@/lib/formValidation'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
@@ -42,6 +44,17 @@ const selectedAccount = computed(
 )
 const isHyperliquid = computed(() => selectedAccount.value?.exchange === 'hyperliquid')
 const units = computed(() => marketUnits(selectedAccount.value, symbol.value))
+const accountError = computed(() =>
+  selectedAccountId.value === '' ? 'Trading account is required' : null,
+)
+const trailingSymbolError = computed(() => symbolError(symbol.value))
+const activationError = computed(() => decimalError(activationPrice.value, 'activation price'))
+const jumpError = computed(() => decimalError(jumpBasisPoints.value, 'jump threshold'))
+const stopError = computed(() => decimalError(stopLossPrice.value, 'stop-loss price'))
+const takeProfitError = computed(() =>
+  decimalError(takeProfitPrice.value, 'take-profit price', { optional: true }),
+)
+const riskError = computed(() => decimalError(riskAmount.value, 'risk amount'))
 const canSubmit = computed(
   () =>
     gateway.isConnected &&
@@ -121,35 +134,51 @@ function buildIntent() {
   <BaseCommandModal title="Trailing Entry" :open="open" @close="emit('close')">
     <form id="engine-trailing-entry" class="command-form" @submit.prevent="submit">
       <div class="form-grid">
-        <label class="field">
-          <span>Account</span>
+        <FormField
+          label="Account"
+          help="The configured exchange account that will own this trailing entry."
+          :error="accountError"
+          required
+        >
           <select v-model="selectedAccountId" class="input" @change="applyAccountDefaults">
             <option v-for="account in accounts.accounts" :key="account.id" :value="account.id">
               {{ account.label }} · {{ account.exchange }} · {{ account.network }}
             </option>
           </select>
-        </label>
-        <label class="field">
-          <span class="symbol-heading">
-            <span>Symbol</span>
-            <LiveMarketPrice
-              :active="open"
-              :account-id="selectedAccountId"
-              :symbol="symbol"
-              :quote-asset="units.quote"
-            />
-          </span>
+        </FormField>
+        <FormField
+          help="Exchange instrument symbol, such as BTC. Trad normalizes it to uppercase."
+          :error="trailingSymbolError"
+          required
+        >
+          <template #label
+            ><span class="symbol-heading">
+              <span>Symbol</span>
+              <LiveMarketPrice
+                :active="open"
+                :account-id="selectedAccountId"
+                :symbol="symbol"
+                :quote-asset="units.quote"
+              /> </span
+          ></template>
           <input v-model="symbol" class="input" autocomplete="off" />
-        </label>
-        <label class="field">
-          <span>Position Side</span>
+        </FormField>
+        <FormField
+          label="Position Side"
+          help="The side Trad will enter after the activation and jump conditions are satisfied."
+          required
+        >
           <select v-model="positionSide" class="input">
             <option value="long">Long</option>
             <option value="short">Short</option>
           </select>
-        </label>
-        <label class="field">
-          <span>{{ labelWithUnit('Risk at Stop', units.quote) }}</span>
+        </FormField>
+        <FormField
+          :label="labelWithUnit('Risk at Stop', units.quote)"
+          help="Maximum quote-currency loss between the eventual entry and the stop-loss price."
+          :error="riskError"
+          required
+        >
           <input
             v-model="riskAmount"
             class="input"
@@ -157,9 +186,13 @@ function buildIntent() {
             type="text"
             inputmode="decimal"
           />
-        </label>
-        <label class="field">
-          <span>{{ labelWithUnit('Activation Price', units.quote) }}</span>
+        </FormField>
+        <FormField
+          :label="labelWithUnit('Activation Price', units.quote)"
+          help="Price that arms the trailing entry. No entry is submitted before activation."
+          :error="activationError"
+          required
+        >
           <input
             v-model="activationPrice"
             class="input"
@@ -167,13 +200,21 @@ function buildIntent() {
             type="text"
             inputmode="decimal"
           />
-        </label>
-        <label class="field">
-          <span>Jump Threshold (bps)</span>
+        </FormField>
+        <FormField
+          label="Jump Threshold (bps)"
+          help="Required reversal from the best post-activation price. One basis point is 0.01%."
+          :error="jumpError"
+          required
+        >
           <input v-model="jumpBasisPoints" class="input" type="text" inputmode="decimal" />
-        </label>
-        <label class="field">
-          <span>{{ labelWithUnit('Stop Loss Price', units.quote) }}</span>
+        </FormField>
+        <FormField
+          :label="labelWithUnit('Stop Loss Price', units.quote)"
+          help="Mandatory protective stop used both for risk sizing and post-entry protection."
+          :error="stopError"
+          required
+        >
           <input
             v-model="stopLossPrice"
             class="input"
@@ -181,9 +222,13 @@ function buildIntent() {
             type="text"
             inputmode="decimal"
           />
-        </label>
-        <label class="field">
-          <span>{{ labelWithUnit('Take Profit Price', units.quote) }} (optional)</span>
+        </FormField>
+        <FormField
+          :label="labelWithUnit('Take Profit Price', units.quote)"
+          help="Optional price for a full take-profit after entry."
+          :error="takeProfitError"
+          optional
+        >
           <input
             v-model="takeProfitPrice"
             class="input"
@@ -191,9 +236,14 @@ function buildIntent() {
             type="text"
             inputmode="decimal"
           />
-        </label>
-        <label v-if="isHyperliquid" class="field one-way-field">
-          <span>Hyperliquid One-Way Behavior</span>
+        </FormField>
+        <FormField
+          v-if="isHyperliquid"
+          class="one-way-field"
+          label="Hyperliquid One-Way Behavior"
+          help="Controls how Trad handles existing exposure because Hyperliquid cannot hold long and short simultaneously."
+          required
+        >
           <select v-model="oneWaySemantics" class="input">
             <option value="delta">Add Requested Quantity</option>
             <option value="target_side_exposure">Reach Target-Side Exposure</option>
@@ -202,7 +252,7 @@ function buildIntent() {
             Hyperliquid cannot hold both sides. An opposite position is reduced before the requested
             side is established.
           </small>
-        </label>
+        </FormField>
         <ShapeFields
           v-model:mode="shapeMode"
           v-model:target-child-notional="targetChildNotional"
@@ -217,6 +267,8 @@ function buildIntent() {
         :quote-asset="units.quote"
         @update:ready="previewReady = $event"
       />
+
+      <p v-if="!planningIntent" class="form-readiness">Fix the highlighted fields to continue.</p>
 
       <p v-if="validationError || submission.submissionError.value" class="submission-error">
         {{ validationError || submission.submissionError.value }}
@@ -265,6 +317,11 @@ function buildIntent() {
 .submission-error {
   color: var(--color-error);
   overflow-wrap: anywhere;
+}
+.form-readiness {
+  margin: 0;
+  color: var(--state-warning);
+  font-size: 11px;
 }
 @media (max-width: 640px) {
   .form-grid {

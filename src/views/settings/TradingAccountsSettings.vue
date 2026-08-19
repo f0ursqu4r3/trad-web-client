@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { Plus, RefreshCw } from 'lucide-vue-next'
 import ControlPageHeader from '@/components/control/ControlPageHeader.vue'
 import ControlSection from '@/components/control/ControlSection.vue'
@@ -17,6 +17,8 @@ import { accountColorFromId } from '@/lib/accountColors'
 import { ExchangeType } from '@/lib/ws/protocol'
 
 const accounts = useAccountsStore()
+const route = useRoute()
+const router = useRouter()
 const query = ref('')
 const createOpen = ref(false)
 const rows = computed(() => {
@@ -48,7 +50,15 @@ function manageRoute(account: AccountRecord): string {
   return `/settings/accounts/${account.id}/${ready(account) ? 'overview' : 'setup'}`
 }
 
-onMounted(() => accounts.fetchAccounts())
+onMounted(async () => {
+  await accounts.fetchAccounts()
+  if (route.query.create === '1') {
+    createOpen.value = true
+    const query = { ...route.query }
+    delete query.create
+    void router.replace({ query })
+  }
+})
 </script>
 
 <template>

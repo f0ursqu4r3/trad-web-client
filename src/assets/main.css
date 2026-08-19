@@ -95,6 +95,7 @@
   .control-form-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    align-items: start;
     gap: 1rem;
   }
   .control-field-panel {

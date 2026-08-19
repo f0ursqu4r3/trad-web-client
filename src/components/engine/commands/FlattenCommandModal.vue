@@ -6,6 +6,8 @@ import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmis
 import { buildFlattenIntent } from '@/lib/engineCommands/intents'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
+import FormField from '@/components/forms/FormField.vue'
+import { symbolError } from '@/lib/formValidation'
 
 const props = withDefaults(
   defineProps<{
@@ -25,10 +27,17 @@ const targetKind = ref<'symbol' | 'account'>('symbol')
 const symbol = ref('')
 const confirmed = ref(false)
 const validationError = ref<string | null>(null)
+const accountError = computed(() =>
+  selectedAccountId.value === '' ? 'Trading account is required' : null,
+)
+const flattenSymbolError = computed(() =>
+  targetKind.value === 'symbol' ? symbolError(symbol.value) : null,
+)
 const canSubmit = computed(
   () =>
     gateway.isConnected &&
     selectedAccountId.value !== '' &&
+    flattenSymbolError.value === null &&
     confirmed.value &&
     !submission.submitting.value,
 )
@@ -74,25 +83,37 @@ async function submit(): Promise<void> {
 <template>
   <BaseCommandModal title="Flatten Exposure" :open="open" @close="emit('close')">
     <form id="engine-flatten" class="command-form" @submit.prevent="submit">
-      <label class="field">
-        <span>Account</span>
+      <FormField
+        label="Account"
+        help="The configured exchange account whose exposure will be closed."
+        :error="accountError"
+        required
+      >
         <select v-model="selectedAccountId" class="input">
           <option v-for="account in accounts.accounts" :key="account.id" :value="account.id">
             {{ account.label }} · {{ account.exchange }} · {{ account.network }}
           </option>
         </select>
-      </label>
-      <label class="field">
-        <span>Target</span>
+      </FormField>
+      <FormField
+        label="Target"
+        help="Close one instrument or all exposure held by this account."
+        required
+      >
         <select v-model="targetKind" class="input">
           <option value="symbol">One Symbol</option>
           <option value="account">Entire Account</option>
         </select>
-      </label>
-      <label v-if="targetKind === 'symbol'" class="field">
-        <span>Symbol</span>
+      </FormField>
+      <FormField
+        v-if="targetKind === 'symbol'"
+        label="Symbol"
+        help="Exchange instrument whose exposure and related protection will be closed."
+        :error="flattenSymbolError"
+        required
+      >
         <input v-model="symbol" class="input" autocomplete="off" />
-      </label>
+      </FormField>
       <p class="warning">
         This creates authoritative reduce-only close workflows and clears related protection. It
         does not submit new directional exposure.

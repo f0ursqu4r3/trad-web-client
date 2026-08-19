@@ -68,7 +68,7 @@ test('super-admin role controls are capability-scoped', async ({ page }) => {
   await page.goto('/auth/test-login?email=kriocrypto%40gmail.com&return_to=%2Fadmin%2Fusers')
   const adminTable = page.getByTestId('admin-user-table')
   const protectedOwner = adminTable.getByRole('row').filter({ hasText: '668es218pur@gmail.com' })
-  const ordinaryUser = adminTable.getByRole('row').filter({ hasText: 'dev@trad.local' })
+  const ordinaryUser = adminTable.getByRole('row').filter({ hasText: 'client-test@trad.local' })
   await expect(protectedOwner.locator('select').first()).toHaveValue('super_admin')
   await expect(protectedOwner.locator('select').first()).toBeDisabled()
   await expect(protectedOwner.getByRole('button', { name: 'Save' })).toBeDisabled()

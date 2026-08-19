@@ -118,6 +118,7 @@
   }
   .field {
     @apply flex flex-col gap-1 text-[12px];
+    min-width: 0;
   }
   .field > span,
   .field > label {
@@ -130,6 +131,55 @@
   .field-error {
     @apply mt-1 text-[11px];
     color: var(--state-error);
+  }
+  .field-hint {
+    @apply mt-1 text-[11px];
+    color: var(--control-hint);
+  }
+  .field > .input,
+  .field > .select,
+  .field > input,
+  .field > select,
+  .field > textarea {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+  .form-field-heading {
+    display: flex;
+    min-height: 14px;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .form-field-required,
+  .form-field-optional {
+    font-size: 9px;
+    letter-spacing: 0.03em;
+    text-transform: lowercase;
+  }
+  .form-field-required {
+    color: var(--state-warning);
+  }
+  .form-field-optional {
+    color: var(--fg-disabled);
+  }
+  .form-field-help {
+    display: inline-flex;
+    align-items: center;
+    color: var(--fg-muted);
+    cursor: help;
+  }
+  .form-field-help:focus-visible {
+    color: var(--fg);
+    outline: 1px solid var(--control-border-focus);
+    outline-offset: 2px;
+  }
+  .form-field-invalid > .input,
+  .form-field-invalid > .select,
+  .form-field-invalid > input,
+  .form-field-invalid > select,
+  .form-field-invalid > textarea {
+    border-color: var(--state-error);
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--state-error) 65%, transparent);
   }
   /* Autofill */
   input.form-control:-webkit-autofill,

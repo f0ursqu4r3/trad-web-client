@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import type { SizingMode } from '@/lib/engineCommands/form'
 import { labelWithUnit } from '@/lib/engineCommands/marketUnits'
+import FormField from '@/components/forms/FormField.vue'
+import { decimalError } from '@/lib/formValidation'
+import { computed } from 'vue'
 
 const mode = defineModel<SizingMode>('mode', { required: true })
 const amount = defineModel<string>('amount', { required: true })
 const props = defineProps<{ baseAsset?: string | null; quoteAsset?: string | null }>()
+const amountError = computed(() => decimalError(amount.value, inputLabel(mode.value).toLowerCase()))
 
 function sizingLabel(kind: SizingMode): string {
   switch (kind) {
@@ -25,16 +29,29 @@ function inputLabel(kind: SizingMode): string {
 </script>
 
 <template>
-  <label class="field">
-    <span>Amount Type</span>
+  <FormField
+    label="Amount Type"
+    help="Choose whether the order size is entered as quote value, base quantity, or risk at the attached stop."
+    required
+  >
     <select v-model="mode" class="input">
       <option value="quote_notional">{{ sizingLabel('quote_notional') }}</option>
       <option value="base">{{ sizingLabel('base') }}</option>
       <option value="risk_at_stop">{{ sizingLabel('risk_at_stop') }}</option>
     </select>
-  </label>
-  <label class="field">
-    <span>{{ sizingLabel(mode) }}</span>
+  </FormField>
+  <FormField
+    :label="sizingLabel(mode)"
+    :help="
+      mode === 'risk_at_stop'
+        ? 'Maximum quote-currency loss at the attached stop. A stop loss is required.'
+        : mode === 'base'
+          ? 'Exact quantity of the base asset to trade.'
+          : 'Total quote-currency value to trade.'
+    "
+    :error="amountError"
+    required
+  >
     <input
       v-model="amount"
       class="input"
@@ -53,5 +70,5 @@ function inputLabel(kind: SizingMode): string {
       autocomplete="off"
       placeholder="0.00"
     />
-  </label>
+  </FormField>
 </template>

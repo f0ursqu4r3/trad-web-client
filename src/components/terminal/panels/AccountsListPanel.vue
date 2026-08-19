@@ -35,6 +35,8 @@ import {
   tenthsBpsToPercent,
 } from '@/lib/hyperliquidExecutionGuards'
 import { ExchangeType } from '@/lib/ws/protocol'
+import FormField from '@/components/forms/FormField.vue'
+import { integerError } from '@/lib/formValidation'
 
 const logger = createLogger('accounts')
 
@@ -265,6 +267,24 @@ function validateLeverage(account: AccountRecord): boolean {
   if (symbols.length === 0) return false
   if (!Number.isInteger(form.leverage) || form.leverage <= 0) return false
   return accountCommandState(account).ready
+}
+
+function symbolsFieldError(account: AccountRecord): string | null {
+  const raw = leverageForms[account.id]?.symbols ?? ''
+  if (raw.trim() === '' && account.exchange === ExchangeType.Hyperliquid) return null
+  return parseLeverageSymbols(account, raw).length === 0 ? 'Enter at least one valid symbol' : null
+}
+
+function leverageFieldError(
+  account: AccountRecord,
+  kind: 'leverage' | 'defaultLeverage',
+): string | null {
+  const value = leverageForms[account.id]?.[kind]
+  return integerError(String(value ?? ''), kind === 'leverage' ? 'Leverage' : 'Default leverage', 1)
+}
+
+function guardFieldError(value: number, label: string): string | null {
+  return isValidExecutionGuardPercent(value) ? null : `${label} must be between 0% and 50%`
 }
 
 function accountCommandState(account: AccountRecord) {
@@ -829,8 +849,17 @@ watch(
                 >
                   {{ accountCommandStatus(account) }}
                 </p>
-                <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
-                  <span>{{ account.exchange === ExchangeType.Bybit ? 'Symbols' : 'Symbol' }}</span>
+                <FormField
+                  :label="account.exchange === ExchangeType.Bybit ? 'Symbols' : 'Symbol'"
+                  :help="
+                    account.exchange === ExchangeType.Hyperliquid
+                      ? 'Optional comma-separated symbol overrides. Leave blank to use the account default.'
+                      : 'One or more exchange symbols to receive this leverage setting.'
+                  "
+                  :error="symbolsFieldError(account)"
+                  :required="account.exchange !== ExchangeType.Hyperliquid"
+                  :optional="account.exchange === ExchangeType.Hyperliquid"
+                >
                   <input
                     v-model.trim="leverageForms[account.id].symbols"
                     class="input h-7 text-xs"
@@ -844,21 +873,22 @@ watch(
                     "
                     @focus="ensureLeverageForm(account)"
                   />
-                  <span
-                    v-if="account.exchange === ExchangeType.Bybit"
-                    class="normal-case tracking-normal text-[var(--color-text-dim)]"
-                  >
+                  <small v-if="account.exchange === ExchangeType.Bybit" class="field-hint">
                     Comma or space separated; applied per symbol.
-                  </span>
-                  <span
+                  </small>
+                  <small
                     v-else-if="account.exchange === ExchangeType.Hyperliquid"
-                    class="normal-case tracking-normal text-[var(--color-text-dim)]"
+                    class="field-hint"
                   >
                     Optional persisted overrides; blank clears overrides.
-                  </span>
-                </label>
-                <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
-                  <span>Lev</span>
+                  </small>
+                </FormField>
+                <FormField
+                  label="Leverage"
+                  help="Leverage applied to the symbols above when Set Leverage is used."
+                  :error="leverageFieldError(account, 'leverage')"
+                  required
+                >
                   <input
                     v-model.number="leverageForms[account.id].leverage"
                     class="input h-7 text-xs"
@@ -867,12 +897,14 @@ watch(
                     step="1"
                     @focus="ensureLeverageForm(account)"
                   />
-                </label>
-                <label
+                </FormField>
+                <FormField
                   v-if="account.exchange === ExchangeType.Hyperliquid"
-                  class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim"
+                  label="Default"
+                  help="Account-level leverage used for symbols without a persisted override."
+                  :error="leverageFieldError(account, 'defaultLeverage')"
+                  required
                 >
-                  <span>Default</span>
                   <input
                     v-model.number="leverageForms[account.id].defaultLeverage"
                     class="input h-7 text-xs"
@@ -881,12 +913,13 @@ watch(
                     step="1"
                     @focus="ensureLeverageForm(account)"
                   />
-                </label>
-                <label
+                </FormField>
+                <FormField
                   v-if="account.exchange === ExchangeType.Hyperliquid"
-                  class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim"
+                  label="Mode"
+                  help="Cross shares account margin; isolated limits margin to each position."
+                  required
                 >
-                  <span>Mode</span>
                   <select
                     v-model="leverageForms[account.id].marginMode"
                     class="input h-7 text-xs"
@@ -895,7 +928,7 @@ watch(
                     <option value="cross">Cross</option>
                     <option value="isolated">Isolated</option>
                   </select>
-                </label>
+                </FormField>
                 <button
                   class="btn btn-secondary btn-xs account-settings-action"
                   type="button"
@@ -980,8 +1013,14 @@ watch(
                 "
                 class="account-guard-grid border-t border-[var(--panel-border-inner)] pt-2"
               >
-                <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
-                  <span>Market Entry Guard</span>
+                <FormField
+                  label="Market Entry Guard"
+                  help="Maximum adverse price movement allowed while submitting a market entry."
+                  :error="
+                    guardFieldError(guardForms[account.id].entryPercent, 'Market entry guard')
+                  "
+                  required
+                >
                   <input
                     v-model.number="guardForms[account.id].entryPercent"
                     class="input h-7 text-xs"
@@ -991,12 +1030,19 @@ watch(
                     step="0.001"
                     @focus="ensureGuardForm(account)"
                   />
-                  <span class="normal-case tracking-normal text-[var(--color-text-dim)]"
-                    >Percent</span
-                  >
-                </label>
-                <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
-                  <span>Market TP Guard</span>
+                  <small class="field-hint">Percent</small>
+                </FormField>
+                <FormField
+                  label="Market TP Guard"
+                  help="Maximum adverse price movement allowed when a market take profit executes."
+                  :error="
+                    guardFieldError(
+                      guardForms[account.id].takeProfitPercent,
+                      'Market take-profit guard',
+                    )
+                  "
+                  required
+                >
                   <input
                     v-model.number="guardForms[account.id].takeProfitPercent"
                     class="input h-7 text-xs"
@@ -1006,12 +1052,19 @@ watch(
                     step="0.001"
                     @focus="ensureGuardForm(account)"
                   />
-                  <span class="normal-case tracking-normal text-[var(--color-text-dim)]"
-                    >Percent</span
-                  >
-                </label>
-                <label class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
-                  <span>Market SL Guard</span>
+                  <small class="field-hint">Percent</small>
+                </FormField>
+                <FormField
+                  label="Market SL Guard"
+                  help="Maximum adverse price movement allowed when a market stop loss executes."
+                  :error="
+                    guardFieldError(
+                      guardForms[account.id].stopLossPercent,
+                      'Market stop-loss guard',
+                    )
+                  "
+                  required
+                >
                   <input
                     v-model.number="guardForms[account.id].stopLossPercent"
                     class="input h-7 text-xs"
@@ -1021,10 +1074,8 @@ watch(
                     step="0.001"
                     @focus="ensureGuardForm(account)"
                   />
-                  <span class="normal-case tracking-normal text-[var(--color-text-dim)]"
-                    >Percent</span
-                  >
-                </label>
+                  <small class="field-hint">Percent</small>
+                </FormField>
                 <button
                   class="btn btn-secondary btn-xs account-settings-action"
                   type="button"

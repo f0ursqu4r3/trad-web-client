@@ -6,6 +6,8 @@ import { enumKeyName } from '@/lib/utils'
 import { NetworkType, ExchangeType } from '@/lib/ws/protocol'
 import { useAccountsStore, type AccountKeyValidationResponse } from '@/stores/accounts'
 import { HYPERLIQUID_TARGET_TOTAL_DEFAULT_TENTHS_BPS } from '@/lib/accountMetadata'
+import FormField from '@/components/forms/FormField.vue'
+import { integerError, requiredText } from '@/lib/formValidation'
 
 const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -77,6 +79,27 @@ const defaultLeverage = computed(() => {
 const isHyperliquidMetadataValid = computed(() => {
   if (!isHyperliquid.value) return true
   return defaultLeverage.value !== null
+})
+const nameError = computed(() => requiredText(name.value, 'Account name'))
+const keyError = computed(() => {
+  const missing = requiredText(apiKey.value, keyLabel.value)
+  if (missing) return missing
+  if (hasValidationFailure.value)
+    return validationResult.value?.exchange_message || 'Permission check failed'
+  if (validationError.value) return validationError.value
+  return null
+})
+const secretError = computed(() =>
+  requiresSecret.value ? requiredText(secretKey.value, secretLabel.value) : null,
+)
+const leverageError = computed(() =>
+  isHyperliquid.value
+    ? integerError(hyperliquidDefaultLeverage.value, 'Default leverage', 1)
+    : null,
+)
+const permissionError = computed(() => {
+  if (!requiresValidation.value || !apiKey.value.trim() || secretError.value) return null
+  return validationResult.value?.valid === true ? null : 'Run and pass the permission check'
 })
 
 const isSubmitDisabled = computed(() => {
@@ -223,30 +246,40 @@ function buildExchangeMetadata() {
   <BaseCommandModal title="Create Account" :open="open" @close="close">
     <form id="create-account-form" class="space-y-4" @submit.prevent="submit">
       <div class="grid grid-cols-2 gap-3">
-        <label class="field">
-          <span>Network</span>
+        <FormField
+          label="Network"
+          help="The exchange environment this account belongs to."
+          required
+        >
           <select v-model="network" class="input">
             <option v-for="option in NETWORK_OPTIONS" :key="option" :value="option">
               {{ enumKeyName(NetworkType, option) || option }}
             </option>
           </select>
-        </label>
-        <label class="field">
-          <span>Exchange</span>
+        </FormField>
+        <FormField
+          label="Exchange"
+          help="The venue Trad will connect to for this account."
+          required
+        >
           <select v-model="exchange" class="input">
             <option v-for="option in EXCHANGE_OPTIONS" :key="option" :value="option">
               {{ enumKeyName(ExchangeType, option) || option }}
             </option>
           </select>
-        </label>
-        <label class="field">
-          <span>Name</span>
+        </FormField>
+        <FormField
+          label="Name"
+          help="A short label used to identify this account throughout Trad."
+          :error="nameError"
+          required
+        >
           <input
             v-model.trim="name"
             class="input"
             :placeholder="isBybit ? 'Exchange key label' : 'Account alias'"
           />
-        </label>
+        </FormField>
         <div v-if="isBybit" class="field">
           <span>Product</span>
           <div class="readonly-value">USDT Perpetuals</div>
@@ -255,15 +288,23 @@ function buildExchangeMetadata() {
           <span>Product</span>
           <div class="readonly-value">{{ productLabel }}</div>
         </div>
-        <label class="field">
-          <span>{{ keyLabel }}</span>
+        <FormField
+          :label="keyLabel"
+          :help="
+            isHyperliquid
+              ? 'The public address of the main Hyperliquid account.'
+              : 'The exchange API key Trad will use for this account.'
+          "
+          :error="keyError"
+          required
+        >
           <input
             v-model.trim="apiKey"
             class="input"
             :class="keyInputClass"
             :placeholder="keyPlaceholder"
           />
-        </label>
+        </FormField>
         <div v-if="isHyperliquid" class="field col-span-2">
           <span>Agent Key Source</span>
           <div class="input-action-row" role="group" aria-label="Agent Key Source">
@@ -297,8 +338,17 @@ function buildExchangeMetadata() {
             </template>
           </small>
         </div>
-        <label v-if="requiresSecret" class="field">
-          <span>{{ secretLabel }}</span>
+        <FormField
+          v-if="requiresSecret"
+          :label="secretLabel"
+          :help="
+            isHyperliquid
+              ? 'The private key for a dedicated Hyperliquid API wallet, never the main wallet key.'
+              : 'The secret paired with this exchange API key.'
+          "
+          :error="secretError"
+          required
+        >
           <input
             v-model.trim="secretKey"
             class="input"
@@ -307,18 +357,25 @@ function buildExchangeMetadata() {
             autocomplete="new-password"
             :placeholder="secretPlaceholder"
           />
-        </label>
+        </FormField>
         <template v-if="isHyperliquid">
-          <label class="field">
-            <span>Vault/Subaccount</span>
+          <FormField
+            label="Vault/Subaccount"
+            help="Optional Hyperliquid vault address. Leave blank to trade the main account."
+            optional
+          >
             <input
               v-model.trim="hyperliquidVaultAddress"
               class="input"
               placeholder="Optional 0x vault address"
             />
-          </label>
-          <label class="field">
-            <span>Default Leverage</span>
+          </FormField>
+          <FormField
+            label="Default Leverage"
+            help="The leverage Trad applies by default when no symbol override exists."
+            :error="leverageError"
+            required
+          >
             <input
               v-model.trim="hyperliquidDefaultLeverage"
               class="input"
@@ -327,14 +384,17 @@ function buildExchangeMetadata() {
               step="1"
               placeholder="1"
             />
-          </label>
-          <label class="field">
-            <span>Margin Mode</span>
+          </FormField>
+          <FormField
+            label="Margin Mode"
+            help="Cross shares account margin; isolated limits margin to the position."
+            required
+          >
             <select v-model="hyperliquidMarginMode" class="input">
               <option value="cross">Cross</option>
               <option value="isolated">Isolated</option>
             </select>
-          </label>
+          </FormField>
           <div class="field">
             <span>Builder Recipient</span>
             <div class="readonly-value">Trad configured</div>
@@ -401,6 +461,9 @@ function buildExchangeMetadata() {
           </div>
           <div v-if="validationResult?.valid" class="validation-success">
             {{ validationSuccess }}
+          </div>
+          <div v-else-if="permissionError" class="validation-error">
+            {{ permissionError }}
           </div>
           <div v-if="validationError" class="validation-error">
             {{ validationError }}

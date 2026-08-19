@@ -3,10 +3,13 @@ import { Plus, Trash2 } from 'lucide-vue-next'
 
 import {
   newTakeProfit,
+  percentToFraction,
   type ProtectionFormState,
   type TakeProfitFormState,
 } from '@/lib/engineCommands/form'
 import { labelWithUnit } from '@/lib/engineCommands/marketUnits'
+import FormField from '@/components/forms/FormField.vue'
+import { decimalError, validationError } from '@/lib/formValidation'
 
 const model = defineModel<ProtectionFormState>({ required: true })
 const props = defineProps<{
@@ -36,6 +39,16 @@ function addTakeProfit(): void {
 function removeTakeProfit(row: TakeProfitFormState): void {
   model.value.takeProfits = model.value.takeProfits.filter((candidate) => candidate.id !== row.id)
 }
+
+function allocationError(row: TakeProfitFormState, index: number): string | null {
+  if (row.allocationKind === 'full_remaining') return null
+  if (row.allocationKind === 'fraction') {
+    return validationError(() =>
+      percentToFraction(row.allocationValue, `take-profit ${index + 1} allocation`),
+    )
+  }
+  return decimalError(row.allocationValue, `take-profit ${index + 1} base allocation`)
+}
 </script>
 
 <template>
@@ -54,8 +67,12 @@ function removeTakeProfit(row: TakeProfitFormState): void {
 
     <div v-for="(takeProfit, index) in model.takeProfits" :key="takeProfit.id" class="tp-row">
       <div class="tp-fields">
-        <label class="field">
-          <span>{{ labelWithUnit('TP ' + (index + 1) + ' Trigger', props.quoteAsset) }}</span>
+        <FormField
+          :label="labelWithUnit('TP ' + (index + 1) + ' Trigger', props.quoteAsset)"
+          help="Price that triggers this take-profit leg."
+          :error="decimalError(takeProfit.triggerPrice, `take-profit ${index + 1} trigger`)"
+          required
+        >
           <input
             v-model="takeProfit.triggerPrice"
             class="input"
@@ -65,21 +82,33 @@ function removeTakeProfit(row: TakeProfitFormState): void {
             inputmode="decimal"
             placeholder="Price"
           />
-        </label>
-        <label class="field">
-          <span>Allocation</span>
+        </FormField>
+        <FormField
+          label="Allocation"
+          help="How much of the remaining position this take-profit leg should close."
+          required
+        >
           <select v-model="takeProfit.allocationKind" class="input">
             <option value="full_remaining">Full Remaining</option>
             <option value="fraction">Percent</option>
             <option value="exact_base">Base Quantity</option>
           </select>
-        </label>
-        <label v-if="takeProfit.allocationKind !== 'full_remaining'" class="field">
-          <span>{{
+        </FormField>
+        <FormField
+          v-if="takeProfit.allocationKind !== 'full_remaining'"
+          :label="
             takeProfit.allocationKind === 'fraction'
               ? 'Percent'
               : labelWithUnit('Base Quantity', props.baseAsset)
-          }}</span>
+          "
+          :help="
+            takeProfit.allocationKind === 'fraction'
+              ? 'Percentage of the position allocated to this leg, up to 100.'
+              : 'Exact base-asset quantity allocated to this leg.'
+          "
+          :error="allocationError(takeProfit, index)"
+          required
+        >
           <input
             v-model="takeProfit.allocationValue"
             class="input"
@@ -87,25 +116,36 @@ function removeTakeProfit(row: TakeProfitFormState): void {
             type="text"
             inputmode="decimal"
           />
-        </label>
-        <label class="field">
-          <span>Trigger Source</span>
+        </FormField>
+        <FormField
+          label="Trigger Source"
+          help="The exchange price feed used to decide when the trigger has been reached."
+          required
+        >
           <span v-if="markPriceOnly" class="readonly-value">Mark Price</span>
           <select v-else v-model="takeProfit.triggerSource" class="input">
             <option value="mark_price">Mark Price</option>
             <option value="last_price">Last Price</option>
             <option value="index_price">Index Price</option>
           </select>
-        </label>
-        <label class="field">
-          <span>Execution</span>
+        </FormField>
+        <FormField
+          label="Execution"
+          help="Market prioritizes completion; limit constrains the execution price."
+          required
+        >
           <select v-model="takeProfit.executionKind" class="input">
             <option value="market">Market</option>
             <option value="limit">Limit</option>
           </select>
-        </label>
-        <label v-if="takeProfit.executionKind === 'limit'" class="field">
-          <span>{{ labelWithUnit('Limit Price', props.quoteAsset) }}</span>
+        </FormField>
+        <FormField
+          v-if="takeProfit.executionKind === 'limit'"
+          :label="labelWithUnit('Limit Price', props.quoteAsset)"
+          help="Limit price used after this take-profit trigger fires."
+          :error="decimalError(takeProfit.executionPrice, `take-profit ${index + 1} limit price`)"
+          required
+        >
           <input
             v-model="takeProfit.executionPrice"
             class="input"
@@ -113,7 +153,7 @@ function removeTakeProfit(row: TakeProfitFormState): void {
             type="text"
             inputmode="decimal"
           />
-        </label>
+        </FormField>
       </div>
       <button
         class="btn icon-btn remove-button"
@@ -130,8 +170,12 @@ function removeTakeProfit(row: TakeProfitFormState): void {
       Stop loss
     </label>
     <div v-if="model.stopLoss.enabled" class="stop-row">
-      <label class="field">
-        <span>{{ labelWithUnit('SL Trigger', props.quoteAsset) }}</span>
+      <FormField
+        :label="labelWithUnit('SL Trigger', props.quoteAsset)"
+        help="Price that triggers the protective stop loss."
+        :error="decimalError(model.stopLoss.triggerPrice, 'stop-loss trigger')"
+        required
+      >
         <input
           v-model="model.stopLoss.triggerPrice"
           class="input"
@@ -140,25 +184,36 @@ function removeTakeProfit(row: TakeProfitFormState): void {
           inputmode="decimal"
           placeholder="Price"
         />
-      </label>
-      <label class="field">
-        <span>Trigger Source</span>
+      </FormField>
+      <FormField
+        label="Trigger Source"
+        help="The exchange price feed used to decide when the stop has been reached."
+        required
+      >
         <span v-if="markPriceOnly" class="readonly-value">Mark Price</span>
         <select v-else v-model="model.stopLoss.triggerSource" class="input">
           <option value="mark_price">Mark Price</option>
           <option value="last_price">Last Price</option>
           <option value="index_price">Index Price</option>
         </select>
-      </label>
-      <label class="field">
-        <span>Execution</span>
+      </FormField>
+      <FormField
+        label="Execution"
+        help="Market prioritizes the exit; limit constrains the execution price."
+        required
+      >
         <select v-model="model.stopLoss.executionKind" class="input">
           <option value="market">Market</option>
           <option value="limit">Limit</option>
         </select>
-      </label>
-      <label v-if="model.stopLoss.executionKind === 'limit'" class="field">
-        <span>{{ labelWithUnit('Limit Price', props.quoteAsset) }}</span>
+      </FormField>
+      <FormField
+        v-if="model.stopLoss.executionKind === 'limit'"
+        :label="labelWithUnit('Limit Price', props.quoteAsset)"
+        help="Limit price used after the stop-loss trigger fires."
+        :error="decimalError(model.stopLoss.executionPrice, 'stop-loss limit price')"
+        required
+      >
         <input
           v-model="model.stopLoss.executionPrice"
           class="input"
@@ -166,7 +221,7 @@ function removeTakeProfit(row: TakeProfitFormState): void {
           type="text"
           inputmode="decimal"
         />
-      </label>
+      </FormField>
     </div>
   </section>
 </template>

@@ -25,6 +25,8 @@ import ExecutionPreviewPanel from './ExecutionPreviewPanel.vue'
 import LiveMarketPrice from './LiveMarketPrice.vue'
 import ShapeFields from './ShapeFields.vue'
 import SizingFields from './SizingFields.vue'
+import FormField from '@/components/forms/FormField.vue'
+import { decimalError, symbolError } from '@/lib/formValidation'
 
 const props = defineProps<{ open: boolean; executionKind: 'market' | 'limit' }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
@@ -51,6 +53,13 @@ const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
 )
 const units = computed(() => marketUnits(selectedAccount.value, symbol.value))
+const accountError = computed(() =>
+  selectedAccountId.value === '' ? 'Trading account is required' : null,
+)
+const orderSymbolError = computed(() => symbolError(symbol.value))
+const limitPriceError = computed(() =>
+  props.executionKind === 'limit' ? decimalError(limitPrice.value, 'limit price') : null,
+)
 
 const title = computed(() => (props.executionKind === 'market' ? 'Market Order' : 'Limit Order'))
 const canSubmit = computed(
@@ -135,33 +144,45 @@ function buildIntent() {
   <BaseCommandModal :title="title" :open="open" size="wide" @close="emit('close')">
     <form :id="`engine-${executionKind}-order`" class="command-form" @submit.prevent="submit">
       <div class="form-grid">
-        <label class="field">
-          <span>Account</span>
+        <FormField
+          label="Account"
+          help="The configured exchange account that will own this order."
+          :error="accountError"
+          required
+        >
           <select v-model="selectedAccountId" class="input" @change="applyAccountDefaultSymbol">
             <option v-for="account in accounts.accounts" :key="account.id" :value="account.id">
               {{ account.label }} · {{ account.exchange }} · {{ account.network }}
             </option>
           </select>
-        </label>
-        <label class="field">
-          <span class="symbol-heading">
-            <span>Symbol</span>
-            <LiveMarketPrice
-              :active="open"
-              :account-id="selectedAccountId"
-              :symbol="symbol"
-              :quote-asset="units.quote"
-            />
-          </span>
+        </FormField>
+        <FormField
+          help="Exchange instrument symbol, such as BTC. Trad normalizes it to uppercase."
+          :error="orderSymbolError"
+          required
+        >
+          <template #label
+            ><span class="symbol-heading">
+              <span>Symbol</span>
+              <LiveMarketPrice
+                :active="open"
+                :account-id="selectedAccountId"
+                :symbol="symbol"
+                :quote-asset="units.quote"
+              /> </span
+          ></template>
           <input v-model="symbol" class="input" autocomplete="off" />
-        </label>
-        <label class="field">
-          <span>Position Side</span>
+        </FormField>
+        <FormField
+          label="Position Side"
+          help="The directional exposure this order should add or establish."
+          required
+        >
           <select v-model="positionSide" class="input">
             <option value="long">Long</option>
             <option value="short">Short</option>
           </select>
-        </label>
+        </FormField>
         <SizingFields
           v-model:mode="sizingMode"
           v-model:amount="amount"
@@ -169,8 +190,13 @@ function buildIntent() {
           :quote-asset="units.quote"
           @update:mode="rememberSizingMode"
         />
-        <label v-if="executionKind === 'limit'" class="field">
-          <span>{{ labelWithUnit('Limit Price', units.quote) }}</span>
+        <FormField
+          v-if="executionKind === 'limit'"
+          :label="labelWithUnit('Limit Price', units.quote)"
+          help="The exact exchange price for the resting limit order."
+          :error="limitPriceError"
+          required
+        >
           <input
             v-model="limitPrice"
             class="input"
@@ -179,14 +205,18 @@ function buildIntent() {
             type="text"
             inputmode="decimal"
           />
-        </label>
-        <label v-if="executionKind === 'limit'" class="field">
-          <span>Time In Force</span>
+        </FormField>
+        <FormField
+          v-if="executionKind === 'limit'"
+          label="Time In Force"
+          help="Good Til Canceled may take liquidity; Post Only is rejected if it would immediately execute."
+          required
+        >
           <select v-model="timeInForce" class="input">
             <option value="good_til_canceled">Good Til Canceled</option>
             <option value="post_only">Post Only</option>
           </select>
-        </label>
+        </FormField>
         <ShapeFields
           v-model:mode="shapeMode"
           v-model:target-child-notional="targetChildNotional"
@@ -202,6 +232,8 @@ function buildIntent() {
         :quote-asset="units.quote"
         @update:ready="previewReady = $event"
       />
+
+      <p v-if="!planningIntent" class="form-readiness">Fix the highlighted fields to continue.</p>
 
       <p v-if="validationError || submission.submissionError.value" class="submission-error">
         {{ validationError || submission.submissionError.value }}
@@ -245,6 +277,11 @@ function buildIntent() {
 .submission-error {
   color: var(--color-error);
   overflow-wrap: anywhere;
+}
+.form-readiness {
+  margin: 0;
+  color: var(--state-warning);
+  font-size: 11px;
 }
 
 @media (max-width: 640px) {

@@ -83,6 +83,23 @@ test('opens chase and trailing-entry forms from their aliases', async ({ page })
   await expect(page.getByRole('dialog', { name: 'Trailing Entry' })).toBeVisible()
 })
 
+test('identifies required and invalid command fields beside their controls', async ({ page }) => {
+  await page.getByRole('button', { name: /Commands/ }).click()
+  await page.getByRole('button', { name: /Limit Order/ }).click()
+  const modal = page.getByRole('dialog', { name: 'Limit Order' })
+
+  await modal.getByLabel('Symbol').fill('')
+  await modal.getByLabel('Limit Price').fill('not-a-price')
+
+  await expect(modal.getByText('Symbol is required')).toBeVisible()
+  await expect(modal.getByText('Limit price must be a plain decimal number')).toBeVisible()
+  await expect(modal.getByText('Fix the highlighted fields to continue.')).toBeVisible()
+  await expect(modal.getByRole('button', { name: 'Submit' })).toBeDisabled()
+  await expect(
+    modal.locator('.form-field-help[title="The exact exchange price for the resting limit order."]'),
+  ).toBeVisible()
+})
+
 test('remembers quantity mode across Market, Chase, Limit, and reload', async ({ page }) => {
   await page.getByRole('button', { name: /Commands/ }).click()
   await page.getByRole('button', { name: /Market Order/ }).click()

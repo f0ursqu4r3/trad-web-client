@@ -6,6 +6,8 @@ import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmis
 import { buildCancelEntryWorkIntent } from '@/lib/engineCommands/intents'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
+import FormField from '@/components/forms/FormField.vue'
+import { symbolError } from '@/lib/formValidation'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
@@ -17,10 +19,17 @@ const targetKind = ref<'symbol' | 'account'>('symbol')
 const symbol = ref('')
 const confirmed = ref(false)
 const validationError = ref<string | null>(null)
+const accountError = computed(() =>
+  selectedAccountId.value === '' ? 'Trading account is required' : null,
+)
+const cancelSymbolError = computed(() =>
+  targetKind.value === 'symbol' ? symbolError(symbol.value) : null,
+)
 const canSubmit = computed(
   () =>
     gateway.isConnected &&
     selectedAccountId.value !== '' &&
+    cancelSymbolError.value === null &&
     confirmed.value &&
     !submission.submitting.value,
 )
@@ -60,25 +69,37 @@ async function submit(): Promise<void> {
 <template>
   <BaseCommandModal title="Cancel Entry Work" :open="open" @close="emit('close')">
     <form id="engine-cancel-entry-work" class="command-form" @submit.prevent="submit">
-      <label class="field">
-        <span>Account</span>
+      <FormField
+        label="Account"
+        help="The configured exchange account whose unfilled entry work will be canceled."
+        :error="accountError"
+        required
+      >
         <select v-model="selectedAccountId" class="input">
           <option v-for="account in accounts.accounts" :key="account.id" :value="account.id">
             {{ account.label }} · {{ account.exchange }} · {{ account.network }}
           </option>
         </select>
-      </label>
-      <label class="field">
-        <span>Target</span>
+      </FormField>
+      <FormField
+        label="Target"
+        help="Cancel entry work for one instrument or across the entire account."
+        required
+      >
         <select v-model="targetKind" class="input">
           <option value="symbol">One Symbol</option>
           <option value="account">Entire Account</option>
         </select>
-      </label>
-      <label v-if="targetKind === 'symbol'" class="field">
-        <span>Symbol</span>
+      </FormField>
+      <FormField
+        v-if="targetKind === 'symbol'"
+        label="Symbol"
+        help="Exchange instrument whose unfilled entry work will be canceled."
+        :error="cancelSymbolError"
+        required
+      >
         <input v-model="symbol" class="input" autocomplete="off" />
-      </label>
+      </FormField>
       <p class="warning">
         Cancels unfilled entry Orders, active Chases, and Trailing Entries that have not established
         a position. Existing exposure and its active protection remain in place.

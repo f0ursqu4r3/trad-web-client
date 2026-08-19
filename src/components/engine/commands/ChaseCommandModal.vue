@@ -23,6 +23,8 @@ import ProtectionFields from './ProtectionFields.vue'
 import ExecutionPreviewPanel from './ExecutionPreviewPanel.vue'
 import LiveMarketPrice from './LiveMarketPrice.vue'
 import SizingFields from './SizingFields.vue'
+import FormField from '@/components/forms/FormField.vue'
+import { decimalError, integerError, symbolError } from '@/lib/formValidation'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
@@ -48,6 +50,21 @@ const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
 )
 const units = computed(() => marketUnits(selectedAccount.value, symbol.value))
+const accountError = computed(() =>
+  selectedAccountId.value === '' ? 'Trading account is required' : null,
+)
+const chaseSymbolError = computed(() => symbolError(symbol.value))
+const boundaryError = computed(() => {
+  if (boundaryKind.value === 'none') return null
+  return decimalError(
+    boundaryValue.value,
+    boundaryKind.value === 'price' ? 'boundary price' : 'boundary basis points',
+    { allowZero: boundaryKind.value === 'basis_points' },
+  )
+})
+const expiryError = computed(() =>
+  expirySeconds.value.trim() === '' ? null : integerError(expirySeconds.value, 'Expiry seconds', 1),
+)
 const canSubmit = computed(
   () =>
     gateway.isConnected &&
@@ -126,33 +143,45 @@ function buildIntent() {
   <BaseCommandModal title="Chase Order" :open="open" size="wide" @close="emit('close')">
     <form id="engine-chase-order" class="command-form" @submit.prevent="submit">
       <div class="form-grid">
-        <label class="field">
-          <span>Account</span>
+        <FormField
+          label="Account"
+          help="The configured exchange account that will own this chase order."
+          :error="accountError"
+          required
+        >
           <select v-model="selectedAccountId" class="input" @change="applyAccountDefaultSymbol">
             <option v-for="account in accounts.accounts" :key="account.id" :value="account.id">
               {{ account.label }} · {{ account.exchange }} · {{ account.network }}
             </option>
           </select>
-        </label>
-        <label class="field">
-          <span class="symbol-heading">
-            <span>Symbol</span>
-            <LiveMarketPrice
-              :active="open"
-              :account-id="selectedAccountId"
-              :symbol="symbol"
-              :quote-asset="units.quote"
-            />
-          </span>
+        </FormField>
+        <FormField
+          help="Exchange instrument symbol, such as BTC. Trad normalizes it to uppercase."
+          :error="chaseSymbolError"
+          required
+        >
+          <template #label
+            ><span class="symbol-heading">
+              <span>Symbol</span>
+              <LiveMarketPrice
+                :active="open"
+                :account-id="selectedAccountId"
+                :symbol="symbol"
+                :quote-asset="units.quote"
+              /> </span
+          ></template>
           <input v-model="symbol" class="input" />
-        </label>
-        <label class="field">
-          <span>Position Side</span>
+        </FormField>
+        <FormField
+          label="Position Side"
+          help="The directional exposure the chase should add or establish."
+          required
+        >
           <select v-model="positionSide" class="input">
             <option value="long">Long</option>
             <option value="short">Short</option>
           </select>
-        </label>
+        </FormField>
         <SizingFields
           v-model:mode="sizingMode"
           v-model:amount="amount"
@@ -160,24 +189,40 @@ function buildIntent() {
           :quote-asset="units.quote"
           @update:mode="rememberSizingMode"
         />
-        <label class="field">
-          <span>Adverse Boundary</span>
+        <FormField
+          label="Adverse Boundary"
+          help="Optional hard boundary that stops chasing when price moves too far against the order."
+          optional
+        >
           <select v-model="boundaryKind" class="input">
             <option value="none">None</option>
             <option value="basis_points">Basis Points</option>
             <option value="price">Fixed Price</option>
           </select>
-        </label>
-        <label v-if="boundaryKind !== 'none'" class="field">
-          <span>{{
+        </FormField>
+        <FormField
+          v-if="boundaryKind !== 'none'"
+          :label="
             boundaryKind === 'price'
               ? labelWithUnit('Boundary Price', units.quote)
               : 'Boundary Basis Points'
-          }}</span>
+          "
+          :help="
+            boundaryKind === 'price'
+              ? 'Absolute price beyond which Trad stops repricing the chase.'
+              : 'Maximum adverse distance from the initial reference price. One basis point is 0.01%.'
+          "
+          :error="boundaryError"
+          required
+        >
           <input v-model="boundaryValue" class="input" type="text" inputmode="decimal" />
-        </label>
-        <label class="field">
-          <span>Expiry Seconds</span>
+        </FormField>
+        <FormField
+          label="Expiry Seconds"
+          help="Optional whole-number lifetime. Leave blank to chase until filled, canceled, or bounded."
+          :error="expiryError"
+          optional
+        >
           <input
             v-model="expirySeconds"
             class="input"
@@ -185,14 +230,17 @@ function buildIntent() {
             inputmode="numeric"
             placeholder="No expiry"
           />
-        </label>
-        <label class="field">
-          <span>On Expiry / Boundary</span>
+        </FormField>
+        <FormField
+          label="On Expiry / Boundary"
+          help="What Trad does with any unfilled remainder after the chase stops."
+          required
+        >
           <select v-model="remainder" class="input">
             <option value="cancel">Cancel Remainder</option>
             <option value="market_fill" disabled>Market Fill (not implemented)</option>
           </select>
-        </label>
+        </FormField>
       </div>
       <ProtectionFields v-model="protection" :base-asset="units.base" :quote-asset="units.quote" />
       <ExecutionPreviewPanel
@@ -202,6 +250,7 @@ function buildIntent() {
         :quote-asset="units.quote"
         @update:ready="previewReady = $event"
       />
+      <p v-if="!planningIntent" class="form-readiness">Fix the highlighted fields to continue.</p>
       <p v-if="validationError || submission.submissionError.value" class="submission-error">
         {{ validationError || submission.submissionError.value }}
       </p>
@@ -241,6 +290,11 @@ function buildIntent() {
 .submission-error {
   color: var(--color-error);
   overflow-wrap: anywhere;
+}
+.form-readiness {
+  margin: 0;
+  color: var(--state-warning);
+  font-size: 11px;
 }
 @media (max-width: 640px) {
   .form-grid {
