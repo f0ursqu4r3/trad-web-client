@@ -235,8 +235,10 @@ async function openContext(id: string, x: number, y: number): Promise<void> {
 
 <style scoped>
 .projection-tree-panel {
+  display: flex;
   height: 100%;
   min-height: 0;
+  flex-direction: column;
   overflow: auto;
   padding: 0.5rem;
 }

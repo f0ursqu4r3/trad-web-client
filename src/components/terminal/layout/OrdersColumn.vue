@@ -27,7 +27,7 @@ const externalFlattenCount = computed(
   <SplitView orientation="vertical" storage-key="terminal-orders-column-projection">
     <template #command-history>
       <div class="panel">
-        <div class="panel-header">
+        <div class="panel-header" data-testid="terminal-command-header">
           <span class="panel-title command-heading">
             <span>Commands</span><EngineCommandPalette compact />
           </span>
@@ -77,7 +77,9 @@ const externalFlattenCount = computed(
     </template>
     <template #device-tree>
       <div class="panel">
-        <div class="panel-header"><span class="panel-title">Devices</span></div>
+        <div class="panel-header" data-testid="terminal-device-header">
+          <span class="panel-title">Devices</span>
+        </div>
         <ProjectionTreePanel />
       </div>
     </template>

@@ -865,6 +865,7 @@ watch(
                 :refreshing-builder="refreshingBuilderAccountIds.has(account.id)"
                 :agent-feedback="agentApprovalFeedback[account.id]"
                 :builder-feedback="builderApprovalFeedback[account.id]"
+                :show-terminal-handoff="accounts.accounts.length === 1"
                 @rotate-agent="rotateHyperliquidAgent(account)"
                 @approve-agent="approveHyperliquidAgent(account)"
                 @refresh-agent="refreshHyperliquidAgent(account)"

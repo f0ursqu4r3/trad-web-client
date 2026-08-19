@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Check, LockKeyhole } from 'lucide-vue-next'
+import { RouterLink } from 'vue-router'
+import { ArrowRight, Check, CircleCheckBig, LockKeyhole } from 'lucide-vue-next'
 import GuidedAction from '@/components/forms/GuidedAction.vue'
-import { accountMetadataChips, type AccountRecord } from '@/stores/accounts'
+import {
+  accountMetadataChips,
+  isHyperliquidMetadataReady,
+  type AccountRecord,
+} from '@/stores/accounts'
 import { hyperliquidTargetTotalTenthsBps } from '@/lib/accountMetadata'
 import { HYPERLIQUID_MAX_BUILDER_FEE_TENTHS_BPS } from '@/lib/hyperliquidBuilderApproval'
 
@@ -22,6 +27,7 @@ const props = defineProps<{
   refreshingBuilder: boolean
   agentFeedback?: ApprovalFeedback
   builderFeedback?: ApprovalFeedback
+  showTerminalHandoff?: boolean
 }>()
 
 defineEmits<{
@@ -37,9 +43,7 @@ const agentComplete = computed(() => props.account.exchange_metadata?.agent_appr
 const builderComplete = computed(() => props.account.exchange_metadata?.builder_approved === true)
 const agentCurrent = computed(() => identityComplete.value && !agentComplete.value)
 const builderCurrent = computed(() => agentComplete.value && !builderComplete.value)
-const setupComplete = computed(
-  () => identityComplete.value && agentComplete.value && builderComplete.value,
-)
+const setupComplete = computed(() => isHyperliquidMetadataReady(props.account))
 
 function feedbackClass(feedback: ApprovalFeedback | undefined): string {
   if (feedback?.kind === 'success') return 'setup-feedback--success'
@@ -280,6 +284,16 @@ function approvedBuilderMaxLabel(): string {
         </div>
       </li>
     </ol>
+    <div v-if="setupComplete && showTerminalHandoff" class="setup-handoff" role="status">
+      <CircleCheckBig :size="22" aria-hidden="true" />
+      <div>
+        <strong>Nice — you’re ready to trade.</strong>
+        <p>Your first account is connected. Open the terminal and choose a command to begin.</p>
+      </div>
+      <RouterLink class="btn btn-primary" to="/terminal?commands=open">
+        Create first command <ArrowRight :size="14" />
+      </RouterLink>
+    </div>
   </section>
 </template>
 

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { computed, onBeforeUnmount, onMounted } from 'vue'
-import { ChevronDown } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { ChevronDown, WalletCards } from 'lucide-vue-next'
 import { accountIdentityChips, useAccountsStore } from '@/stores/accounts'
 import { useUiStore } from '@/stores/ui'
 import DropMenu, { type DropMenuItem } from '@/components/general/DropMenu.vue'
@@ -8,6 +8,9 @@ import { accountColorFromId } from '@/lib/accountColors'
 
 const accounts = useAccountsStore()
 const ui = useUiStore()
+const menu = ref<InstanceType<typeof DropMenu> | null>(null)
+const copiedAddress = ref(false)
+let copiedTimer: ReturnType<typeof setTimeout> | null = null
 
 const selectedAccount = computed(() => accounts.selectedAccount)
 
@@ -22,11 +25,39 @@ const accountColor = computed(() => {
   return accountColorFromId(id)
 })
 
+const selectedAddress = computed(() => {
+  const metadata = selectedAccount.value?.exchange_metadata
+  return metadata?.user_address || metadata?.exchange_account_id || ''
+})
+
+function abbreviatedAddress(value: string): string {
+  if (value.length <= 18) return value
+  return `${value.slice(0, 10)}…${value.slice(-6)}`
+}
+
+async function copySelectedAddress(): Promise<void> {
+  if (!selectedAddress.value) return
+  try {
+    await navigator.clipboard.writeText(selectedAddress.value)
+    copiedAddress.value = true
+    if (copiedTimer) clearTimeout(copiedTimer)
+    copiedTimer = setTimeout(() => {
+      copiedAddress.value = false
+      copiedTimer = null
+    }, 1800)
+  } catch {
+    copiedAddress.value = false
+  }
+}
+
 const accountMenuItems = computed<DropMenuItem[]>(() => {
-  return accounts.accounts.map((acc) => {
+  const accountItems = accounts.accounts.map((acc) => {
     const color = accountColorFromId(acc.id || acc.label)
+    const address =
+      acc.exchange_metadata?.user_address || acc.exchange_metadata?.exchange_account_id
     return {
-      label: `${acc.label} • ${accountIdentityChips(acc).join(' • ')}`,
+      label: `${acc.label} • ${accountIdentityChips(acc).join(' • ')}${address ? ` • ${abbreviatedAddress(address)}` : ''}`,
+      title: address || acc.label,
       value: acc.id,
       className: 'account-menu-item',
       style: {
@@ -38,7 +69,27 @@ const accountMenuItems = computed<DropMenuItem[]>(() => {
       },
     }
   })
+
+  if (!selectedAddress.value) return accountItems
+  return [
+    ...accountItems,
+    {
+      label: copiedAddress.value
+        ? `Address copied • ${abbreviatedAddress(selectedAddress.value)}`
+        : `Copy selected address • ${abbreviatedAddress(selectedAddress.value)}`,
+      title: selectedAddress.value,
+      value: 'copy-selected-address',
+      className: 'account-menu-copy',
+      action: () => void copySelectedAddress(),
+    },
+  ]
 })
+
+function open(): void {
+  void menu.value?.open()
+}
+
+defineExpose({ open })
 
 function onKeyDown(event: KeyboardEvent) {
   if (event.ctrlKey || event.metaKey) {
@@ -60,20 +111,23 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeyDown)
+  if (copiedTimer) clearTimeout(copiedTimer)
 })
 </script>
 
 <template>
-  <div class="flex items-center space-x-2">
-    <span class="muted">Account:</span>
-    <DropMenu v-if="accounts.accounts.length > 0" :items="accountMenuItems">
+  <div class="account-select">
+    <DropMenu v-if="accounts.accounts.length > 0" ref="menu" :items="accountMenuItems">
       <template #trigger="{ toggle }">
         <button
           class="btn btn-sm account-trigger"
           type="button"
           :style="{ '--account-color': accountColor }"
+          :aria-label="`Switch trading account: ${accountLabel}`"
+          title="Switch trading account"
           @click.stop="toggle"
         >
+          <WalletCards :size="13" aria-hidden="true" />
           <span class="account-trigger-label">{{ accountLabel }}</span>
           <ChevronDown :size="12" class="icon" />
         </button>
@@ -84,9 +138,14 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.account-select {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
 .account-trigger {
-  min-width: 260px;
-  max-width: min(420px, 36vw);
+  min-width: 210px;
+  max-width: min(300px, 30vw);
   border-radius: var(--radius-btn);
   background: color-mix(in srgb, var(--account-color) 70%, var(--panel-header-bg));
   border-color: color-mix(in srgb, var(--account-color) 45%, var(--border-color));
@@ -113,8 +172,8 @@ onBeforeUnmount(() => {
 
 @media (max-width: 980px) {
   .account-trigger {
-    min-width: 180px;
-    max-width: 30vw;
+    min-width: 160px;
+    max-width: 25vw;
   }
 }
 
@@ -130,5 +189,12 @@ onBeforeUnmount(() => {
 
 :deep(.account-menu-item:hover:not(:disabled)) {
   filter: brightness(1.05);
+}
+
+:deep(.account-menu-copy) {
+  border-top: 2px solid var(--border-strong);
+  background: var(--surface-base);
+  color: var(--fg-muted);
+  text-transform: none;
 }
 </style>

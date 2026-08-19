@@ -202,7 +202,7 @@ function formatDate(value: number | null): string {
 
 <template>
   <section class="details-panel" :class="`details-${detailTone}`" data-testid="projection-details">
-    <header class="panel-header">
+    <header class="panel-header" data-testid="terminal-detail-header">
       <span class="panel-title">Device Details</span>
     </header>
 

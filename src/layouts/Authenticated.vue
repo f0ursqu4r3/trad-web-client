@@ -1,18 +1,16 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useAccountsStore } from '@/stores/accounts'
 import { useUiStore } from '@/stores/ui'
 import { accountColorFromId } from '@/lib/accountColors'
-import AccountSelect from '@/components/general/AccountSelect.vue'
 import EngineCommandModalContainer from '@/components/engine/commands/EngineCommandModalContainer.vue'
 import AppHeader from '@/components/general/AppHeader.vue'
 
 const accounts = useAccountsStore()
 const ui = useUiStore()
 const selectedAccount = computed(() => accounts.selectedAccount)
-const copiedAddress = ref(false)
-let copiedTimer: ReturnType<typeof setTimeout> | null = null
+const appHeader = ref<InstanceType<typeof AppHeader> | null>(null)
 
 const railAddress = computed(() => {
   const metadata = selectedAccount.value?.exchange_metadata
@@ -31,9 +29,7 @@ const railLabel = computed(() => {
   const exchange = selectedAccount.value.exchange
   const network = selectedAccount.value.network
   const address = abbreviatedAddress.value ? ` • ${abbreviatedAddress.value}` : ''
-  return copiedAddress.value
-    ? `Address copied • ${label} • ${exchange} • ${network}${address}`
-    : `${label} • ${exchange} • ${network}${address}`
+  return `${label} • ${exchange} • ${network}${address}`
 })
 
 const railColor = computed(() => {
@@ -47,24 +43,9 @@ const railTextColor = computed(() => {
   return selectedAccount.value ? '#f5f7fa' : 'var(--color-text-dim)'
 })
 
-async function copyAccountAddress(): Promise<void> {
-  if (!railAddress.value) return
-  try {
-    await navigator.clipboard.writeText(railAddress.value)
-    copiedAddress.value = true
-    if (copiedTimer) clearTimeout(copiedTimer)
-    copiedTimer = setTimeout(() => {
-      copiedAddress.value = false
-      copiedTimer = null
-    }, 1800)
-  } catch {
-    copiedAddress.value = false
-  }
+function openAccountSelector(): void {
+  appHeader.value?.openAccountSelector()
 }
-
-onBeforeUnmount(() => {
-  if (copiedTimer) clearTimeout(copiedTimer)
-})
 </script>
 
 <template>
@@ -73,11 +54,13 @@ onBeforeUnmount(() => {
       class="account-rail"
       :style="railColor ? { '--account-rail-color': railColor } : {}"
       type="button"
-      :disabled="!railAddress"
-      :title="railAddress ? `Copy account address: ${railAddress}` : railLabel"
-      :aria-label="railAddress ? `Copy account address ${railAddress}` : railLabel"
+      :disabled="accounts.accounts.length === 0"
+      :title="railAddress ? `Switch account · ${railAddress}` : 'Switch account'"
+      :aria-label="
+        railAddress ? `Switch trading account. Current address ${railAddress}` : railLabel
+      "
       data-testid="account-identity-rail"
-      @click="copyAccountAddress"
+      @click="openAccountSelector"
     >
       <span
         v-if="ui.animateAccountRail"
@@ -93,13 +76,7 @@ onBeforeUnmount(() => {
       </span>
     </button>
     <div class="flex flex-col w-full h-full overflow-hidden">
-      <AppHeader show-connection />
-      <div class="toolbar-row terminal-context-toolbar">
-        <div class="toolbar-section">
-          <AccountSelect />
-        </div>
-        <span class="terminal-context-label">Execution workspace</span>
-      </div>
+      <AppHeader ref="appHeader" show-connection show-account-selector />
       <slot></slot>
       <EngineCommandModalContainer />
     </div>
@@ -122,7 +99,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   padding: 0;
   color: inherit;
-  cursor: copy;
+  cursor: pointer;
 }
 .account-rail:disabled {
   cursor: default;
@@ -178,20 +155,5 @@ onBeforeUnmount(() => {
   .account-rail-track {
     animation: none;
   }
-}
-
-.terminal-context-toolbar {
-  display: flex;
-  min-height: 38px;
-  align-items: center;
-  justify-content: space-between;
-  padding-block: 0.2rem;
-}
-.terminal-context-label {
-  padding-right: 0.5rem;
-  color: var(--fg-muted);
-  font-size: 11px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 </style>

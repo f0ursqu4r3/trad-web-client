@@ -27,6 +27,8 @@ test('settings and administrator control plane are navigable', async ({ page }) 
   await accountRow.getByRole('link', { name: /Manage|Set up/ }).click()
   await expect(page).toHaveURL(/\/settings\/accounts\/[^/]+\/(overview|setup)$/)
   await expect(page.getByRole('navigation', { name: 'Account management' })).toBeVisible()
+  await page.getByRole('link', { name: 'Setup', exact: true }).click()
+  await expect(page.getByText('Guided account setup', { exact: true })).toBeVisible()
   await page.getByRole('link', { name: 'Authorization', exact: true }).click()
   await expect(page).toHaveURL(/\/authorization$/)
   await expect(page.getByText('Builder Address', { exact: true })).toBeVisible()
@@ -108,7 +110,9 @@ test('custom profile image is prepared and saved with user preferences', async (
     buffer: Buffer.from(imageBytes),
   })
   await expect(page.getByRole('button', { name: 'Replace image' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Account and settings' }).locator('img')).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Account and settings' }).locator('img'),
+  ).toBeVisible()
   await page.getByRole('button', { name: 'Save profile' }).click()
   await expect
     .poll(() => savedProfile?.meta?.preferences?.profile_image)
@@ -118,15 +122,84 @@ test('custom profile image is prepared and saved with user preferences', async (
 test('terminal account rail exposes its address and animation state', async ({ page }) => {
   await page.goto('/auth/test-login?email=668es218pur%40gmail.com&return_to=%2Fterminal')
   const rail = page.getByTestId('account-identity-rail')
-  await expect(rail).toHaveAttribute('aria-label', /Copy account address 0x/i)
+  await expect(rail).toHaveAttribute('aria-label', /Switch trading account.*0x/i)
   await expect(rail.locator('.account-rail-track')).toHaveCount(1)
   await expect(rail).toContainText(/tester.*hyperliquid.*mainnet/i)
+  await expect(
+    page.getByRole('banner').getByRole('button', { name: 'Switch trading account: tester' }),
+  ).toBeVisible()
+  await expect(page.getByText('Execution workspace')).toHaveCount(0)
+
+  await rail.click()
+  await expect(page.getByRole('menuitem', { name: /Copy selected address/i })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  const headerHeights = await Promise.all(
+    ['terminal-command-header', 'terminal-device-header', 'terminal-detail-header'].map(
+      async (id) => (await page.getByTestId(id).boundingBox())?.height,
+    ),
+  )
+  expect(new Set(headerHeights).size).toBe(1)
+  expect(headerHeights[0]).toBe(34)
+
+  await expect(page.getByTestId('projection-entity-tree')).toHaveCSS('display', 'flex')
+  await expect(page.getByTestId('projection-entity-tree')).toHaveCSS('flex-direction', 'column')
+  await page.screenshot({ path: 'test-results/terminal-account-header.png', fullPage: true })
 
   await page.getByRole('link', { name: 'Settings' }).click()
   await page.getByRole('link', { name: 'Preferences' }).click()
   await page.getByRole('checkbox', { name: 'Animate account identity rail' }).uncheck()
   await page.getByRole('link', { name: 'Terminal', exact: true }).click()
-  await expect(page.getByTestId('account-identity-rail').locator('.account-rail-static')).toHaveCount(1)
+  await expect(
+    page.getByTestId('account-identity-rail').locator('.account-rail-static'),
+  ).toHaveCount(1)
+})
+
+test('ready first account hands off directly to the command palette', async ({ page }) => {
+  const accountId = '71717171-7171-4717-8717-717171717171'
+  const userAddress = '0x1111111111111111111111111111111111111111'
+  await page.route('**/api/accounts**', async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.continue()
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: accountId,
+          label: 'First account',
+          key: 'redacted',
+          network: 'mainnet',
+          exchange: 'hyperliquid',
+          exchange_metadata: {
+            product: 'usdc_perp',
+            user_address: userAddress,
+            agent_address: '0x2222222222222222222222222222222222222222',
+            agent_approved: true,
+            agent_approval_verified_at_ms: Date.now(),
+            builder_address: '0x9585dc2df331106464f56e73d57cecda7d226510',
+            builder_config_version: 'v1',
+            builder_target_total_tenths_bps: 52,
+            builder_approved: true,
+            builder_approval_network: 'mainnet',
+            builder_approval_user_address: userAddress,
+            builder_approval_verified_at_ms: Date.now(),
+            max_builder_fee_tenths_bps: 100,
+          },
+        },
+      ]),
+    })
+  })
+  await page.goto(
+    `/auth/test-login?email=668es218pur%40gmail.com&return_to=${encodeURIComponent(`/settings/accounts/${accountId}/setup`)}`,
+  )
+  await expect(page.getByText('Nice — you’re ready to trade.')).toBeVisible()
+  await page.screenshot({ path: 'test-results/first-account-handoff.png', fullPage: true })
+  await page.getByRole('link', { name: 'Create first command' }).click()
+  await expect(page.getByRole('dialog', { name: 'Commands' })).toBeVisible()
+  await expect(page).not.toHaveURL(/commands=open/)
 })
 
 test('super-admin role controls are capability-scoped', async ({ page }) => {

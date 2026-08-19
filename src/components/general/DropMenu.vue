@@ -298,6 +298,11 @@ async function toggleMenu() {
     return
   }
 
+  await openMenu()
+}
+
+async function openMenu() {
+  if (showMenu.value) return
   cursorAnchor.value = null
   emit('open')
   showMenu.value = true
@@ -315,6 +320,7 @@ async function openAt(x: number, y: number) {
 
 defineExpose({
   close: closeMenu,
+  open: openMenu,
   openAt,
 })
 

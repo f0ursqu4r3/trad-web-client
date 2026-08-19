@@ -203,6 +203,31 @@
   color: var(--state-error);
 }
 
+.setup-handoff {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.25rem 0 0 2.2rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--state-success) 42%, var(--border-normal));
+  border-left: 3px solid var(--state-success);
+  background: color-mix(in srgb, var(--state-success) 7%, var(--surface-base));
+  color: var(--state-success);
+}
+
+.setup-handoff strong {
+  color: var(--fg-strong);
+  font-size: 13px;
+}
+
+.setup-handoff p {
+  margin: 0.2rem 0 0;
+  color: var(--fg-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 @keyframes draw-connector {
   from {
     transform: scaleY(0);
@@ -235,6 +260,15 @@
   .setup-actions :deep(.guided-action),
   .setup-actions :deep(.btn) {
     width: 100%;
+  }
+
+  .setup-handoff {
+    grid-template-columns: auto minmax(0, 1fr);
+    margin-left: 0;
+  }
+
+  .setup-handoff .btn {
+    grid-column: 1 / -1;
   }
 }
 

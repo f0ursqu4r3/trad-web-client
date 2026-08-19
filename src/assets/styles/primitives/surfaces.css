@@ -18,6 +18,9 @@
   }
   .panel-header {
     display: flex;
+    height: 34px;
+    min-height: 34px;
+    flex: 0 0 34px;
     align-items: center;
     justify-content: space-between;
     background: var(--surface-muted);
@@ -31,7 +34,7 @@
   }
   .panel-title {
     font-size: 13px;
-    line-height: 28px;
+    line-height: 1.2;
     font-weight: 400;
     color: var(--fg-muted);
   }
