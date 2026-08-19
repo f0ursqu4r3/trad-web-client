@@ -31,10 +31,32 @@ async function sessionFetch(input: string, init: RequestOptions = {}) {
   const res = await fetch(input, { ...init, credentials: init.credentials ?? 'include', headers })
   if (init.throwOnHTTPError && !res.ok) {
     const text = await res.text().catch(() => '')
-    const error = new Error(`HTTP ${res.status} ${res.statusText}${text ? `: ${text}` : ''}`)
+    const detail = readableHttpErrorDetail(text)
+    const error = new Error(`HTTP ${res.status} ${res.statusText}${detail ? `: ${detail}` : ''}`)
     throw error
   }
   return res
+}
+
+function readableHttpErrorDetail(text: string): string {
+  if (!text.trim()) return ''
+  try {
+    const payload = JSON.parse(text) as unknown
+    if (!payload || typeof payload !== 'object') return String(payload)
+    const value = payload as Record<string, unknown>
+    const messages: string[] = []
+    if (typeof value.error === 'string') messages.push(value.error)
+    const exchange = value.exchange_response
+    if (exchange && typeof exchange === 'object') {
+      const response = (exchange as Record<string, unknown>).response
+      if (typeof response === 'string') messages.push(response)
+    } else if (typeof exchange === 'string') {
+      messages.push(exchange)
+    }
+    return messages.length ? messages.join(': ') : JSON.stringify(value)
+  } catch {
+    return text.length > 300 ? `${text.slice(0, 300)}...` : text
+  }
 }
 
 const parseUrl = (baseUrl: string, path: string) => {

@@ -84,10 +84,10 @@ export function accountMetadataChips(account: AccountMetadataLike): string[] {
   if (account.exchange === ExchangeType.Hyperliquid) {
     if (normalizeMetadataLabel(meta?.agent_address)) chips.push('Agent set')
     else chips.push('Agent missing')
-    if (meta?.agent_approved === true) chips.push('Agent approved')
+    if (isHyperliquidAgentAuthorizationCurrent(account)) chips.push('Agent approved')
     else chips.push('Agent unvalidated')
     if (hyperliquidTargetTotalTenthsBps(meta) === 0) chips.push('No builder fee')
-    else if (meta?.builder_approved === true) chips.push('Builder approved')
+    else if (isHyperliquidBuilderAuthorizationCurrent(account)) chips.push('Builder approved')
     else chips.push('Builder unvalidated')
     if (meta?.vault_address) chips.push('Vault/subaccount')
     if (meta?.default_leverage) chips.push(`${meta.default_leverage}x default`)
@@ -125,26 +125,42 @@ export function isHyperliquidMetadataReady(
 ): boolean {
   if (!account || account.exchange !== ExchangeType.Hyperliquid) return true
   const meta = account.exchange_metadata
-  const builderFee = hyperliquidTargetTotalTenthsBps(meta)
-  const hasBuilderReadiness =
-    builderFee === 0 ||
-    Boolean(
-      normalizeMetadataLabel(meta?.builder_address) &&
-        normalizeMetadataLabel(meta?.builder_config_version) &&
-        meta?.builder_approved === true &&
-        meta?.builder_approval_network === account.network &&
-        normalizeAddress(meta?.builder_approval_user_address) ===
-          normalizeAddress(meta?.user_address) &&
-        meta?.builder_approval_verified_at_ms &&
-        (meta?.max_builder_fee_tenths_bps ?? 0) >= builderFee,
-    )
   return Boolean(
     meta?.product === 'usdc_perp' &&
       normalizeMetadataLabel(meta?.user_address) &&
-      normalizeMetadataLabel(meta?.agent_address) &&
+      isHyperliquidAgentAuthorizationCurrent(account) &&
+      isHyperliquidBuilderAuthorizationCurrent(account),
+  )
+}
+
+export function isHyperliquidAgentAuthorizationCurrent(
+  account: AccountMetadataLike | null | undefined,
+): boolean {
+  if (!account || account.exchange !== ExchangeType.Hyperliquid) return false
+  const meta = account.exchange_metadata
+  return Boolean(
+    normalizeMetadataLabel(meta?.agent_address) &&
       meta?.agent_approved === true &&
-      meta?.agent_approval_verified_at_ms &&
-      hasBuilderReadiness,
+      meta?.agent_approval_verified_at_ms,
+  )
+}
+
+export function isHyperliquidBuilderAuthorizationCurrent(
+  account: AccountMetadataLike | null | undefined,
+): boolean {
+  if (!account || account.exchange !== ExchangeType.Hyperliquid) return false
+  const meta = account.exchange_metadata
+  const target = hyperliquidTargetTotalTenthsBps(meta)
+  if (target === 0) return true
+  return Boolean(
+    normalizeMetadataLabel(meta?.builder_address) &&
+      normalizeMetadataLabel(meta?.builder_config_version) &&
+      meta?.builder_approved === true &&
+      meta?.builder_approval_network === account.network &&
+      normalizeAddress(meta?.builder_approval_user_address) ===
+        normalizeAddress(meta?.user_address) &&
+      meta?.builder_approval_verified_at_ms &&
+      (meta?.max_builder_fee_tenths_bps ?? 0) >= target,
   )
 }
 

@@ -15,6 +15,8 @@ import {
   accountMetadataStatus,
   formatAccountProduct,
   isBybitMetadataVerified,
+  isHyperliquidAgentAuthorizationCurrent,
+  isHyperliquidBuilderAuthorizationCurrent,
   isHyperliquidMetadataReady,
 } from '@/lib/accountMetadata'
 import { accountsStoreKey, getSessionUserId } from '@/lib/userSession'
@@ -157,6 +159,8 @@ export {
   accountMetadataStatus,
   formatAccountProduct,
   isBybitMetadataVerified,
+  isHyperliquidAgentAuthorizationCurrent,
+  isHyperliquidBuilderAuthorizationCurrent,
   isHyperliquidMetadataReady,
 }
 

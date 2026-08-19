@@ -80,9 +80,13 @@ test('Hyperliquid account panel preserves account readiness without actor teleme
 
   await expect(accountPanel.getByText('Hyperliquid QA')).toBeVisible()
   await expect(accountPanel.getByText('USDC perp')).toBeVisible()
-  await expect(accountPanel.getByText('Agent approved')).toBeVisible()
-  await expect(accountPanel.getByText('Builder approved')).toBeVisible()
   await expect(accountPanel.getByText('Hyperliquid account metadata is ready.')).toBeVisible()
+  await expect(
+    accountPanel.getByRole('button', { name: 'Agent approved', exact: true }),
+  ).toBeDisabled()
+  await expect(
+    accountPanel.getByRole('button', { name: 'Builder approved', exact: true }),
+  ).toBeDisabled()
   await expect(accountPanel.getByText('7 queued / 2 live')).toHaveCount(0)
 })
 
@@ -2015,11 +2019,11 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
     })
   })
 
-  await page.goto('/e2e/bybit-terminal')
+  await page.goto('/e2e/bybit-terminal?agent_approved=0&builder_approved=0')
 
   let accountPanel = page.getByTestId('accounts-panel')
   await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
-  await accountPanel.getByRole('button', { name: 'Approve', exact: true }).click()
+  await accountPanel.getByRole('button', { name: 'Approve 10.0 bps', exact: true }).click()
   await expect(
     accountPanel.getByText('Hyperliquid builder fee approved up to 10.0 bps for Hyperliquid QA.'),
   ).toBeVisible()
@@ -2030,11 +2034,11 @@ test('Hyperliquid account panel submits wallet-signed agent and builder approval
     ),
   )
 
-  await page.goto('/e2e/bybit-terminal')
+  await page.goto('/e2e/bybit-terminal?agent_approved=0&builder_approved=0')
 
   accountPanel = page.getByTestId('accounts-panel')
   await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
-  await accountPanel.getByRole('button', { name: 'Approve Agent' }).click()
+  await accountPanel.getByRole('button', { name: 'Approve agent', exact: true }).click()
   await expect(
     accountPanel.getByText('Hyperliquid agent wallet approved for Hyperliquid QA.'),
   ).toBeVisible()
@@ -2228,7 +2232,7 @@ test('Hyperliquid wallet approval errors are recoverable without reloading', asy
     })
   })
 
-  await page.goto('/e2e/bybit-terminal')
+  await page.goto('/e2e/bybit-terminal?agent_approved=0')
   const accountPanel = page.getByTestId('accounts-panel')
   await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
   const approveAgent = accountPanel.getByRole('button', { name: 'Approve Agent' })

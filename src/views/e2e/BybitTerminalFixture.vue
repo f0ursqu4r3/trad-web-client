@@ -681,6 +681,8 @@ const accountEngineReadyFixture =
   new URLSearchParams(window.location.search).get('account_engine_ready') !== '0'
 const hyperliquidAgentApprovedFixture =
   new URLSearchParams(window.location.search).get('agent_approved') !== '0'
+const hyperliquidBuilderApprovedFixture =
+  new URLSearchParams(window.location.search).get('builder_approved') !== '0'
 const binanceContext = {
   binance: { account_id: binanceAccountId },
 } satisfies MarketContext
@@ -744,11 +746,15 @@ const accounts = [
       builder_fee_tenths_bps: 10,
       builder_target_total_tenths_bps: 52,
       builder_fee_manager: feeManagerFixtureEnabled,
-      max_builder_fee_tenths_bps: 100,
-      builder_approved: true,
-      builder_approval_network: NetworkType.Testnet,
-      builder_approval_user_address: '0x1111111111111111111111111111111111111111',
-      builder_approval_verified_at_ms: 1_780_000_000_000,
+      max_builder_fee_tenths_bps: hyperliquidBuilderApprovedFixture ? 100 : 0,
+      builder_approved: hyperliquidBuilderApprovedFixture,
+      builder_approval_network: hyperliquidBuilderApprovedFixture ? NetworkType.Testnet : undefined,
+      builder_approval_user_address: hyperliquidBuilderApprovedFixture
+        ? '0x1111111111111111111111111111111111111111'
+        : undefined,
+      builder_approval_verified_at_ms: hyperliquidBuilderApprovedFixture
+        ? 1_780_000_000_000
+        : undefined,
       default_leverage: 1,
       entry_market_guard_tenths_bps: 700,
       take_profit_market_guard_tenths_bps: 1_200,

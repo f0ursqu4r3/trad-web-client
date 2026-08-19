@@ -5,6 +5,8 @@ import { ArrowRight, Check, CircleCheckBig, LockKeyhole } from 'lucide-vue-next'
 import GuidedAction from '@/components/forms/GuidedAction.vue'
 import {
   accountMetadataChips,
+  isHyperliquidAgentAuthorizationCurrent,
+  isHyperliquidBuilderAuthorizationCurrent,
   isHyperliquidMetadataReady,
   type AccountRecord,
 } from '@/stores/accounts'
@@ -39,8 +41,8 @@ defineEmits<{
 }>()
 
 const identityComplete = computed(() => Boolean(props.account.exchange_metadata?.user_address))
-const agentComplete = computed(() => props.account.exchange_metadata?.agent_approved === true)
-const builderComplete = computed(() => props.account.exchange_metadata?.builder_approved === true)
+const agentComplete = computed(() => isHyperliquidAgentAuthorizationCurrent(props.account))
+const builderComplete = computed(() => isHyperliquidBuilderAuthorizationCurrent(props.account))
 const agentCurrent = computed(() => identityComplete.value && !agentComplete.value)
 const builderCurrent = computed(() => agentComplete.value && !builderComplete.value)
 const setupComplete = computed(() => isHyperliquidMetadataReady(props.account))
@@ -193,7 +195,13 @@ function approvedBuilderMaxLabel(): string {
                   :disabled="!canApproveAgent || !agentCurrent"
                   @click="$emit('approveAgent')"
                 >
-                  {{ approvingAgent ? 'Approving' : 'Approve agent' }}
+                  {{
+                    approvingAgent
+                      ? 'Approving'
+                      : agentComplete
+                        ? 'Agent approved'
+                        : 'Approve agent'
+                  }}
                 </button>
               </GuidedAction>
             </div>
@@ -267,7 +275,13 @@ function approvedBuilderMaxLabel(): string {
                   :disabled="!canApproveBuilder || !builderCurrent"
                   @click="$emit('approveBuilder')"
                 >
-                  {{ approvingBuilder ? 'Approving' : `Approve ${builderApprovalLabel()}` }}
+                  {{
+                    approvingBuilder
+                      ? 'Approving'
+                      : builderComplete
+                        ? 'Builder approved'
+                        : `Approve ${builderApprovalLabel()}`
+                  }}
                 </button>
               </GuidedAction>
             </div>

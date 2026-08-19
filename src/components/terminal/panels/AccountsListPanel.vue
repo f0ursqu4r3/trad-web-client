@@ -4,6 +4,8 @@ import {
   accountMetadataChips,
   accountMetadataStatus,
   isBybitMetadataVerified,
+  isHyperliquidAgentAuthorizationCurrent,
+  isHyperliquidBuilderAuthorizationCurrent,
   isHyperliquidMetadataReady,
   useAccountsStore,
   type AccountRecord,
@@ -340,6 +342,7 @@ function approvedBuilderMaxLabel(account: AccountRecord): string {
 
 function canApproveHyperliquidBuilder(account: AccountRecord): boolean {
   if (account.exchange !== ExchangeType.Hyperliquid) return false
+  if (isHyperliquidBuilderAuthorizationCurrent(account)) return false
   const target = hyperliquidTargetTotalTenthsBps(account.exchange_metadata)
   if (target <= 0) return false
   return (
@@ -360,6 +363,7 @@ function canRefreshHyperliquidBuilder(account: AccountRecord): boolean {
 
 function canApproveHyperliquidAgent(account: AccountRecord): boolean {
   if (account.exchange !== ExchangeType.Hyperliquid) return false
+  if (isHyperliquidAgentAuthorizationCurrent(account)) return false
   if (approvingAgentAccountIds.value.has(account.id)) return false
   return Boolean(
     account.exchange_metadata?.user_address && account.exchange_metadata?.agent_address,
@@ -572,11 +576,30 @@ function approvalFeedbackClass(feedback: ApprovalFeedback): string {
 }
 
 function approvalErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error)
+  const message = readableErrorMessage(error)
   if (message.includes('Must deposit before performing actions')) {
     return 'Hyperliquid requires this wallet to receive account funds before it will accept approval actions. Fund the wallet on this network, then try again.'
   }
+  if (message.includes('Extra agent already used')) {
+    return 'Hyperliquid reports this agent is already registered. Refresh its status; generate a replacement only if the saved agent is not approved.'
+  }
   return message
+}
+
+function readableErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  if (typeof error === 'string') return error
+  if (error && typeof error === 'object') {
+    const value = error as Record<string, unknown>
+    if (typeof value.message === 'string') return value.message
+    if (typeof value.error === 'string') return value.error
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return 'The approval failed for an unknown reason.'
+    }
+  }
+  return 'The approval failed for an unknown reason.'
 }
 
 async function setLeverage(account: AccountRecord) {
@@ -1162,7 +1185,9 @@ watch(
                   <span class="normal-case tracking-normal text-[var(--color-text-dim)]">
                     Status:
                     <span class="font-mono text-primary">
-                      {{ account.exchange_metadata?.agent_approved ? 'approved' : 'unvalidated' }}
+                      {{
+                        isHyperliquidAgentAuthorizationCurrent(account) ? 'approved' : 'unvalidated'
+                      }}
                     </span>
                   </span>
                 </div>
@@ -1182,7 +1207,10 @@ watch(
                   @click="approveHyperliquidAgent(account)"
                 >
                   <span v-if="approvingAgentAccountIds.has(account.id)">Approving</span>
-                  <span v-else>Approve Agent</span>
+                  <span v-else-if="isHyperliquidAgentAuthorizationCurrent(account)"
+                    >Agent approved</span
+                  >
+                  <span v-else>Approve agent</span>
                 </button>
                 <button
                   class="btn btn-secondary btn-xs account-settings-action"
@@ -1237,7 +1265,9 @@ watch(
                   <span class="normal-case tracking-normal text-[var(--color-text-dim)]">
                     Approved maximum: {{ approvedBuilderMaxLabel(account) }} · Status:
                     {{
-                      account.exchange_metadata?.builder_approved ? 'approved' : 'action required'
+                      isHyperliquidBuilderAuthorizationCurrent(account)
+                        ? 'approved'
+                        : 'action required'
                     }}
                   </span>
                 </div>
@@ -1248,6 +1278,9 @@ watch(
                   @click="approveHyperliquidBuilder(account)"
                 >
                   <span v-if="approvingBuilderAccountIds.has(account.id)">Approving</span>
+                  <span v-else-if="isHyperliquidBuilderAuthorizationCurrent(account)"
+                    >Builder approved</span
+                  >
                   <span v-else
                     >Approve
                     {{ (HYPERLIQUID_MAX_BUILDER_FEE_TENTHS_BPS / 10).toFixed(1) }} bps</span
