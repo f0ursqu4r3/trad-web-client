@@ -204,10 +204,6 @@ function approvedBuilderMaxLabel(): string {
           >
             {{ agentFeedback.message }}
           </p>
-          <p v-if="agentFeedback?.kind === 'error'" class="setup-recovery-link">
-            Agent slots full or an old connection in the way?
-            <RouterLink to="/settings/authorization">Manage Hyperliquid agent slots</RouterLink>
-          </p>
         </div>
       </li>
 

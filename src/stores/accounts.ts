@@ -164,6 +164,30 @@ export {
   isHyperliquidMetadataReady,
 }
 
+function existingAccountForIdentity(
+  accounts: AccountRecord[],
+  payload: AccountFormPayload,
+): AccountRecord | undefined {
+  if (payload.exchange !== ExchangeType.Hyperliquid) return undefined
+  const incomingIdentity = hyperliquidTradingIdentity(
+    payload.key,
+    payload.exchange_metadata?.vault_address,
+  )
+  return accounts.find(
+    (account) =>
+      account.exchange === payload.exchange &&
+      account.network === payload.network &&
+      hyperliquidTradingIdentity(
+        account.exchange_metadata?.user_address || account.key,
+        account.exchange_metadata?.vault_address,
+      ) === incomingIdentity,
+  )
+}
+
+function hyperliquidTradingIdentity(userAddress: string, vaultAddress?: string | null): string {
+  return (vaultAddress?.trim() || userAddress.trim()).toLowerCase()
+}
+
 export const useAccountsStore = defineStore('accounts', () => {
   const { isAuthenticated } = useAuth()
 
@@ -243,9 +267,19 @@ export const useAccountsStore = defineStore('accounts', () => {
   }
 
   async function addAccount(payload: AccountFormPayload): Promise<AccountRecord | null> {
+    const configured = existingAccountForIdentity(accounts.value, payload)
+    if (configured) return configured
     const label = encodeURIComponent(payload.label.trim())
-    const resp = await apiPut(`/accounts/${label}`, payload)
-    logger.debug('Add account response:', resp)
+    try {
+      await apiPut<void, AccountFormPayload>(`/accounts/${label}`, payload, {
+        throwOnHTTPError: true,
+      })
+    } catch (error) {
+      await fetchAccounts()
+      const existing = existingAccountForIdentity(accounts.value, payload)
+      if (existing) return existing
+      throw error
+    }
     await fetchAccounts()
     return (
       accounts.value.find(

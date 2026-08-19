@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import ProfileSettings from './ProfileSettings.vue'
 import TradingAccountsSettings from './TradingAccountsSettings.vue'
-import AuthorizationSettings from './AuthorizationSettings.vue'
 import PreferencesSettings from './PreferencesSettings.vue'
 import BillingSettings from './BillingSettings.vue'
 
@@ -11,7 +10,6 @@ const route = useRoute()
 const pages = {
   profile: ProfileSettings,
   accounts: TradingAccountsSettings,
-  authorization: AuthorizationSettings,
   preferences: PreferencesSettings,
   billing: BillingSettings,
 }

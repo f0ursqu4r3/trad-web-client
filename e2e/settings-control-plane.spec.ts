@@ -1,23 +1,41 @@
 import { expect, test } from '@playwright/test'
 
-test('durable Hyperliquid agent connections respect attached-account safety', async ({ page }) => {
+test('legacy authorization route redirects to detached connection maintenance', async ({
+  page,
+}) => {
+  const userAddress = '0x1111111111111111111111111111111111111111'
+  await page.route('**/api/accounts', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+  })
+  await page.route('**/api/hyperliquid/agent-wallets', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          credential_id: '81818181-8181-4818-8818-818181818181',
+          network: 'mainnet',
+          user_address: userAddress,
+          agent_name: 'trad-local',
+          agent_address: '0x2222222222222222222222222222222222222222',
+          approved: false,
+          attached_accounts: 0,
+          preferred_name: 'trad-local',
+          remote_agents: [],
+        },
+      ]),
+    })
+  })
   await page.goto('/auth/test-login?email=dev%40trad.local&return_to=%2Fsettings%2Fauthorization')
-  await expect(page.getByRole('heading', { name: 'Authorization & fees' })).toBeVisible()
-  await expect(page.getByText('Trad agent connections', { exact: true })).toBeVisible()
-  await expect(page.getByText('trad-c13bf78a', { exact: true }).first()).toBeVisible()
-  await expect(page.getByText('this Trad', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Generate replacement' })).toBeDisabled()
-  const attachedAccounts = Number(
-    await page
-      .locator('.connection-facts > div')
-      .filter({ hasText: 'Attached accounts' })
-      .locator('dd')
-      .textContent(),
-  )
-  const forget = page.getByRole('button', { name: 'Forget local key' })
-  if (attachedAccounts > 0) await expect(forget).toBeDisabled()
-  else await expect(forget).toBeEnabled()
-  await expect(page.getByRole('button', { name: 'Use this slot' }).first()).toBeDisabled()
+  await expect(page).toHaveURL(/\/settings\/accounts$/)
+  await expect(page.getByRole('heading', { name: 'Trading accounts' })).toBeVisible()
+  await expect(page.getByText('Saved wallet connections', { exact: true })).toBeVisible()
+  await expect(page.getByText(userAddress, { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Forget local key' })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Use this slot' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Reconnect account' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Create Account' })
+  await expect(dialog.getByPlaceholder('0x...')).toHaveValue(userAddress)
   await page.screenshot({ path: 'test-results/agent-connections.png', fullPage: true })
 })
 
@@ -58,9 +76,7 @@ test('settings and administrator control plane are navigable', async ({ page }) 
   await expect(page.getByText(/Current Trad target total:/)).toBeVisible()
   await page.getByRole('link', { name: 'All accounts' }).click()
 
-  await page.getByRole('link', { name: 'Authorization & fees' }).click()
-  await expect(page.getByRole('heading', { name: 'Authorization & fees' })).toBeVisible()
-  await expect(page.getByText('Agent wallet', { exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Authorization & fees' })).toHaveCount(0)
 
   await page.getByRole('link', { name: 'Billing', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Billing' })).toBeVisible()
@@ -293,6 +309,67 @@ test('zero-account onboarding tours through the real settings controls', async (
   })
   expect(visited).toContain('/settings/profile')
   expect(visited).toContain('/settings/accounts')
+})
+
+test('adding an existing Hyperliquid identity opens its configured account', async ({ page }) => {
+  const accountId = '61616161-6161-4616-8616-616161616161'
+  const userAddress = '0x1111111111111111111111111111111111111111'
+  let accountWrites = 0
+  await page.route('**/api/hyperliquid/agent-wallets', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+  })
+  await page.route('**/api/accounts**', async (route) => {
+    const request = route.request()
+    if (request.method() === 'POST' && request.url().includes('/api/accounts/validate')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          valid: true,
+          skipped: false,
+          exchange: 'hyperliquid',
+          network: 'mainnet',
+          present_permissions: ['User wallet address valid'],
+          missing_requirements: [],
+          warnings: [],
+        }),
+      })
+      return
+    }
+    if (request.method() === 'PUT') accountWrites += 1
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: accountId,
+          label: 'Existing wallet',
+          key: 'redacted',
+          network: 'mainnet',
+          exchange: 'hyperliquid',
+          exchange_metadata: {
+            product: 'usdc_perp',
+            user_address: userAddress,
+            agent_approved: false,
+            builder_approved: false,
+          },
+        },
+      ]),
+    })
+  })
+
+  await page.goto(
+    '/auth/test-login?email=dev%40trad.local&return_to=%2Fsettings%2Faccounts%3Fcreate%3D1',
+  )
+  const dialog = page.getByRole('dialog', { name: 'Create Account' })
+  await dialog.locator('select').nth(1).selectOption('hyperliquid')
+  await dialog.getByPlaceholder('Account alias').fill('Accidental duplicate')
+  await dialog.getByPlaceholder('0x...').fill(userAddress)
+  await dialog.getByRole('button', { name: 'Check permissions', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Create' }).click()
+
+  await expect(page).toHaveURL(`/settings/accounts/${accountId}/setup`)
+  expect(accountWrites).toBe(0)
 })
 
 test('new accounts continue into required setup instead of stopping at the directory', async ({

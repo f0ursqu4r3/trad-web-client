@@ -18,12 +18,16 @@ import { accountColorFromId } from '@/lib/accountColors'
 import { ExchangeType } from '@/lib/ws/protocol'
 import GuidedPointer from '@/components/general/GuidedPointer.vue'
 import PanelEmptyState from '@/components/general/PanelEmptyState.vue'
+import DetachedHyperliquidConnections from '@/components/settings/DetachedHyperliquidConnections.vue'
+import type { HyperliquidAgentConnection } from '@/lib/gateway/hyperliquidAgentConnections'
 
 const accounts = useAccountsStore()
 const route = useRoute()
 const router = useRouter()
 const query = ref('')
 const createOpen = ref(false)
+const reconnectTarget = ref<HyperliquidAgentConnection | null>(null)
+const detachedConnections = ref<{ refresh: () => Promise<void> } | null>(null)
 const deletionTarget = ref<AccountRecord | null>(null)
 const deletingAccountIds = ref<Set<string>>(new Set())
 const deletionError = ref<string | null>(null)
@@ -59,14 +63,25 @@ function manageRoute(account: AccountRecord): string {
 }
 
 function finishAccountTour(): void {
-  createOpen.value = true
+  openAccountCreation()
   const query = { ...route.query }
   delete query.tour
   void router.replace({ query })
 }
 
-function openCreatedAccount(account: AccountRecord): void {
+function openAccountCreation(connection: HyperliquidAgentConnection | null = null): void {
+  reconnectTarget.value = connection
+  createOpen.value = true
+}
+
+function closeAccountCreation(): void {
   createOpen.value = false
+  reconnectTarget.value = null
+}
+
+function openCreatedAccount(account: AccountRecord): void {
+  closeAccountCreation()
+  void detachedConnections.value?.refresh()
   accounts.selectedAccountId = account.id
   void router.push(`/settings/accounts/${account.id}/${ready(account) ? 'overview' : 'setup'}`)
 }
@@ -96,6 +111,7 @@ async function confirmAccountDeletion(): Promise<void> {
     const next = new Set(deletingAccountIds.value)
     next.delete(account.id)
     deletingAccountIds.value = next
+    void detachedConnections.value?.refresh()
   }
 }
 
@@ -133,7 +149,7 @@ onMounted(async () => {
       >
         <RefreshCw :size="13" /> Refresh
       </button>
-      <button class="btn btn-primary btn-sm" data-tour="new-account" @click="createOpen = true">
+      <button class="btn btn-primary btn-sm" data-tour="new-account" @click="openAccountCreation()">
         <Plus :size="13" /> New account
       </button>
     </template>
@@ -233,10 +249,11 @@ onMounted(async () => {
     >
       <template #icon><WalletCards :size="20" /></template>
       <template v-if="!accounts.accounts.length" #action>
-        <button class="btn btn-primary" @click="createOpen = true">Add account</button>
+        <button class="btn btn-primary" @click="openAccountCreation()">Add account</button>
       </template>
     </PanelEmptyState>
   </ControlSection>
+  <DetachedHyperliquidConnections ref="detachedConnections" @reconnect="openAccountCreation" />
   <GuidedPointer
     v-if="touringToNewAccount"
     source-selector="[data-tour='trading-accounts']"
@@ -245,7 +262,12 @@ onMounted(async () => {
   />
   <CreateAccountModal
     :open="createOpen"
-    @close="createOpen = false"
+    :hyperliquid-prefill="
+      reconnectTarget
+        ? { network: reconnectTarget.network, userAddress: reconnectTarget.user_address }
+        : null
+    "
+    @close="closeAccountCreation"
     @created="openCreatedAccount"
   />
   <ActionConfirmationModal

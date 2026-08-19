@@ -14,7 +14,13 @@ import FormField from '@/components/forms/FormField.vue'
 import { integerError, requiredText } from '@/lib/formValidation'
 import AccountPermissionCheck from './AccountPermissionCheck.vue'
 
-const props = withDefaults(defineProps<{ open: boolean }>(), { open: false })
+const props = withDefaults(
+  defineProps<{
+    open: boolean
+    hyperliquidPrefill?: { network: NetworkType; userAddress: string } | null
+  }>(),
+  { open: false, hyperliquidPrefill: null },
+)
 const emit = defineEmits<{
   (event: 'close'): void
   (event: 'created', account: AccountRecord): void
@@ -146,10 +152,10 @@ const keyInputClass = computed(() => ({
 }))
 
 function reset() {
-  network.value = DEFAULT_NETWORK
-  exchange.value = DEFAULT_EXCHANGE
+  network.value = props.hyperliquidPrefill?.network || DEFAULT_NETWORK
+  exchange.value = props.hyperliquidPrefill ? ExchangeType.Hyperliquid : DEFAULT_EXCHANGE
   name.value = ''
-  apiKey.value = ''
+  apiKey.value = props.hyperliquidPrefill?.userAddress || ''
   secretKey.value = ''
   hyperliquidAgentMode.value = 'generated'
   hyperliquidVaultAddress.value = ''

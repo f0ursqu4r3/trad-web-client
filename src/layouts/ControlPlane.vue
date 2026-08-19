@@ -7,7 +7,6 @@ import {
   BadgeDollarSign,
   BookOpenCheck,
   CreditCard,
-  KeyRound,
   MonitorCog,
   SlidersHorizontal,
   UserRound,
@@ -36,7 +35,6 @@ const touringToAccounts = computed(
 const settings = [
   { key: 'profile', label: 'Profile', icon: UserRound },
   { key: 'accounts', label: 'Trading accounts', icon: WalletCards },
-  { key: 'authorization', label: 'Authorization & fees', icon: KeyRound },
   { key: 'preferences', label: 'Preferences', icon: SlidersHorizontal },
   { key: 'billing', label: 'Billing', icon: CreditCard },
 ]

@@ -228,16 +228,6 @@
   line-height: 1.45;
 }
 
-.setup-recovery-link {
-  margin: 0.55rem 0 0;
-  color: var(--fg-muted);
-  font-size: 12px;
-}
-
-.setup-recovery-link a {
-  color: var(--accent-color);
-}
-
 @keyframes draw-connector {
   from {
     transform: scaleY(0);

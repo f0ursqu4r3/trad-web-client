@@ -26,7 +26,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, layout: 'control', controlArea: 'settings' },
   },
   {
-    path: '/settings/:section(profile|accounts|authorization|preferences|billing)',
+    path: '/settings/authorization',
+    redirect: '/settings/accounts',
+    meta: { requiresAuth: true, layout: 'control', controlArea: 'settings' },
+  },
+  {
+    path: '/settings/:section(profile|accounts|preferences|billing)',
     component: () => import('@/views/settings/SettingsView.vue'),
     meta: { requiresAuth: true, layout: 'control', controlArea: 'settings' },
   },

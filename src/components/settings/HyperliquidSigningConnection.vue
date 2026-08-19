@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
 import { KeyRound, RefreshCw, RotateCcw, ShieldCheck } from 'lucide-vue-next'
 import {
   listHyperliquidAgentConnections,
@@ -219,9 +218,6 @@ async function run(action: () => Promise<void>): Promise<void> {
       >
         <RotateCcw :size="13" /> Generate fresh key
       </button>
-      <RouterLink class="signing-connection__manage" to="/settings/authorization">
-        Manage all connections
-      </RouterLink>
     </div>
 
     <div v-if="connection" class="remote-agent-list">
@@ -325,11 +321,6 @@ async function run(action: () => Promise<void>): Promise<void> {
   gap: 0.45rem;
   margin-top: 0.7rem;
 }
-.signing-connection__manage {
-  margin-left: auto;
-  color: var(--accent-color);
-  font-size: 12px;
-}
 .remote-agent-list {
   margin-top: 0.8rem;
   border-top: 1px solid var(--border-normal);
@@ -380,9 +371,6 @@ async function run(action: () => Promise<void>): Promise<void> {
   .remote-agent-row {
     align-items: stretch;
     flex-direction: column;
-  }
-  .signing-connection__manage {
-    margin: 0.25rem 0 0;
   }
 }
 </style>
