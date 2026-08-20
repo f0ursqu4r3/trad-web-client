@@ -76,6 +76,7 @@ const deletionTarget = ref<AccountRecord | null>(null)
 const deletingAccountIds = ref<Set<string>>(new Set())
 type ApprovalFeedback = { kind: 'info' | 'success' | 'error'; message: string }
 const agentApprovalFeedback = reactive<Record<string, ApprovalFeedback | undefined>>({})
+const agentApprovalVersions = reactive<Record<string, number>>({})
 const builderApprovalFeedback = reactive<Record<string, ApprovalFeedback | undefined>>({})
 const leverageForms = reactive<
   Record<
@@ -446,6 +447,7 @@ async function approveHyperliquidAgent(account: AccountRecord) {
       agent_address: agentAddress,
       agent_name: signed.action.agentName,
     })
+    agentApprovalVersions[account.id] = (agentApprovalVersions[account.id] ?? 0) + 1
     const message = response.agent_approved
       ? `Hyperliquid agent wallet approved for ${account.label}.`
       : `Hyperliquid accepted the approval, but the agent was not visible in extraAgents yet. Refresh again shortly.`
@@ -884,6 +886,7 @@ watch(
                 :approving-builder="approvingBuilderAccountIds.has(account.id)"
                 :refreshing-builder="refreshingBuilderAccountIds.has(account.id)"
                 :agent-feedback="agentApprovalFeedback[account.id]"
+                :agent-approval-version="agentApprovalVersions[account.id] ?? 0"
                 :builder-feedback="builderApprovalFeedback[account.id]"
                 :show-terminal-handoff="accounts.accounts.length === 1"
                 @approve-agent="approveHyperliquidAgent(account)"

@@ -3,14 +3,17 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RefreshCw, ShieldCheck } from 'lucide-vue-next'
 import {
   listHyperliquidAgentConnections,
-  refreshHyperliquidAgentConnection,
   selectHyperliquidAgentSlot,
   type HyperliquidAgentConnection,
   type HyperliquidRemoteAgent,
 } from '@/lib/gateway/hyperliquidAgentConnections'
 import { useAccountsStore, type AccountRecord } from '@/stores/accounts'
 
-const props = defineProps<{ account: AccountRecord; locked: boolean }>()
+const props = defineProps<{
+  account: AccountRecord
+  locked: boolean
+  approvalVersion: number
+}>()
 const emit = defineEmits<{ approvalReady: [ready: boolean] }>()
 
 const accounts = useAccountsStore()
@@ -47,7 +50,9 @@ const slotConflict = computed(() => {
 const namedRemoteAgents = computed(() =>
   (connection.value?.remote_agents ?? []).filter((remote) => remote.name.trim()),
 )
-const namedSlotsFull = computed(() => !currentRemote.value && namedRemoteAgents.value.length >= 3)
+const namedSlotsFull = computed(
+  () => !props.locked && !currentRemote.value && namedRemoteAgents.value.length >= 3,
+)
 const replacementConfirmed = computed(
   () => replacementConsent.value === connection.value?.agent_name,
 )
@@ -65,6 +70,12 @@ watch(
   () => {
     replacementConsent.value = null
     void loadConnections()
+  },
+)
+watch(
+  () => props.approvalVersion,
+  (version, previous) => {
+    if (version > previous) void refreshAfterApproval()
   },
 )
 
@@ -112,14 +123,13 @@ async function loadConnections(): Promise<void> {
       selected = connection.value
     }
     const metadata = props.account.exchange_metadata
-    if (
-      selected?.approved &&
-      (metadata?.agent_approved !== true ||
-        metadata.agent_name !== selected.agent_name ||
-        metadata.agent_address?.toLowerCase() !== selected.agent_address.toLowerCase())
-    ) {
-      await refreshHyperliquidAgentConnection(selected.credential_id)
-      await accounts.fetchAccounts()
+    const accountMatchesConnection =
+      selected &&
+      metadata?.agent_approved === selected.approved &&
+      metadata.agent_name === selected.agent_name &&
+      metadata.agent_address?.toLowerCase() === selected.agent_address.toLowerCase()
+    if (selected && !accountMatchesConnection) {
+      await accounts.refreshHyperliquidAgentApproval(props.account.id)
     }
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : String(caught)
@@ -132,8 +142,35 @@ async function refresh(): Promise<void> {
   const selected = connection.value
   if (!selected) return void loadConnections()
   await run(async () => {
-    await refreshHyperliquidAgentConnection(selected.credential_id)
+    await accounts.refreshHyperliquidAgentApproval(props.account.id)
   })
+}
+
+async function refreshAfterApproval(): Promise<void> {
+  if (busy.value) return
+  busy.value = true
+  error.value = null
+  try {
+    let approved = props.locked
+    for (const delay of [0, 600, 1_600]) {
+      if (approved) break
+      if (delay) await pause(delay)
+      const response = await accounts.refreshHyperliquidAgentApproval(props.account.id)
+      approved = response.agent_approved
+    }
+    connections.value = await listHyperliquidAgentConnections()
+    if (approved || currentRemote.value || connection.value?.approved) {
+      replacementConsent.value = null
+    }
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : String(caught)
+  } finally {
+    busy.value = false
+  }
+}
+
+function pause(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 }
 
 async function chooseSlot(remote: HyperliquidRemoteAgent): Promise<void> {
@@ -171,7 +208,7 @@ async function run(action: () => Promise<void>): Promise<void> {
       Trad could not prepare this account’s signing connection.
     </p>
     <p
-      v-else-if="currentRemote || connection?.approved"
+      v-else-if="locked || currentRemote || connection?.approved"
       class="signing-connection__notice signing-connection__notice--ok"
     >
       <ShieldCheck :size="14" /> Trad is connected to Hyperliquid. No additional signing setup is

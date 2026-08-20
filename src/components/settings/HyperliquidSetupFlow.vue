@@ -25,6 +25,7 @@ const props = defineProps<{
   approvingBuilder: boolean
   refreshingBuilder: boolean
   agentFeedback?: ApprovalFeedback
+  agentApprovalVersion: number
   builderFeedback?: ApprovalFeedback
   showTerminalHandoff?: boolean
 }>()
@@ -166,6 +167,7 @@ function approvedBuilderMaxLabel(): string {
           <HyperliquidSigningConnection
             :account="account"
             :locked="agentComplete"
+            :approval-version="agentApprovalVersion"
             @approval-ready="connectionApprovalReady = $event"
           />
           <div class="setup-action-row setup-action-row--approval">

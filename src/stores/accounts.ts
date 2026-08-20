@@ -20,10 +20,6 @@ import {
   isHyperliquidMetadataReady,
 } from '@/lib/accountMetadata'
 import { accountsStoreKey, getSessionUserId } from '@/lib/userSession'
-import { createLogger } from '@/lib/utils'
-
-const logger = createLogger('accounts')
-
 export interface AccountFormPayload {
   label: string
   key: string

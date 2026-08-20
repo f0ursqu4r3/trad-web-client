@@ -430,21 +430,45 @@ test('new accounts continue into required setup instead of stopping at the direc
   const agentAddress = '0x2222222222222222222222222222222222222222'
   const occupiedAddress = '0x3333333333333333333333333333333333333333'
   let created = false
+  let approved = false
+  let selectedAgentName = 'trad-local'
+  let approvalRefreshes = 0
+  await page.addInitScript(() => {
+    Date.now = () => 1780000000123
+    window.ethereum = {
+      request: async (request: { method: string }) => {
+        if (request.method === 'eth_requestAccounts') {
+          return ['0x1111111111111111111111111111111111111111']
+        }
+        if (request.method === 'eth_chainId') return '0xa4b1'
+        if (request.method === 'eth_signTypedData_v4') {
+          return `0x${'1'.repeat(64)}${'2'.repeat(64)}1b`
+        }
+        throw new Error(`unexpected wallet request ${request.method}`)
+      },
+    }
+  })
   await page.route('**/api/hyperliquid/agent-wallets**', async (route) => {
+    if (route.request().method() === 'PUT') {
+      selectedAgentName = (route.request().postDataJSON() as { agent_name: string }).agent_name
+    }
+    const remoteAgents = [
+      { name: 'trad-local', address: occupiedAddress },
+      { name: 'phone', address: '0x4444444444444444444444444444444444444444' },
+      { name: 'bot', address: '0x5555555555555555555555555555555555555555' },
+    ].map((remote) =>
+      approved && remote.name === selectedAgentName ? { ...remote, address: agentAddress } : remote,
+    )
     const connection = {
       credential_id: '81818181-8181-4818-8818-818181818181',
       network: 'mainnet',
       user_address: userAddress,
-      agent_name: 'trad-local',
+      agent_name: selectedAgentName,
       agent_address: agentAddress,
-      approved: false,
+      approved,
       attached_accounts: 1,
       preferred_name: 'trad-local',
-      remote_agents: [
-        { name: 'trad-local', address: occupiedAddress },
-        { name: 'phone', address: '0x4444444444444444444444444444444444444444' },
-        { name: 'bot', address: '0x5555555555555555555555555555555555555555' },
-      ],
+      remote_agents: remoteAgents,
     }
     await route.fulfill({
       status: 200,
@@ -454,6 +478,46 @@ test('new accounts continue into required setup instead of stopping at the direc
   })
   await page.route('**/api/accounts**', async (route) => {
     const request = route.request()
+    const account = {
+      id: accountId,
+      label: 'Setup Route QA',
+      key: 'redacted',
+      network: 'mainnet',
+      exchange: 'hyperliquid',
+      exchange_metadata: {
+        product: 'usdc_perp',
+        user_address: userAddress,
+        agent_name: selectedAgentName,
+        agent_address: agentAddress,
+        agent_approved: approved,
+        agent_approval_verified_at_ms: approved ? 1780000000123 : null,
+        builder_approved: false,
+      },
+    }
+    if (request.url().endsWith('/hyperliquid/agent-approval/refresh')) {
+      approvalRefreshes += 1
+      approved = approvalRefreshes >= 2
+      account.exchange_metadata.agent_approved = approved
+      account.exchange_metadata.agent_approval_verified_at_ms = approved ? 1780000000123 : null
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ account, agent_approved: approved }),
+      })
+      return
+    }
+    if (request.url().endsWith('/hyperliquid/agent-approval')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          account,
+          agent_approved: false,
+          exchange_response: { status: 'ok' },
+        }),
+      })
+      return
+    }
     if (request.method() === 'POST' && request.url().includes('/api/accounts/validate')) {
       await route.fulfill({
         status: 200,
@@ -478,27 +542,7 @@ test('new accounts continue into required setup instead of stopping at the direc
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(
-        created
-          ? [
-              {
-                id: accountId,
-                label: 'Setup Route QA',
-                key: 'redacted',
-                network: 'mainnet',
-                exchange: 'hyperliquid',
-                exchange_metadata: {
-                  product: 'usdc_perp',
-                  user_address: userAddress,
-                  agent_name: 'trad-local',
-                  agent_address: agentAddress,
-                  agent_approved: false,
-                  builder_approved: false,
-                },
-              },
-            ]
-          : [],
-      ),
+      body: JSON.stringify(created ? [account] : []),
     })
   })
 
@@ -522,9 +566,15 @@ test('new accounts continue into required setup instead of stopping at the direc
   await expect(page.getByRole('button', { name: 'Replace with Trad' }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: 'Connect Trad' })).toBeDisabled()
   page.once('dialog', (prompt) => prompt.accept())
-  await page.getByRole('button', { name: 'Replace with Trad' }).first().click()
+  await page.getByRole('button', { name: 'Replace with Trad' }).nth(2).click()
   await expect(page.getByText('will be replaced', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Connect Trad' })).toBeEnabled()
+  await page.getByRole('button', { name: 'Connect Trad' }).click()
+  await expect(
+    page.getByText('Trad is connected to Hyperliquid. No additional signing setup is required.'),
+  ).toBeVisible()
+  await expect(page.getByText('will be replaced', { exact: true })).toHaveCount(0)
+  await expect.poll(() => approvalRefreshes).toBe(2)
   await expect(page.getByRole('heading', { name: 'Authorize the Trad builder' })).toBeVisible()
   await page.screenshot({ path: 'test-results/signing-connection-setup.png', fullPage: true })
 })
