@@ -93,6 +93,7 @@ function availableSlotName(selected: HyperliquidAgentConnection): string {
 }
 
 async function loadConnections(): Promise<void> {
+  if (loading.value) return
   loading.value = true
   error.value = null
   try {
