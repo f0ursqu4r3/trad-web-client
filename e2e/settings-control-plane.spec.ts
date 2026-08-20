@@ -372,6 +372,56 @@ test('adding an existing Hyperliquid identity opens its configured account', asy
   expect(accountWrites).toBe(0)
 })
 
+test('account deletion shows retryable owner-node rejection details', async ({ page }) => {
+  await page.route('**/api/hyperliquid/agent-wallets', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+  })
+  await page.route('**/api/accounts**', async (route) => {
+    if (route.request().method() === 'DELETE') {
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: 'Trading account deletion was rejected by its owner node.',
+          rejection: {
+            kind: 'account_unavailable',
+            reason: 'authoritative reconciliation timed out',
+            retryable: true,
+          },
+        }),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: '51515151-5151-4515-8515-515151515151',
+          label: 'Timeout QA',
+          key: 'redacted',
+          network: 'testnet',
+          exchange: 'bifake',
+          exchange_metadata: null,
+        },
+      ]),
+    })
+  })
+
+  await page.goto('/auth/test-login?email=dev%40trad.local&return_to=%2Fsettings%2Faccounts')
+  await page.getByRole('button', { name: 'Delete Timeout QA' }).click()
+  await page
+    .getByRole('dialog', { name: 'Delete trading account' })
+    .getByRole('button', {
+      name: 'Check and delete',
+    })
+    .click()
+
+  await expect(
+    page.getByText(/Authoritative reconciliation timed out\. Retry the deletion\./),
+  ).toBeVisible()
+})
+
 test('new accounts continue into required setup instead of stopping at the directory', async ({
   page,
 }) => {

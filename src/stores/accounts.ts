@@ -151,6 +151,12 @@ export interface AccountDeletionResult {
 interface AccountDeletionFailure {
   error?: string
   blockers?: AccountDeletionBlocker[]
+  retryable?: boolean
+  rejection?: {
+    kind: string
+    reason?: string
+    retryable?: boolean
+  }
 }
 
 export {
@@ -388,10 +394,7 @@ export const useAccountsStore = defineStore('accounts', () => {
       `/accounts/${encodedLabel}`,
     )
     if (!isAccountDeletionResult(response)) {
-      const details = response.blockers?.map(accountDeletionBlockerLabel).join('; ')
-      throw new Error(
-        [response.error || 'Trading account deletion failed.', details].filter(Boolean).join(' '),
-      )
+      throw new Error(accountDeletionFailureMessage(response))
     }
     await fetchAccounts()
     return response
@@ -570,6 +573,18 @@ export const useAccountsStore = defineStore('accounts', () => {
 function accountDeletionBlockerLabel(blocker: AccountDeletionBlocker): string {
   const label = blocker.kind.replace(/_/g, ' ')
   return blocker.count == null ? label : `${label}: ${blocker.count}`
+}
+
+function accountDeletionFailureMessage(response: AccountDeletionFailure): string {
+  let message = response.error || 'Trading account deletion failed.'
+  const reason = response.rejection?.reason?.trim()
+  if (reason && !message.toLowerCase().includes(reason.toLowerCase())) {
+    message = `${message} ${reason[0]?.toUpperCase()}${reason.slice(1)}.`
+  }
+  const retryable = response.retryable ?? response.rejection?.retryable
+  if (retryable && !/\bretry\b/i.test(message)) message = `${message} Retry the deletion.`
+  const blockers = response.blockers?.map(accountDeletionBlockerLabel).join('; ')
+  return [message, blockers].filter(Boolean).join(' ')
 }
 
 function isAccountDeletionResult(
