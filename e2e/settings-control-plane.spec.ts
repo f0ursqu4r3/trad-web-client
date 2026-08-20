@@ -440,7 +440,11 @@ test('new accounts continue into required setup instead of stopping at the direc
       approved: false,
       attached_accounts: 1,
       preferred_name: 'trad-local',
-      remote_agents: [{ name: 'trad-local', address: occupiedAddress }],
+      remote_agents: [
+        { name: 'trad-local', address: occupiedAddress },
+        { name: 'phone', address: '0x4444444444444444444444444444444444444444' },
+        { name: 'bot', address: '0x5555555555555555555555555555555555555555' },
+      ],
     }
     await route.fulfill({
       status: 200,
@@ -512,17 +516,81 @@ test('new accounts continue into required setup instead of stopping at the direc
   await expect(page).toHaveURL(`/settings/accounts/${accountId}/setup`)
   await expect(page.getByRole('heading', { name: 'Setup Route QA' })).toBeVisible()
   await expect(page.getByText('Guided account setup', { exact: true })).toBeVisible()
-  await expect(
-    page.getByRole('heading', { name: 'Choose and approve Trad’s signing connection' }),
-  ).toBeVisible()
-  await expect(page.getByText(agentAddress, { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Connect Trad to Hyperliquid' })).toBeVisible()
+  await expect(page.getByText(agentAddress, { exact: true })).toHaveCount(0)
   await expect(page.getByText(occupiedAddress, { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Replace this slot' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Approve agent' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Replace with Trad' }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Connect Trad' })).toBeDisabled()
   page.once('dialog', (prompt) => prompt.accept())
-  await page.getByRole('button', { name: 'Replace this slot' }).click()
-  await expect(page.getByText('selected', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Approve agent' })).toBeEnabled()
+  await page.getByRole('button', { name: 'Replace with Trad' }).first().click()
+  await expect(page.getByText('will be replaced', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Connect Trad' })).toBeEnabled()
   await expect(page.getByRole('heading', { name: 'Authorize the Trad builder' })).toBeVisible()
   await page.screenshot({ path: 'test-results/signing-connection-setup.png', fullPage: true })
+})
+
+test('an open Hyperliquid slot needs only one visible connection action', async ({ page }) => {
+  const accountId = '72727272-7272-4727-8727-727272727272'
+  const userAddress = '0x1111111111111111111111111111111111111111'
+  const agentAddress = '0x2222222222222222222222222222222222222222'
+  const occupiedAddress = '0x3333333333333333333333333333333333333333'
+  let agentName = 'trad-local'
+  let selectedOpenName = false
+  await page.route('**/api/hyperliquid/agent-wallets**', async (route) => {
+    if (route.request().method() === 'PUT') {
+      agentName = (route.request().postDataJSON() as { agent_name: string }).agent_name
+      selectedOpenName = true
+    }
+    const connection = {
+      credential_id: '82828282-8282-4828-8828-828282828282',
+      network: 'mainnet',
+      user_address: userAddress,
+      agent_name: agentName,
+      agent_address: agentAddress,
+      approved: false,
+      attached_accounts: 1,
+      preferred_name: 'trad-local',
+      remote_agents: [{ name: 'trad-local', address: occupiedAddress }],
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(route.request().method() === 'GET' ? [connection] : connection),
+    })
+  })
+  await page.route('**/api/accounts**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: accountId,
+          label: 'Open Slot QA',
+          key: 'redacted',
+          network: 'mainnet',
+          exchange: 'hyperliquid',
+          exchange_metadata: {
+            product: 'usdc_perp',
+            user_address: userAddress,
+            agent_name: agentName,
+            agent_address: agentAddress,
+            agent_approved: false,
+            builder_approved: false,
+          },
+        },
+      ]),
+    })
+  })
+
+  await page.goto(
+    `/auth/test-login?email=dev%40trad.local&return_to=%2Fsettings%2Faccounts%2F${accountId}%2Fsetup`,
+  )
+  await expect(page.getByRole('heading', { name: 'Connect Trad to Hyperliquid' })).toBeVisible()
+  await expect.poll(() => selectedOpenName).toBe(true)
+  expect(agentName).toBe('trad-local-2')
+  await expect(page.getByText(agentAddress, { exact: true })).toHaveCount(0)
+  await expect(page.getByText(occupiedAddress, { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Hyperliquid has room for Trad.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Connect Trad' })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Replace with Trad' })).toHaveCount(0)
 })

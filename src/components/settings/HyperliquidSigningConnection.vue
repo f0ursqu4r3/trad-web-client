@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { KeyRound, RefreshCw, RotateCcw, ShieldCheck } from 'lucide-vue-next'
+import { RefreshCw, ShieldCheck } from 'lucide-vue-next'
 import {
   listHyperliquidAgentConnections,
   refreshHyperliquidAgentConnection,
-  replaceHyperliquidAgentConnection,
   selectHyperliquidAgentSlot,
   type HyperliquidAgentConnection,
   type HyperliquidRemoteAgent,
@@ -78,7 +77,19 @@ function ownsRemote(remote: HyperliquidRemoteAgent): boolean {
 
 function canChoose(remote: HyperliquidRemoteAgent): boolean {
   if (props.locked || busy.value || connection.value?.approved || ownsRemote(remote)) return false
-  return Boolean(slotConflict.value || namedSlotsFull.value)
+  return namedSlotsFull.value
+}
+
+function availableSlotName(selected: HyperliquidAgentConnection): string {
+  const occupied = new Set(selected.remote_agents.map((remote) => remote.name))
+  const preferred = selected.preferred_name.trim() || selected.agent_name.trim() || 'trad'
+  if (!occupied.has(preferred)) return preferred
+  for (let index = 2; index <= 4; index += 1) {
+    const suffix = `-${index}`
+    const candidate = `${preferred.slice(0, 16 - suffix.length)}${suffix}`
+    if (!occupied.has(candidate)) return candidate
+  }
+  throw new Error('No unused Hyperliquid connection name is available.')
 }
 
 async function loadConnections(): Promise<void> {
@@ -86,7 +97,19 @@ async function loadConnections(): Promise<void> {
   error.value = null
   try {
     connections.value = await listHyperliquidAgentConnections()
-    const selected = connection.value
+    let selected = connection.value
+    if (
+      selected &&
+      !selected.approved &&
+      !currentRemote.value &&
+      slotConflict.value &&
+      namedRemoteAgents.value.length < 3
+    ) {
+      await selectHyperliquidAgentSlot(selected.credential_id, availableSlotName(selected))
+      connections.value = await listHyperliquidAgentConnections()
+      await accounts.fetchAccounts()
+      selected = connection.value
+    }
     const metadata = props.account.exchange_metadata
     if (
       selected?.approved &&
@@ -112,24 +135,11 @@ async function refresh(): Promise<void> {
   })
 }
 
-async function replaceKey(): Promise<void> {
-  const selected = connection.value
-  if (!selected) return
-  const confirmed = window.confirm(
-    `Generate a fresh Trad signing key for ${selected.agent_name}? The current unapproved local key will be discarded.`,
-  )
-  if (!confirmed) return
-  replacementConsent.value = null
-  await run(async () => {
-    await replaceHyperliquidAgentConnection(selected.credential_id)
-  })
-}
-
 async function chooseSlot(remote: HyperliquidRemoteAgent): Promise<void> {
   const selected = connection.value
   if (!selected) return
   const confirmed = window.confirm(
-    `Replace Hyperliquid slot “${remote.name}” with this Trad signing connection? The existing agent at ${remote.address} will stop working.`,
+    `Replace Hyperliquid connection “${remote.name}” with Trad? The application using ${remote.address} will stop working after you approve the change in your wallet.`,
   )
   if (!confirmed) return
   await run(async () => {
@@ -153,76 +163,38 @@ async function run(action: () => Promise<void>): Promise<void> {
 </script>
 
 <template>
-  <section class="signing-connection" aria-label="Trad signing connection">
-    <header class="signing-connection__header">
-      <div>
-        <span class="setup-label">Selected signing connection</span>
-        <strong>{{ connection?.agent_name || 'Checking saved connections' }}</strong>
-      </div>
-      <span class="pill" :class="connection?.approved || currentRemote ? 'pill-ok' : 'pill-warn'">
-        {{
-          connection?.approved || currentRemote
-            ? 'connected'
-            : loading
-              ? 'checking'
-              : 'approval required'
-        }}
-      </span>
-    </header>
-
-    <div v-if="connection" class="signing-connection__identity">
-      <KeyRound :size="16" aria-hidden="true" />
-      <div>
-        <code>{{ connection.agent_address }}</code>
-        <span>
-          Trad holds this encrypted private key · {{ connection.attached_accounts }} attached
-          account{{ connection.attached_accounts === 1 ? '' : 's' }}
-        </span>
-      </div>
-    </div>
-
+  <section class="signing-connection" aria-label="Hyperliquid connection status">
     <p v-if="error" class="signing-connection__error" role="alert">{{ error }}</p>
+    <p v-else-if="loading" class="signing-connection__notice">Checking Hyperliquid connections…</p>
     <p v-else-if="!loading && !connection" class="signing-connection__error" role="alert">
-      No usable Trad signing key was found for this wallet and network.
-    </p>
-    <p v-else-if="currentRemote" class="signing-connection__notice signing-connection__notice--ok">
-      <ShieldCheck :size="14" /> Hyperliquid recognizes this address in the
-      <strong>{{ currentRemote.name }}</strong> named slot. No replacement is needed.
-    </p>
-    <p v-else-if="slotConflict && !replacementConfirmed" class="signing-connection__notice">
-      The <strong>{{ slotConflict.name }}</strong> slot is occupied by another agent. Explicitly
-      replace that slot before opening your wallet.
-    </p>
-    <p v-else-if="namedSlotsFull && !replacementConfirmed" class="signing-connection__notice">
-      All three named Hyperliquid slots are occupied. Choose one below to replace with Trad’s saved
-      key.
+      Trad could not prepare this account’s signing connection.
     </p>
     <p
-      v-else-if="connection && !connection.approved"
+      v-else-if="currentRemote || connection?.approved"
       class="signing-connection__notice signing-connection__notice--ok"
     >
-      The <strong>{{ connection.agent_name }}</strong> slot is ready for this Trad key. Your wallet
-      approval will create or replace only that named slot.
+      <ShieldCheck :size="14" /> Trad is connected to Hyperliquid. No additional signing setup is
+      required.
+    </p>
+    <p v-else-if="namedSlotsFull && !replacementConfirmed" class="signing-connection__notice">
+      All three Hyperliquid connections are occupied. Choose one below for Trad to replace.
+    </p>
+    <p v-else-if="replacementConfirmed" class="signing-connection__notice">
+      Trad will replace the selected connection after you approve the change in your wallet.
+    </p>
+    <p v-else class="signing-connection__notice signing-connection__notice--ok">
+      Hyperliquid has room for Trad. Continue below and approve the connection once in your wallet.
     </p>
 
-    <div v-if="connection" class="signing-connection__toolbar">
+    <div v-if="connection && namedSlotsFull" class="signing-connection__toolbar">
       <button class="btn btn-secondary btn-xs" type="button" :disabled="busy" @click="refresh">
-        <RefreshCw :size="13" /> {{ loading ? 'Checking' : 'Refresh slots' }}
-      </button>
-      <button
-        class="btn btn-secondary btn-xs"
-        type="button"
-        :disabled="locked || connection.approved || busy"
-        title="Generate a new address only after the saved agent is no longer approved"
-        @click="replaceKey"
-      >
-        <RotateCcw :size="13" /> Generate fresh key
+        <RefreshCw :size="13" /> Refresh connections
       </button>
     </div>
 
-    <div v-if="connection" class="remote-agent-list">
+    <div v-if="connection && namedSlotsFull" class="remote-agent-list">
       <div class="remote-agent-list__heading">
-        <span>Hyperliquid named slots</span>
+        <span>Connections currently registered on Hyperliquid</span>
         <span>{{ namedRemoteAgents.length }} of 3 occupied</span>
       </div>
       <div v-if="namedRemoteAgents.length" class="remote-agent-list__rows">
@@ -237,7 +209,7 @@ async function run(action: () => Promise<void>): Promise<void> {
           </div>
           <span v-if="ownsRemote(remote)" class="pill pill-ok">this Trad</span>
           <span v-else-if="replacementConsent === remote.name" class="pill pill-warn"
-            >selected</span
+            >will be replaced</span
           >
           <button
             v-else-if="canChoose(remote)"
@@ -245,15 +217,14 @@ async function run(action: () => Promise<void>): Promise<void> {
             type="button"
             @click="chooseSlot(remote)"
           >
-            Replace this slot
+            Replace with Trad
           </button>
           <span v-else class="remote-agent-row__status">another application</span>
         </div>
       </div>
-      <p v-else>No named agents are currently registered for this wallet.</p>
       <small>
-        Trad cannot use another address unless it also holds that address’s private key. Choosing a
-        slot here replaces its existing agent; it does not import that agent.
+        Replacing a connection disables the application currently using it. Trad cannot reuse an
+        existing connection because it does not possess that application’s signing key.
       </small>
     </div>
   </section>
@@ -265,37 +236,21 @@ async function run(action: () => Promise<void>): Promise<void> {
   border-top: 1px solid var(--border-normal);
   padding-top: 0.8rem;
 }
-.signing-connection__header,
-.signing-connection__identity,
 .signing-connection__toolbar,
 .remote-agent-list__heading,
 .remote-agent-row {
   display: flex;
   align-items: center;
 }
-.signing-connection__header,
 .remote-agent-list__heading,
 .remote-agent-row {
   justify-content: space-between;
   gap: 1rem;
 }
-.signing-connection__header strong,
-.signing-connection__identity code,
 .remote-agent-row code {
   display: block;
   overflow-wrap: anywhere;
   color: var(--fg-strong);
-  font-size: 12px;
-}
-.signing-connection__identity {
-  gap: 0.65rem;
-  margin-top: 0.65rem;
-  color: var(--accent-color);
-}
-.signing-connection__identity span {
-  display: block;
-  margin-top: 0.2rem;
-  color: var(--fg-muted);
   font-size: 12px;
 }
 .signing-connection__notice,

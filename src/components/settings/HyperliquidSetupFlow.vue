@@ -149,10 +149,11 @@ function approvedBuilderMaxLabel(): string {
           <header class="setup-step__heading">
             <div>
               <span class="setup-step__eyebrow">Step 2</span>
-              <h3>Choose and approve Trad’s signing connection</h3>
+              <h3>Connect Trad to Hyperliquid</h3>
               <p>
-                Review the saved Trad key and your Hyperliquid named slots first. Trad will reuse a
-                valid connection automatically and asks before replacing another application.
+                Trad prepares the secure signing connection automatically. You approve it once in
+                your wallet; Trad only asks you to choose when all Hyperliquid connections are
+                occupied.
               </p>
             </div>
             <span
@@ -169,12 +170,12 @@ function approvedBuilderMaxLabel(): string {
           />
           <div class="setup-action-row setup-action-row--approval">
             <div class="setup-value">
-              <span class="setup-label">Wallet authorization</span>
-              <span v-if="agentComplete">This connection is already approved.</span>
+              <span class="setup-label">Connection approval</span>
+              <span v-if="agentComplete">Trad is connected.</span>
               <span v-else-if="connectionApprovalReady">
-                The selected named slot is ready. Your wallet opens once to authorize Trad’s key.
+                Everything is ready. Confirm the connection once in your wallet.
               </span>
-              <span v-else>Resolve the highlighted signing-connection choice above first.</span>
+              <span v-else>Choose a Hyperliquid connection above for Trad to replace.</span>
             </div>
             <div class="setup-actions">
               <GuidedAction :active="agentCurrent && canSubmitAgentApproval" label="Do this next">
@@ -184,13 +185,7 @@ function approvedBuilderMaxLabel(): string {
                   :disabled="!canSubmitAgentApproval || !agentCurrent"
                   @click="$emit('approveAgent')"
                 >
-                  {{
-                    approvingAgent
-                      ? 'Approving'
-                      : agentComplete
-                        ? 'Agent approved'
-                        : 'Approve agent'
-                  }}
+                  {{ approvingAgent ? 'Connecting' : agentComplete ? 'Connected' : 'Connect Trad' }}
                 </button>
               </GuidedAction>
             </div>
