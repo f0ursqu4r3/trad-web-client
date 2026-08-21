@@ -33,9 +33,10 @@ const layoutComponent = computed(() => {
 // Keep the transport alive for the authenticated browser session. Terminal
 // navigation changes consumers and subscriptions, not connection ownership.
 watch(
-  () => isAuthenticated.value,
-  (authenticated) => {
-    if (authenticated) gateway.connect()
+  () => [isAuthenticated.value, route.meta.fixture] as const,
+  ([authenticated, fixture]) => {
+    if (fixture) gateway.disconnect()
+    else if (authenticated) gateway.connect()
     else gateway.disconnect()
   },
   { immediate: true },

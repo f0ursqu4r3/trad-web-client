@@ -9,6 +9,7 @@ const props = defineProps<{
   intent: BrowserPreviewIntent | null
   active: boolean
   quoteAsset?: string | null
+  compact?: boolean
 }>()
 const emit = defineEmits<{ (event: 'update:ready', ready: boolean): void }>()
 
@@ -76,7 +77,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="execution-preview" :class="{ rejected: error !== null }">
+  <section class="execution-preview" :class="{ rejected: error !== null, compact: props.compact }">
     <div class="preview-heading">
       <span>Execution Preview</span>
       <span v-if="pending">Planning…</span>
@@ -205,5 +206,17 @@ onBeforeUnmount(() => {
 }
 .preview-note {
   color: var(--color-text-dim);
+}
+.execution-preview.compact {
+  padding: 0.65rem;
+  background: var(--surface-sunken);
+}
+.execution-preview.compact .preview-heading,
+.execution-preview.compact .preview-grid {
+  font-size: 10px;
+}
+.execution-preview.compact .preview-details,
+.execution-preview.compact .preview-note {
+  font-size: 10px;
 }
 </style>

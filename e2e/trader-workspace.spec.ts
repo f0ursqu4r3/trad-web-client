@@ -15,6 +15,10 @@ test('presents managed trades instead of a primary command list', async ({ page 
   const workspace = page.getByTestId('trader-workspace')
   const cards = workspace.getByTestId('managed-trade-card')
 
+  await expect(
+    page.getByRole('button', { name: /switch trading account: krio demo/i }),
+  ).toBeVisible()
+  await expect(page.getByTestId('account-identity-rail')).toContainText(/Krio demo/i)
   await expect(cards).toHaveCount(3)
   await expect(cards.filter({ hasText: 'BTC' })).toContainText('active')
   await expect(cards.filter({ hasText: 'SOL' })).toContainText('entering')
@@ -51,13 +55,21 @@ test('close presets remain ordinary audited close commands', async ({ page }) =>
   await expect(dialog.getByLabel('Close Percentage (%)')).toHaveValue('50')
 })
 
-test('compact ticket opens the complete existing command form with prefill', async ({ page }) => {
-  await page.getByRole('button', { name: /review chase/i }).click()
+test('complete inline ticket previews and submits without opening the legacy form', async ({
+  page,
+}) => {
+  const ticket = page.getByRole('form', { name: 'New trade order ticket' })
 
-  const dialog = page.getByRole('dialog', { name: 'Chase Order' })
-  await expect(dialog).toBeVisible()
-  await expect(dialog.getByLabel('Symbol')).toHaveValue('BTC')
-  await expect(dialog.getByLabel('SL Trigger')).toBeVisible()
+  await expect(ticket.getByText('Join top · post-only maker')).toBeVisible()
+  await expect(ticket.getByText(/Live trade 63,842.5 USDC/)).toBeVisible()
+  await ticket.getByLabel('Stop-loss price (USDC)').fill('62000')
+  await expect(ticket.getByText('Ready', { exact: true })).toBeVisible()
+
+  const submit = ticket.getByRole('button', { name: 'Buy BTC chase' })
+  await expect(submit).toBeEnabled()
+  await submit.click()
+  await expect(ticket.getByText('Buy BTC chase accepted by Trad.')).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Chase Order' })).toHaveCount(0)
 })
 
 test('mobile stacks ticket, trades, then venue summaries without horizontal overflow', async ({

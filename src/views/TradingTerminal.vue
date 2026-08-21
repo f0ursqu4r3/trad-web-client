@@ -138,7 +138,22 @@ onMounted(async () => {
   flex: 1;
 }
 @media (max-width: 650px) {
-  .terminal-views { padding-right: 0; }
-  .view-tabs button { padding-inline: 0.6rem; }
+  .terminal-shell {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .terminal-shell > :last-child {
+    min-height: 100%;
+    flex: none;
+  }
+  .terminal-views {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    padding-right: 0;
+  }
+  .view-tabs button {
+    padding-inline: 0.6rem;
+  }
 }
 </style>

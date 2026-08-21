@@ -1,111 +1,98 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 
 import FormField from '@/components/forms/FormField.vue'
-import { newEntryProtectionState } from '@/lib/engineCommands/form'
-import type {
-  ChaseCommandPrefill,
-  OrderCommandPrefill,
-  TrailingEntryCommandPrefill,
-} from '@/lib/engineCommands/prefill'
+import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmission'
+import { sizingModePreference } from '@/lib/engineCommands/form'
+import { marketUnits } from '@/lib/engineCommands/marketUnits'
+import { previewIntent } from '@/lib/engineCommands/intents'
+import { buildTradeTicketIntent, newTradeTicketDraft } from '@/lib/trader/tradeTicketDraft'
 import { useAccountsStore } from '@/stores/accounts'
-import { useModalStore } from '@/stores/modals'
+import { useGatewayStore } from '@/stores/gateway'
 import { useUiStore } from '@/stores/ui'
-
-type EntryType = 'market' | 'limit' | 'chase' | 'trailing'
+import TradeTicketCore from './TradeTicketCore.vue'
+import TradeTicketExecution from './TradeTicketExecution.vue'
+import TradeTicketPolicy from './TradeTicketPolicy.vue'
+import TradeTicketProtection from './TradeTicketProtection.vue'
+import TradeTicketSizing from './TradeTicketSizing.vue'
 
 const accounts = useAccountsStore()
-const modals = useModalStore()
+const gateway = useGatewayStore()
 const ui = useUiStore()
-const entryType = ref<EntryType>('chase')
-const symbol = ref('')
-const positionSide = ref<'long' | 'short'>('long')
-const amount = ref('50')
-const sizingMode = ref<'quote_notional' | 'base' | 'risk_at_stop'>('quote_notional')
+const submission = useEngineCommandSubmission()
+const draft = reactive(
+  newTradeTicketDraft(
+    accounts.selectedAccountId
+      ? accounts.getDefaultSymbolForAccount(accounts.selectedAccountId)
+      : 'BTC',
+    ui.orderQuantityMode,
+  ),
+)
+const previewReady = ref(false)
+const acceptedMessage = ref<string | null>(null)
+const submitError = ref<string | null>(null)
 
 const account = computed(() => accounts.selectedAccount)
 const accountId = computed(() => account.value?.id ?? '')
-const submitLabel = computed(() => {
-  const side = positionSide.value === 'long' ? 'Buy / Long' : 'Sell / Short'
-  return `${side} · review ${entryType.value}`
+const units = computed(() => marketUnits(account.value, draft.symbol))
+const planningIntent = computed(() => {
+  try {
+    return previewIntent(buildTradeTicketIntent(draft))
+  } catch {
+    return null
+  }
 })
-const resolvedTarget = computed(() => {
-  const target = account.value?.exchange_metadata?.builder_target_total_tenths_bps
-  return target === null || target === undefined ? null : `${target / 10} bps`
+const readiness = computed(() => {
+  if (accountId.value === '') return 'Select a trading account.'
+  try {
+    buildTradeTicketIntent(draft)
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error)
+  }
+  if (!gateway.isConnected) return 'Waiting for the Trad gateway.'
+  if (!previewReady.value) return 'Waiting for the authoritative execution preview.'
+  return null
+})
+const canSubmit = computed(
+  () => readiness.value === null && !submission.submitting.value && planningIntent.value !== null,
+)
+const submitLabel = computed(() => {
+  const side = draft.positionSide === 'long' ? 'Buy' : 'Sell'
+  return `${side} ${draft.symbol.trim().toUpperCase() || 'market'} ${draft.entryType}`
 })
 
+watch(accountId, (next) => {
+  if (next !== '') draft.symbol = accounts.getDefaultSymbolForAccount(next)
+})
 watch(
-  accountId,
-  (next) => {
-    if (next === '') return
-    symbol.value = accounts.getDefaultSymbolForAccount(next)
+  () => draft.sizingMode,
+  (mode) => ui.setOrderQuantityMode(sizingModePreference(mode)),
+)
+watch(
+  () => draft.entryType,
+  (kind) => {
+    acceptedMessage.value = null
+    submitError.value = null
+    if (kind === 'trailing') {
+      draft.sizingMode = 'risk_at_stop'
+      draft.protection.stopLoss.enabled = true
+      if (draft.protection.takeProfits.length > 1) {
+        draft.protection.takeProfits = draft.protection.takeProfits.slice(0, 1)
+      }
+    }
   },
-  { immediate: true },
 )
 
-function review(): void {
-  if (accountId.value === '') return
-  const common = {
-    accountId: accountId.value,
-    symbol: symbol.value.trim().toUpperCase(),
-    positionSide: positionSide.value,
+async function submit(): Promise<void> {
+  submitError.value = null
+  acceptedMessage.value = null
+  try {
+    const intent = buildTradeTicketIntent(draft)
+    const accepted = await submission.submit({ accountId: accountId.value, intent })
+    if (accepted) acceptedMessage.value = `${submitLabel.value} accepted by Trad.`
+  } catch (error) {
+    submitError.value = error instanceof Error ? error.message : String(error)
   }
-  if (entryType.value === 'market' || entryType.value === 'limit') {
-    const values: OrderCommandPrefill = {
-      ...common,
-      executionKind: entryType.value,
-      sizingMode: sizingMode.value,
-      amount: amount.value,
-      limitPrice: '',
-      timeInForce: 'good_til_canceled',
-      shapeMode: 'single',
-      targetChildNotional: '',
-      maxChildren: '20',
-      protection: newEntryProtectionState(),
-    }
-    modals.openModalWithValues(
-      entryType.value === 'market' ? 'EngineMarketOrder' : 'EngineLimitOrder',
-      { ...values },
-    )
-    return
-  }
-  if (entryType.value === 'chase') {
-    const values: ChaseCommandPrefill = {
-      ...common,
-      sizingMode: sizingMode.value,
-      amount: amount.value,
-      boundaryKind: 'none',
-      boundaryValue: '',
-      expirySeconds: '',
-      remainder: 'cancel',
-      protection: newEntryProtectionState(),
-    }
-    modals.openModalWithValues('EngineChaseOrder', { ...values })
-    return
-  }
-  const values: TrailingEntryCommandPrefill = {
-    ...common,
-    activationPrice: '',
-    jumpBasisPoints: '',
-    stopLossPrice: '',
-    takeProfitPrice: '',
-    riskAmount: amount.value,
-    shapeMode: 'single',
-    targetChildNotional: '',
-    maxChildren: '20',
-    oneWaySemantics: 'target_side_exposure',
-  }
-  modals.openModalWithValues('EngineTrailingEntry', { ...values })
-}
-
-function rememberSizing(): void {
-  ui.setOrderQuantityMode(
-    sizingMode.value === 'quote_notional'
-      ? 'notional'
-      : sizingMode.value === 'risk_at_stop'
-        ? 'risk'
-        : 'base',
-  )
 }
 </script>
 
@@ -119,93 +106,48 @@ function rememberSizing(): void {
       <span class="account-context">{{ account?.label ?? 'No account' }}</span>
     </header>
 
-    <div class="ticket-body">
-      <div class="entry-tabs" aria-label="Entry type">
-        <button
-          v-for="kind in ['market', 'limit', 'chase', 'trailing'] as EntryType[]"
-          :key="kind"
-          class="entry-tab"
-          :class="{ active: entryType === kind }"
-          type="button"
-          :aria-pressed="entryType === kind"
-          @click="entryType = kind"
-        >
-          {{ kind === 'trailing' ? 'Trailing' : kind }}
-        </button>
-      </div>
+    <form class="ticket-body" aria-label="New trade order ticket" @submit.prevent="submit">
+      <TradeTicketCore v-model="draft" :account-id="accountId" :units="units" />
+      <TradeTicketExecution v-model="draft" :units="units" />
+      <TradeTicketSizing v-model="draft" :units="units" />
+      <TradeTicketProtection v-model="draft" :units="units" />
 
-      <FormField
-        label="Market"
-        help="The exchange instrument. Trad validates the symbol and instrument rules during review."
-        required
-      >
-        <input v-model="symbol" class="input" autocomplete="off" placeholder="BTC" />
-      </FormField>
-
-      <div class="side-toggle" aria-label="Position side">
-        <button
-          class="side-button long"
-          :class="{ active: positionSide === 'long' }"
-          type="button"
-          @click="positionSide = 'long'"
-        >
-          Buy / Long
-        </button>
-        <button
-          class="side-button short"
-          :class="{ active: positionSide === 'short' }"
-          type="button"
-          @click="positionSide = 'short'"
-        >
-          Sell / Short
-        </button>
-      </div>
-
-      <div class="ticket-grid">
-        <FormField
-          label="Sizing"
-          help="Choose quote notional, base quantity, or the amount you are willing to lose at the stop."
-          required
-        >
-          <select v-model="sizingMode" class="input" @change="rememberSizing">
-            <option value="quote_notional">Notional</option>
-            <option value="base">Base quantity</option>
-            <option value="risk_at_stop">Risk at stop</option>
-          </select>
-        </FormField>
-        <FormField
-          :label="sizingMode === 'risk_at_stop' ? 'Risk' : 'Amount'"
-          help="The full review shows normalized quantity and exact position effect before submission."
-          required
-        >
-          <input v-model="amount" class="input" inputmode="decimal" />
-        </FormField>
-      </div>
-
-      <div class="ticket-policy">
-        <div>
-          <span>Protection</span>
-          <strong>Stop market enabled by default</strong>
+      <details v-if="draft.entryType !== 'chase'" class="ticket-advanced">
+        <summary>Advanced execution shape</summary>
+        <div class="ticket-grid">
+          <FormField label="Execution shape" help="Single order or bounded child-order split.">
+            <select v-model="draft.shapeMode" class="input">
+              <option value="single">Single order</option>
+              <option value="split">Split order</option>
+            </select>
+          </FormField>
+          <FormField v-if="draft.shapeMode === 'split'" label="Maximum children" required>
+            <input v-model="draft.maxChildren" class="input" inputmode="numeric" />
+          </FormField>
+          <FormField v-if="draft.shapeMode === 'split'" label="Target child notional" optional>
+            <input v-model="draft.targetChildNotional" class="input" inputmode="decimal" />
+          </FormField>
         </div>
-        <div>
-          <span>Resolved target</span>
-          <strong>{{ resolvedTarget ?? 'Server policy' }}</strong>
-        </div>
-      </div>
+      </details>
 
-      <p class="ticket-note">
-        Review opens the complete Trad form for limit terms, stop loss, take profits, execution
-        guards, and the authoritative position-effect preview.
+      <TradeTicketPolicy
+        :account="account"
+        :account-id="accountId"
+        :intent="planningIntent"
+        :quote-asset="units.quote"
+        @ready="previewReady = $event"
+      />
+
+      <p v-if="acceptedMessage" class="ticket-success">{{ acceptedMessage }}</p>
+      <p v-else-if="submitError || submission.submissionError.value" class="ticket-error">
+        {{ submitError || submission.submissionError.value }}
       </p>
-      <button
-        class="btn btn-primary review-button"
-        type="button"
-        :disabled="accountId === '' || symbol.trim() === '' || amount.trim() === ''"
-        @click="review"
-      >
-        {{ submitLabel }}
+      <p v-else-if="readiness" class="ticket-readiness">{{ readiness }}</p>
+
+      <button class="btn btn-primary submit-button" type="submit" :disabled="!canSubmit">
+        {{ submission.submitting.value ? 'Submitting…' : submitLabel }}
       </button>
-    </div>
+    </form>
   </section>
 </template>
 
@@ -216,93 +158,48 @@ function rememberSizing(): void {
 .ticket-body {
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
-  padding: 1rem;
-}
-.entry-tabs,
-.side-toggle {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--border-normal);
-}
-.entry-tab,
-.side-button {
-  min-height: 34px;
-  padding: 0.45rem 0.35rem;
-  color: var(--fg-muted);
-  font-size: 12px;
-  text-transform: capitalize;
-  background: var(--surface-sunken);
-  border: 0;
-  border-right: 1px solid var(--border-subtle);
-}
-.entry-tab:last-child,
-.side-button:last-child {
-  border-right: 0;
-}
-.entry-tab.active {
-  color: var(--fg-strong);
-  background: var(--surface-active);
-  box-shadow: inset 0 -2px var(--accent-color);
-}
-.side-toggle {
-  grid-template-columns: 1fr 1fr;
-}
-.side-button.active.long {
-  color: var(--state-success);
-  background: color-mix(in srgb, var(--state-success) 13%, var(--surface-base));
-  box-shadow: inset 0 -2px var(--state-success);
-}
-.side-button.active.short {
-  color: var(--state-error);
-  background: color-mix(in srgb, var(--state-error) 11%, var(--surface-base));
-  box-shadow: inset 0 -2px var(--state-error);
+  gap: 0.8rem;
+  padding: 0.9rem;
 }
 .ticket-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0.75rem;
-}
-.ticket-policy {
-  display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  border: 1px solid var(--border-subtle);
+  gap: 0.65rem;
+  padding-top: 0.65rem;
+}
+.ticket-advanced {
+  padding: 0.6rem 0.7rem;
+  color: var(--fg-muted);
   background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
 }
-.ticket-policy div {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+.ticket-advanced summary {
+  cursor: pointer;
+  font-size: 11px;
 }
-.ticket-policy span {
-  color: var(--fg-muted);
-  font-size: 10px;
-  letter-spacing: 0.055em;
-  text-transform: uppercase;
-}
-.ticket-policy strong {
-  color: var(--fg);
-  font-size: 12px;
-  font-weight: 400;
-}
-.ticket-note {
+.ticket-readiness,
+.ticket-error,
+.ticket-success {
   margin: 0;
-  color: var(--fg-muted);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.45;
 }
-.review-button {
+.ticket-readiness {
+  color: var(--state-warning);
+}
+.ticket-error {
+  color: var(--state-error);
+}
+.ticket-success {
+  color: var(--state-success);
+}
+.submit-button {
   width: 100%;
-  min-height: 38px;
+  min-height: 40px;
+  text-transform: none;
 }
 @media (max-width: 520px) {
-  .entry-tabs {
-    grid-template-columns: 1fr 1fr;
-  }
-  .ticket-grid,
-  .ticket-policy {
+  .ticket-grid {
     grid-template-columns: 1fr;
   }
 }

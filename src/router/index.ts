@@ -85,7 +85,7 @@ const routes: RouteRecordRaw[] = [
         {
           path: '/e2e/trader-workspace',
           component: () => import('@/views/e2e/TraderWorkspaceFixture.vue'),
-          meta: { layout: 'blank' },
+          meta: { layout: 'authenticated', fixture: true },
         },
         {
           path: '/e2e/engine-commands',

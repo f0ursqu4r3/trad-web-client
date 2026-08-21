@@ -35,6 +35,7 @@ export interface ManagedTradeView {
   closeOrders: OrderProjection[]
   executions: ExecutionProjection[]
   protection: NativeProtectionProjection | null
+  plannedRisk: string | null
   requestedQuantity: string | null
   filledQuantity: string
   remainingQuantity: string

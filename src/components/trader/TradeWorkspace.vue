@@ -44,19 +44,21 @@ async function selectTrade(tradeId: string): Promise<void> {
 
 <template>
   <div class="trader-workspace" data-testid="trader-workspace">
-    <aside class="workspace-ticket">
-      <TradeTicket />
-    </aside>
-    <aside class="workspace-summaries">
-      <PositionSummary :rows="model?.positions ?? []" @select-trade="selectTrade" />
-      <OpenOrdersSummary :rows="model?.openOrders ?? []" @select-trade="selectTrade" />
+    <aside class="workspace-sidebar">
+      <div class="workspace-ticket">
+        <TradeTicket />
+      </div>
+      <div class="workspace-summaries">
+        <PositionSummary :rows="model?.positions ?? []" @select-trade="selectTrade" />
+        <OpenOrdersSummary :rows="model?.openOrders ?? []" @select-trade="selectTrade" />
+      </div>
     </aside>
 
     <main class="workspace-main">
       <header class="workspace-heading">
         <div>
-          <span class="eyebrow">Selected account</span>
-          <h1 v-if="section === 'trades'">Managed trades</h1>
+          <span class="eyebrow">Trad-managed</span>
+          <h1 v-if="section === 'trades'">Trades</h1>
           <h1 v-else-if="section === 'positions'">Net positions</h1>
           <h1 v-else>Open orders</h1>
         </div>
@@ -107,7 +109,7 @@ async function selectTrade(tradeId: string): Promise<void> {
         />
         <PanelEmptyState
           v-if="visibleTrades.length === 0"
-          :title="showClosed ? 'No closed trades' : 'No managed trades yet'"
+          :title="showClosed ? 'No closed trades' : 'No trades yet'"
           :description="
             showClosed
               ? 'Closed managed trades will remain available here as durable history.'
@@ -149,39 +151,38 @@ async function selectTrade(tradeId: string): Promise<void> {
   width: 100%;
   height: 100%;
   min-height: 0;
-  grid-template-areas:
-    'ticket main'
-    'summaries main';
+  grid-template-areas: 'sidebar main';
   grid-template-columns: minmax(310px, 380px) minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   background: var(--surface-canvas);
+}
+.workspace-sidebar {
+  grid-area: sidebar;
+  min-height: 0;
+  overflow: auto;
+  border-right: 1px solid var(--border-normal);
+  background: var(--surface-sunken);
 }
 .workspace-ticket,
 .workspace-summaries,
 .workspace-main {
   min-height: 0;
-  overflow: auto;
 }
 .workspace-ticket {
-  grid-area: ticket;
   padding: 0.75rem 0.75rem 0;
-  border-right: 1px solid var(--border-normal);
-  background: var(--surface-sunken);
 }
 .workspace-summaries {
-  grid-area: summaries;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   padding: 0.75rem;
-  border-right: 1px solid var(--border-normal);
-  background: var(--surface-sunken);
 }
 .workspace-main {
   grid-area: main;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  overflow: auto;
 }
 .workspace-heading {
   position: sticky;
@@ -209,6 +210,8 @@ async function selectTrade(tradeId: string): Promise<void> {
 }
 .trade-list {
   display: flex;
+  min-height: 0;
+  flex: 1;
   flex-direction: column;
   gap: 0.75rem;
   padding: 0.75rem;
@@ -239,22 +242,30 @@ async function selectTrade(tradeId: string): Promise<void> {
 }
 @media (max-width: 980px) {
   .trader-workspace {
-    height: 100%;
-    grid-template-areas:
-      'ticket'
-      'main'
-      'summaries';
-    grid-template-columns: 1fr;
-    grid-template-rows: max-content max-content max-content;
-    overflow: auto;
-  }
-  .workspace-ticket,
-  .workspace-summaries,
-  .workspace-main {
+    display: flex;
+    height: auto;
+    min-height: 100%;
+    flex-direction: column;
     overflow: visible;
   }
+  .workspace-sidebar {
+    display: contents;
+  }
   .workspace-ticket {
+    order: 1;
+  }
+  .workspace-main {
+    order: 2;
+    overflow: visible;
+  }
+  .workspace-summaries {
+    order: 3;
+  }
+  .workspace-ticket {
+    min-width: 0;
+    max-width: 100%;
     padding: 0.75rem;
+    overflow-x: hidden;
     border-right: 0;
     border-bottom: 1px solid var(--border-normal);
   }
@@ -264,6 +275,13 @@ async function selectTrade(tradeId: string): Promise<void> {
   }
   .workspace-heading {
     position: static;
+  }
+  .trade-list,
+  .primary-summary,
+  .workspace-summaries {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
   }
 }
 @media (max-width: 620px) {

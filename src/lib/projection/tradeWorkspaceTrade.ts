@@ -77,6 +77,7 @@ export function buildManagedTrade(
     closeOrders,
     executions,
     protection,
+    plannedRisk: plannedRisk(seed.primaryCommand),
     requestedQuantity:
       entryOrders.length === 0
         ? plannedQuantity(seed.primaryCommand)
@@ -157,6 +158,18 @@ function plannedQuantity(command: CommandProjection): string | null {
     return stringValue(objectValue(parameters.request)?.quantity)
   }
   return null
+}
+
+function plannedRisk(command: CommandProjection): string | null {
+  const parameters = command.accepted.parameters
+  if (command.accepted.kind === 'place_trailing_entry') {
+    return (
+      stringValue(parameters.risk_amount) ?? stringValue(objectValue(parameters.plan)?.risk_amount)
+    )
+  }
+  const sizing =
+    objectValue(parameters.sizing) ?? objectValue(objectValue(parameters.request)?.sizing)
+  return sizing?.kind === 'risk_at_stop' ? stringValue(sizing.loss_amount) : null
 }
 
 function entryLabel(command: CommandProjection): string {
