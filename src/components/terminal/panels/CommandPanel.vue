@@ -71,8 +71,6 @@ const confirmation = ref<{
   title: string
   message: string
   confirmLabel: string
-  rememberLabel?: string
-  disableFutureConfirmation?: boolean
   action: () => void
 } | null>(null)
 const editTeTarget = ref<{ deviceId: string; snapshot: TrailingEntrySnapshot } | null>(null)
@@ -91,10 +89,6 @@ defineExpose({
   ),
   shownCommandCount: computed(() => commandStore.filteredCommands.length),
 })
-
-const hiddenCommandCount = computed(
-  () => commandStore.commands.length - commandStore.filteredCommands.length,
-)
 
 const pinnedCommands = computed(() => {
   return commandStore.filteredCommands.filter(
@@ -201,8 +195,8 @@ function isSoloActive(group: MultiFilterGroup, option: string) {
   return commandStore.commandFilters.solo[group] && isFilterActive(group, option)
 }
 
-function setTimeRange(value: string) {
-  commandStore.commandFilters.timeRange = value as any
+function setTimeRange(value: (typeof timeOptions)[number]['value']) {
+  commandStore.commandFilters.timeRange = value
 }
 
 function getCommandComponent(command: UserCommandPayload): Component | string {
@@ -415,19 +409,7 @@ function handleClosePosition(commandId: string): void {
     openHyperliquidCommandClose(commandId, true)
     return
   }
-  if (!uiStore.confirmPositionCloses) {
-    commandStore.closePosition(commandId)
-    return
-  }
-  const label = commandStore.closePositionLabel(commandId)
-  confirmation.value = {
-    title: label,
-    message: `${label} for command ${commandId.slice(0, 8)}?\n\nTrad will cancel any remaining entry order before submitting a reduce-only market close for this command's attributable exposure.`,
-    confirmLabel: label,
-    rememberLabel: "Don't ask again for position closes",
-    disableFutureConfirmation: true,
-    action: () => commandStore.closePosition(commandId),
-  }
+  commandStore.closePosition(commandId)
 }
 
 function handlePartialClosePosition(commandId: string): void {
@@ -496,12 +478,9 @@ function handleCancelRemainingEntry(commandId: string): void {
   }
 }
 
-function confirmPendingAction(disableFutureConfirmation = false): void {
+function confirmPendingAction(): void {
   const pending = confirmation.value
   confirmation.value = null
-  if (pending?.disableFutureConfirmation && disableFutureConfirmation) {
-    uiStore.setConfirmPositionCloses(false)
-  }
   pending?.action()
 }
 
@@ -1213,7 +1192,6 @@ function saveRename() {
       :title="confirmation.title"
       :message="confirmation.message"
       :confirm-label="confirmation.confirmLabel"
-      :remember-label="confirmation.rememberLabel"
       @confirm="confirmPendingAction"
       @cancel="confirmation = null"
     />

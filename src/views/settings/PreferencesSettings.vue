@@ -17,7 +17,6 @@ async function save() {
     theme: ui.theme,
     number_display_mode: ui.numberDisplayMode,
     newest_commands_first: ui.newestCommandsFirst,
-    confirm_position_closes: ui.confirmPositionCloses,
     animate_account_rail: ui.animateAccountRail,
     order_quantity_mode: ui.orderQuantityMode,
   }
@@ -68,9 +67,6 @@ async function save() {
       >
       <label class="control-check control-field-panel"
         ><input v-model="ui.newestCommandsFirst" type="checkbox" />Newest commands first</label
-      ><label class="control-check control-field-panel"
-        ><input v-model="ui.confirmPositionCloses" type="checkbox" />Confirm position-closing
-        actions</label
       ><label class="control-check control-field-panel"
         ><input v-model="ui.animateAccountRail" type="checkbox" />Animate account identity
         rail</label

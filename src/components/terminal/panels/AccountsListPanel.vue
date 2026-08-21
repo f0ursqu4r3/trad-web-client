@@ -92,9 +92,13 @@ const leverageForms = reactive<
 const guardForms = reactive<
   Record<string, { entryPercent: number; takeProfitPercent: number; stopLossPercent: number }>
 >({})
+const feeTargetForms = reactive<
+  Record<string, { mode: 'inherit' | 'override'; targetBps: number }>
+>({})
 const sortedAccounts = computed(() => {
   accounts.accounts.forEach(ensureLeverageForm)
   accounts.accounts.forEach(ensureGuardForm)
+  accounts.accounts.forEach(ensureFeeTargetForm)
   const sorted = accounts.accounts.slice().sort((a, b) => a.label.localeCompare(b.label))
   if (props.mode !== 'detail' || !props.detailAccountId) return sorted
   return sorted.filter((account) => account.id === props.detailAccountId)
@@ -229,6 +233,66 @@ function ensureGuardForm(account: AccountRecord) {
     entryPercent: tenthsBpsToPercent(guards.entry_market_tenths_bps),
     takeProfitPercent: tenthsBpsToPercent(guards.take_profit_market_tenths_bps),
     stopLossPercent: tenthsBpsToPercent(guards.stop_loss_market_tenths_bps),
+  }
+}
+
+function ensureFeeTargetForm(account: AccountRecord) {
+  if (feeTargetForms[account.id]) return
+  const metadata = account.exchange_metadata
+  feeTargetForms[account.id] = {
+    mode:
+      metadata?.builder_target_source === 'account_override' ||
+      metadata?.builder_target_override_tenths_bps != null
+        ? 'override'
+        : 'inherit',
+    targetBps: hyperliquidTargetTotalTenthsBps(metadata) / 10,
+  }
+}
+
+function builderTargetSourceLabel(account: AccountRecord): string {
+  switch (account.exchange_metadata?.builder_target_source) {
+    case 'account_override':
+      return 'trading-account override'
+    case 'user_override':
+      return 'user-wide override'
+    case 'user_plan':
+      return 'commercial plan'
+    default:
+      return 'Trad-wide default'
+  }
+}
+
+function feeTargetError(account: AccountRecord): string | null {
+  const form = feeTargetForms[account.id]
+  if (!form || form.mode === 'inherit') return null
+  if (!Number.isFinite(form.targetBps) || form.targetBps < 0 || form.targetBps > 10) {
+    return 'Target total must be between 0.0 and 10.0 bps'
+  }
+  return null
+}
+
+async function saveAccountFeeTarget(account: AccountRecord) {
+  controlError.value = null
+  controlMessage.value = null
+  const form = feeTargetForms[account.id]
+  const error = feeTargetError(account)
+  if (!form || error) {
+    controlError.value = error || 'Account fee target is unavailable.'
+    return
+  }
+  try {
+    if (form.mode === 'inherit') {
+      await accounts.updateAccountMetadata(account.id, {}, { clearBuilderTargetOverride: true })
+    } else {
+      await accounts.updateAccountMetadata(account.id, {
+        builder_target_total_tenths_bps: Math.round(form.targetBps * 10),
+      })
+    }
+    delete feeTargetForms[account.id]
+    await accounts.fetchAccounts()
+    controlMessage.value = `Saved fee target policy for ${account.label}.`
+  } catch (err) {
+    controlError.value = err instanceof Error ? err.message : String(err)
   }
 }
 
@@ -681,7 +745,6 @@ async function saveHyperliquidLeveragePrefs(account: AccountRecord) {
   }, {})
   try {
     await accounts.updateAccountMetadata(account.id, {
-      ...account.exchange_metadata,
       product: 'usdc_perp',
       hedge_mode_only: false,
       default_leverage: form.defaultLeverage,
@@ -893,6 +956,58 @@ watch(
                 @approve-builder="approveHyperliquidBuilder(account)"
                 @refresh-builder="refreshHyperliquidBuilder(account)"
               />
+
+              <div
+                v-if="
+                  showAccountDetails(account) &&
+                  showDetailSection('defaults') &&
+                  account.exchange === ExchangeType.Hyperliquid &&
+                  account.exchange_metadata?.builder_fee_manager
+                "
+                class="account-fee-target-grid border-t border-[var(--panel-border-inner)] pt-2"
+              >
+                <FormField
+                  label="Fee target source"
+                  help="Inherit the user or plan value, or establish an override for only this trading account."
+                  required
+                >
+                  <select v-model="feeTargetForms[account.id].mode" class="input h-7 text-xs">
+                    <option value="inherit">Inherit</option>
+                    <option value="override">Override this account</option>
+                  </select>
+                </FormField>
+                <FormField
+                  label="Target total / side"
+                  help="Exchange fee plus Trad builder fee. Hyperliquid’s approval ceiling is 10 bps."
+                  :error="feeTargetError(account)"
+                  :required="feeTargetForms[account.id].mode === 'override'"
+                >
+                  <input
+                    v-model.number="feeTargetForms[account.id].targetBps"
+                    class="input h-7 text-xs"
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="0.1"
+                    :disabled="feeTargetForms[account.id].mode === 'inherit'"
+                  />
+                  <small class="field-hint">
+                    Effective
+                    {{
+                      (hyperliquidTargetTotalTenthsBps(account.exchange_metadata) / 10).toFixed(1)
+                    }}
+                    bps from {{ builderTargetSourceLabel(account) }}.
+                  </small>
+                </FormField>
+                <button
+                  class="btn btn-secondary btn-xs account-settings-action"
+                  type="button"
+                  :disabled="Boolean(feeTargetError(account))"
+                  @click="saveAccountFeeTarget(account)"
+                >
+                  Save fee target
+                </button>
+              </div>
 
               <div
                 v-if="showAccountDetails(account) && showDetailSection('defaults')"
@@ -1303,7 +1418,7 @@ watch(
                     }}
                     bps per side
                   </span>
-                  · Set by the Trad administrator under Execution policy.
+                  · Source: {{ builderTargetSourceLabel(account) }}.
                   <br />
                   Exchange fee + Trad builder fee equals the target total. The builder fee is
                   calculated from the live account fee tier for each submitted order.
@@ -1401,6 +1516,7 @@ watch(
 }
 
 .account-settings-grid,
+.account-fee-target-grid,
 .account-guard-grid,
 .account-agent-grid,
 .account-builder-grid {
@@ -1410,6 +1526,7 @@ watch(
 }
 
 .account-settings-grid :is(.input, .btn),
+.account-fee-target-grid :is(.input, .btn),
 .account-guard-grid :is(.input, .btn),
 .account-agent-grid .btn,
 .account-builder-grid :is(.input, .btn) {
@@ -1435,6 +1552,10 @@ watch(
 
   .account-settings-grid--hedged {
     grid-template-columns: minmax(13rem, 2fr) minmax(5.5rem, 0.7fr) auto auto;
+  }
+
+  .account-fee-target-grid {
+    grid-template-columns: minmax(12rem, 0.8fr) minmax(14rem, 1fr) auto;
   }
 
   .account-guard-grid {

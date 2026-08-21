@@ -6,6 +6,7 @@ import { ChevronDown, Pin } from 'lucide-vue-next'
 import { formatName } from '@/lib/utils'
 import type { CommandActionContextStatus } from '@/stores/command'
 import { CommandEffectKind, type CommandEffectRecord } from '@/lib/ws/protocol'
+import { longPress } from '@/lib/longPress'
 import type { CommandMenuAction } from './presentation'
 
 const props = withDefaults(
@@ -288,6 +289,10 @@ function openContextMenu(event: MouseEvent) {
   commandMenuRef.value?.openAt(event.clientX, event.clientY)
 }
 
+const touchContext = longPress((_commandId: string, x, y) => {
+  commandMenuRef.value?.openAt(x, y)
+})
+
 // Detail formatting is handled by child components using this wrapper.
 </script>
 
@@ -296,7 +301,12 @@ function openContextMenu(event: MouseEvent) {
     class="flex flex-col shadow-sm cursor-pointer command-row relative"
     :class="props.pinned ? 'command-row-pinned' : ''"
     @click="emit('inspect', commandId)"
+    @click.capture="touchContext.suppressClick"
     @contextmenu="openContextMenu"
+    @pointerdown="touchContext.start($event, commandId)"
+    @pointermove="touchContext.move"
+    @pointerup="touchContext.end"
+    @pointercancel="touchContext.end"
   >
     <div class="command-status-bar" :class="statusClass"></div>
     <div class="flex items-start justify-between gap-3 px-3 py-2">

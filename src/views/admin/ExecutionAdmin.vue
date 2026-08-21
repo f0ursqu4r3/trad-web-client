@@ -10,7 +10,7 @@ const mainnetBuilder = ref('')
 const testnetBuilder = ref('')
 const saved = ref(false)
 const valid = computed(
-  () => Number.isFinite(target.value) && target.value >= 0 && target.value <= 5.2,
+  () => Number.isFinite(target.value) && target.value >= 0 && target.value <= 10,
 )
 async function save() {
   if (!valid.value) return
@@ -37,7 +37,7 @@ onMounted(async () => {
   <ControlPageHeader
     eyebrow="Administration"
     title="Execution policy"
-    description="Platform-owned fee policy. Users approve a ceiling but cannot choose Trad’s actual target."
+    description="Trad-wide default fee policy. User and trading-account overrides take precedence."
   />
   <ControlSection title="Hyperliquid builder policy"
     ><div class="control-form-grid max-w-3xl">
@@ -48,7 +48,7 @@ onMounted(async () => {
           class="input"
           type="number"
           min="0"
-          max="5.2"
+          max="10"
           step="0.1"
         /><span
           >Exchange fee + Trad builder fee. Existing Hyperliquid accounts are revised
@@ -63,11 +63,11 @@ onMounted(async () => {
       >
       <label class="field"
         ><span>Testnet builder address</span
-        ><input v-model.trim="testnetBuilder" class="input" placeholder="Optional 0x…" /></label
-      >
+        ><input v-model.trim="testnetBuilder" class="input" placeholder="Optional 0x…"
+      /></label>
       <div class="control-detail-grid">
         <div><span>Wallet approval ceiling</span><strong>10.0 bps / 0.100%</strong></div>
-        <div><span>Business boundary</span><strong>0.0–5.2 bps</strong></div>
+        <div><span>Configurable range</span><strong>0.0–10.0 bps</strong></div>
       </div>
     </div>
     <div class="control-actions">
@@ -76,8 +76,9 @@ onMounted(async () => {
       ><span v-if="saved" class="notice-ok m-0">Applied and audited.</span>
     </div>
     <p class="control-notice">
-      Policy changes are versioned. Account configurations adopt the version on the next
-      authorization or billing reconciliation; an address rotation requires fresh wallet approval.
+      5.2 bps is the initial default, not a cap. Policy changes are versioned. Account
+      configurations adopt the version on the next authorization or billing reconciliation; an
+      address rotation requires fresh wallet approval.
     </p></ControlSection
   >
   <p v-if="admin.error" class="notice-err">{{ admin.error }}</p>

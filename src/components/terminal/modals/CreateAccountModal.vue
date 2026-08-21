@@ -9,7 +9,6 @@ import {
   type AccountKeyValidationResponse,
   type AccountRecord,
 } from '@/stores/accounts'
-import { HYPERLIQUID_TARGET_TOTAL_DEFAULT_TENTHS_BPS } from '@/lib/accountMetadata'
 import FormField from '@/components/forms/FormField.vue'
 import { integerError, requiredText } from '@/lib/formValidation'
 import AccountPermissionCheck from './AccountPermissionCheck.vue'
@@ -257,7 +256,6 @@ function buildExchangeMetadata() {
     product: 'usdc_perp',
     hedge_mode_only: false,
     vault_address: hyperliquidVaultAddress.value.trim() || null,
-    builder_target_total_tenths_bps: HYPERLIQUID_TARGET_TOTAL_DEFAULT_TENTHS_BPS,
     builder_approved: false,
     agent_approved: false,
     default_leverage: defaultLeverage.value,
@@ -444,10 +442,7 @@ function buildExchangeMetadata() {
           </div>
           <div class="field">
             <span>Target Total / Side</span>
-            <div class="readonly-value">
-              {{ (HYPERLIQUID_TARGET_TOTAL_DEFAULT_TENTHS_BPS / 10).toFixed(1) }} bps =
-              {{ (HYPERLIQUID_TARGET_TOTAL_DEFAULT_TENTHS_BPS / 1000).toFixed(3) }}%
-            </div>
+            <div class="readonly-value">Inherited from your Trad plan</div>
           </div>
           <p class="col-span-2 text-[11px] text-[var(--color-text-dim)]">
             Exchange fee + Trad builder fee equals the target total. Trad calculates the builder fee

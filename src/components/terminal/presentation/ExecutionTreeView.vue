@@ -5,6 +5,7 @@ import { Folder, FolderOpen, Network, TrendingDown } from 'lucide-vue-next'
 import { TreeView, type TreeItem } from '@/components/general/TreeView'
 import PanelEmptyState from '@/components/general/PanelEmptyState.vue'
 import { formatName } from '@/lib/utils'
+import { longPress } from '@/lib/longPress'
 
 export interface ExecutionTreeBadge {
   label: string
@@ -76,6 +77,8 @@ function openContext(item: ExecutionTreeItem, event: MouseEvent): void {
   event.stopPropagation()
   emit('context', item.id, event.clientX, event.clientY)
 }
+
+const touchContext = longPress((item: ExecutionTreeItem, x, y) => emit('context', item.id, x, y))
 </script>
 
 <template>
@@ -93,6 +96,11 @@ function openContext(item: ExecutionTreeItem, event: MouseEvent): void {
         :data-node-id="rawItem.id"
         :data-node-kind="(rawItem as ExecutionTreeItem).kind"
         @contextmenu="openContext(rawItem as ExecutionTreeItem, $event)"
+        @click.capture="touchContext.suppressClick"
+        @pointerdown="touchContext.start($event, rawItem as ExecutionTreeItem)"
+        @pointermove="touchContext.move"
+        @pointerup="touchContext.end"
+        @pointercancel="touchContext.end"
       >
         <span
           class="inline-flex w-4 shrink-0 items-center justify-center text-term-dim"

@@ -110,6 +110,8 @@ export interface ExchangeAccountMetadata {
   builder_config_version?: string | null
   builder_fee_tenths_bps?: number | null
   builder_target_total_tenths_bps?: number | null
+  builder_target_override_tenths_bps?: number | null
+  builder_target_source?: string | null
   builder_fee_manager?: boolean | null
   max_builder_fee_tenths_bps?: number | null
   builder_approved?: boolean | null
@@ -309,13 +311,20 @@ export const useAccountsStore = defineStore('accounts', () => {
   async function updateAccountMetadata(
     accountId: string,
     exchangeMetadata: ExchangeAccountMetadata | null,
+    options: { clearBuilderTargetOverride?: boolean } = {},
   ): Promise<AccountRecord> {
     const response = await apiPut<
       AccountRecord,
-      { exchange_metadata: ExchangeAccountMetadata | null }
+      {
+        exchange_metadata: ExchangeAccountMetadata | null
+        clear_builder_target_override?: boolean
+      }
     >(
       `/accounts/${encodeURIComponent(accountId)}/exchange-metadata`,
-      { exchange_metadata: exchangeMetadata },
+      {
+        exchange_metadata: exchangeMetadata,
+        ...(options.clearBuilderTargetOverride ? { clear_builder_target_override: true } : {}),
+      },
       { throwOnHTTPError: true },
     )
     replaceAccount(response)

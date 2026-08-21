@@ -290,6 +290,37 @@ test('right-click exposes projected actions without changing the inspected comma
   await expect(commands.getByText('Protected ETH entry', { exact: true })).toBeVisible()
 })
 
+test('long-press exposes the same projected actions without selecting the command', async ({
+  page,
+}) => {
+  const commands = page.getByTestId('projection-command-list')
+  const chase = commands.locator('[data-command-id]').filter({ hasText: 'Chase Order' })
+  const market = commands.locator('[data-command-id]').filter({ hasText: 'Market Order' })
+  await expect(chase).toHaveClass(/selected/)
+
+  const bounds = await market.boundingBox()
+  expect(bounds).not.toBeNull()
+  const touch = {
+    x: (bounds?.x ?? 0) + 20,
+    y: (bounds?.y ?? 0) + 20,
+  }
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 })
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [touch],
+  })
+  await expect(page.getByRole('menuitem', { name: 'Close Exposure' })).toBeVisible()
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchEnd',
+    touchPoints: [],
+  })
+  await market.dispatchEvent('click')
+
+  await expect(chase).toHaveClass(/selected/)
+  await expect(market).not.toHaveClass(/selected/)
+})
+
 test('duplicates an accepted command into a fresh exact form without submitting it', async ({
   page,
 }) => {
@@ -329,7 +360,7 @@ test('duplicates a protected market order without cloning reactive proxies', asy
     '0.00420001',
   )
   await expect(modal.getByLabel('TP 1 Trigger')).toHaveValue('2100.125')
-  await expect(modal.getByLabel('Stop loss')).toBeChecked()
+  await expect(modal.getByLabel(/Protective stop/)).toBeChecked()
   await expect(modal.getByLabel('SL Trigger')).toHaveValue('1800.125')
   await expect(fixture.getByTestId('latest-lifecycle-intent')).toHaveText('none')
 })

@@ -17,6 +17,7 @@ export interface AdminUser {
   role: 'user' | 'admin' | 'super_admin'
   enabled: boolean
   entitlement_override: boolean | null
+  builder_target_override_tenths_bps: number | null
   subscription_status: string | null
   entitled: boolean
   entitlement_source: string
@@ -192,9 +193,13 @@ export const useAdminStore = defineStore('admin', () => {
     })
   }
   async function createCommercialPlan(plan: CommercialPlan, changeReason: string) {
-    await apiPost('/admin/commercial-plans', { plan, change_reason: changeReason }, {
-      throwOnHTTPError: true,
-    })
+    await apiPost(
+      '/admin/commercial-plans',
+      { plan, change_reason: changeReason },
+      {
+        throwOnHTTPError: true,
+      },
+    )
     await fetchCommercialPlans()
   }
   async function putPriceBinding(binding: PriceBinding) {
@@ -208,6 +213,13 @@ export const useAdminStore = defineStore('admin', () => {
       { throwOnHTTPError: true },
     )
     await fetchUsers()
+  }
+  async function updateUserBuilderTarget(userId: string, target: number | null) {
+    return apiPut<EffectiveEntitlement>(
+      `/admin/users/${userId}/builder-target`,
+      { builder_target_override_tenths_bps: target },
+      { throwOnHTTPError: true },
+    )
   }
   async function updatePolicy(next: ExecutionPolicy) {
     policy.value = await apiPut('/admin/execution-policy', next, { throwOnHTTPError: true })
@@ -239,6 +251,7 @@ export const useAdminStore = defineStore('admin', () => {
     createCommercialPlan,
     putPriceBinding,
     updateUser,
+    updateUserBuilderTarget,
     updatePolicy,
   }
 })

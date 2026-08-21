@@ -8,6 +8,7 @@ import LifecycleActionModal from '@/components/engine/actions/LifecycleActionMod
 import ProjectionCommandFilters from '@/components/engine/ProjectionCommandFilters.vue'
 import { lifecycleActions, type LifecycleAction } from '@/lib/engineCommands/lifecycle'
 import { duplicateCommandPrefill } from '@/lib/engineCommands/prefill'
+import { longPress } from '@/lib/longPress'
 import type { CommandProjection } from '@/lib/gateway'
 import { nodeKey } from '@/lib/projection'
 import { commandLabel, commandSymbolIndex } from '@/lib/projection/presentation'
@@ -135,6 +136,11 @@ function openContext(event: MouseEvent, command: CommandProjection): void {
   void nextTick(() => contextMenu.value?.openAt(event.clientX, event.clientY))
 }
 
+const touchContext = longPress((command: CommandProjection, x, y) => {
+  contextCommand.value = command
+  void nextTick(() => contextMenu.value?.openAt(x, y))
+})
+
 function openRowMenu(event: MouseEvent, command: CommandProjection): void {
   const target = event.currentTarget as HTMLElement
   const rect = target.getBoundingClientRect()
@@ -233,8 +239,13 @@ function clearRename(): void {
           `lifecycle-${command.lifecycle}`,
         ]"
         @click="ui.selectCommand(command.command_id)"
+        @click.capture="touchContext.suppressClick"
         @keydown.enter="ui.selectCommand(command.command_id)"
         @contextmenu="openContext($event, command)"
+        @pointerdown="touchContext.start($event, command)"
+        @pointermove="touchContext.move"
+        @pointerup="touchContext.end"
+        @pointercancel="touchContext.end"
       >
         <span
           class="status-line"

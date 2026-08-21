@@ -29,10 +29,8 @@ export function formatNumberAuto(value: number, options: FormatOptions = {}): st
 
 function formatNumberFull(value: number, options: FormatOptions = {}): string {
   if (!isValidNumber(value)) return '-'
-  const { minDecimals = 0, maxDecimals = 8 } = options
-  let decimals = chooseDecimalsByMagnitude(value)
-  if (minDecimals > decimals) decimals = minDecimals
-  decimals = Math.min(decimals, maxDecimals)
+  const { minDecimals = 0, maxDecimals = 15 } = options
+  const decimals = Math.min(15, Math.max(12, minDecimals, maxDecimals))
   return value.toLocaleString(undefined, {
     minimumFractionDigits: minDecimals,
     maximumFractionDigits: decimals,

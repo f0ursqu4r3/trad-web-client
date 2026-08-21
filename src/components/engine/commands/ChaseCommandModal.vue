@@ -39,7 +39,7 @@ const symbol = ref('')
 const positionSide = ref<PositionSideIntent>('long')
 const sizingMode = ref<SizingMode>('quote_notional')
 const amount = ref('50')
-const boundaryKind = ref<'none' | 'basis_points' | 'price'>('basis_points')
+const boundaryKind = ref<'none' | 'basis_points' | 'price'>('none')
 const boundaryValue = ref('10')
 const expirySeconds = ref('')
 const remainder = ref<'cancel' | 'market_fill'>('cancel')
@@ -90,7 +90,7 @@ function reset(): void {
   positionSide.value = prefill?.positionSide ?? 'long'
   sizingMode.value = prefill?.sizingMode ?? sizingModeFromPreference(ui.orderQuantityMode)
   amount.value = prefill?.amount ?? '50'
-  boundaryKind.value = prefill?.boundaryKind ?? 'basis_points'
+  boundaryKind.value = prefill?.boundaryKind ?? 'none'
   boundaryValue.value = prefill?.boundaryValue ?? '10'
   expirySeconds.value = prefill?.expirySeconds ?? ''
   remainder.value = prefill?.remainder ?? 'cancel'

@@ -25,9 +25,8 @@ export const useUiStore = defineStore(
   'ui',
   () => {
     const theme = ref<ThemeMode>('system')
-    const numberDisplayMode = ref<NumberDisplayMode>('compact')
+    const numberDisplayMode = ref<NumberDisplayMode>('full')
     const newestCommandsFirst = ref(false)
-    const confirmPositionCloses = ref(true)
     const animateAccountRail = ref(true)
     const orderQuantityMode = ref<OrderQuantityMode>('notional')
     const systemPrefersDark = ref<boolean>(
@@ -72,11 +71,6 @@ export const useUiStore = defineStore(
       useUserStore().saveProfile()
     }
 
-    function setConfirmPositionCloses(enabled: boolean) {
-      confirmPositionCloses.value = enabled
-      useUserStore().saveProfile()
-    }
-
     function setOrderQuantityMode(mode: OrderQuantityMode) {
       orderQuantityMode.value = mode
     }
@@ -106,7 +100,6 @@ export const useUiStore = defineStore(
       theme,
       numberDisplayMode,
       newestCommandsFirst,
-      confirmPositionCloses,
       animateAccountRail,
       orderQuantityMode,
       effectiveTheme,
@@ -115,7 +108,6 @@ export const useUiStore = defineStore(
       toggleTheme,
       setNumberDisplayMode,
       setNewestCommandsFirst,
-      setConfirmPositionCloses,
       setOrderQuantityMode,
       getVar,
       settingsOpen,
@@ -133,7 +125,6 @@ export const useUiStore = defineStore(
         'theme',
         'numberDisplayMode',
         'newestCommandsFirst',
-        'confirmPositionCloses',
         'animateAccountRail',
         'orderQuantityMode',
         'showInboundPanel',

@@ -131,28 +131,9 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
         </FormField>
         <FormField
           label="Execution"
-          help="Market prioritizes completion; limit constrains the execution price."
-          required
+          help="Take profits rest on the book as reduce-only limit orders."
         >
-          <select v-model="takeProfit.executionKind" class="input">
-            <option value="market">Market</option>
-            <option value="limit">Limit</option>
-          </select>
-        </FormField>
-        <FormField
-          v-if="takeProfit.executionKind === 'limit'"
-          :label="labelWithUnit('Limit Price', props.quoteAsset)"
-          help="Limit price used after this take-profit trigger fires."
-          :error="decimalError(takeProfit.executionPrice, `take-profit ${index + 1} limit price`)"
-          required
-        >
-          <input
-            v-model="takeProfit.executionPrice"
-            class="input"
-            aria-label="Limit Price"
-            type="text"
-            inputmode="decimal"
-          />
+          <span class="readonly-value">Limit · reduce only</span>
         </FormField>
       </div>
       <button
@@ -203,28 +184,9 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
       </FormField>
       <FormField
         label="Execution"
-        help="Market prioritizes the exit; limit constrains the execution price."
-        required
+        help="Stops trigger a reduce-only market exit with Trad's configured safety guard."
       >
-        <select v-model="model.stopLoss.executionKind" class="input">
-          <option value="market">Market</option>
-          <option value="limit">Limit</option>
-        </select>
-      </FormField>
-      <FormField
-        v-if="model.stopLoss.executionKind === 'limit'"
-        :label="labelWithUnit('Limit Price', props.quoteAsset)"
-        help="Limit price used after the stop-loss trigger fires."
-        :error="decimalError(model.stopLoss.executionPrice, 'stop-loss limit price')"
-        required
-      >
-        <input
-          v-model="model.stopLoss.executionPrice"
-          class="input"
-          aria-label="Limit Price"
-          type="text"
-          inputmode="decimal"
-        />
+        <span class="readonly-value">Stop market · reduce only</span>
       </FormField>
     </div>
   </section>

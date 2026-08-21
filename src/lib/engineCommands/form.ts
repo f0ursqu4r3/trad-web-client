@@ -3,7 +3,6 @@ import type {
   AmendProtectionIntent,
   ExecutionShapeIntent,
   OrderSizingIntent,
-  ProtectionExecutionIntent,
   ProtectionIntent,
   TakeProfitAllocationIntent,
   TriggerSourceIntent,
@@ -126,14 +125,17 @@ export function protectionIntent(state: ProtectionFormState): ProtectionIntent |
   const takeProfits = state.takeProfits.map((takeProfit, index) => ({
     trigger_price: exactDecimal(takeProfit.triggerPrice, `take-profit ${index + 1} trigger`),
     trigger_source: takeProfit.triggerSource,
-    execution: protectionExecution(takeProfit, `take-profit ${index + 1}`),
+    execution: {
+      kind: 'limit' as const,
+      price: exactDecimal(takeProfit.triggerPrice, `take-profit ${index + 1} limit price`),
+    },
     allocation: takeProfitAllocation(takeProfit, index),
   }))
   const stopLoss = state.stopLoss.enabled
     ? {
         trigger_price: exactDecimal(state.stopLoss.triggerPrice, 'stop-loss trigger'),
         trigger_source: state.stopLoss.triggerSource,
-        execution: protectionExecution(state.stopLoss, 'stop loss'),
+        execution: { kind: 'market' as const },
       }
     : undefined
   if (takeProfits.length === 0 && stopLoss === undefined) return undefined
@@ -176,7 +178,7 @@ export function newTakeProfit(id: string = crypto.randomUUID()): TakeProfitFormS
     id,
     triggerPrice: '',
     triggerSource: 'mark_price',
-    executionKind: 'market',
+    executionKind: 'limit',
     executionPrice: '',
     allocationKind: 'full_remaining',
     allocationValue: '',
@@ -207,15 +209,6 @@ export function copyProtectionState(state: ProtectionFormState): ProtectionFormS
     takeProfits: state.takeProfits.map((takeProfit) => ({ ...takeProfit })),
     stopLoss: { ...state.stopLoss },
   }
-}
-
-function protectionExecution(
-  state: { executionKind: 'market' | 'limit'; executionPrice: string },
-  label: string,
-): ProtectionExecutionIntent {
-  return state.executionKind === 'market'
-    ? { kind: 'market' }
-    : { kind: 'limit', price: exactDecimal(state.executionPrice, `${label} limit price`) }
 }
 
 function takeProfitAllocation(

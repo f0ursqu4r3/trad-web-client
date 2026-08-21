@@ -100,6 +100,22 @@ test('settings and administrator control plane are navigable', async ({ page }) 
   expect(pageErrors).toEqual([])
 })
 
+test('phone-width hamburger keeps every authorized product area reachable', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/auth/test-login?email=668es218pur%40gmail.com&return_to=%2Fsettings%2Fprofile')
+
+  const navigation = page.getByRole('navigation', { name: 'Trad areas' })
+  await expect(navigation.getByRole('link', { name: 'Terminal' })).not.toBeVisible()
+  await navigation.getByRole('button', { name: 'Open navigation' }).click()
+  await expect(navigation.getByRole('link', { name: 'Terminal' })).toBeVisible()
+  await expect(navigation.getByRole('link', { name: 'Settings' })).toBeVisible()
+  await expect(navigation.getByRole('link', { name: 'Admin' })).toBeVisible()
+
+  await navigation.getByRole('link', { name: 'Terminal' }).click()
+  await expect(page).toHaveURL(/\/terminal$/)
+  await expect(navigation.getByRole('link', { name: 'Terminal' })).not.toBeVisible()
+})
+
 test('profile icon choice is saved with user preferences', async ({ page }) => {
   let savedProfile: { meta?: { preferences?: { profile_icon?: unknown } } } | null = null
   await page.route('**/api/me', async (route) => {

@@ -64,6 +64,7 @@ export interface EffectiveEntitlement {
   source: string
   reason: string
   plan: CommercialPlan | null
+  builder_target_override_tenths_bps: number | null
   subscription_status: string | null
   grant_id: string | null
   resolved_at: string
@@ -247,9 +248,7 @@ function normalizePlans(remotePlans: PricingPlan[]): PricingPlan[] {
   })
 }
 
-function normalizeFeatures(
-  raw: PricingPlan['features'],
-): string[] | undefined {
+function normalizeFeatures(raw: PricingPlan['features']): string[] | undefined {
   if (Array.isArray(raw)) return raw.filter((item): item is string => typeof item === 'string')
   return undefined
 }

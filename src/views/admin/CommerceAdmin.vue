@@ -47,7 +47,7 @@ const accountLimitError = computed(() =>
   unlimitedAccounts.value ? null : integerError(String(draft.max_accounts), 'Account limit', 1),
 )
 const builderTargetError = computed(() =>
-  integerError(String(draft.builder_target_total_tenths_bps), 'Builder target', 0, 52),
+  integerError(String(draft.builder_target_total_tenths_bps), 'Builder target', 0, 100),
 )
 const changeReasonError = computed(() => requiredText(changeReason.value, 'Change reason'))
 const priceIdError = computed(() => requiredText(binding.stripe_price_id, 'Stripe price ID'))
@@ -163,14 +163,14 @@ onMounted(() => Promise.all([admin.fetchCommercialPlans(), admin.fetchPriceBindi
       >
       <FormField
         label="Builder target (tenths-bps)"
-        help="Target exchange fee plus Trad builder fee per side. 52 means 5.2 bps."
+        help="User-wide default for this plan. 52 means 5.2 bps; the technical ceiling is 100 (10 bps)."
         :error="builderTargetError"
         required
         ><input
           v-model.number="draft.builder_target_total_tenths_bps"
           type="number"
           min="0"
-          max="52"
+          max="100"
           class="input"
       /></FormField>
     </div>

@@ -2,7 +2,7 @@ import { expect, test, type Locator } from '@playwright/test'
 
 async function completeDefaultStop(modal: Locator): Promise<void> {
   await expect(modal.getByLabel(/Protective stop/)).toBeChecked()
-  await expect(modal.locator('.stop-row select').last()).toHaveValue('market')
+  await expect(modal.getByText('Stop market · reduce only', { exact: true })).toBeVisible()
   await modal.getByLabel('SL Trigger').fill('49000')
 }
 
@@ -91,10 +91,10 @@ test('opens chase and trailing-entry forms from their aliases', async ({ page })
   await page.keyboard.press('Enter')
   const chase = page.getByRole('dialog', { name: 'Chase Order' })
   await expect(chase).toBeVisible()
-  await expect(chase.getByLabel('Maximum Chase Distance')).toHaveValue('basis_points')
-  await expect(chase.getByLabel('Boundary Basis Points')).toHaveValue('10')
+  await expect(chase.getByLabel('Maximum Chase Distance')).toHaveValue('none')
+  await expect(chase.getByLabel('Boundary Basis Points')).toHaveCount(0)
   await expect(chase.getByLabel(/Protective stop/)).toBeChecked()
-  await expect(chase.getByLabel('Execution')).toHaveValue('market')
+  await expect(chase.getByText('Stop market · reduce only', { exact: true })).toBeVisible()
   await chase.getByRole('button', { name: 'Cancel' }).click()
 
   await page.getByRole('button', { name: /Commands/ }).click()

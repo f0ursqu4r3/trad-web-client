@@ -13,6 +13,9 @@ const detail = ref<UserEntitlementDetail | null>(null)
 const kind = ref<'complimentary' | 'deny'>('complimentary')
 const planIdentity = ref('private_beta:1')
 const reason = ref('')
+const builderTargetMode = ref<'inherit' | 'override'>('inherit')
+const builderTargetBps = ref(5.2)
+const savingBuilderTarget = ref(false)
 const expiry = ref('')
 const operations = ref<BillingOperation[]>([])
 const userAudit = computed(() => {
@@ -33,6 +36,21 @@ async function refresh() {
     admin.fetchUserEntitlement(userId.value),
     admin.fetchBillingOperations(userId.value),
   ])
+  const override = detail.value?.effective.builder_target_override_tenths_bps
+  builderTargetMode.value = override == null ? 'inherit' : 'override'
+  builderTargetBps.value =
+    (override ?? detail.value?.effective.plan?.builder_target_total_tenths_bps ?? 52) / 10
+}
+const builderTargetValid = computed(() => builderTargetMode.value === 'inherit' || (Number.isFinite(builderTargetBps.value) && builderTargetBps.value >= 0 && builderTargetBps.value <= 10))
+async function saveBuilderTarget() {
+  if (!builderTargetValid.value) return
+  savingBuilderTarget.value = true
+  try {
+    await admin.updateUserBuilderTarget(userId.value, builderTargetMode.value === 'override' ? Math.round(builderTargetBps.value * 10) : null)
+    await refresh()
+  } finally {
+    savingBuilderTarget.value = false
+  }
 }
 async function executeBillingOperation() {
   if (!operationConfirmed.value) return
@@ -87,11 +105,18 @@ onMounted(async () => {
       <div><span>Plan</span><strong>{{ detail.effective.plan ? `${detail.effective.plan.display_name} v${detail.effective.plan.version}` : '—' }}</strong></div>
       <div><span>Subscription</span><strong>{{ detail.effective.subscription_status || 'none' }}</strong></div>
       <div><span>Accounts</span><strong>{{ detail.account_count }} / {{ detail.effective.plan?.max_accounts ?? 'unlimited' }}</strong></div>
-      <div><span>Builder target</span><strong>{{ detail.effective.plan ? `${(detail.effective.plan.builder_target_total_tenths_bps / 10).toFixed(1)} bps` : '—' }}</strong></div>
+      <div><span>Builder target</span><strong>{{ `${((detail.effective.builder_target_override_tenths_bps ?? detail.effective.plan?.builder_target_total_tenths_bps ?? 0) / 10).toFixed(1)} bps` }}</strong></div>
       <div><span>Stripe customer</span><strong>{{ detail.billing_customer?.stripe_customer_id || '—' }}</strong></div>
       <div><span>Stripe subscription</span><strong>{{ detail.subscription?.stripe_subscription_id || '—' }}</strong></div>
       <div><span>Period end</span><strong>{{ detail.subscription?.current_period_end ? new Date(detail.subscription.current_period_end).toLocaleString() : '—' }}</strong></div>
     </div>
+  </ControlSection>
+  <ControlSection title="User-wide execution fee" description="Overrides the plan target for every trading account owned by this user unless an account has its own override.">
+    <div class="control-form-grid max-w-3xl">
+      <label class="field"><span>Source</span><select v-model="builderTargetMode" class="input"><option value="inherit">Inherit commercial plan</option><option value="override">Override this user</option></select></label>
+      <label class="field"><span>Target total / side (bps)</span><input v-model.number="builderTargetBps" class="input" type="number" min="0" max="10" step="0.1" :disabled="builderTargetMode === 'inherit'" /><span>Exchange fee plus Trad builder fee. Technical ceiling: 10 bps.</span></label>
+    </div>
+    <div class="control-actions"><button class="btn btn-primary" :disabled="!builderTargetValid || savingBuilderTarget" @click="saveBuilderTarget">Save user target</button></div>
   </ControlSection>
   <ControlSection title="Grant or deny access" description="An active denial wins over paid and complimentary access.">
     <div class="control-form-grid">

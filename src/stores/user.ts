@@ -158,9 +158,6 @@ export const useUserStore = defineStore('user', () => {
       if (typeof preferences?.newest_commands_first === 'boolean') {
         uiStore.newestCommandsFirst = preferences.newest_commands_first
       }
-      if (typeof preferences?.confirm_position_closes === 'boolean') {
-        uiStore.confirmPositionCloses = preferences.confirm_position_closes
-      }
       if (typeof preferences?.animate_account_rail === 'boolean') {
         uiStore.animateAccountRail = preferences.animate_account_rail
       }

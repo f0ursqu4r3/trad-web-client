@@ -13,6 +13,8 @@ export interface ExchangeAccountMetadataLike {
   builder_config_version?: string | null
   builder_fee_tenths_bps?: number | null
   builder_target_total_tenths_bps?: number | null
+  builder_target_override_tenths_bps?: number | null
+  builder_target_source?: string | null
   builder_fee_manager?: boolean | null
   max_builder_fee_tenths_bps?: number | null
   builder_approved?: boolean | null
@@ -170,7 +172,7 @@ function normalizeAddress(value?: string | null): string | null {
 }
 
 export const HYPERLIQUID_TARGET_TOTAL_DEFAULT_TENTHS_BPS = 52
-export const HYPERLIQUID_TARGET_TOTAL_MAX_TENTHS_BPS = 52
+export const HYPERLIQUID_TARGET_TOTAL_MAX_TENTHS_BPS = 100
 
 export function hyperliquidTargetTotalTenthsBps(
   meta: ExchangeAccountMetadataLike | null | undefined,
