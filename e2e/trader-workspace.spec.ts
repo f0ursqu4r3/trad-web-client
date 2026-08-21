@@ -27,7 +27,7 @@ test('presents managed trades instead of a primary command list', async ({ page 
   await expect(workspace.getByText('outside Trad')).toBeVisible()
 })
 
-test('expands one trade into orders, devices, graph, and history', async ({ page }) => {
+test('expands trades into price charts, devices, sequence, and history', async ({ page }) => {
   const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
   await eth.locator('.trade-expand').click()
 
@@ -39,10 +39,10 @@ test('expands one trade into orders, devices, graph, and history', async ({ page
   await expect(eth.getByTestId('managed-trade-device-tree').locator('.device-row')).toHaveCount(7)
   await expect(eth.getByText('Native Protection', { exact: true })).toBeVisible()
 
-  await eth.getByRole('button', { name: 'graph', exact: true }).click()
+  await eth.getByRole('button', { name: 'sequence', exact: true }).click()
   await expect(eth.locator('.dag-canvas')).toBeVisible()
-  await expect(eth.getByTestId('managed-trade-graph').locator('.node')).toHaveCount(7)
-  await expect(eth.getByTestId('managed-trade-graph').getByText('Stop Loss')).toBeVisible()
+  await expect(eth.getByTestId('managed-trade-sequence').locator('.node')).toHaveCount(7)
+  await expect(eth.getByTestId('managed-trade-sequence').getByText('Stop Loss')).toBeVisible()
 
   await eth
     .getByLabel('Trade details')
@@ -50,6 +50,66 @@ test('expands one trade into orders, devices, graph, and history', async ({ page
     .click()
   await expect(eth.getByText('place order', { exact: true })).toBeVisible()
   await expect(eth.getByText('fill', { exact: true })).toHaveCount(2)
+
+  const sol = page.getByTestId('managed-trade-card').filter({ hasText: 'SOL' })
+  await expect(sol.getByTestId('managed-trade-chart')).toBeVisible()
+  await sol.locator('.trade-expand').click()
+  await sol.getByRole('button', { name: 'chart', exact: true }).click()
+  await expect(sol.getByTestId('engine-te-chart')).toBeVisible()
+  await expect(sol.getByText('Recent node history · 80 trades')).toBeVisible()
+  await expect(sol.locator('canvas')).not.toHaveCount(0)
+})
+
+test('trade filters and trade metadata actions survive the trade-centric view', async ({
+  page,
+}) => {
+  const workspace = page.getByTestId('trader-workspace')
+  const sol = workspace.getByTestId('managed-trade-card').filter({ hasText: 'SOL' })
+
+  await sol.click({ button: 'right' })
+  await expect(page.getByRole('menuitem', { name: 'Duplicate trade' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Open sequence' })).toBeVisible()
+  await page.getByRole('menuitem', { name: 'Hide mini chart' }).click()
+  await expect(sol.getByTestId('managed-trade-chart')).toHaveCount(0)
+
+  await sol.getByRole('button', { name: 'Trade actions' }).click()
+  await page.getByRole('menuitem', { name: 'Pin trade' }).click()
+  await expect(workspace.getByTestId('managed-trade-card').first()).toContainText('SOL')
+
+  await sol.getByRole('button', { name: 'Trade actions' }).click()
+  await page.getByRole('menuitem', { name: 'Nickname / color…' }).click()
+  const rename = page.getByRole('dialog', { name: 'Trade nickname' })
+  await rename.getByRole('textbox').fill('Rebound test')
+  await rename.getByRole('button', { name: 'Purple' }).click()
+  await rename.getByRole('button', { name: 'Save' }).click()
+  await expect(sol).toContainText('Rebound test')
+
+  await page.getByTitle('Trade filters').click()
+  await page.getByTestId('projection-command-filters').getByRole('button', { name: 'ETH' }).click()
+  await expect(workspace.getByTestId('managed-trade-card')).toHaveCount(1)
+  await expect(workspace.getByTestId('managed-trade-card').first()).toContainText('ETH')
+  await page
+    .getByTestId('projection-command-filters')
+    .getByRole('button', { name: 'Reset' })
+    .click()
+  await page.getByPlaceholder('Filter trades').fill('Rebound')
+  await expect(workspace.getByTestId('managed-trade-card')).toHaveCount(1)
+  await expect(workspace.getByTestId('managed-trade-card').first()).toContainText('SOL')
+})
+
+test('cross-view links select, focus, expand, and scroll to the owning trade', async ({ page }) => {
+  const workspace = page.getByTestId('trader-workspace')
+  await workspace.locator('.workspace-summaries .order-link').first().click()
+
+  const selected = workspace.locator('.trade-card.selected')
+  await expect(selected).toHaveCount(1)
+  await expect(selected).toHaveClass(/focused/)
+  await expect(selected).toHaveClass(/expanded/)
+  expect(
+    await workspace
+      .locator('.workspace-main')
+      .evaluate((element) => getComputedStyle(element).backgroundImage !== 'none'),
+  ).toBe(true)
 })
 
 test('mirrors the client workflow with practical presets and redundant trade actions', async ({

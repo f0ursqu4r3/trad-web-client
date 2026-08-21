@@ -30,10 +30,15 @@ import { formatNumberShort } from '@/lib/numberFormat'
 import { useGatewayStore } from '@/stores/gateway'
 import { useMarketStore } from '@/stores/market'
 
-const props = defineProps<{
-  accountId: string
-  trailingEntry: TrailingEntryProjection
-}>()
+const props = withDefaults(
+  defineProps<{
+    accountId: string
+    trailingEntry: TrailingEntryProjection
+    compact?: boolean
+    interactive?: boolean
+  }>(),
+  { compact: false, interactive: true },
+)
 const emit = defineEmits<{
   (event: 'edit-line', line: TrailingEntryLineId, price: number): void
 }>()
@@ -131,7 +136,7 @@ const chartTitle = computed(() => {
       : props.trailingEntry.plan.position_side === 'short'
         ? 'Short'
         : props.trailingEntry.plan.position_side
-  return `Graph of TE: ${side} ${symbol.value} - ${props.trailingEntry.trailing_entry_id}`
+  return `Trailing Entry · ${side} ${symbol.value} · #${props.trailingEntry.trailing_entry_id.slice(0, 8)}`
 })
 
 const lineDefinitions = computed<DraggablePriceLineDefinition[]>(() => {
@@ -142,7 +147,7 @@ function buildLineDefinitions(lines: TrailingEntryChartLine[]): DraggablePriceLi
   const colors = chartColors()
   return lines.map((line) => ({
     id: line.id,
-    draggable: line.editable,
+    draggable: props.interactive && line.editable,
     options: {
       price: line.price,
       color: colors[line.tone],
@@ -177,10 +182,7 @@ watch(
   (data) => {
     series?.setData(data)
     syncMarkers()
-    if (
-      data.length > 0 &&
-      (stream.value?.status === 'ready' || terminalSamples.value !== null)
-    ) {
+    if (data.length > 0 && (stream.value?.status === 'ready' || terminalSamples.value !== null)) {
       chart?.timeScale().fitContent()
     }
     scheduleOffScaleUpdate()
@@ -236,7 +238,7 @@ onMounted(() => {
   linesPlugin = createDraggablePriceLinesPlugin(series, {
     lines: lineDefinitions.value,
     onDragEnd: (event) => {
-      if (!editableLine(event.id)) return
+      if (!props.interactive || !editableLine(event.id)) return
       emit('edit-line', event.id, event.price)
       window.requestAnimationFrame(() => linesPlugin?.setLines(lineDefinitions.value))
     },
@@ -495,7 +497,7 @@ function editableLine(value: string): value is TrailingEntryLineId {
 </script>
 
 <template>
-  <section class="te-chart" data-testid="engine-te-chart">
+  <section class="te-chart" :class="{ compact }" data-testid="engine-te-chart">
     <header class="chart-header">
       <span class="chart-title" :title="chartTitle">{{ chartTitle }}</span>
       <span class="history-status" :class="{ stale: trailingEntry.market_stale }">
@@ -553,6 +555,19 @@ function editableLine(value: string): value is TrailingEntryLineId {
   min-height: 220px;
   flex-direction: column;
   overflow: hidden;
+}
+
+.te-chart.compact {
+  min-height: 160px;
+}
+
+.te-chart.compact .chart-header {
+  min-height: 27px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.te-chart.compact .history-status {
+  display: none;
 }
 
 .chart-header {

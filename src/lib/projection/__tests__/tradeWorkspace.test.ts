@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import { engineProjectionSnapshot } from '../../../views/e2e/engineProjectionFixtureData.ts'
 import { tradeWorkspaceProjection } from '../tradeWorkspace.ts'
+import { managedTradeTrailingEntries } from '../tradeWorkspaceCharts.ts'
 
 test('derives pending and active trades from exposure scope identity', () => {
   const workspace = tradeWorkspaceProjection(engineProjectionSnapshot())
@@ -107,4 +108,25 @@ test('keeps taken-over and closed scopes as explicit lifecycle states', () => {
     false,
   )
   assert.equal(workspace.closedTrades.find((row) => row.symbol === 'ETH')?.lifecycle, 'closed')
+})
+
+test('selects the active strategy chart before older terminal chart sources', () => {
+  const snapshot = engineProjectionSnapshot()
+  const workspace = tradeWorkspaceProjection(snapshot)
+  const trade = workspace.activeTrades.find((row) => row.symbol === 'SOL')
+  const active = snapshot.trailing_entries[0]
+  assert.ok(trade)
+  assert.ok(active)
+  snapshot.trailing_entries.push({
+    ...active,
+    trailing_entry_id: '35000000-0000-4000-8000-000000000099',
+    lifecycle: 'succeeded',
+    phase: 'completed',
+    created_at: active.created_at - 1_000,
+  })
+
+  assert.deepEqual(
+    managedTradeTrailingEntries(trade, snapshot).map((entry) => entry.trailing_entry_id),
+    [active.trailing_entry_id, '35000000-0000-4000-8000-000000000099'],
+  )
 })

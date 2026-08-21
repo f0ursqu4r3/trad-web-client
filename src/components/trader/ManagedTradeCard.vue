@@ -1,29 +1,35 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ChevronDown, ChevronRight, TriangleAlert } from 'lucide-vue-next'
+import { ChevronDown, ChevronRight, Pin, TriangleAlert } from 'lucide-vue-next'
 
 import ProtectionAmendmentModal from '@/components/engine/actions/ProtectionAmendmentModal.vue'
 import { activeProtectionAmendment } from '@/lib/engineCommands/protectionAmendment'
 import type { BrowserAccountSnapshot } from '@/lib/gateway'
 import type { ManagedTradeView } from '@/lib/projection/tradeWorkspace'
 import { managedTradeActions } from '@/lib/projection/tradeWorkspaceActions'
+import { managedTradeTrailingEntries } from '@/lib/projection/tradeWorkspaceCharts'
+import { longPress } from '@/lib/longPress'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 import { useProjectionUiStore } from '@/stores/projectionUi'
 import ManagedTradeActions from './ManagedTradeActions.vue'
+import ManagedTradeChart from './ManagedTradeChart.vue'
 import ManagedTradeExpansion from './ManagedTradeExpansion.vue'
+import ManagedTradeMenu, { type ManagedTradeDetailTab } from './ManagedTradeMenu.vue'
 import ManagedTradeMetrics from './ManagedTradeMetrics.vue'
 
 const props = defineProps<{
   trade: ManagedTradeView
   snapshot: BrowserAccountSnapshot
   expanded: boolean
+  selected: boolean
+  focused: boolean
 }>()
 const emit = defineEmits<{
   (event: 'toggle', tradeId: string): void
+  (event: 'select', tradeId: string): void
 }>()
 
-type DetailTab = 'orders' | 'devices' | 'graph' | 'history'
 interface ActionBarApi {
   openClose(percent: string | null): void
   openTakeover(): void
@@ -33,11 +39,16 @@ const ui = useProjectionUiStore()
 const accounts = useAccountsStore()
 const gateway = useGatewayStore()
 const actionBar = ref<ActionBarApi | null>(null)
-const detailTab = ref<DetailTab>('orders')
+const tradeMenu = ref<InstanceType<typeof ManagedTradeMenu> | null>(null)
+const detailTab = ref<ManagedTradeDetailTab>('orders')
 const moveProtectionOpen = ref(false)
 const moveChildId = ref<string | null>(null)
 const resyncBusy = ref(false)
 const resyncError = ref<string | null>(null)
+const chartEntries = computed(() => managedTradeTrailingEntries(props.trade, props.snapshot))
+const chartAvailable = computed(() => chartEntries.value.length > 0)
+const showMiniChart = ref(props.trade.lifecycle === 'entering' && chartAvailable.value)
+const meta = computed(() => ui.meta(props.trade.primaryCommand.command_id))
 const availableActions = computed(() => managedTradeActions(props.trade, props.snapshot))
 const activeAmendment = computed(() =>
   activeProtectionAmendment(props.trade.protection, props.snapshot.protection_amendments),
@@ -51,15 +62,29 @@ watch(
 )
 
 function toggle(): void {
+  emit('select', props.trade.tradeId)
   if (!props.expanded) ui.selectCommand(props.trade.primaryCommand.command_id)
   emit('toggle', props.trade.tradeId)
 }
 
-function openDetail(tab: DetailTab): void {
+function openDetail(tab: ManagedTradeDetailTab): void {
+  emit('select', props.trade.tradeId)
   detailTab.value = tab
   ui.selectCommand(props.trade.primaryCommand.command_id)
   if (!props.expanded) emit('toggle', props.trade.tradeId)
 }
+
+function openContext(event: MouseEvent): void {
+  event.preventDefault()
+  event.stopPropagation()
+  emit('select', props.trade.tradeId)
+  tradeMenu.value?.openAt(event.clientX, event.clientY)
+}
+
+const touchContext = longPress((_: ManagedTradeView, x, y) => {
+  emit('select', props.trade.tradeId)
+  tradeMenu.value?.openAt(x, y)
+})
 
 function openMoveProtection(childId: string): void {
   moveChildId.value = childId
@@ -82,17 +107,34 @@ async function resyncTotals(): Promise<void> {
 <template>
   <article
     class="trade-card"
-    :class="[`trade-${trade.lifecycle}`, { expanded }]"
+    :class="[
+      `trade-${trade.lifecycle}`,
+      { expanded, selected, focused, 'with-mini-chart': showMiniChart && !expanded },
+    ]"
     :data-trade-id="trade.tradeId"
     data-testid="managed-trade-card"
+    @contextmenu="openContext"
+    @click.capture="touchContext.suppressClick"
+    @pointerdown="touchContext.start($event, trade)"
+    @pointermove="touchContext.move"
+    @pointerup="touchContext.end"
+    @pointercancel="touchContext.end"
   >
     <header class="trade-heading">
       <button class="trade-expand" type="button" :aria-expanded="expanded" @click="toggle">
         <ChevronDown v-if="expanded" :size="15" />
         <ChevronRight v-else :size="15" />
-        <strong>{{ trade.symbol }}</strong>
+        <Pin v-if="meta.pinned" class="trade-pin" :size="12" />
+        <strong :style="{ color: meta.nicknameColor ?? undefined }">{{ trade.symbol }}</strong>
         <span class="trade-side" :class="trade.side">{{ trade.side }}</span>
         <span class="trade-kind">{{ trade.entryLabel }}</span>
+        <span
+          v-if="meta.nickname"
+          class="trade-nickname"
+          :style="{ color: meta.nicknameColor ?? undefined }"
+        >
+          {{ meta.nickname }}
+        </span>
       </button>
       <div class="trade-header-actions">
         <button class="btn btn-xs" type="button" @click="openDetail('history')">history</button>
@@ -135,12 +177,32 @@ async function resyncTotals(): Promise<void> {
           <TriangleAlert :size="14" />
         </span>
         <span class="pill pill-sm" :class="`pill-${trade.lifecycle}`">{{ trade.lifecycle }}</span>
+        <ManagedTradeMenu
+          ref="tradeMenu"
+          :trade="trade"
+          :chart-available="chartAvailable"
+          :mini-chart="showMiniChart"
+          @detail="openDetail"
+          @toggle-mini-chart="showMiniChart = !showMiniChart"
+        />
       </div>
     </header>
 
-    <div v-if="trade.attentionReason" class="trade-alert">{{ trade.attentionReason }}</div>
-    <ManagedTradeMetrics :trade="trade" @move-protection="openMoveProtection" />
-    <ManagedTradeActions ref="actionBar" :trade="trade" :snapshot="snapshot" />
+    <div class="trade-body">
+      <div class="trade-summary">
+        <div v-if="trade.attentionReason" class="trade-alert">{{ trade.attentionReason }}</div>
+        <ManagedTradeMetrics :trade="trade" @move-protection="openMoveProtection" />
+        <ManagedTradeActions ref="actionBar" :trade="trade" :snapshot="snapshot" />
+      </div>
+      <ManagedTradeChart
+        v-if="showMiniChart && !expanded && chartAvailable"
+        class="mini-chart"
+        :trade="trade"
+        :snapshot="snapshot"
+        compact
+        :editable="false"
+      />
+    </div>
     <ManagedTradeExpansion
       v-if="expanded"
       v-model:active-tab="detailTab"
@@ -170,12 +232,21 @@ async function resyncTotals(): Promise<void> {
 .trade-card.expanded {
   border-color: var(--border-strong);
 }
+.trade-card.selected {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg-muted) 72%, transparent);
+}
+.trade-card.focused {
+  animation: trade-focus 900ms var(--ease-out-standard);
+}
 .trade-card.trade-attention {
   border-left-color: var(--state-error);
 }
 .trade-card.trade-entering,
 .trade-card.trade-closing {
   border-left-color: var(--state-warning);
+}
+.trade-card.trade-entering {
+  border-left-color: var(--state-info);
 }
 .trade-card.trade-active {
   border-left-color: var(--state-success);
@@ -229,6 +300,15 @@ async function resyncTotals(): Promise<void> {
   color: var(--fg-muted);
   font-size: 12px;
 }
+.trade-nickname {
+  overflow: hidden;
+  max-width: 16rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trade-pin {
+  color: var(--fg-muted);
+}
 .trade-heading-status {
   display: flex;
   align-items: center;
@@ -240,6 +320,9 @@ async function resyncTotals(): Promise<void> {
 .pill-entering,
 .pill-closing {
   --_c: var(--state-warning);
+}
+.pill-entering {
+  --_c: var(--state-info);
 }
 .pill-attention {
   --_c: var(--state-error);
@@ -253,6 +336,33 @@ async function resyncTotals(): Promise<void> {
   background: color-mix(in srgb, var(--state-error) 8%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--state-error) 30%, var(--border-subtle));
 }
+.trade-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.trade-card.with-mini-chart .trade-body {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 34%);
+}
+.trade-summary {
+  min-width: 0;
+}
+.mini-chart {
+  min-width: 0;
+  border-left: 1px solid var(--border-normal);
+}
+@keyframes trade-focus {
+  0%,
+  100% {
+    outline-color: transparent;
+  }
+  35% {
+    outline-color: var(--fg-strong);
+  }
+}
+.trade-card.focused {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
 @media (max-width: 760px) {
   .trade-expand {
     flex: 1 1 auto;
@@ -264,6 +374,13 @@ async function resyncTotals(): Promise<void> {
   }
   .trade-heading-status {
     margin-left: auto;
+  }
+  .trade-card.with-mini-chart .trade-body {
+    grid-template-columns: 1fr;
+  }
+  .mini-chart {
+    border-top: 1px solid var(--border-normal);
+    border-left: 0;
   }
 }
 </style>

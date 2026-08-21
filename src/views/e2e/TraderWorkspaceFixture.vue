@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 
 import type {
   BrowserCommandOutcome,
+  BrowserMarketSample,
   BrowserPreviewOutcome,
   BrowserReconciliationRefreshOutcome,
 } from '@/lib/gateway'
@@ -55,22 +56,13 @@ projections.install(
 
 gateway.subscribeMarket = (accountId, symbol) => {
   const requestId = crypto.randomUUID()
+  const samples = marketSamples(symbol)
   markets.begin(accountId, symbol, requestId)
   markets.install(accountId, requestId, crypto.randomUUID(), {
     symbol,
     oldest_sequence: 1,
-    next_sequence: 2,
-    samples: [
-      {
-        sequence: 1,
-        update_id: 'workspace-market-1',
-        generation: 1,
-        received_at_ms: Date.now(),
-        exchange_time_ms: Date.now(),
-        price: '63842.5',
-        trade_id: 'workspace-trade-1',
-      },
-    ],
+    next_sequence: samples.length + 1,
+    samples,
   })
 }
 gateway.unsubscribeMarket = () => undefined
@@ -118,6 +110,44 @@ gateway.refreshReconciliation = async (): Promise<BrowserReconciliationRefreshOu
 onMounted(() => {
   gateway.status = 'ready'
 })
+
+function marketSamples(symbol: string): BrowserMarketSample[] {
+  const now = Date.now()
+  return Array.from({ length: 80 }, (_, index) => {
+    const sequence = index + 1
+    const price =
+      symbol === 'SOL' ? solPrice(index) : symbol === 'ETH' ? ethPrice(index) : btcPrice(index)
+    return {
+      sequence,
+      update_id: `workspace-${symbol.toLowerCase()}-${sequence}`,
+      generation: sequence,
+      received_at_ms: now - (80 - index) * 1_000,
+      exchange_time_ms: now - (80 - index) * 1_000,
+      price,
+      trade_id: `workspace-${symbol.toLowerCase()}-trade-${sequence}`,
+    }
+  })
+}
+
+function solPrice(index: number): string {
+  const movement =
+    index <= 12
+      ? 144.4 + index * (0.8 / 12)
+      : index <= 55
+        ? 145.2 - (index - 12) * (1.3 / 43)
+        : 143.9 + (index - 55) * 0.028
+  const texture = Math.sin(index * 1.7) * 0.035 + Math.sin(index * 0.37) * 0.05
+  return (movement + texture).toFixed(4)
+}
+
+function ethPrice(index: number): string {
+  return (1916 + index * 0.035 + Math.sin(index / 5) * 0.8).toFixed(5)
+}
+
+function btcPrice(index: number): string {
+  if (index === 79) return '63842.5'
+  return (63780 + index * 0.72 + Math.sin(index / 6) * 18).toFixed(5)
+}
 </script>
 
 <template>

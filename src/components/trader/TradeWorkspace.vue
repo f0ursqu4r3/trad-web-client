@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import { Activity, ListChecks, WalletCards } from 'lucide-vue-next'
 
 import PanelEmptyState from '@/components/general/PanelEmptyState.vue'
 import ReconciliationControl from '@/components/engine/ReconciliationControl.vue'
 import { tradeWorkspaceProjection } from '@/lib/projection/tradeWorkspace'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
+import { useProjectionUiStore } from '@/stores/projectionUi'
 import ManagedTradeCard from './ManagedTradeCard.vue'
 import OpenOrdersSummary from './OpenOrdersSummary.vue'
 import PositionSummary from './PositionSummary.vue'
+import TradeDiscovery from './TradeDiscovery.vue'
 import TradeTicket from './TradeTicket.vue'
 
 export type TraderWorkspaceSection = 'trades' | 'positions' | 'orders'
@@ -16,30 +18,78 @@ export type TraderWorkspaceSection = 'trades' | 'positions' | 'orders'
 defineProps<{ section: TraderWorkspaceSection }>()
 const emit = defineEmits<{ (event: 'section', section: TraderWorkspaceSection): void }>()
 const projections = useAccountProjectionStore()
+const ui = useProjectionUiStore()
 const expandedTradeId = ref<string | null>(null)
+const selectedTradeId = ref<string | null>(null)
+const focusedTradeId = ref<string | null>(null)
 const showClosed = ref(false)
+const query = ref('')
+let focusTimer: number | null = null
 
 const snapshot = computed(() => projections.selectedLive)
 const model = computed(() =>
   snapshot.value === null ? null : tradeWorkspaceProjection(snapshot.value),
 )
-const visibleTrades = computed(() =>
+const sourceTrades = computed(() =>
   showClosed.value ? (model.value?.closedTrades ?? []) : (model.value?.activeTrades ?? []),
 )
+const visibleTrades = computed(() => {
+  const commandIds = new Set(ui.filteredCommands.map((command) => command.command_id))
+  const normalized = query.value.trim().toLowerCase()
+  return sourceTrades.value
+    .filter((trade) => {
+      if (!commandIds.has(trade.primaryCommand.command_id)) return false
+      if (normalized === '') return true
+      const meta = ui.meta(trade.primaryCommand.command_id)
+      return [
+        meta.nickname,
+        trade.symbol,
+        trade.side,
+        trade.entryLabel,
+        trade.lifecycle,
+        trade.tradeId,
+        trade.primaryCommand.command_id,
+      ].some((value) => value?.toLowerCase().includes(normalized))
+    })
+    .sort((left, right) => {
+      const pinned =
+        Number(ui.meta(right.primaryCommand.command_id).pinned) -
+        Number(ui.meta(left.primaryCommand.command_id).pinned)
+      return pinned || right.createdAt - left.createdAt
+    })
+})
+const hiddenTradeCount = computed(() => sourceTrades.value.length - visibleTrades.value.length)
 
 function toggleTrade(tradeId: string): void {
   expandedTradeId.value = expandedTradeId.value === tradeId ? null : tradeId
 }
 
+function markSelected(tradeId: string): void {
+  selectedTradeId.value = tradeId
+}
+
 async function selectTrade(tradeId: string): Promise<void> {
   emit('section', 'trades')
+  query.value = ''
+  ui.resetCommandFilters()
+  showClosed.value = model.value?.closedTrades.some((trade) => trade.tradeId === tradeId) ?? false
   expandedTradeId.value = tradeId
+  selectedTradeId.value = tradeId
+  focusedTradeId.value = tradeId
+  if (focusTimer !== null) window.clearTimeout(focusTimer)
+  focusTimer = window.setTimeout(() => {
+    if (focusedTradeId.value === tradeId) focusedTradeId.value = null
+  }, 1_100)
   await nextTick()
   document.querySelector(`[data-trade-id="${CSS.escape(tradeId)}"]`)?.scrollIntoView({
     behavior: 'smooth',
     block: 'nearest',
   })
 }
+
+onBeforeUnmount(() => {
+  if (focusTimer !== null) window.clearTimeout(focusTimer)
+})
 </script>
 
 <template>
@@ -85,6 +135,13 @@ async function selectTrade(tradeId: string): Promise<void> {
         </div>
       </header>
 
+      <TradeDiscovery
+        v-if="section === 'trades'"
+        v-model="query"
+        :shown="visibleTrades.length"
+        :hidden="hiddenTradeCount"
+      />
+
       <div v-if="projections.selected?.status !== 'ready'" class="workspace-state">
         <PanelEmptyState
           :title="
@@ -105,7 +162,10 @@ async function selectTrade(tradeId: string): Promise<void> {
           :trade="trade"
           :snapshot="snapshot!"
           :expanded="expandedTradeId === trade.tradeId"
+          :selected="selectedTradeId === trade.tradeId"
+          :focused="focusedTradeId === trade.tradeId"
           @toggle="toggleTrade"
+          @select="markSelected"
         />
         <PanelEmptyState
           v-if="visibleTrades.length === 0"
@@ -183,6 +243,15 @@ async function selectTrade(tradeId: string): Promise<void> {
   flex-direction: column;
   min-width: 0;
   overflow: auto;
+  background-color: var(--surface-canvas);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--border-subtle) 34%, transparent) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--border-subtle) 34%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 32px 32px;
 }
 .workspace-heading {
   position: sticky;

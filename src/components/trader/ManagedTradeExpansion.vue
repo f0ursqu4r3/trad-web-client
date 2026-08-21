@@ -10,10 +10,11 @@ import type { BrowserAccountSnapshot } from '@/lib/gateway'
 import { terminalCommandTree, type TerminalTreeNode } from '@/lib/projection/terminalPresentation'
 import type { ManagedTradeView } from '@/lib/projection/tradeWorkspace'
 import { useProjectionUiStore } from '@/stores/projectionUi'
+import ManagedTradeChart from './ManagedTradeChart.vue'
 import TradeHistoryPanel from './TradeHistoryPanel.vue'
 import TradeOrdersPanel from './TradeOrdersPanel.vue'
 
-type ExpansionTab = 'orders' | 'devices' | 'graph' | 'history'
+type ExpansionTab = 'orders' | 'chart' | 'devices' | 'sequence' | 'history'
 
 const props = defineProps<{
   trade: ManagedTradeView
@@ -22,7 +23,7 @@ const props = defineProps<{
 
 const ui = useProjectionUiStore()
 const activeTab = defineModel<ExpansionTab>('activeTab', { default: 'orders' })
-const tabs: ExpansionTab[] = ['orders', 'devices', 'graph', 'history']
+const tabs: ExpansionTab[] = ['orders', 'chart', 'devices', 'sequence', 'history']
 const tree = computed(() =>
   terminalCommandTree(props.snapshot, props.snapshot, props.trade.primaryCommand.command_id),
 )
@@ -107,6 +108,9 @@ function graphStatus(value: string): string {
     </nav>
 
     <TradeOrdersPanel v-if="activeTab === 'orders'" :trade="trade" />
+    <div v-else-if="activeTab === 'chart'" class="expansion-content chart-content">
+      <ManagedTradeChart :trade="trade" :snapshot="snapshot" />
+    </div>
     <div v-else-if="activeTab === 'devices'" class="expansion-content devices-content">
       <div class="device-tree" data-testid="managed-trade-device-tree">
         <ExecutionTreeView
@@ -119,12 +123,17 @@ function graphStatus(value: string): string {
       <div class="device-detail"><ProjectionDetails :show-actions="false" /></div>
     </div>
     <div
-      v-else-if="activeTab === 'graph'"
-      class="expansion-content graph-content"
-      data-testid="managed-trade-graph"
+      v-else-if="activeTab === 'sequence'"
+      class="expansion-content sequence-content"
+      data-testid="managed-trade-sequence"
     >
-      <DagViewer v-if="dag" :model="dag" @node-select="selectDagNode" />
-      <p v-else class="empty-copy">No relationship graph is available.</p>
+      <DagViewer
+        v-if="dag"
+        :model="dag"
+        :theme-vars="{ radius: '0px', radiusLg: '0px', radiusXl: '0px' }"
+        @node-select="selectDagNode"
+      />
+      <p v-else class="empty-copy">No execution sequence is available.</p>
     </div>
     <TradeHistoryPanel v-else :trade="trade" />
   </div>
@@ -170,7 +179,8 @@ function graphStatus(value: string): string {
   min-width: 0;
   overflow: auto;
 }
-.graph-content {
+.chart-content,
+.sequence-content {
   height: 460px;
 }
 .empty-copy {

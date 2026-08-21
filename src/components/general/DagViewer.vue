@@ -715,8 +715,8 @@ watch(
 }
 .legend {
   position: absolute;
-  left: 60px;
-  top: 12px;
+  bottom: 12px;
+  left: 12px;
   background: #00000030;
   border-radius: var(--radius-xl);
   padding: 6px 10px;
