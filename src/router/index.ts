@@ -83,6 +83,11 @@ const routes: RouteRecordRaw[] = [
           meta: { layout: 'blank' },
         },
         {
+          path: '/e2e/trader-workspace',
+          component: () => import('@/views/e2e/TraderWorkspaceFixture.vue'),
+          meta: { layout: 'blank' },
+        },
+        {
           path: '/e2e/engine-commands',
           component: () => import('@/views/e2e/EngineCommandFixture.vue'),
           meta: { layout: 'blank' },

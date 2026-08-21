@@ -27,6 +27,8 @@ const props = defineProps<{
   accountId: string
   action: LifecycleAction | null
   initialTrailingEntry?: Partial<TrailingEntryAmendmentDraft> | null
+  initialClosePercent?: string | null
+  initialCloseExecution?: 'market' | 'limit' | 'chase'
 }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
 const gateway = useGatewayStore()
@@ -157,17 +159,23 @@ const canSubmit = computed(
 )
 
 watch(
-  () => [props.open, props.action, props.initialTrailingEntry] as const,
+  () => [
+    props.open,
+    props.action,
+    props.initialTrailingEntry,
+    props.initialClosePercent,
+    props.initialCloseExecution,
+  ] as const,
   ([open]) => {
     if (open) reset()
   },
 )
 
 function reset(): void {
-  closeMode.value = 'full'
-  closePercent.value = '25'
+  closeMode.value = props.initialClosePercent == null ? 'full' : 'percent'
+  closePercent.value = props.initialClosePercent ?? '25'
   closeQuantity.value = ''
-  closeExecutionMode.value = 'market'
+  closeExecutionMode.value = props.initialCloseExecution ?? 'market'
   closeLimitPrice.value = ''
   closeLimitTimeInForce.value = 'post_only'
   closeChaseBoundaryEnabled.value = true
