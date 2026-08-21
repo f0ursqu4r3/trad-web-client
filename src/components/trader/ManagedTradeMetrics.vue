@@ -226,15 +226,31 @@ function childState(child: NativeProtectionChildProjection | undefined): string 
     text-overflow: clip;
     white-space: normal;
   }
+  .trade-metrics > div {
+    gap: 0.08rem;
+    padding: 0.38rem 0.45rem;
+  }
+  .trade-metrics span {
+    font-size: 8px;
+  }
+  .trade-metrics strong {
+    font-size: 11px;
+    line-height: 1.2;
+  }
   .protection-strip {
-    align-items: flex-start;
-    flex-wrap: wrap;
+    min-height: 27px;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.45rem;
+    font-size: 10px;
   }
   .protection-state {
     margin-left: 0;
   }
   .protection-legs > div {
     grid-template-columns: 32px minmax(0, 1fr) auto;
+    min-height: 24px;
+    padding: 0.18rem 0.45rem;
   }
   .leg-state {
     grid-column: 2;

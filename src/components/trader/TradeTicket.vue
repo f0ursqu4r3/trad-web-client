@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 
 import FormField from '@/components/forms/FormField.vue'
 import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmission'
 import { sizingModePreference } from '@/lib/engineCommands/form'
 import { marketUnits } from '@/lib/engineCommands/marketUnits'
 import { previewIntent } from '@/lib/engineCommands/intents'
-import { buildTradeTicketIntent, newTradeTicketDraft } from '@/lib/trader/tradeTicketDraft'
+import type { EngineCommandPrefill } from '@/lib/engineCommands/prefill'
+import {
+  applyTradeTicketPrefill,
+  buildTradeTicketIntent,
+  newTradeTicketDraft,
+} from '@/lib/trader/tradeTicketDraft'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 import { useUiStore } from '@/stores/ui'
@@ -94,6 +99,15 @@ async function submit(): Promise<void> {
     submitError.value = error instanceof Error ? error.message : String(error)
   }
 }
+
+async function applyPrefill(prefill: EngineCommandPrefill): Promise<void> {
+  applyTradeTicketPrefill(draft, prefill)
+  await nextTick()
+  acceptedMessage.value = 'Duplicated trade loaded. Review it before submitting.'
+  submitError.value = null
+}
+
+defineExpose({ applyPrefill })
 </script>
 
 <template>

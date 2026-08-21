@@ -4,6 +4,8 @@ import { Activity, ListChecks, WalletCards } from 'lucide-vue-next'
 
 import PanelEmptyState from '@/components/general/PanelEmptyState.vue'
 import ReconciliationControl from '@/components/engine/ReconciliationControl.vue'
+import ProjectionCommandFilters from '@/components/engine/ProjectionCommandFilters.vue'
+import type { EngineCommandPrefill } from '@/lib/engineCommands/prefill'
 import { tradeWorkspaceProjection } from '@/lib/projection/tradeWorkspace'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useProjectionUiStore } from '@/stores/projectionUi'
@@ -22,6 +24,9 @@ const ui = useProjectionUiStore()
 const expandedTradeId = ref<string | null>(null)
 const selectedTradeId = ref<string | null>(null)
 const focusedTradeId = ref<string | null>(null)
+const mobilePane = ref<'ticket' | 'trades'>('trades')
+const ticket = ref<InstanceType<typeof TradeTicket> | null>(null)
+const sidebar = ref<HTMLElement | null>(null)
 const showClosed = ref(false)
 const query = ref('')
 let focusTimer: number | null = null
@@ -69,6 +74,7 @@ function markSelected(tradeId: string): void {
 }
 
 async function selectTrade(tradeId: string): Promise<void> {
+  mobilePane.value = 'trades'
   emit('section', 'trades')
   query.value = ''
   ui.resetCommandFilters()
@@ -87,16 +93,33 @@ async function selectTrade(tradeId: string): Promise<void> {
   })
 }
 
+async function duplicateTrade(prefill: EngineCommandPrefill): Promise<void> {
+  await ticket.value?.applyPrefill(prefill)
+  mobilePane.value = 'ticket'
+  await nextTick()
+  sidebar.value?.scrollTo({ top: 0, behavior: 'smooth' })
+  sidebar.value?.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true })
+}
+
 onBeforeUnmount(() => {
   if (focusTimer !== null) window.clearTimeout(focusTimer)
 })
 </script>
 
 <template>
-  <div class="trader-workspace" data-testid="trader-workspace">
-    <aside class="workspace-sidebar">
+  <div class="trader-workspace" :class="`mobile-pane-${mobilePane}`" data-testid="trader-workspace">
+    <nav v-if="section === 'trades'" class="mobile-workspace-tabs" aria-label="Trade workspace">
+      <button type="button" :aria-pressed="mobilePane === 'ticket'" @click="mobilePane = 'ticket'">
+        New trade
+      </button>
+      <button type="button" :aria-pressed="mobilePane === 'trades'" @click="mobilePane = 'trades'">
+        Trades
+      </button>
+    </nav>
+
+    <aside ref="sidebar" class="workspace-sidebar">
       <div class="workspace-ticket">
-        <TradeTicket />
+        <TradeTicket ref="ticket" />
       </div>
       <div class="workspace-summaries">
         <PositionSummary :rows="model?.positions ?? []" @select-trade="selectTrade" />
@@ -106,12 +129,17 @@ onBeforeUnmount(() => {
 
     <main class="workspace-main">
       <header class="workspace-heading">
-        <div>
-          <span class="eyebrow">Trad-managed</span>
+        <div class="workspace-title">
           <h1 v-if="section === 'trades'">Trades</h1>
           <h1 v-else-if="section === 'positions'">Net positions</h1>
           <h1 v-else>Open orders</h1>
         </div>
+        <TradeDiscovery
+          v-if="section === 'trades'"
+          v-model="query"
+          :shown="visibleTrades.length"
+          :hidden="hiddenTradeCount"
+        />
         <div class="workspace-status">
           <template v-if="section === 'trades'">
             <button
@@ -135,11 +163,9 @@ onBeforeUnmount(() => {
         </div>
       </header>
 
-      <TradeDiscovery
-        v-if="section === 'trades'"
-        v-model="query"
-        :shown="visibleTrades.length"
-        :hidden="hiddenTradeCount"
+      <ProjectionCommandFilters
+        v-if="section === 'trades' && ui.showCommandFilters"
+        class="workspace-filter-panel"
       />
 
       <div v-if="projections.selected?.status !== 'ready'" class="workspace-state">
@@ -166,6 +192,7 @@ onBeforeUnmount(() => {
           :focused="focusedTradeId === trade.tradeId"
           @toggle="toggleTrade"
           @select="markSelected"
+          @duplicate="duplicateTrade"
         />
         <PanelEmptyState
           v-if="visibleTrades.length === 0"
@@ -216,6 +243,9 @@ onBeforeUnmount(() => {
   overflow: hidden;
   background: var(--surface-canvas);
 }
+.mobile-workspace-tabs {
+  display: none;
+}
 .workspace-sidebar {
   grid-area: sidebar;
   min-height: 0;
@@ -258,24 +288,31 @@ onBeforeUnmount(() => {
   top: 0;
   z-index: 4;
   display: flex;
-  min-height: 64px;
+  min-height: 42px;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 0.7rem 1rem;
+  gap: 0.65rem;
+  padding: 0.38rem 0.75rem;
   background: color-mix(in srgb, var(--surface-muted) 88%, var(--surface-base));
   border-bottom: 1px solid var(--border-normal);
 }
 .workspace-heading h1 {
-  margin: 0.12rem 0 0;
+  margin: 0;
   color: var(--fg-strong);
-  font-size: 17px;
+  font-size: 14px;
   font-weight: 500;
+}
+.workspace-title {
+  min-width: 5.5rem;
 }
 .workspace-status {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+.workspace-filter-panel {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--border-normal);
 }
 .trade-list {
   display: flex;
@@ -311,24 +348,53 @@ onBeforeUnmount(() => {
 }
 @media (max-width: 980px) {
   .trader-workspace {
-    display: flex;
-    height: auto;
-    min-height: 100%;
-    flex-direction: column;
-    overflow: visible;
+    display: grid;
+    height: 100%;
+    min-height: 0;
+    grid-template-areas:
+      'tabs'
+      'content';
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+  .mobile-workspace-tabs {
+    display: grid;
+    grid-area: tabs;
+    grid-template-columns: 1fr 1fr;
+    min-height: 32px;
+    background: var(--surface-muted);
+    border-bottom: 1px solid var(--border-normal);
+  }
+  .mobile-workspace-tabs button {
+    color: var(--fg-muted);
+    background: transparent;
+    border: 0;
+    border-right: 1px solid var(--border-subtle);
+  }
+  .mobile-workspace-tabs button:last-child {
+    border-right: 0;
+  }
+  .mobile-workspace-tabs button[aria-pressed='true'] {
+    color: var(--accent-color);
+    background: var(--surface-active);
+    box-shadow: inset 0 -2px var(--accent-color);
   }
   .workspace-sidebar {
-    display: contents;
-  }
-  .workspace-ticket {
-    order: 1;
+    display: block;
+    grid-area: content;
+    min-width: 0;
+    overflow: auto;
+    border-right: 0;
   }
   .workspace-main {
-    order: 2;
-    overflow: visible;
+    grid-area: content;
+    overflow: auto;
   }
-  .workspace-summaries {
-    order: 3;
+  .mobile-pane-ticket .workspace-main {
+    display: none;
+  }
+  .mobile-pane-trades .workspace-sidebar {
+    display: none;
   }
   .workspace-ticket {
     min-width: 0;
@@ -342,9 +408,6 @@ onBeforeUnmount(() => {
     border-right: 0;
     border-top: 1px solid var(--border-normal);
   }
-  .workspace-heading {
-    position: static;
-  }
   .trade-list,
   .primary-summary,
   .workspace-summaries {
@@ -355,12 +418,24 @@ onBeforeUnmount(() => {
 }
 @media (max-width: 620px) {
   .workspace-heading {
-    align-items: flex-start;
-    flex-direction: column;
+    min-height: 0;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0.3rem 0.45rem;
   }
   .workspace-status {
-    width: 100%;
+    width: auto;
+    margin-left: auto;
     flex-wrap: wrap;
+    gap: 0.28rem;
+  }
+  .workspace-title {
+    min-width: auto;
+  }
+  .trade-list {
+    gap: 0.4rem;
+    padding: 0.4rem;
   }
 }
 </style>

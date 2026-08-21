@@ -86,7 +86,7 @@ onBeforeUnmount(() => {
   >
     <span class="status-dot" />
     <template v-if="formattedPrice">
-      Live trade {{ formattedPrice }} {{ quoteAsset ?? '' }}
+      <span class="price-value">Live trade {{ formattedPrice }} {{ quoteAsset ?? '' }}</span>
       <span v-if="freshness" class="freshness">· {{ freshness }}</span>
     </template>
     <template v-else-if="status === 'error'"> Price unavailable </template>
@@ -107,6 +107,13 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
+.price-value {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .status-dot {
   width: 6px;
   height: 6px;
@@ -116,7 +123,9 @@ onBeforeUnmount(() => {
 }
 
 .freshness {
+  flex: 0 0 auto;
   color: var(--color-text-dim);
+  white-space: nowrap;
 }
 
 .market-price.stale {

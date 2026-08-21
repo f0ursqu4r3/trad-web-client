@@ -71,13 +71,12 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
   gap: 0.6rem;
 }
 .symbol-heading {
-  flex-wrap: wrap;
-  justify-content: flex-start;
+  flex-wrap: nowrap;
 }
 .symbol-heading :deep(.market-price) {
-  max-width: 100%;
-  flex-wrap: wrap;
-  white-space: normal;
+  overflow: hidden;
+  max-width: calc(100% - 4.5rem);
+  flex-wrap: nowrap;
 }
 .entry-tabs,
 .side-toggle {

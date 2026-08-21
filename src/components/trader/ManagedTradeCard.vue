@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Pin, TriangleAlert } from 'lucide-vue-next'
 
 import ProtectionAmendmentModal from '@/components/engine/actions/ProtectionAmendmentModal.vue'
 import { activeProtectionAmendment } from '@/lib/engineCommands/protectionAmendment'
+import type { EngineCommandPrefill } from '@/lib/engineCommands/prefill'
 import type { BrowserAccountSnapshot } from '@/lib/gateway'
 import type { ManagedTradeView } from '@/lib/projection/tradeWorkspace'
 import { managedTradeActions } from '@/lib/projection/tradeWorkspaceActions'
@@ -28,6 +29,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (event: 'toggle', tradeId: string): void
   (event: 'select', tradeId: string): void
+  (event: 'duplicate', prefill: EngineCommandPrefill): void
 }>()
 
 interface ActionBarApi {
@@ -184,6 +186,7 @@ async function resyncTotals(): Promise<void> {
           :mini-chart="showMiniChart"
           @detail="openDetail"
           @toggle-mini-chart="showMiniChart = !showMiniChart"
+          @duplicate="emit('duplicate', $event)"
         />
       </div>
     </header>
@@ -364,16 +367,31 @@ async function resyncTotals(): Promise<void> {
   outline-offset: 2px;
 }
 @media (max-width: 760px) {
+  .trade-card {
+    border-left-width: 2px;
+  }
+  .trade-heading {
+    min-height: 34px;
+    gap: 0.35rem;
+    padding: 0.25rem 0.4rem;
+  }
   .trade-expand {
     flex: 1 1 auto;
+    gap: 0.32rem;
+  }
+  .trade-expand strong {
+    font-size: 13px;
+  }
+  .trade-kind,
+  .trade-side {
+    font-size: 10px;
   }
   .trade-header-actions {
-    width: 100%;
-    order: 3;
-    justify-content: flex-start;
+    display: none;
   }
   .trade-heading-status {
     margin-left: auto;
+    gap: 0.25rem;
   }
   .trade-card.with-mini-chart .trade-body {
     grid-template-columns: 1fr;

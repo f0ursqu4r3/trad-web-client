@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Filter } from 'lucide-vue-next'
 
-import ProjectionCommandFilters from '@/components/engine/ProjectionCommandFilters.vue'
 import { useProjectionUiStore } from '@/stores/projectionUi'
 
 defineProps<{ shown: number; hidden: number }>()
@@ -11,45 +10,48 @@ const ui = useProjectionUiStore()
 
 <template>
   <div class="trade-discovery">
-    <div class="trade-discovery-bar">
-      <input v-model="query" class="input trade-search" type="search" placeholder="Filter trades" />
-      <span class="trade-count">
-        {{ shown }} shown<span v-if="hidden"> · {{ hidden }} hidden</span>
-      </span>
-      <button
-        class="btn btn-sm icon-btn"
-        type="button"
-        title="Trade filters"
-        :aria-pressed="ui.showCommandFilters"
-        @click="ui.showCommandFilters = !ui.showCommandFilters"
-      >
-        <Filter :size="13" />
-      </button>
-    </div>
-    <ProjectionCommandFilters v-if="ui.showCommandFilters" />
+    <input v-model="query" class="input trade-search" type="search" placeholder="Filter trades" />
+    <span class="trade-count">
+      {{ shown }} shown<span v-if="hidden"> · {{ hidden }} hidden</span>
+    </span>
+    <button
+      class="btn btn-sm icon-btn"
+      type="button"
+      title="Trade filters"
+      :aria-pressed="ui.showCommandFilters"
+      @click="ui.showCommandFilters = !ui.showCommandFilters"
+    >
+      <Filter :size="13" />
+    </button>
   </div>
 </template>
 
 <style scoped>
 .trade-discovery {
-  background: var(--surface-sunken);
-}
-.trade-discovery-bar {
   display: flex;
-  min-height: 40px;
+  min-width: 180px;
+  max-width: 34rem;
+  flex: 1;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.4rem 0.75rem;
-  border-bottom: 1px solid var(--border-normal);
 }
 .trade-search {
-  min-width: 160px;
+  min-width: 120px;
   max-width: 28rem;
   flex: 1;
+  min-height: 28px;
 }
 .trade-count {
   color: var(--fg-muted);
   font-size: 11px;
   white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+  .trade-discovery {
+    min-width: 100%;
+    max-width: none;
+    order: 3;
+  }
 }
 </style>

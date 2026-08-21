@@ -138,4 +138,24 @@ defineExpose({ openClose, openTakeover })
   min-height: 28px;
   padding-block: 0.2rem;
 }
+@media (max-width: 760px) {
+  .trade-actions {
+    gap: 0.28rem;
+    padding: 0.35rem 0.45rem;
+  }
+  .trade-actions :deep(.btn-sm) {
+    min-height: 25px;
+    padding: 0.2rem 0.42rem;
+    font-size: 10px;
+  }
+  .close-mode {
+    gap: 0.25rem;
+    font-size: 10px;
+  }
+  .input-compact {
+    width: 78px;
+    min-height: 25px;
+    font-size: 10px;
+  }
+}
 </style>

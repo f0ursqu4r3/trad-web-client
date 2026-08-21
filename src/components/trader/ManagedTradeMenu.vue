@@ -4,10 +4,9 @@ import { Menu } from 'lucide-vue-next'
 
 import DropMenu, { type DropMenuItem } from '@/components/general/DropMenu.vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
-import { duplicateCommandPrefill } from '@/lib/engineCommands/prefill'
+import { duplicateCommandPrefill, type EngineCommandPrefill } from '@/lib/engineCommands/prefill'
 import type { ManagedTradeView } from '@/lib/projection/tradeWorkspace'
 import { useAccountsStore } from '@/stores/accounts'
-import { useModalStore } from '@/stores/modals'
 import { useProjectionUiStore } from '@/stores/projectionUi'
 
 export type ManagedTradeDetailTab = 'orders' | 'chart' | 'devices' | 'sequence' | 'history'
@@ -20,10 +19,10 @@ const props = defineProps<{
 const emit = defineEmits<{
   (event: 'detail', tab: ManagedTradeDetailTab): void
   (event: 'toggle-mini-chart'): void
+  (event: 'duplicate', prefill: EngineCommandPrefill): void
 }>()
 
 const accounts = useAccountsStore()
-const modals = useModalStore()
 const ui = useProjectionUiStore()
 const menu = ref<InstanceType<typeof DropMenu> | null>(null)
 const renameOpen = ref(false)
@@ -54,11 +53,7 @@ const items = computed<DropMenuItem[]>(() => {
       : [
           {
             label: 'Duplicate trade',
-            action: () =>
-              modals.openModalWithValues(
-                duplicate.modal,
-                duplicate.values as unknown as Record<string, unknown>,
-              ),
+            action: () => emit('duplicate', duplicate),
           },
         ]),
     {

@@ -97,6 +97,25 @@ test('trade filters and trade metadata actions survive the trade-centric view', 
   await expect(workspace.getByTestId('managed-trade-card').first()).toContainText('SOL')
 })
 
+test('duplicate trade loads the workspace ticket instead of the legacy command modal', async ({
+  page,
+}) => {
+  const sol = page.getByTestId('managed-trade-card').filter({ hasText: 'SOL' })
+  await sol.getByRole('button', { name: 'Trade actions' }).click()
+  await page.getByRole('menuitem', { name: 'Duplicate trade' }).click()
+
+  const ticket = page.getByRole('form', { name: 'New trade order ticket' })
+  await expect(
+    ticket.getByText('Duplicated trade loaded. Review it before submitting.'),
+  ).toBeVisible()
+  await expect(ticket.locator('input').first()).toHaveValue('SOL')
+  await expect(ticket.getByRole('button', { name: 'Trailing', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(page.getByRole('dialog', { name: 'Trailing Entry' })).toHaveCount(0)
+})
+
 test('cross-view links select, focus, expand, and scroll to the owning trade', async ({ page }) => {
   const workspace = page.getByTestId('trader-workspace')
   await workspace.locator('.workspace-summaries .order-link').first().click()
@@ -163,6 +182,14 @@ test('complete inline ticket previews and submits without opening the legacy for
 
   await expect(ticket.getByText('Join top · post-only maker')).toBeVisible()
   await expect(ticket.getByText(/Live trade 63,842.5 USDC/)).toBeVisible()
+  const livePrice = ticket.locator('.market-price')
+  const priceTop = await livePrice
+    .locator('.price-value')
+    .evaluate((element) => Math.round(element.getBoundingClientRect().top))
+  const ageTop = await livePrice
+    .locator('.freshness')
+    .evaluate((element) => Math.round(element.getBoundingClientRect().top))
+  expect(ageTop).toBe(priceTop)
   await ticket.getByLabel('Stop-loss price (USDC)').fill('62000')
   await expect(ticket.getByText('Ready', { exact: true })).toBeVisible()
 
@@ -173,17 +200,49 @@ test('complete inline ticket previews and submits without opening the legacy for
   await expect(page.getByRole('dialog', { name: 'Chase Order' })).toHaveCount(0)
 })
 
-test('mobile stacks ticket, trades, then venue summaries without horizontal overflow', async ({
+test('mobile splits ticket and trades, preserves each scroll position, and stays dense', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const workspace = page.getByTestId('trader-workspace')
-  await expect(workspace.getByText('Order ticket')).toBeVisible()
+  const ticketTab = workspace.getByRole('button', { name: 'New trade', exact: true })
+  const tradesTab = workspace.getByRole('button', { name: 'Trades', exact: true })
+  await expect(tradesTab).toHaveAttribute('aria-pressed', 'true')
+  await expect(workspace.getByText('Order ticket')).toBeHidden()
 
   const btc = workspace.getByTestId('managed-trade-card').filter({ hasText: 'BTC' })
-  await btc.scrollIntoViewIfNeeded()
   await expect(btc).toBeVisible()
+  const main = workspace.locator('.workspace-main')
+  await main.evaluate((element) => (element.scrollTop = 240))
+  const tradeScroll = await main.evaluate((element) => element.scrollTop)
+
+  await ticketTab.click()
+  await expect(workspace.getByText('Order ticket')).toBeVisible()
+  const sidebar = workspace.locator('.workspace-sidebar')
+  await sidebar.evaluate((element) => (element.scrollTop = 180))
+  const ticketScroll = await sidebar.evaluate((element) => element.scrollTop)
+
+  await tradesTab.click()
+  expect(await main.evaluate((element) => element.scrollTop)).toBe(tradeScroll)
+  await ticketTab.click()
+  expect(await sidebar.evaluate((element) => element.scrollTop)).toBe(ticketScroll)
   expect(
     await workspace.evaluate((element) => element.scrollWidth <= element.clientWidth + 1),
   ).toBe(true)
+})
+
+test('duplicate switches mobile users to a populated new-trade ticket', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const workspace = page.getByTestId('trader-workspace')
+  const sol = workspace.getByTestId('managed-trade-card').filter({ hasText: 'SOL' })
+  await sol.getByRole('button', { name: 'Trade actions' }).click()
+  await page.getByRole('menuitem', { name: 'Duplicate trade' }).click()
+
+  await expect(workspace.getByRole('button', { name: 'New trade', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(
+    workspace.getByRole('form', { name: 'New trade order ticket' }).locator('input').first(),
+  ).toHaveValue('SOL')
 })

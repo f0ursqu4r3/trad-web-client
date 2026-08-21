@@ -12,6 +12,7 @@ import {
   buildPlaceTrailingEntryIntent,
 } from '@/lib/engineCommands/intents'
 import type { PersistedSizingMode } from '@/lib/engineCommands/form'
+import type { EngineCommandPrefill } from '@/lib/engineCommands/prefill'
 
 export type TicketEntryType = 'market' | 'limit' | 'chase' | 'trailing'
 
@@ -59,6 +60,81 @@ export function newTradeTicketDraft(
     maxChildren: '20',
     oneWaySemantics: 'target_side_exposure',
     protection: newEntryProtectionState(),
+  }
+}
+
+export function applyTradeTicketPrefill(
+  draft: TradeTicketDraft,
+  prefill: EngineCommandPrefill,
+): void {
+  switch (prefill.modal) {
+    case 'EngineTrailingEntry': {
+      const values = prefill.values
+      draft.symbol = values.symbol
+      draft.positionSide = values.positionSide
+      draft.amount = values.riskAmount
+      draft.entryType = 'trailing'
+      draft.sizingMode = 'risk_at_stop'
+      draft.activationPrice = values.activationPrice
+      draft.jumpBasisPoints = values.jumpBasisPoints
+      draft.shapeMode = values.shapeMode
+      draft.targetChildNotional = values.targetChildNotional
+      draft.maxChildren = values.maxChildren
+      draft.oneWaySemantics = values.oneWaySemantics
+      draft.protection = {
+        stopLoss: {
+          enabled: true,
+          triggerPrice: values.stopLossPrice,
+          triggerSource: 'mark_price',
+          executionKind: 'market',
+          executionPrice: '',
+        },
+        takeProfits:
+          values.takeProfitPrice === ''
+            ? []
+            : [
+                {
+                  id: `duplicate-tp-${Date.now()}`,
+                  triggerPrice: values.takeProfitPrice,
+                  triggerSource: 'mark_price',
+                  executionKind: 'limit',
+                  executionPrice: values.takeProfitPrice,
+                  allocationKind: 'full_remaining',
+                  allocationValue: '',
+                },
+              ],
+      }
+      return
+    }
+    case 'EngineChaseOrder': {
+      const values = prefill.values
+      draft.symbol = values.symbol
+      draft.positionSide = values.positionSide
+      draft.amount = values.amount
+      draft.sizingMode = values.sizingMode
+      draft.protection = structuredClone(values.protection)
+      draft.entryType = 'chase'
+      draft.boundaryKind = values.boundaryKind
+      draft.boundaryValue = values.boundaryValue
+      draft.expirySeconds = values.expirySeconds
+      draft.remainder = values.remainder
+      return
+    }
+    case 'EngineMarketOrder':
+    case 'EngineLimitOrder': {
+      const values = prefill.values
+      draft.symbol = values.symbol
+      draft.positionSide = values.positionSide
+      draft.amount = values.amount
+      draft.sizingMode = values.sizingMode
+      draft.protection = structuredClone(values.protection)
+      draft.entryType = values.executionKind
+      draft.limitPrice = values.limitPrice
+      draft.timeInForce = values.timeInForce
+      draft.shapeMode = values.shapeMode
+      draft.targetChildNotional = values.targetChildNotional
+      draft.maxChildren = values.maxChildren
+    }
   }
 }
 
