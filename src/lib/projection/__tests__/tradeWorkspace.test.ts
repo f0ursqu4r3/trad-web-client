@@ -29,9 +29,9 @@ test('correlates positions, orders, executions, and protection without symbol gu
 
   assert.equal(eth?.filledQuantity, '0.00420001')
   assert.equal(eth?.remainingQuantity, '0.00420001')
-  assert.equal(eth?.averageEntryPrice, '1918.90000001')
+  assert.equal(eth?.averageEntryPrice, '1918.82499983')
   assert.equal(eth?.protection?.status, 'tracking')
-  assert.equal(eth?.executions.length, 1)
+  assert.equal(eth?.executions.length, 2)
   assert.equal(btc?.filledQuantity, '0.025')
   assert.equal(btc?.requestedQuantity, '0.125')
 

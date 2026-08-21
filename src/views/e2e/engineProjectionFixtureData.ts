@@ -136,6 +136,18 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
     '0',
     'filled',
   )
+  chaseOrder.active_generation = 2
+  chaseOrder.generations = {
+    '0': generationAt(CHASE_ORDER_ID, 0, '0', 'canceled', '0.125', null, 1),
+    '1': generationAt(CHASE_ORDER_ID, 1, '0.01', 'canceled', '0.125', 0, 2),
+    '2': generationAt(CHASE_ORDER_ID, 2, '0.015', 'working', '0.115', 1, null),
+  }
+  filledOrder.active_generation = 2
+  filledOrder.generations = {
+    '0': generationAt(FILLED_ORDER_ID, 0, '0', 'canceled', '0.00420001', null, 1),
+    '1': generationAt(FILLED_ORDER_ID, 1, '0.0021', 'canceled', '0.00420001', 0, 2),
+    '2': generationAt(FILLED_ORDER_ID, 2, '0.00210001', 'filled', '0.00210001', 1, null),
+  }
 
   return {
     checkpoint: checkpoint(42, 3, { trailing_entries: 1, active_trailing_entries: 1 }),
@@ -338,12 +350,12 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
           event_id: 'fill-eth-1',
           execution_id: 'exec-eth-1',
           symbol: 'ETH',
-          client_order_id: generation(FILLED_ORDER_ID, '0.00420001').client_order_id,
+          client_order_id: filledOrder.generations['1']!.client_order_id,
           remote_order_id: '987654321',
           side: 'buy',
           position_side: 'long',
           price: '1918.90000001',
-          quantity: '0.00420001',
+          quantity: '0.0021',
           occurred_at: ACCEPTED_AT + 1_150,
           is_maker: false,
           fee: { asset: 'USDC', amount: '0.003223456789' },
@@ -352,7 +364,30 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
           start_position: '0',
           transaction_hash: '0xabc123',
         },
-        order: { order_id: FILLED_ORDER_ID, generation: 0 },
+        order: { order_id: FILLED_ORDER_ID, generation: 1 },
+        reconciliation_required: false,
+      },
+      {
+        event_id: 'fill-eth-2',
+        fill: {
+          event_id: 'fill-eth-2',
+          execution_id: 'exec-eth-2',
+          symbol: 'ETH',
+          client_order_id: filledOrder.generations['2']!.client_order_id,
+          remote_order_id: '987654322',
+          side: 'buy',
+          position_side: 'long',
+          price: '1918.75000001',
+          quantity: '0.00210001',
+          occurred_at: ACCEPTED_AT + 1_220,
+          is_maker: true,
+          fee: { asset: 'USDC', amount: '0.001611728394' },
+          builder_fee: { asset: 'USDC', amount: '0.000555555555' },
+          realized_pnl: null,
+          start_position: '0.0021',
+          transaction_hash: '0xdef456',
+        },
+        order: { order_id: FILLED_ORDER_ID, generation: 2 },
         reconciliation_required: false,
       },
     ],
@@ -535,26 +570,46 @@ function order(
 }
 
 function generation(orderId: string, filled: string): OrderGenerationProjection {
+  return generationAt(
+    orderId,
+    0,
+    filled,
+    filled === '0' ? 'working' : 'filled',
+    filled === '0' ? '1.25' : filled,
+    null,
+    null,
+  )
+}
+
+function generationAt(
+  orderId: string,
+  generation: number,
+  filled: string,
+  lifecycle: string,
+  quantity: string,
+  predecessorGeneration: number | null,
+  successorGeneration: number | null,
+): OrderGenerationProjection {
   return {
-    generation: 0,
-    predecessor_generation: null,
-    successor_generation: null,
-    lifecycle: filled === '0' ? 'working' : 'filled',
+    generation,
+    predecessor_generation: predecessorGeneration,
+    successor_generation: successorGeneration,
+    lifecycle,
     working_request: {
       symbol: orderId === FILLED_ORDER_ID ? 'ETH' : 'BTC',
       side: 'buy',
       position_side: 'long',
-      quantity: filled === '0' ? '1.25' : filled,
+      quantity,
       execution: { kind: 'limit', price: '64231.125' },
       reduce_only: false,
     },
     filled_quantity: filled,
-    client_order_id: `trad-${orderId}`,
-    active_remote_order_id: filled === '0' ? `remote-${orderId}` : null,
-    remote_order_ids: [`remote-${orderId}`],
-    submission_operation_id: `operation-${orderId}`,
-    modify_operation_ids: [],
-    cancel_operation_id: null,
+    client_order_id: `trad-${orderId}-${generation}`,
+    active_remote_order_id: lifecycle === 'working' ? `remote-${orderId}-${generation}` : null,
+    remote_order_ids: [`remote-${orderId}-${generation}`],
+    submission_operation_id: `operation-${orderId}-${generation}`,
+    modify_operation_ids: generation === 0 ? [] : [`modify-${orderId}-${generation}`],
+    cancel_operation_id: lifecycle === 'canceled' ? `cancel-${orderId}-${generation}` : null,
     reconciliation_operation_id: null,
   }
 }
@@ -602,7 +657,7 @@ function summary(commands: number): AccountProjectionSummary {
     orders: 2,
     active_orders: 1,
     positions: 1,
-    executions: 1,
+    executions: 2,
     unmatched_executions: 0,
     unresolved_legacy_entities: 0,
     unresolved_external_orders: 0,

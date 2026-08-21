@@ -36,16 +36,20 @@ test('expands one trade into orders, devices, graph, and history', async ({ page
 
   await eth.getByRole('button', { name: 'devices', exact: true }).click()
   await expect(eth.getByTestId('projection-details')).toBeVisible()
+  await expect(eth.getByTestId('managed-trade-device-tree').locator('.device-row')).toHaveCount(7)
+  await expect(eth.getByText('Native Protection', { exact: true })).toBeVisible()
 
   await eth.getByRole('button', { name: 'graph', exact: true }).click()
   await expect(eth.locator('.dag-canvas')).toBeVisible()
+  await expect(eth.getByTestId('managed-trade-graph').locator('.node')).toHaveCount(7)
+  await expect(eth.getByTestId('managed-trade-graph').getByText('Stop Loss')).toBeVisible()
 
   await eth
     .getByLabel('Trade details')
     .getByRole('button', { name: 'history', exact: true })
     .click()
   await expect(eth.getByText('place order', { exact: true })).toBeVisible()
-  await expect(eth.getByText('fill', { exact: true })).toBeVisible()
+  await expect(eth.getByText('fill', { exact: true })).toHaveCount(2)
 })
 
 test('mirrors the client workflow with practical presets and redundant trade actions', async ({
