@@ -136,6 +136,12 @@ export function entityLabel(entity: ProjectionEntity): string {
 }
 
 export function commandLabel(command: CommandProjection): string {
+  if (
+    command.accepted.kind === 'cancel_entry_work' &&
+    objectValue(command.accepted.parameters)?.mode === 'take_over'
+  ) {
+    return 'Take Over Exposure'
+  }
   if (command.accepted.kind === 'place_order') {
     const request = objectValue(command.accepted.parameters.request)
     const execution = objectValue(request?.execution)

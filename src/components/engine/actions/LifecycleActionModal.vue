@@ -382,8 +382,9 @@ function chooseClosePercent(percent: string): void {
             />
           </label>
           <p class="help-text">
-            Chase is reduce-only and post-only. Boundary, expiry, or cancellation leaves any
-            unfilled owned exposure open; it never silently falls back to Market.
+            Chase is post-only and closes exactly the selected Trad-owned quantity. Boundary,
+            expiry, or cancellation leaves any unfilled owned exposure open; it never silently falls
+            back to Market.
           </p>
         </template>
       </template>
@@ -447,8 +448,13 @@ function chooseClosePercent(percent: string): void {
       </template>
 
       <p v-if="action?.kind === 'close_trailing_entry'" class="help-text">
-        Cancels remaining entry work, closes established owned exposure reduce-only, and settles
-        protection.
+        Cancels remaining entry work, closes exactly the established Trad-owned exposure, and
+        settles protection.
+      </p>
+      <p v-else-if="action?.kind === 'take_over_exposure'" class="help-text">
+        Trad will cancel every working order and protection child for this command, then stop
+        managing its remaining exposure. It will not close or flatten the exchange position. Any
+        remaining position becomes outside Trad control.
       </p>
       <p v-else-if="action?.kind === 'enter_trailing_entry'" class="help-text">
         Commits entry immediately from the latest authoritative Trailing Entry state.

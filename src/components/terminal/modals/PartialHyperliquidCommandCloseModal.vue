@@ -2,7 +2,12 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useAccountsStore } from '@/stores/accounts'
 import { useWsStore } from '@/stores/ws'
-import type { CloseExecutionPolicy, LimitTimeInForce, MarketContext, PositionSide } from '@/lib/ws/protocol'
+import type {
+  CloseExecutionPolicy,
+  LimitTimeInForce,
+  MarketContext,
+  PositionSide,
+} from '@/lib/ws/protocol'
 import { NetworkType } from '@/lib/ws/protocol'
 import { marketContextAccountId } from '@/lib/marketContext'
 import { formatQty } from '@/components/terminal/devices/utils'
@@ -219,7 +224,9 @@ onBeforeUnmount(() => abort?.abort())
         aria-modal="true"
         :aria-label="dialogLabel"
       >
-        <header class="flex shrink-0 items-center justify-between p-3 border-b border-[var(--border-color)]">
+        <header
+          class="flex shrink-0 items-center justify-between p-3 border-b border-[var(--border-color)]"
+        >
           <div>
             <div class="text-[11px] uppercase text-[var(--accent-color)]">
               {{ actionLabel ?? 'Close Command Exposure' }}
@@ -256,7 +263,7 @@ onBeforeUnmount(() => abort?.abort())
 
           <fieldset class="space-y-3 border border-[var(--border-color)] p-3">
             <legend class="px-1 text-[10px] uppercase text-[var(--color-text-dim)]">
-              Reduce-only execution
+              Managed exit execution
             </legend>
             <div class="grid grid-cols-3 gap-2">
               <button
@@ -272,20 +279,65 @@ onBeforeUnmount(() => abort?.abort())
             </div>
             <template v-if="executionMode === 'limit'">
               <div class="grid grid-cols-2 gap-2">
-                <label class="field"><span>Limit price</span><input v-model.number="limitPrice" type="number" min="0" step="any" class="input" /></label>
-                <label class="field"><span>Time in force</span><select v-model="limitTimeInForce" class="input"><option value="gtc">Good Till Canceled</option><option value="alo">Post Only (ALO)</option></select></label>
+                <label class="field"
+                  ><span>Limit price</span
+                  ><input
+                    v-model.number="limitPrice"
+                    type="number"
+                    min="0"
+                    step="any"
+                    class="input"
+                /></label>
+                <label class="field"
+                  ><span>Time in force</span
+                  ><select v-model="limitTimeInForce" class="input">
+                    <option value="gtc">Good Till Canceled</option>
+                    <option value="alo">Post Only (ALO)</option>
+                  </select></label
+                >
               </div>
             </template>
             <template v-else-if="executionMode === 'chase'">
               <div class="grid grid-cols-2 gap-2">
-                <label class="field"><span>Boundary type</span><select v-model="chaseBoundaryMode" class="input"><option value="basis_points">Distance (bps)</option><option value="price">Fixed price</option></select></label>
-                <label class="field"><span>{{ chaseBoundaryMode === 'basis_points' ? 'Maximum distance (bps)' : 'Maximum adverse price' }}</span><input v-model.number="chaseBoundaryValue" type="number" min="0" step="any" class="input" /></label>
-                <label class="field flex-row items-center gap-2"><input v-model="chaseUntilCanceled" type="checkbox" /><span>Run until canceled</span></label>
-                <label v-if="!chaseUntilCanceled" class="field"><span>Expiry (minutes)</span><input v-model.number="chaseExpiryMinutes" type="number" min="0" step="any" class="input" /></label>
+                <label class="field"
+                  ><span>Boundary type</span
+                  ><select v-model="chaseBoundaryMode" class="input">
+                    <option value="basis_points">Distance (bps)</option>
+                    <option value="price">Fixed price</option>
+                  </select></label
+                >
+                <label class="field"
+                  ><span>{{
+                    chaseBoundaryMode === 'basis_points'
+                      ? 'Maximum distance (bps)'
+                      : 'Maximum adverse price'
+                  }}</span
+                  ><input
+                    v-model.number="chaseBoundaryValue"
+                    type="number"
+                    min="0"
+                    step="any"
+                    class="input"
+                /></label>
+                <label class="field flex-row items-center gap-2"
+                  ><input v-model="chaseUntilCanceled" type="checkbox" /><span
+                    >Run until canceled</span
+                  ></label
+                >
+                <label v-if="!chaseUntilCanceled" class="field"
+                  ><span>Expiry (minutes)</span
+                  ><input
+                    v-model.number="chaseExpiryMinutes"
+                    type="number"
+                    min="0"
+                    step="any"
+                    class="input"
+                /></label>
               </div>
             </template>
             <p class="m-0 text-[11px] text-[var(--color-text-dim)]">
-              Market exits immediately. Limit rests at your price. Chase follows the same-side top of book with post-only reduce-only orders.
+              Market exits immediately. Limit rests at your price. Chase follows the same-side top
+              of book with post-only orders.
             </p>
           </fieldset>
 
@@ -294,7 +346,7 @@ onBeforeUnmount(() => abort?.abort())
           >
             <span class="text-[var(--color-text-dim)]">Exchange size step</span>
             <span>{{ step == null ? 'loading' : formatQty(step) }}</span>
-            <span class="text-[var(--color-text-dim)]">Normalized reduce-only close</span>
+            <span class="text-[var(--color-text-dim)]">Normalized managed close</span>
             <span>{{ formatQty(normalizedQuantity) }}</span>
             <span class="text-[var(--color-text-dim)]">Command remainder</span>
             <span>{{ formatQty(remainingQuantity) }}</span>
@@ -324,8 +376,9 @@ onBeforeUnmount(() => abort?.abort())
           <p v-if="validationError" class="m-0 text-[var(--color-error)]">{{ validationError }}</p>
           <p class="m-0 text-[var(--color-text-dim)]">
             Trad cancels and confirms any working entry first, revalidates command ownership, then
-            submits an exact reduce-only close. Protection is resized to the actual filled
-            remainder, including partial fills.
+            submits an exact close for this command's Trad-owned exposure. On Hyperliquid this may
+            cross the venue's zero line to restore exposure established outside Trad. Protection is
+            resized to the actual filled remainder, including partial fills.
           </p>
         </div>
 

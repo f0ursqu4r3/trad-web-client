@@ -18,23 +18,24 @@ test('projected Chase actions target authoritative identities', () => {
 
   assert.deepEqual(
     actions.map((action) => action.kind),
-    ['cancel_chase', 'close_exposure'],
+    ['cancel_chase', 'close_exposure', 'take_over_exposure'],
   )
   assert.deepEqual(lifecycleIntent(actions[0]!), {
     kind: 'cancel_chase',
     parameters: { chase_id: graph.chases[0]!.chase_id },
   })
-  assert.deepEqual(
-    lifecycleIntent(actions[1]!, { closeMode: 'percent', closePercent: '50' }),
-    {
-      kind: 'close_exposure',
-      parameters: {
-        source_command_id: command.command_id,
-        quantity: { kind: 'percent', percent: '50' },
-        execution: { kind: 'market' },
-      },
+  assert.deepEqual(lifecycleIntent(actions[1]!, { closeMode: 'percent', closePercent: '50' }), {
+    kind: 'close_exposure',
+    parameters: {
+      source_command_id: command.command_id,
+      quantity: { kind: 'percent', percent: '50' },
+      execution: { kind: 'market' },
     },
-  )
+  })
+  assert.deepEqual(lifecycleIntent(actions[2]!), {
+    kind: 'take_over_exposure',
+    parameters: { source_command_id: command.command_id },
+  })
   assert.deepEqual(lifecycleIntent(actions[1]!, { closeMode: 'base', closeQuantity: '0.01000' }), {
     kind: 'close_exposure',
     parameters: {
@@ -96,7 +97,7 @@ test('selecting a Chase child still controls the owning Chase', () => {
 
   assert.deepEqual(
     actions.map((action) => action.kind),
-    ['cancel_chase', 'close_exposure'],
+    ['cancel_chase', 'close_exposure', 'take_over_exposure'],
   )
 })
 
@@ -126,6 +127,7 @@ test('Trailing Entry immediate actions carry projected optimistic concurrency st
       'enter_trailing_entry',
       'cancel_trailing_entry',
       'close_trailing_entry',
+      'take_over_exposure',
     ],
   )
 
@@ -180,7 +182,7 @@ test('standalone live limits expose cancel, modify, and source-owned close', () 
   const actions = lifecycleActions(entity, snapshot, snapshot.positions)
   assert.deepEqual(
     actions.map((action) => action.kind),
-    ['cancel_order', 'modify_order', 'close_exposure'],
+    ['cancel_order', 'modify_order', 'close_exposure', 'take_over_exposure'],
   )
 
   const modify = actions.find((action) => action.kind === 'modify_order')!

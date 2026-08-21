@@ -174,6 +174,7 @@ export type BrowserCommandIntent =
     }
   | { kind: 'close_trailing_entry'; parameters: { trailing_entry_id: Uuid } }
   | { kind: 'cancel_entry_work'; parameters: { target: CancelEntryWorkTargetIntent } }
+  | { kind: 'take_over_exposure'; parameters: { source_command_id: Uuid } }
   | { kind: 'flatten'; parameters: { target: FlattenTargetIntent } }
   | { kind: 'set_leverage'; parameters: SetLeverageIntent }
   | { kind: 'set_position_mode'; parameters: { mode: PositionModeIntent } }

@@ -363,6 +363,9 @@ export interface EntryCancellationProjection {
   target: Record<string, unknown>
   source_order_ids: Uuid[]
   affected_command_ids: Uuid[]
+  mode?: 'preserve_exposure' | 'take_over'
+  takeover_exposure_scope_ids?: Uuid[]
+  takeover_protection_scope_ids?: Uuid[]
   lifecycle: string
   last_reason: string | null
   created_at: TimestampMillis
@@ -470,6 +473,7 @@ export interface OwnedExposureProjection {
   opened_quantity: ExactDecimal
   reduced_quantity: ExactDecimal
   remaining_quantity: ExactDecimal
+  detached?: boolean
 }
 
 export interface PositionProjection {

@@ -131,9 +131,15 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
         </FormField>
         <FormField
           label="Execution"
-          help="Take profits rest on the book as reduce-only limit orders."
+          :help="
+            markPriceOnly
+              ? 'Take profits rest as plain limit orders sized to this Trad-owned exposure.'
+              : 'Take profits rest on the book as reduce-only limit orders.'
+          "
         >
-          <span class="readonly-value">Limit · reduce only</span>
+          <span class="readonly-value">{{
+            markPriceOnly ? 'Resting limit' : 'Limit · reduce only'
+          }}</span>
         </FormField>
       </div>
       <button
@@ -184,9 +190,15 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
       </FormField>
       <FormField
         label="Execution"
-        help="Stops trigger a reduce-only market exit with Trad's configured safety guard."
+        :help="
+          markPriceOnly
+            ? `Stops trigger a market exit sized to this Trad-owned exposure with Trad's configured safety guard.`
+            : `Stops trigger a reduce-only market exit with Trad's configured safety guard.`
+        "
       >
-        <span class="readonly-value">Stop market · reduce only</span>
+        <span class="readonly-value">{{
+          markPriceOnly ? 'Stop market' : 'Stop market · reduce only'
+        }}</span>
       </FormField>
     </div>
   </section>

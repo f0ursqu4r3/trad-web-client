@@ -21,6 +21,7 @@ export type LifecycleActionKind =
   | 'continue_trailing_entry'
   | 'close_trailing_entry'
   | 'close_exposure'
+  | 'take_over_exposure'
 
 export interface LifecycleAction {
   kind: LifecycleActionKind
@@ -85,6 +86,9 @@ export function lifecycleActions(
           target,
         ),
       )
+    }
+    if (sourcePosition(command, positions)?.mode === 'one_way') {
+      actions.push(action('take_over_exposure', 'Stop Managing (Take Over)', true, command, target))
     }
   }
   return dedupe(actions)
@@ -206,6 +210,11 @@ export function lifecycleIntent(
           execution: closeExecutionIntent(fields),
         },
       }
+    case 'take_over_exposure':
+      return {
+        kind: 'take_over_exposure',
+        parameters: { source_command_id: action.command.command_id },
+      }
   }
 }
 
@@ -324,8 +333,21 @@ function sourceHasExposure(command: CommandProjection, positions: PositionProjec
   if (scopeId === null) return false
   return positions.some((position) => {
     const exposure = position.owned_exposure[scopeId]
-    return exposure !== undefined && decimalIsNonZero(exposure.remaining_quantity)
+    return (
+      exposure !== undefined &&
+      exposure.detached !== true &&
+      decimalIsNonZero(exposure.remaining_quantity)
+    )
   })
+}
+
+function sourcePosition(
+  command: CommandProjection,
+  positions: PositionProjection[],
+): PositionProjection | null {
+  const scopeId = sourceScopeId(command)
+  if (scopeId === null) return null
+  return positions.find((position) => position.owned_exposure[scopeId] !== undefined) ?? null
 }
 
 function sourceScopeId(command: CommandProjection): string | null {

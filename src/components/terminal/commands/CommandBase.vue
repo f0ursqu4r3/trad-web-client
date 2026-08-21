@@ -200,8 +200,8 @@ const menuItems = computed<Array<DropMenuItem>>(() => {
     items.push({
       label: props.closePositionLabel,
       title: props.closePositionLabel.startsWith('Cancel')
-        ? "Cancels the remaining entry, then submits a reduce-only market close for this command's filled exposure. Other command and external exposure is unchanged."
-        : "Submits a reduce-only market close for this command's owned exposure. Other command and external exposure is unchanged.",
+        ? "Cancels the remaining entry, then closes this command's filled exposure. Other command and outside-Trad exposure is unchanged."
+        : "Closes this command's owned exposure. Other command and outside-Trad exposure is unchanged.",
       action: () => emit('close-position', props.commandId),
     })
   }
