@@ -65,7 +65,12 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
       </button>
     </div>
 
-    <div v-for="(takeProfit, index) in model.takeProfits" :key="takeProfit.id" class="tp-row">
+    <div
+      v-for="(takeProfit, index) in model.takeProfits"
+      :key="takeProfit.id"
+      class="tp-row"
+      :data-protection-child-id="takeProfit.childId"
+    >
       <div class="tp-fields">
         <FormField
           :label="labelWithUnit('TP ' + (index + 1) + ' Trigger', props.quoteAsset)"
@@ -160,7 +165,11 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
       New entries default to a stop-market: it prioritizes exiting once the trigger is reached.
       Disable it only when this position is protected elsewhere.
     </p>
-    <div v-if="model.stopLoss.enabled" class="stop-row">
+    <div
+      v-if="model.stopLoss.enabled"
+      class="stop-row"
+      :data-protection-child-id="model.stopLoss.childId"
+    >
       <FormField
         :label="labelWithUnit('SL Trigger', props.quoteAsset)"
         help="Price that triggers the protective stop loss."

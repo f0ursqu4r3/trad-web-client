@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 
 import ProjectionDetails from '@/components/engine/ProjectionDetails.vue'
 import ProjectionTreeNode from '@/components/engine/ProjectionTreeNode.vue'
@@ -23,7 +23,7 @@ const props = defineProps<{
 }>()
 
 const ui = useProjectionUiStore()
-const activeTab = ref<ExpansionTab>('orders')
+const activeTab = defineModel<ExpansionTab>('activeTab', { default: 'orders' })
 const tabs: ExpansionTab[] = ['orders', 'devices', 'graph', 'history']
 const tree = computed(() => commandTree(props.snapshot, props.trade.primaryCommand.command_id))
 const dag = computed(() => (tree.value === null ? null : dagNode(tree.value)))

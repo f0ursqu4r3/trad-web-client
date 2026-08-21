@@ -7,6 +7,7 @@ import type { ManagedTradeView } from '@/lib/projection/tradeWorkspace'
 import type { NativeProtectionChildProjection } from '@/lib/gateway'
 
 const props = defineProps<{ trade: ManagedTradeView }>()
+const emit = defineEmits<{ (event: 'move-protection', childId: string): void }>()
 
 const stop = computed(() =>
   props.trade.protection?.plan.children.find((child) => child.protection_kind === 'stop_loss'),
@@ -95,13 +96,22 @@ function childState(child: NativeProtectionChildProjection | undefined): string 
         {{ child.protection_kind === 'stop_loss' ? 'SL' : 'TP' }}
       </span>
       <strong>{{ formatExactDecimal(child.trigger_price) }}</strong>
-      <span>
+      <span class="leg-size">
         size
         {{ formatExactDecimal(trade.protection.children[child.child_id]?.target_quantity ?? '0') }}
       </span>
       <span class="leg-state">
         {{ childState(trade.protection.children[child.child_id]) }}
       </span>
+      <button
+        class="btn btn-xs move-leg"
+        type="button"
+        :disabled="trade.protection.status !== 'tracking'"
+        :title="`Move this ${child.protection_kind === 'stop_loss' ? 'stop loss' : 'take profit'}`"
+        @click="emit('move-protection', child.child_id)"
+      >
+        move
+      </button>
     </div>
   </div>
 </template>
@@ -170,13 +180,16 @@ function childState(child: NativeProtectionChildProjection | undefined): string 
 .protection-legs > div {
   display: grid;
   min-height: 28px;
-  grid-template-columns: 32px minmax(80px, auto) minmax(90px, 1fr) auto;
+  grid-template-columns: 32px minmax(80px, auto) minmax(90px, 1fr) auto auto;
   align-items: center;
   gap: 0.45rem;
   padding: 0.25rem 0.75rem;
   border-top: 1px solid var(--border-subtle);
   color: var(--fg-muted);
   font-size: 11px;
+}
+.move-leg {
+  min-width: 44px;
 }
 .protection-legs strong {
   color: var(--fg);
@@ -224,7 +237,10 @@ function childState(child: NativeProtectionChildProjection | undefined): string 
     grid-template-columns: 32px minmax(0, 1fr) auto;
   }
   .leg-state {
-    grid-column: 2 / -1;
+    grid-column: 2;
+  }
+  .move-leg {
+    grid-column: 3;
   }
 }
 </style>

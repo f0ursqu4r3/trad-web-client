@@ -3,12 +3,11 @@ import { computed, ref } from 'vue'
 
 import LifecycleActionModal from '@/components/engine/actions/LifecycleActionModal.vue'
 import ProtectionAmendmentModal from '@/components/engine/actions/ProtectionAmendmentModal.vue'
-import { lifecycleActions, type LifecycleAction } from '@/lib/engineCommands/lifecycle'
+import type { LifecycleAction } from '@/lib/engineCommands/lifecycle'
 import { activeProtectionAmendment } from '@/lib/engineCommands/protectionAmendment'
 import type { BrowserAccountSnapshot } from '@/lib/gateway'
-import { nodeKey } from '@/lib/projection'
-import { projectionEntities } from '@/lib/projection/presentation'
 import type { ManagedTradeView } from '@/lib/projection/tradeWorkspace'
+import { managedTradeActions } from '@/lib/projection/tradeWorkspaceActions'
 import { useAccountsStore } from '@/stores/accounts'
 
 const props = defineProps<{
@@ -22,25 +21,10 @@ const closePercent = ref<string | null>(null)
 const closeExecution = ref<'market' | 'limit' | 'chase'>('market')
 const editProtectionOpen = ref(false)
 
-const primaryEntity = computed(() =>
-  projectionEntities(props.snapshot).get(nodeKey(props.trade.primaryCommand.root)),
-)
-const actions = computed(() =>
-  primaryEntity.value === undefined
-    ? []
-    : lifecycleActions(primaryEntity.value, props.snapshot, props.snapshot.positions),
-)
-const closeAction = computed(
-  () => actions.value.find((action) => action.kind === 'close_exposure') ?? null,
-)
-const secondaryActions = computed(() =>
-  actions.value.filter(
-    (action) => action.kind !== 'close_exposure' && action.kind !== 'take_over_exposure',
-  ),
-)
-const takeoverAction = computed(
-  () => actions.value.find((action) => action.kind === 'take_over_exposure') ?? null,
-)
+const actions = computed(() => managedTradeActions(props.trade, props.snapshot))
+const closeAction = computed(() => actions.value.close)
+const secondaryActions = computed(() => actions.value.secondary)
+const takeoverAction = computed(() => actions.value.takeover)
 const activeAmendment = computed(() =>
   activeProtectionAmendment(props.trade.protection, props.snapshot.protection_amendments),
 )
@@ -55,6 +39,12 @@ function openAction(action: LifecycleAction): void {
   closePercent.value = null
   selectedAction.value = action
 }
+
+function openTakeover(): void {
+  if (takeoverAction.value !== null) openAction(takeoverAction.value)
+}
+
+defineExpose({ openClose, openTakeover })
 </script>
 
 <template>

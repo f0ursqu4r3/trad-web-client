@@ -40,9 +40,46 @@ test('expands one trade into orders, devices, graph, and history', async ({ page
   await eth.getByRole('button', { name: 'graph', exact: true }).click()
   await expect(eth.locator('.dag-canvas')).toBeVisible()
 
-  await eth.getByRole('button', { name: 'history', exact: true }).click()
+  await eth
+    .getByLabel('Trade details')
+    .getByRole('button', { name: 'history', exact: true })
+    .click()
   await expect(eth.getByText('place order', { exact: true })).toBeVisible()
   await expect(eth.getByText('fill', { exact: true })).toBeVisible()
+})
+
+test('mirrors the client workflow with practical presets and redundant trade actions', async ({
+  page,
+}) => {
+  const ticket = page.getByRole('form', { name: 'New trade order ticket' })
+  await expect(ticket.getByText('Managed trade', { exact: true })).toHaveCount(0)
+  await ticket.getByRole('button', { name: 'Size by risk' }).click()
+  await expect(ticket.getByRole('button', { name: '10,000 USDC' })).toBeVisible()
+  await expect(ticket.getByRole('button', { name: '5,000 USDC' })).toBeVisible()
+  await expect(ticket.getByRole('button', { name: '2,500 USDC' })).toBeVisible()
+
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  const history = eth.getByRole('button', { name: 'history', exact: true }).first()
+  await expect(history).toBeVisible()
+  await expect(eth.getByRole('button', { name: 'log', exact: true })).toBeVisible()
+  await expect(eth.getByRole('button', { name: 'resync totals', exact: true })).toBeVisible()
+  await expect(eth.getByRole('button', { name: 'take over', exact: true }).first()).toBeVisible()
+  await expect(eth.getByRole('button', { name: 'close all', exact: true }).first()).toBeVisible()
+
+  await history.click()
+  await expect(eth.getByText('place order', { exact: true })).toBeVisible()
+  await eth.getByRole('button', { name: 'log', exact: true }).click()
+  await expect(eth.getByTestId('projection-details')).toBeVisible()
+
+  await eth.getByRole('button', { name: 'close all', exact: true }).first().click()
+  const closeDialog = page.getByRole('dialog', { name: 'Close Exposure' })
+  await expect(closeDialog).toBeVisible()
+  await closeDialog.getByRole('button', { name: 'Back' }).click()
+
+  await eth.getByRole('button', { name: 'move', exact: true }).first().click()
+  const modal = page.getByRole('dialog', { name: 'Edit Native Protection' })
+  await expect(modal).toBeVisible()
+  await expect(modal.getByLabel('TP 1 Trigger')).toBeFocused()
 })
 
 test('close presets remain ordinary audited close commands', async ({ page }) => {

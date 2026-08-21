@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import ProtectionFields from '@/components/engine/commands/ProtectionFields.vue'
@@ -20,6 +20,7 @@ const props = defineProps<{
   accountId: string
   protection: NativeProtectionProjection | null
   activeAmendment: ProtectionAmendmentProjection | null
+  focusChildId?: string | null
 }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
 const gateway = useGatewayStore()
@@ -63,6 +64,18 @@ function reset(): void {
   confirmed.value = false
   validationError.value = null
   submission.clearSubmissionError()
+  void focusRequestedChild()
+}
+
+async function focusRequestedChild(): Promise<void> {
+  if (!props.focusChildId) return
+  await nextTick()
+  const row = document.querySelector(
+    `[data-protection-child-id="${CSS.escape(props.focusChildId)}"]`,
+  )
+  const input = row?.querySelector<HTMLInputElement>('input[type="text"]')
+  input?.focus()
+  input?.select()
 }
 
 async function submit(): Promise<void> {

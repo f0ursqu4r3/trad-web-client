@@ -10,11 +10,6 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
 </script>
 
 <template>
-  <div class="ticket-mode-row">
-    <span class="mode-pill active">Managed trade</span>
-    <span class="mode-copy">Trad tracks exact exposure, protection, and lifecycle.</span>
-  </div>
-
   <FormField
     help="Exchange instrument. Trad normalizes and validates it before submission."
     required
@@ -68,7 +63,6 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
 </template>
 
 <style scoped>
-.ticket-mode-row,
 .symbol-heading {
   display: flex;
   min-width: 0;
@@ -84,27 +78,6 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
   max-width: 100%;
   flex-wrap: wrap;
   white-space: normal;
-}
-.ticket-mode-row {
-  justify-content: flex-start;
-}
-.mode-pill {
-  flex: none;
-  padding: 0.25rem 0.65rem;
-  color: var(--fg-muted);
-  border: 1px solid var(--border-normal);
-  border-radius: 9999px;
-  white-space: nowrap;
-}
-.mode-pill.active {
-  color: var(--accent-color);
-  border-color: var(--accent-color);
-}
-.mode-copy {
-  min-width: 0;
-  color: var(--fg-muted);
-  font-size: 10px;
-  line-height: 1.3;
 }
 .entry-tabs,
 .side-toggle {
@@ -144,11 +117,5 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
   color: var(--state-error);
   background: color-mix(in srgb, var(--state-error) 11%, var(--surface-base));
   box-shadow: inset 0 -2px var(--state-error);
-}
-@media (max-width: 520px) {
-  .ticket-mode-row {
-    align-items: flex-start;
-    flex-direction: column;
-  }
 }
 </style>
