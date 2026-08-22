@@ -314,6 +314,9 @@ onBeforeUnmount(() => {
   flex: 0 0 auto;
   border-bottom: 1px solid var(--border-normal);
 }
+.workspace-main :deep(.panel-empty-state) {
+  background: transparent;
+}
 .trade-list {
   display: flex;
   min-height: 0;

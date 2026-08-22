@@ -231,6 +231,20 @@ test('mobile splits ticket and trades, preserves each scroll position, and stays
   ).toBe(true)
 })
 
+test('empty trade states use one continuous workspace grid', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const workspace = page.getByTestId('trader-workspace')
+  await workspace.getByRole('button', { name: 'Closed 0' }).click()
+  const empty = workspace.locator('.panel-empty-state')
+  await expect(empty.getByText('No closed trades')).toBeVisible()
+  expect(await empty.evaluate((element) => getComputedStyle(element).backgroundImage)).toBe('none')
+  expect(
+    await workspace
+      .locator('.workspace-main')
+      .evaluate((element) => getComputedStyle(element).backgroundImage),
+  ).not.toBe('none')
+})
+
 test('duplicate switches mobile users to a populated new-trade ticket', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const workspace = page.getByTestId('trader-workspace')
