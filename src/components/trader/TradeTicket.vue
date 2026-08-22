@@ -136,7 +136,14 @@ defineExpose({ applyPrefill })
             </select>
           </FormField>
           <FormField v-if="draft.shapeMode === 'split'" label="Maximum children" required>
-            <input v-model="draft.maxChildren" class="input" inputmode="numeric" />
+            <input
+              v-model="draft.maxChildren"
+              class="input"
+              :class="{ 'input-required-empty': draft.maxChildren.trim() === '' }"
+              inputmode="numeric"
+              placeholder="Required"
+              required
+            />
           </FormField>
           <FormField v-if="draft.shapeMode === 'split'" label="Target child notional" optional>
             <input v-model="draft.targetChildNotional" class="input" inputmode="decimal" />

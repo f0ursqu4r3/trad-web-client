@@ -126,9 +126,8 @@ function openAccountSelector(): void {
   width: 100%;
   height: 100vh;
   flex: none;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding-top: 0.5rem;
 }
 .account-rail-static {
   position: absolute;
@@ -139,10 +138,12 @@ function openAccountSelector(): void {
   justify-content: center;
 }
 .account-rail-label {
-  writing-mode: vertical-rl;
+  display: block;
   font-size: 11px;
   letter-spacing: 0.055em;
   text-transform: uppercase;
+  transform: rotate(90deg);
+  transform-origin: center;
   white-space: nowrap;
 }
 @keyframes account-rail-scroll {
@@ -193,7 +194,7 @@ function openAccountSelector(): void {
     align-items: center;
   }
   .account-rail-label {
-    writing-mode: horizontal-tb;
+    transform: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {

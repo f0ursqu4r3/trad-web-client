@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import { useGatewayStore } from '@/stores/gateway'
 import { useMarketStore } from '@/stores/market'
+import { formatExactDecimal } from '@/lib/exactDecimalMath'
 
 const props = defineProps<{
   active: boolean
@@ -30,9 +31,10 @@ const ageSeconds = computed(() => {
   return Math.max(0, Math.floor((now.value - latest.value.received_at_ms) / 1_000))
 })
 const formattedPrice = computed(() => {
-  const price = Number(latest.value?.price)
+  const exactPrice = latest.value?.price
+  const price = Number(exactPrice)
   if (!Number.isFinite(price) || price <= 0) return null
-  return price.toLocaleString(undefined, { maximumFractionDigits: 8 })
+  return formatExactDecimal(exactPrice!)
 })
 const status = computed(() => {
   if (!props.active || props.accountId === '' || normalizedSymbol.value === '') return 'idle'
@@ -41,7 +43,6 @@ const status = computed(() => {
 const freshness = computed(() => {
   const age = ageSeconds.value
   if (age === null) return ''
-  if (age < 2) return 'live'
   if (age < 60) return age + 's ago'
   return Math.floor(age / 60) + 'm ago'
 })
@@ -84,9 +85,8 @@ onBeforeUnmount(() => {
     :class="{ stale: ageSeconds !== null && ageSeconds >= 10, failed: status === 'error' }"
     title="Latest exchange trade from Trad's shared market stream. Execution preview uses the current executable bid or ask."
   >
-    <span class="status-dot" />
     <template v-if="formattedPrice">
-      <span class="price-value">Live trade {{ formattedPrice }} {{ quoteAsset ?? '' }}</span>
+      <span class="price-value">{{ formattedPrice }}</span>
       <span v-if="freshness" class="freshness">· {{ freshness }}</span>
     </template>
     <template v-else-if="status === 'error'"> Price unavailable </template>
@@ -108,18 +108,8 @@ onBeforeUnmount(() => {
 }
 
 .price-value {
-  overflow: hidden;
   min-width: 0;
-  text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  flex: 0 0 6px;
-  border-radius: 50%;
-  background: currentColor;
 }
 
 .freshness {
@@ -128,7 +118,7 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.market-price.stale {
+.market-price.stale .freshness {
   color: var(--color-warning);
 }
 

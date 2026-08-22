@@ -17,8 +17,7 @@ defineProps<{
       <span
         ><slot name="label">{{ label }}</slot></span
       >
-      <span v-if="required" class="form-field-required" aria-label="required">required</span>
-      <span v-else-if="optional" class="form-field-optional">optional</span>
+      <span v-if="optional" class="form-field-optional">optional</span>
       <span v-if="help" class="form-field-help" :title="help" aria-hidden="true">
         <CircleHelp :size="12" />
       </span>

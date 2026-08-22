@@ -112,6 +112,21 @@
     border-color: var(--control-invalid);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--control-invalid) 45%, transparent);
   }
+  .input-required-empty {
+    border-color: color-mix(in srgb, var(--state-warning) 72%, var(--control-border));
+    background: color-mix(in srgb, var(--state-warning) 7%, var(--control-bg));
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--state-warning) 58%, transparent);
+  }
+  .input-required-empty::placeholder {
+    color: var(--state-warning);
+    opacity: 0.9;
+  }
+  .input-required-empty:focus {
+    border-color: var(--state-warning);
+    box-shadow:
+      inset 3px 0 0 color-mix(in srgb, var(--state-warning) 68%, transparent),
+      0 0 0 2px color-mix(in srgb, var(--state-warning) 24%, transparent);
+  }
   .form-hint {
     @apply mt-1 text-[12px];
     color: var(--control-hint);
@@ -150,14 +165,14 @@
     align-items: center;
     gap: 0.4rem;
   }
-  .form-field-required,
+  .form-field-heading > span:first-child {
+    min-width: 0;
+    flex: 1;
+  }
   .form-field-optional {
     font-size: 11px;
     letter-spacing: 0.03em;
     text-transform: lowercase;
-  }
-  .form-field-required {
-    color: var(--state-warning);
   }
   .form-field-optional {
     color: var(--fg-disabled);

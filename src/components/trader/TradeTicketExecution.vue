@@ -19,12 +19,18 @@ const draft = defineModel<TradeTicketDraft>({ required: true })
       help="Exact resting order price."
       required
     >
-      <input v-model="draft.limitPrice" class="input" inputmode="decimal" placeholder="Price" />
+      <input
+        v-model="draft.limitPrice"
+        class="input"
+        :class="{ 'input-required-empty': draft.limitPrice.trim() === '' }"
+        inputmode="decimal"
+        placeholder="Required"
+        required
+      />
     </FormField>
     <FormField
       label="Time in force"
       help="Post Only guarantees maker behavior; GTC may immediately take liquidity."
-      required
     >
       <select v-model="draft.timeInForce" class="input">
         <option value="post_only">Post Only</option>
@@ -58,7 +64,14 @@ const draft = defineModel<TradeTicketDraft>({ required: true })
       help="The chase cancels once this boundary is reached."
       required
     >
-      <input v-model="draft.boundaryValue" class="input" inputmode="decimal" />
+      <input
+        v-model="draft.boundaryValue"
+        class="input"
+        :class="{ 'input-required-empty': draft.boundaryValue.trim() === '' }"
+        inputmode="decimal"
+        placeholder="Required"
+        required
+      />
     </FormField>
     <label class="remainder-toggle">
       <input
@@ -76,14 +89,28 @@ const draft = defineModel<TradeTicketDraft>({ required: true })
       help="Price that arms the trailing-entry workflow."
       required
     >
-      <input v-model="draft.activationPrice" class="input" inputmode="decimal" />
+      <input
+        v-model="draft.activationPrice"
+        class="input"
+        :class="{ 'input-required-empty': draft.activationPrice.trim() === '' }"
+        inputmode="decimal"
+        placeholder="Required"
+        required
+      />
     </FormField>
     <FormField
       label="Jump threshold (bps)"
       help="Required favorable move before the entry executes."
       required
     >
-      <input v-model="draft.jumpBasisPoints" class="input" inputmode="decimal" />
+      <input
+        v-model="draft.jumpBasisPoints"
+        class="input"
+        :class="{ 'input-required-empty': draft.jumpBasisPoints.trim() === '' }"
+        inputmode="decimal"
+        placeholder="Required"
+        required
+      />
     </FormField>
   </div>
 </template>

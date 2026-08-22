@@ -10,10 +10,7 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
 </script>
 
 <template>
-  <FormField
-    help="Exchange instrument. Trad normalizes and validates it before submission."
-    required
-  >
+  <FormField help="Exchange instrument. Trad normalizes and validates it before submission.">
     <template #label>
       <span class="symbol-heading">
         <span>Market</span>
@@ -25,7 +22,14 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
         />
       </span>
     </template>
-    <input v-model="draft.symbol" class="input" autocomplete="off" placeholder="BTC" />
+    <input
+      v-model="draft.symbol"
+      class="input"
+      :class="{ 'input-required-empty': draft.symbol.trim() === '' }"
+      autocomplete="off"
+      placeholder="Required"
+      required
+    />
   </FormField>
 
   <div class="side-toggle" aria-label="Position side">
@@ -65,6 +69,7 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
 <style scoped>
 .symbol-heading {
   display: flex;
+  width: 100%;
   min-width: 0;
   align-items: center;
   justify-content: space-between;
@@ -74,8 +79,8 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
   flex-wrap: nowrap;
 }
 .symbol-heading :deep(.market-price) {
-  overflow: hidden;
-  max-width: calc(100% - 4.5rem);
+  max-width: none;
+  flex: 0 0 auto;
   flex-wrap: nowrap;
 }
 .entry-tabs,
