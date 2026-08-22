@@ -280,6 +280,13 @@ test('tablet workspace consumes the full content width without a ghost desktop c
   expect(Math.abs(mainBox!.width - workspaceBox!.width)).toBeLessThanOrEqual(1)
 })
 
+test('desktop account identity reads with its letter baseline toward the workspace', async ({
+  page,
+}) => {
+  const label = page.getByTestId('account-identity-rail').locator('.account-rail-label').first()
+  await expect(label).toHaveCSS('transform', 'matrix(0, -1, 1, 0, 0, 0)')
+})
+
 test('phone account identity becomes a horizontal top strip', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const rail = page.getByTestId('account-identity-rail')

@@ -142,7 +142,7 @@ function openAccountSelector(): void {
   font-size: 11px;
   letter-spacing: 0.055em;
   text-transform: uppercase;
-  transform: rotate(90deg);
+  transform: rotate(-90deg);
   transform-origin: center;
   white-space: nowrap;
 }
