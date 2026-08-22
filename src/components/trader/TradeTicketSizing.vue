@@ -40,6 +40,7 @@ const presets = computed(() =>
       v-if="draft.sizingMode !== 'risk_at_stop'"
       label="Fixed size type"
       help="Enter quote-currency notional or exact base quantity."
+      required
     >
       <select v-model="draft.sizingMode" class="input">
         <option value="quote_notional">{{ labelWithUnit('Notional', units.quote) }}</option>
@@ -61,14 +62,7 @@ const presets = computed(() =>
       "
       required
     >
-      <input
-        v-model="draft.amount"
-        class="input"
-        :class="{ 'input-required-empty': draft.amount.trim() === '' }"
-        inputmode="decimal"
-        placeholder="Required"
-        required
-      />
+      <input v-model="draft.amount" class="input" inputmode="decimal" required />
     </FormField>
   </div>
 

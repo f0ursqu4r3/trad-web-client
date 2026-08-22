@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
+import MarketSymbolCombobox from '@/components/forms/MarketSymbolCombobox.vue'
 import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmission'
 import type { PositionSideIntent } from '@/lib/gateway'
 import {
@@ -45,6 +46,7 @@ const expirySeconds = ref('')
 const remainder = ref<'cancel' | 'market_fill'>('cancel')
 const protection = ref<ProtectionFormState>(newEntryProtectionState())
 const validationError = ref<string | null>(null)
+const catalogSymbolError = ref<string | null>(null)
 const previewReady = ref(false)
 const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
@@ -54,7 +56,7 @@ const units = computed(() => marketUnits(selectedAccount.value, symbol.value))
 const accountError = computed(() =>
   selectedAccountId.value === '' ? 'Trading account is required' : null,
 )
-const chaseSymbolError = computed(() => symbolError(symbol.value))
+const chaseSymbolError = computed(() => symbolError(symbol.value) || catalogSymbolError.value)
 const boundaryError = computed(() => {
   if (boundaryKind.value === 'none') return null
   return decimalError(
@@ -171,7 +173,12 @@ function buildIntent() {
                 :quote-asset="units.quote"
               /> </span
           ></template>
-          <input v-model="symbol" class="input" />
+          <MarketSymbolCombobox
+            v-model="symbol"
+            :account="selectedAccount"
+            aria-label="Symbol"
+            @validity="catalogSymbolError = $event"
+          />
         </FormField>
         <FormField
           label="Position Side"

@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
+import MarketSymbolCombobox from '@/components/forms/MarketSymbolCombobox.vue'
 import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmission'
 import type { PositionSideIntent, TimeInForceIntent } from '@/lib/gateway'
 import {
@@ -48,6 +49,7 @@ const targetChildNotional = ref('')
 const maxChildren = ref('20')
 const protection = ref<ProtectionFormState>(newEntryProtectionState())
 const validationError = ref<string | null>(null)
+const catalogSymbolError = ref<string | null>(null)
 const previewReady = ref(false)
 const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
@@ -57,7 +59,7 @@ const units = computed(() => marketUnits(selectedAccount.value, symbol.value))
 const accountError = computed(() =>
   selectedAccountId.value === '' ? 'Trading account is required' : null,
 )
-const orderSymbolError = computed(() => symbolError(symbol.value))
+const orderSymbolError = computed(() => symbolError(symbol.value) || catalogSymbolError.value)
 const limitPriceError = computed(() =>
   props.executionKind === 'limit' ? decimalError(limitPrice.value, 'limit price') : null,
 )
@@ -172,7 +174,12 @@ function buildIntent() {
                 :quote-asset="units.quote"
               /> </span
           ></template>
-          <input v-model="symbol" class="input" autocomplete="off" />
+          <MarketSymbolCombobox
+            v-model="symbol"
+            :account="selectedAccount"
+            aria-label="Symbol"
+            @validity="catalogSymbolError = $event"
+          />
         </FormField>
         <FormField
           label="Position Side"

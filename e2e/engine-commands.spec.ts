@@ -2,11 +2,18 @@ import { expect, test, type Locator } from '@playwright/test'
 
 async function completeDefaultStop(modal: Locator): Promise<void> {
   await expect(modal.getByLabel(/Protective stop/)).toBeChecked()
-  await expect(modal.getByText('Stop market · reduce only', { exact: true })).toBeVisible()
+  await expect(modal.getByText('Stop market', { exact: true })).toBeVisible()
   await modal.getByLabel('SL Trigger').fill('49000')
 }
 
 test.beforeEach(async ({ page }) => {
+  await page.route('https://api.hyperliquid.xyz/info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ universe: [{ name: 'BTC' }, { name: 'ETH' }, { name: 'SOL' }] }),
+    })
+  })
   await page.route('**/auth/session', async (route) => {
     await route.fulfill({
       status: 200,
@@ -94,7 +101,7 @@ test('opens chase and trailing-entry forms from their aliases', async ({ page })
   await expect(chase.getByLabel('Maximum Chase Distance')).toHaveValue('none')
   await expect(chase.getByLabel('Boundary Basis Points')).toHaveCount(0)
   await expect(chase.getByLabel(/Protective stop/)).toBeChecked()
-  await expect(chase.getByText('Stop market · reduce only', { exact: true })).toBeVisible()
+  await expect(chase.getByText('Stop market', { exact: true })).toBeVisible()
   await chase.getByRole('button', { name: 'Cancel' }).click()
 
   await page.getByRole('button', { name: /Commands/ }).click()
@@ -108,8 +115,10 @@ test('identifies required and invalid command fields beside their controls', asy
   await page.getByRole('button', { name: /Limit Order/ }).click()
   const modal = page.getByRole('dialog', { name: 'Limit Order' })
 
+  await expect(modal.getByText('Symbol is required')).toHaveCount(0)
   await modal.getByLabel('Symbol').fill('')
   await modal.getByLabel('Limit Price').fill('not-a-price')
+  await modal.getByLabel('Limit Price').press('Tab')
 
   await expect(modal.getByText('Symbol is required')).toBeVisible()
   await expect(modal.getByText('Limit price must be a plain decimal number')).toBeVisible()

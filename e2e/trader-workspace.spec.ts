@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test'
 
 test.beforeEach(async ({ page }) => {
+  await page.route('https://api.hyperliquid.xyz/info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ universe: [{ name: 'BTC' }, { name: 'ETH' }, { name: 'SOL' }] }),
+    })
+  })
   await page.route('**/auth/session', async (route) => {
     await route.fulfill({
       status: 200,
@@ -181,7 +188,7 @@ test('complete inline ticket previews and submits without opening the legacy for
   const ticket = page.getByRole('form', { name: 'New trade order ticket' })
 
   await expect(ticket.getByText('Join top · post-only maker')).toBeVisible()
-  await expect(ticket.getByText(/Live trade 63,842.5 USDC/)).toBeVisible()
+  await expect(ticket.locator('.market-price')).toContainText(/63,842.5.*\d+s ago/)
   const livePrice = ticket.locator('.market-price')
   const priceTop = await livePrice
     .locator('.price-value')
@@ -190,7 +197,9 @@ test('complete inline ticket previews and submits without opening the legacy for
     .locator('.freshness')
     .evaluate((element) => Math.round(element.getBoundingClientRect().top))
   expect(ageTop).toBe(priceTop)
-  await ticket.getByLabel('Stop-loss price (USDC)').fill('62000')
+  const stopLoss = ticket.getByLabel('Stop-loss price (USDC)')
+  await stopLoss.fill('62000')
+  await expect(stopLoss).toHaveValue('62000')
   await expect(ticket.getByText('Ready', { exact: true })).toBeVisible()
 
   const submit = ticket.getByRole('button', { name: 'Buy BTC chase' })
@@ -198,6 +207,34 @@ test('complete inline ticket previews and submits without opening the legacy for
   await submit.click()
   await expect(ticket.getByText('Buy BTC chase accepted by Trad.')).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'Chase Order' })).toHaveCount(0)
+})
+
+test('market combobox filters the account catalog and completes with the keyboard', async ({
+  page,
+}) => {
+  const ticket = page.getByRole('form', { name: 'New trade order ticket' })
+  const market = ticket.getByRole('combobox', { name: /market/i }).first()
+
+  await market.fill('E')
+  await expect(page.getByRole('option', { name: /ETH/ })).toBeVisible()
+  await market.press('Tab')
+  await expect(market).toHaveValue('ETH')
+})
+
+test('required fields stay neutral until interaction and then identify the correction', async ({
+  page,
+}) => {
+  const ticket = page.getByRole('form', { name: 'New trade order ticket' })
+  const stop = ticket.getByLabel('Stop-loss price (USDC)')
+  const field = stop.locator('xpath=ancestor::label[contains(@class, "form-field")]')
+
+  await expect(field).toHaveClass(/form-field-required-empty/)
+  await expect(field).not.toHaveClass(/form-field-invalid/)
+  await stop.focus()
+  await stop.blur()
+  await expect(field).toHaveClass(/form-field-invalid/)
+  await expect(field.getByText('Stop-loss price (USDC) is required')).toBeVisible()
+  await expect(stop).toHaveAttribute('aria-invalid', 'true')
 })
 
 test('mobile splits ticket and trades, preserves each scroll position, and stays dense', async ({

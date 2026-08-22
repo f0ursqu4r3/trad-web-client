@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
+import MarketSymbolCombobox from '@/components/forms/MarketSymbolCombobox.vue'
 import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmission'
 import { buildFlattenIntent } from '@/lib/engineCommands/intents'
 import { useAccountsStore } from '@/stores/accounts'
@@ -27,11 +28,15 @@ const targetKind = ref<'symbol' | 'account'>('symbol')
 const symbol = ref('')
 const confirmed = ref(false)
 const validationError = ref<string | null>(null)
+const catalogSymbolError = ref<string | null>(null)
+const selectedAccount = computed(
+  () => accounts.accounts.find((account) => account.id === selectedAccountId.value) ?? null,
+)
 const accountError = computed(() =>
   selectedAccountId.value === '' ? 'Trading account is required' : null,
 )
 const flattenSymbolError = computed(() =>
-  targetKind.value === 'symbol' ? symbolError(symbol.value) : null,
+  targetKind.value === 'symbol' ? symbolError(symbol.value) || catalogSymbolError.value : null,
 )
 const canSubmit = computed(
   () =>
@@ -112,7 +117,12 @@ async function submit(): Promise<void> {
         :error="flattenSymbolError"
         required
       >
-        <input v-model="symbol" class="input" autocomplete="off" />
+        <MarketSymbolCombobox
+          v-model="symbol"
+          :account="selectedAccount"
+          aria-label="Symbol"
+          @validity="catalogSymbolError = $event"
+        />
       </FormField>
       <p class="warning">
         This creates authoritative reduce-only close workflows and clears related protection. It

@@ -1,16 +1,30 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
+
 import FormField from '@/components/forms/FormField.vue'
+import MarketSymbolCombobox from '@/components/forms/MarketSymbolCombobox.vue'
 import LiveMarketPrice from '@/components/engine/commands/LiveMarketPrice.vue'
 import type { MarketUnits } from '@/lib/engineCommands/marketUnits'
 import type { TradeTicketDraft, TicketEntryType } from '@/lib/trader/tradeTicketDraft'
+import { useAccountsStore } from '@/stores/accounts'
 
-defineProps<{ accountId: string; units: MarketUnits }>()
+const props = defineProps<{ accountId: string; units: MarketUnits }>()
 const draft = defineModel<TradeTicketDraft>({ required: true })
+const accounts = useAccountsStore()
+const account = computed(
+  () => accounts.accounts.find((item) => item.id === props.accountId) ?? null,
+)
+const marketError = ref<string | null>(null)
 const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
 </script>
 
 <template>
-  <FormField help="Exchange instrument. Trad normalizes and validates it before submission.">
+  <FormField
+    label="Market"
+    help="Exchange instrument. Type to filter the markets available for this account."
+    :error="marketError"
+    required
+  >
     <template #label>
       <span class="symbol-heading">
         <span>Market</span>
@@ -22,13 +36,10 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
         />
       </span>
     </template>
-    <input
+    <MarketSymbolCombobox
       v-model="draft.symbol"
-      class="input"
-      :class="{ 'input-required-empty': draft.symbol.trim() === '' }"
-      autocomplete="off"
-      placeholder="Required"
-      required
+      :account="account"
+      @validity="marketError = $event"
     />
   </FormField>
 

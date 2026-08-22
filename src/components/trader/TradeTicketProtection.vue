@@ -60,11 +60,7 @@ function removeTakeProfit(id: string): void {
       <input
         v-model="draft.protection.stopLoss.triggerPrice"
         class="input"
-        :class="{
-          'input-required-empty': draft.protection.stopLoss.triggerPrice.trim() === '',
-        }"
         inputmode="decimal"
-        placeholder="Required"
         required
       />
     </FormField>
@@ -79,14 +75,7 @@ function removeTakeProfit(id: string): void {
         help="A plain reduce-only limit order for this managed exposure."
         required
       >
-        <input
-          v-model="takeProfit.triggerPrice"
-          class="input"
-          :class="{ 'input-required-empty': takeProfit.triggerPrice.trim() === '' }"
-          inputmode="decimal"
-          placeholder="Required"
-          required
-        />
+        <input v-model="takeProfit.triggerPrice" class="input" inputmode="decimal" required />
       </FormField>
       <FormField v-if="draft.entryType !== 'trailing'" label="Close amount" required>
         <select v-model="takeProfit.allocationKind" class="input">
@@ -100,14 +89,7 @@ function removeTakeProfit(id: string): void {
         :label="takeProfit.allocationKind === 'fraction' ? 'Percent' : 'Base quantity'"
         required
       >
-        <input
-          v-model="takeProfit.allocationValue"
-          class="input"
-          :class="{ 'input-required-empty': takeProfit.allocationValue.trim() === '' }"
-          inputmode="decimal"
-          placeholder="Required"
-          required
-        />
+        <input v-model="takeProfit.allocationValue" class="input" inputmode="decimal" required />
       </FormField>
       <button
         class="btn icon-btn remove-tp"

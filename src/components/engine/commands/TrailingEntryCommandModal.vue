@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
+import MarketSymbolCombobox from '@/components/forms/MarketSymbolCombobox.vue'
 import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmission'
 import type { PositionSideIntent } from '@/lib/gateway'
 import { type ShapeMode } from '@/lib/engineCommands/form'
@@ -37,6 +38,7 @@ const targetChildNotional = ref('')
 const maxChildren = ref('20')
 const oneWaySemantics = ref<'delta' | 'target_side_exposure'>('delta')
 const validationError = ref<string | null>(null)
+const catalogSymbolError = ref<string | null>(null)
 const previewReady = ref(false)
 
 const selectedAccount = computed(
@@ -47,7 +49,7 @@ const units = computed(() => marketUnits(selectedAccount.value, symbol.value))
 const accountError = computed(() =>
   selectedAccountId.value === '' ? 'Trading account is required' : null,
 )
-const trailingSymbolError = computed(() => symbolError(symbol.value))
+const trailingSymbolError = computed(() => symbolError(symbol.value) || catalogSymbolError.value)
 const activationError = computed(() => decimalError(activationPrice.value, 'activation price'))
 const jumpError = computed(() => decimalError(jumpBasisPoints.value, 'jump threshold'))
 const stopError = computed(() => decimalError(stopLossPrice.value, 'stop-loss price'))
@@ -161,7 +163,12 @@ function buildIntent() {
                 :quote-asset="units.quote"
               /> </span
           ></template>
-          <input v-model="symbol" class="input" autocomplete="off" />
+          <MarketSymbolCombobox
+            v-model="symbol"
+            :account="selectedAccount"
+            aria-label="Symbol"
+            @validity="catalogSymbolError = $event"
+          />
         </FormField>
         <FormField
           label="Position Side"

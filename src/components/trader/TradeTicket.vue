@@ -129,21 +129,18 @@ defineExpose({ applyPrefill })
       <details v-if="draft.entryType !== 'chase'" class="ticket-advanced">
         <summary>Advanced execution shape</summary>
         <div class="ticket-grid">
-          <FormField label="Execution shape" help="Single order or bounded child-order split.">
+          <FormField
+            label="Execution shape"
+            help="Single order or bounded child-order split."
+            required
+          >
             <select v-model="draft.shapeMode" class="input">
               <option value="single">Single order</option>
               <option value="split">Split order</option>
             </select>
           </FormField>
           <FormField v-if="draft.shapeMode === 'split'" label="Maximum children" required>
-            <input
-              v-model="draft.maxChildren"
-              class="input"
-              :class="{ 'input-required-empty': draft.maxChildren.trim() === '' }"
-              inputmode="numeric"
-              placeholder="Required"
-              required
-            />
+            <input v-model="draft.maxChildren" class="input" inputmode="numeric" required />
           </FormField>
           <FormField v-if="draft.shapeMode === 'split'" label="Target child notional" optional>
             <input v-model="draft.targetChildNotional" class="input" inputmode="decimal" />
