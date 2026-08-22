@@ -110,6 +110,118 @@ test('keeps taken-over and closed scopes as explicit lifecycle states', () => {
   assert.equal(workspace.closedTrades.find((row) => row.symbol === 'ETH')?.lifecycle, 'closed')
 })
 
+test('classifies one-way managed closes by workflow identity instead of reduce-only', () => {
+  const snapshot = engineProjectionSnapshot()
+  const entry = snapshot.orders.find((row) => row.current_request.symbol === 'ETH')
+  const primary = snapshot.commands.find((row) => row.accepted.kind === 'place_order')
+  const position = snapshot.positions.find((row) => row.symbol === 'ETH')
+  assert.ok(entry)
+  assert.ok(primary)
+  assert.ok(position)
+  const closeOrderId = '39000000-0000-4000-8000-000000000001'
+  const closeCommandId = '39000000-0000-4000-8000-000000000002'
+  snapshot.orders.push({
+    ...structuredClone(entry),
+    order_id: closeOrderId,
+    command_id: closeCommandId,
+    current_request: {
+      ...entry.current_request,
+      side: 'sell',
+      reduce_only: false,
+    },
+    target_quantity: '0.00420001',
+    filled_quantity: '0.00420001',
+    remaining_quantity: '0',
+    terminal: true,
+  })
+  snapshot.commands.push({
+    ...structuredClone(primary),
+    command_id: closeCommandId,
+    accepted: {
+      ...primary.accepted,
+      kind: 'close_exposure',
+      parameters: {},
+    },
+    lifecycle: 'failed',
+    failure_reason: 'an earlier close attempt expired',
+  })
+  snapshot.close_workflows.push({
+    close_workflow_id: '39000000-0000-4000-8000-000000000003',
+    command_id: closeCommandId,
+    source_command_ids: [primary.command_id],
+    symbol: 'ETH',
+    position_side: 'long',
+    requested_reductions: [{ scope_id: 'scope-filled', quantity: '0.00420001' }],
+    close_all: true,
+    authoritative_side: false,
+    requested_external_quantity: '0',
+    submitted_reductions: [{ scope_id: 'scope-filled', quantity: '0.00420001' }],
+    submitted_external_quantity: '0',
+    requested_quantity: '0.00420001',
+    source_order_ids: [entry.order_id],
+    execution: { kind: 'market' },
+    execution_root: { kind: 'order', order_id: closeOrderId },
+    close_order_id: closeOrderId,
+    submission_operation_id: '39000000-0000-4000-8000-000000000004',
+    client_order_id: 'managed-close',
+    lifecycle: 'failed',
+    last_reason: 'an earlier close attempt expired',
+    created_at: primary.accepted_at + 10_000,
+  })
+  const exposure = position.owned_exposure['scope-filled']
+  assert.ok(exposure)
+  exposure.reduced_quantity = exposure.opened_quantity
+  exposure.remaining_quantity = '0'
+  position.exchange_quantity.long = '0'
+  position.owned_quantity.long = '0'
+
+  const workspace = tradeWorkspaceProjection(snapshot)
+  const trade = workspace.closedTrades.find((row) => row.symbol === 'ETH')
+
+  assert.ok(trade)
+  assert.equal(trade.entryOrders.length, 1)
+  assert.equal(trade.closeOrders.length, 1)
+  assert.equal(trade.requestedQuantity, '0.00420001')
+  assert.equal(trade.filledQuantity, '0.00420001')
+  assert.equal(trade.attentionReason, 'an earlier close attempt expired')
+})
+
+test('closes a zero-fill failed entry despite inert protection placeholders', () => {
+  const snapshot = engineProjectionSnapshot()
+  const command = snapshot.commands.find((row) => row.accepted.kind === 'place_order')
+  const entry = snapshot.orders.find((row) => row.current_request.symbol === 'ETH')
+  const position = snapshot.positions.find((row) => row.symbol === 'ETH')
+  assert.ok(command)
+  assert.ok(entry)
+  assert.ok(position)
+
+  command.lifecycle = 'failed'
+  command.failure_reason = 'queued market open expired before exchange dispatch'
+  entry.filled_quantity = '0'
+  entry.remaining_quantity = entry.target_quantity
+  entry.terminal = true
+  entry.failure_reason = command.failure_reason
+  delete position.owned_exposure['scope-filled']
+  position.exchange_quantity.long = '0'
+  position.owned_quantity.long = '0'
+  snapshot.orders.push({
+    ...structuredClone(entry),
+    order_id: '39000000-0000-4000-8000-000000000010',
+    target_quantity: '0',
+    remaining_quantity: '0',
+    terminal: false,
+    failure_reason: null,
+  })
+
+  const workspace = tradeWorkspaceProjection(snapshot)
+  const trade = workspace.closedTrades.find((row) => row.symbol === 'ETH')
+
+  assert.ok(trade)
+  assert.equal(trade.lifecycle, 'closed')
+  assert.equal(trade.attentionReason, 'queued market open expired before exchange dispatch')
+  assert.equal(workspace.activeTrades.some((row) => row.symbol === 'ETH'), false)
+})
+
 test('selects the active strategy chart before older terminal chart sources', () => {
   const snapshot = engineProjectionSnapshot()
   const workspace = tradeWorkspaceProjection(snapshot)

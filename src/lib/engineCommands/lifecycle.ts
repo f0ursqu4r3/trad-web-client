@@ -275,11 +275,13 @@ function addTrailingEntryActions(
   target: Extract<ProjectionEntity, { kind: 'trailing_entry' }>,
 ): void {
   if (target.row.lifecycle === 'running') {
-    actions.push(action('amend_trailing_entry', 'Edit', false, command, target))
-    if (target.row.phase === 'waiting_for_activation') {
-      actions.push(action('activate_trailing_entry', 'Activate Now', false, command, target))
+    if (target.row.latest_trade !== null) {
+      actions.push(action('amend_trailing_entry', 'Edit', false, command, target))
+      if (target.row.phase === 'waiting_for_activation') {
+        actions.push(action('activate_trailing_entry', 'Activate Now', false, command, target))
+      }
+      actions.push(action('enter_trailing_entry', 'Enter Now', true, command, target))
     }
-    actions.push(action('enter_trailing_entry', 'Enter Now', true, command, target))
   }
   if (target.row.lifecycle === 'entry_paused') {
     actions.push(action('continue_trailing_entry', 'Continue Entry', true, command, target))

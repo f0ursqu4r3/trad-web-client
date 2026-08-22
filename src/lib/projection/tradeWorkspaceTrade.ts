@@ -39,8 +39,15 @@ export function buildManagedTrade(
   const orders = snapshot.orders.filter(
     (row) => orderIds.has(row.order_id) || commandIds.has(row.command_id),
   )
-  const entryOrders = orders.filter((row) => !row.current_request.reduce_only)
-  const closeOrders = orders.filter((row) => row.current_request.reduce_only)
+  const closeOrderIds = new Set(
+    snapshot.close_workflows
+      .filter((workflow) =>
+        workflow.requested_reductions.some((row) => row.scope_id === seed.scopeId),
+      )
+      .map((workflow) => workflow.close_order_id),
+  )
+  const closeOrders = orders.filter((row) => closeOrderIds.has(row.order_id))
+  const entryOrders = orders.filter((row) => !closeOrderIds.has(row.order_id))
   const executions = snapshot.executions.filter(
     (row) => row.order !== null && orderIds.has(row.order.order_id),
   )
@@ -220,9 +227,23 @@ function tradeLifecycle(
   attention: string | null,
   closing: boolean,
 ): ManagedTradeLifecycle {
-  if (attention !== null) return 'attention'
   if (exposure?.detached) return 'taken_over'
   if (closing) return 'closing'
+  const terminal =
+    exposure !== null &&
+    isExactZero(exposure.remaining_quantity) &&
+    orders.every((row) => row.terminal)
+  if (terminal) return 'closed'
+  const failedWithoutExposure =
+    exposure === null &&
+    terminalLifecycle(command.lifecycle) &&
+    orders.every(
+      (row) =>
+        row.terminal ||
+        (isExactZero(row.target_quantity) && isExactZero(row.filled_quantity)),
+    )
+  if (failedWithoutExposure) return 'closed'
+  if (attention !== null) return 'attention'
   if (exposure !== null && !isExactZero(exposure.remaining_quantity)) return 'active'
   if (
     command.lifecycle === 'running' ||
