@@ -231,6 +231,33 @@ test('mobile splits ticket and trades, preserves each scroll position, and stays
   ).toBe(true)
 })
 
+test('tablet workspace consumes the full content width without a ghost desktop column', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 768, height: 1024 })
+  const workspace = page.getByTestId('trader-workspace')
+  const workspaceBox = await workspace.boundingBox()
+  const mainBox = await workspace.locator('.workspace-main').boundingBox()
+  expect(workspaceBox).not.toBeNull()
+  expect(mainBox).not.toBeNull()
+  expect(Math.abs(mainBox!.width - workspaceBox!.width)).toBeLessThanOrEqual(1)
+})
+
+test('phone account identity becomes a horizontal top strip', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const rail = page.getByTestId('account-identity-rail')
+  const box = await rail.boundingBox()
+  expect(box).not.toBeNull()
+  expect(Math.abs(box!.width - 390)).toBeLessThanOrEqual(1)
+  expect(box!.height).toBe(20)
+  expect(
+    await rail
+      .locator('.account-rail-label')
+      .first()
+      .evaluate((element) => getComputedStyle(element).writingMode),
+  ).toBe('horizontal-tb')
+})
+
 test('empty trade states use one continuous workspace grid', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const workspace = page.getByTestId('trader-workspace')

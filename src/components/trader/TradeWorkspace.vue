@@ -357,6 +357,7 @@ onBeforeUnmount(() => {
     grid-template-areas:
       'tabs'
       'content';
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
     overflow: hidden;
   }

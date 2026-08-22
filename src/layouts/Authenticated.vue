@@ -49,7 +49,7 @@ function openAccountSelector(): void {
 </script>
 
 <template>
-  <div class="relative w-full h-full overflow-hidden flex">
+  <div class="authenticated-shell relative w-full h-full overflow-hidden flex">
     <button
       class="account-rail"
       :style="railColor ? { '--account-rail-color': railColor } : {}"
@@ -75,7 +75,7 @@ function openAccountSelector(): void {
         <span class="account-rail-label">{{ railLabel }}</span>
       </span>
     </button>
-    <div class="flex flex-col w-full h-full overflow-hidden">
+    <div class="authenticated-content flex flex-col w-full h-full overflow-hidden">
       <AppHeader ref="appHeader" show-connection show-account-selector />
       <slot></slot>
       <EngineCommandModalContainer />
@@ -126,29 +126,74 @@ function openAccountSelector(): void {
   width: 100%;
   height: 100vh;
   flex: none;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: center;
-  padding-bottom: 0.5rem;
+  padding-top: 0.5rem;
 }
 .account-rail-static {
   position: absolute;
+  top: 0.5rem;
   right: 0;
-  bottom: 0.5rem;
   left: 0;
   display: flex;
   justify-content: center;
 }
 .account-rail-label {
   writing-mode: vertical-rl;
-  transform: rotate(180deg);
   font-size: 11px;
   letter-spacing: 0.055em;
   text-transform: uppercase;
   white-space: nowrap;
 }
 @keyframes account-rail-scroll {
-  to {
+  from {
     transform: translateY(-100vh);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes account-rail-scroll-mobile {
+  from {
+    transform: translateX(-100vw);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@media (max-width: 650px) {
+  .authenticated-shell {
+    flex-direction: column;
+  }
+  .authenticated-content {
+    min-height: 0;
+    flex: 1;
+  }
+  .account-rail {
+    width: 100%;
+    height: 20px;
+    border-right: 0;
+    border-bottom: 1px solid
+      color-mix(in srgb, var(--_rail-color) var(--account-rail-border-alpha), var(--border-color));
+  }
+  .account-rail-track {
+    width: max-content;
+    height: 100%;
+    flex-direction: row;
+    animation-name: account-rail-scroll-mobile;
+  }
+  .account-rail-segment {
+    width: 100vw;
+    height: 100%;
+    align-items: center;
+    padding-top: 0;
+  }
+  .account-rail-static {
+    inset: 0;
+    align-items: center;
+  }
+  .account-rail-label {
+    writing-mode: horizontal-tb;
   }
 }
 @media (prefers-reduced-motion: reduce) {
