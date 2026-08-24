@@ -11,7 +11,6 @@ import { managedTradeActions } from '@/lib/projection/tradeWorkspaceActions'
 import { managedTradeTrailingEntries } from '@/lib/projection/tradeWorkspaceCharts'
 import { longPress } from '@/lib/longPress'
 import { useAccountsStore } from '@/stores/accounts'
-import { useGatewayStore } from '@/stores/gateway'
 import { useProjectionUiStore } from '@/stores/projectionUi'
 import ManagedTradeActions from './ManagedTradeActions.vue'
 import ManagedTradeChart from './ManagedTradeChart.vue'
@@ -39,14 +38,11 @@ interface ActionBarApi {
 
 const ui = useProjectionUiStore()
 const accounts = useAccountsStore()
-const gateway = useGatewayStore()
 const actionBar = ref<ActionBarApi | null>(null)
 const tradeMenu = ref<InstanceType<typeof ManagedTradeMenu> | null>(null)
 const detailTab = ref<ManagedTradeDetailTab>('orders')
 const moveProtectionOpen = ref(false)
 const moveChildId = ref<string | null>(null)
-const resyncBusy = ref(false)
-const resyncError = ref<string | null>(null)
 const chartEntries = computed(() => managedTradeTrailingEntries(props.trade, props.snapshot))
 const chartAvailable = computed(() => chartEntries.value.length > 0)
 const showMiniChart = ref(props.trade.lifecycle === 'entering' && chartAvailable.value)
@@ -92,18 +88,6 @@ function openMoveProtection(childId: string): void {
   moveChildId.value = childId
   moveProtectionOpen.value = true
 }
-
-async function resyncTotals(): Promise<void> {
-  resyncBusy.value = true
-  resyncError.value = null
-  try {
-    await gateway.refreshReconciliation()
-  } catch (error) {
-    resyncError.value = error instanceof Error ? error.message : String(error)
-  } finally {
-    resyncBusy.value = false
-  }
-}
 </script>
 
 <template>
@@ -146,16 +130,7 @@ async function resyncTotals(): Promise<void> {
           title="Open command and device execution evidence"
           @click="openDetail('devices')"
         >
-          log
-        </button>
-        <button
-          class="btn btn-xs"
-          type="button"
-          :disabled="!gateway.isConnected || resyncBusy"
-          :title="resyncError ?? 'Refresh authoritative exchange state and reproject this trade'"
-          @click="resyncTotals"
-        >
-          {{ resyncBusy ? 'resyncing…' : 'resync totals' }}
+          execution
         </button>
         <button
           v-if="availableActions.takeover"

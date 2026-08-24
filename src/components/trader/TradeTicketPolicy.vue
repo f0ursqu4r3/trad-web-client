@@ -33,7 +33,7 @@ function bps(value: number | null | undefined): string {
     <div class="policy-grid">
       <span>Entry market guard</span>
       <strong>{{ formatExecutionGuardPercent(entryGuard) }}</strong>
-      <span>Target total / side</span>
+      <span>Current all-in target / side</span>
       <strong>{{ bps(target) }}</strong>
       <span>Venue + builder split</span>
       <strong>Resolved from live fee tier</strong>
@@ -41,8 +41,8 @@ function bps(value: number | null | undefined): string {
       <strong>{{ bps(approval) }}</strong>
     </div>
     <p>
-      Trad targets the configured total. The exchange fee is charged first; only the remainder is
-      sent to the Trad builder, never above the wallet-approved ceiling.
+      Trad targets the configured all-in cost. The exchange fee is charged first; only the remainder
+      is sent to the Trad builder, never above the wallet-approved ceiling.
     </p>
   </section>
 

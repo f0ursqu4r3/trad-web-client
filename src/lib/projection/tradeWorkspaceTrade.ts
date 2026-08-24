@@ -8,7 +8,13 @@ import type {
   PositionProjection,
   PositionSide,
 } from '../gateway/index.ts'
-import { isExactZero, multiplyExact, sumExact } from '../exactDecimalMath.ts'
+import {
+  compareExact,
+  isExactZero,
+  multiplyExact,
+  subtractExact,
+  sumExact,
+} from '../exactDecimalMath.ts'
 import { commandNativeProtection } from '../engineCommands/protectionAmendment.ts'
 import { summarizeProjectionExecutions } from './executionEconomics.ts'
 import { commandKindLabel } from './presentation.ts'
@@ -39,6 +45,7 @@ export function buildManagedTrade(
   const orders = snapshot.orders.filter(
     (row) => orderIds.has(row.order_id) || commandIds.has(row.command_id),
   )
+  const selectedOrderIds = new Set(orders.map((row) => row.order_id))
   const closeOrderIds = new Set(
     snapshot.close_workflows
       .filter((workflow) =>
@@ -49,22 +56,47 @@ export function buildManagedTrade(
   const closeOrders = orders.filter((row) => closeOrderIds.has(row.order_id))
   const entryOrders = orders.filter((row) => !closeOrderIds.has(row.order_id))
   const executions = snapshot.executions.filter(
-    (row) => row.order !== null && orderIds.has(row.order.order_id),
+    (row) =>
+      (row.order !== null && selectedOrderIds.has(row.order.order_id)) ||
+      row.protection_owner?.scope_id === seed.scopeId,
   )
   const entryOrderIds = new Set(entryOrders.map((row) => row.order_id))
   const entryExecutions = executions.filter(
     (row) => row.order !== null && entryOrderIds.has(row.order.order_id),
   )
+  const closeExecutions = executions.filter(
+    (row) =>
+      row.protection_owner?.scope_id === seed.scopeId ||
+      (row.order !== null && closeOrderIds.has(row.order.order_id)),
+  )
   const located = positionsByScope.get(seed.scopeId) ?? null
   const protection = commandNativeProtection(seed.primaryCommand, snapshot.native_protections)
   const attentionReason = tradeAttention(commands, orders, protection, located?.position ?? null)
   const economics = summarizeProjectionExecutions(executions)
+  const averageEntryPrice = weightedAverage(entryExecutions)
+  const side = tradeSide(snapshot, seed.primaryCommand, orders, located?.exposure ?? null)
+  const scopedRealized = realizedForScope(
+    side,
+    averageEntryPrice,
+    closeExecutions,
+    feeAsset(economics.totalFees),
+  )
+  const stopPrice = protection?.plan.children.find(
+    (child) => child.protection_kind === 'stop_loss',
+  )?.trigger_price
+  const initialQuantity = sumExact(entryOrders.map((row) => row.target_quantity))
+  const initialPlannedLoss = lossAtStop(
+    side,
+    seed.primaryCommand.planning?.decision_price ?? averageEntryPrice,
+    seed.primaryCommand.planning?.initial_stop_price ?? stopPrice ?? null,
+    seed.primaryCommand.planning?.normalized_base_quantity ?? initialQuantity,
+  )
 
   return {
     tradeId: `scope:${seed.scopeId}`,
     scopeId: seed.scopeId,
     symbol: tradeSymbol(snapshot, seed.primaryCommand, orders, located?.position ?? null),
-    side: tradeSide(snapshot, seed.primaryCommand, orders, located?.exposure ?? null),
+    side,
     entryLabel: entryLabel(seed.primaryCommand),
     lifecycle: tradeLifecycle(
       seed.primaryCommand,
@@ -91,12 +123,72 @@ export function buildManagedTrade(
         : sumExact(entryOrders.map((row) => row.target_quantity)),
     filledQuantity: sumExact(entryOrders.map((row) => row.filled_quantity)),
     remainingQuantity: located?.exposure.remaining_quantity ?? '0',
-    averageEntryPrice: weightedAverage(entryExecutions),
-    realizedPnl: economics.realizedPnl,
-    netAfterFees: economics.netAfterFees,
+    averageEntryPrice,
+    realizedPnl: scopedRealized,
+    venueRealizedPnl: economics.realizedPnl,
+    netAfterFees: subtractAssetTotals(scopedRealized, economics.totalFees),
     totalFees: economics.totalFees,
     builderFees: economics.builderFees,
+    pinnedAllInTargetTenthsBps:
+      seed.primaryCommand.execution_policy?.all_in_target_tenths_bps ?? null,
+    pinnedFeeSource: seed.primaryCommand.execution_policy?.source_kind ?? null,
+    pinnedFeePolicyVersion: seed.primaryCommand.execution_policy?.policy_version ?? null,
+    initialPlannedLoss,
+    currentStopExposure: lossAtStop(
+      side,
+      averageEntryPrice,
+      stopPrice ?? null,
+      located?.exposure.remaining_quantity ?? '0',
+    ),
   }
+}
+
+function realizedForScope(
+  side: PositionSide,
+  averageEntryPrice: string | null,
+  executions: ExecutionProjection[],
+  asset: string,
+): Map<string, string> {
+  if (averageEntryPrice === null || executions.length === 0) return new Map()
+  const amount = sumExact(
+    executions.map((row) => {
+      const change =
+        side === 'long'
+          ? subtractExact(row.fill.price, averageEntryPrice)
+          : subtractExact(averageEntryPrice, row.fill.price)
+      return multiplyExact(change, row.fill.quantity)
+    }),
+  )
+  return new Map([[asset, amount]])
+}
+
+function feeAsset(values: Map<string, string>): string {
+  return values.keys().next().value ?? 'USDC'
+}
+
+function subtractAssetTotals(
+  total: Map<string, string>,
+  component: Map<string, string>,
+): Map<string, string> {
+  const result = new Map(total)
+  for (const [asset, value] of component) {
+    result.set(asset, subtractExact(result.get(asset) ?? '0', value))
+  }
+  return result
+}
+
+function lossAtStop(
+  side: PositionSide,
+  averageEntryPrice: string | null,
+  stopPrice: string | null,
+  quantity: string,
+): string | null {
+  if (averageEntryPrice === null || stopPrice === null || isExactZero(quantity)) return null
+  const perUnit =
+    side === 'long'
+      ? subtractExact(averageEntryPrice, stopPrice)
+      : subtractExact(stopPrice, averageEntryPrice)
+  return compareExact(perUnit, '0') <= 0 ? '0' : multiplyExact(perUnit, quantity)
 }
 
 function isClosing(snapshot: BrowserAccountSnapshot, scopeId: string): boolean {
@@ -168,6 +260,7 @@ function plannedQuantity(command: CommandProjection): string | null {
 }
 
 function plannedRisk(command: CommandProjection): string | null {
+  if (command.planning?.requested_risk_budget) return command.planning.requested_risk_budget
   const parameters = command.accepted.parameters
   if (command.accepted.kind === 'place_trailing_entry') {
     return (
@@ -239,8 +332,7 @@ function tradeLifecycle(
     terminalLifecycle(command.lifecycle) &&
     orders.every(
       (row) =>
-        row.terminal ||
-        (isExactZero(row.target_quantity) && isExactZero(row.filled_quantity)),
+        row.terminal || (isExactZero(row.target_quantity) && isExactZero(row.filled_quantity)),
     )
   if (failedWithoutExposure) return 'closed'
   if (attention !== null) return 'attention'

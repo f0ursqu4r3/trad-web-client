@@ -25,6 +25,7 @@ export function integerError(
   minimum: number,
   maximum?: number,
 ): string | null {
+  if (value.trim() === '') return `${label} is required`
   if (!/^\d+$/.test(value.trim())) return `${label} must be a whole number`
   const parsed = Number(value)
   if (parsed < minimum || (maximum !== undefined && parsed > maximum)) {

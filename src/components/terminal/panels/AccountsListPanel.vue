@@ -83,17 +83,17 @@ const leverageForms = reactive<
     string,
     {
       symbols: string
-      leverage: number
-      defaultLeverage: number
+      leverage: string
+      defaultLeverage: string
       marginMode: 'cross' | 'isolated'
     }
   >
 >({})
 const guardForms = reactive<
-  Record<string, { entryPercent: number; takeProfitPercent: number; stopLossPercent: number }>
+  Record<string, { entryPercent: string; takeProfitPercent: string; stopLossPercent: string }>
 >({})
 const feeTargetForms = reactive<
-  Record<string, { mode: 'inherit' | 'override'; targetBps: number }>
+  Record<string, { mode: 'inherit' | 'override'; targetBps: string }>
 >({})
 const sortedAccounts = computed(() => {
   accounts.accounts.forEach(ensureLeverageForm)
@@ -213,11 +213,12 @@ function ensureLeverageForm(account: AccountRecord) {
       account.exchange === ExchangeType.Hyperliquid && overrideSymbols.length > 0
         ? overrideSymbols.join(', ')
         : accounts.getDefaultSymbolForAccount(account.id),
-    leverage:
+    leverage: String(
       account.exchange === ExchangeType.Hyperliquid && overrideSymbols.length > 0
         ? (overrides[overrideSymbols[0]] ?? defaultLeverage)
         : defaultLeverage,
-    defaultLeverage,
+    ),
+    defaultLeverage: String(defaultLeverage),
     marginMode,
   }
 }
@@ -230,9 +231,9 @@ function ensureGuardForm(account: AccountRecord) {
   if (guardForms[account.id]) return
   const guards = resolveHyperliquidExecutionGuards(account.exchange_metadata)
   guardForms[account.id] = {
-    entryPercent: tenthsBpsToPercent(guards.entry_market_tenths_bps),
-    takeProfitPercent: tenthsBpsToPercent(guards.take_profit_market_tenths_bps),
-    stopLossPercent: tenthsBpsToPercent(guards.stop_loss_market_tenths_bps),
+    entryPercent: String(tenthsBpsToPercent(guards.entry_market_tenths_bps)),
+    takeProfitPercent: String(tenthsBpsToPercent(guards.take_profit_market_tenths_bps)),
+    stopLossPercent: String(tenthsBpsToPercent(guards.stop_loss_market_tenths_bps)),
   }
 }
 
@@ -245,7 +246,7 @@ function ensureFeeTargetForm(account: AccountRecord) {
       metadata?.builder_target_override_tenths_bps != null
         ? 'override'
         : 'inherit',
-    targetBps: hyperliquidTargetTotalTenthsBps(metadata) / 10,
+    targetBps: String(hyperliquidTargetTotalTenthsBps(metadata) / 10),
   }
 }
 
@@ -253,10 +254,11 @@ function builderTargetSourceLabel(account: AccountRecord): string {
   switch (account.exchange_metadata?.builder_target_source) {
     case 'account_override':
       return 'trading-account override'
+    case 'user_default':
     case 'user_override':
-      return 'user-wide override'
-    case 'user_plan':
-      return 'commercial plan'
+      return 'user default'
+    case 'global_default':
+      return 'global default'
     default:
       return 'Trad-wide default'
   }
@@ -265,8 +267,9 @@ function builderTargetSourceLabel(account: AccountRecord): string {
 function feeTargetError(account: AccountRecord): string | null {
   const form = feeTargetForms[account.id]
   if (!form || form.mode === 'inherit') return null
-  if (!Number.isFinite(form.targetBps) || form.targetBps < 0 || form.targetBps > 10) {
-    return 'Target total must be between 0.0 and 10.0 bps'
+  const value = Number(form.targetBps)
+  if (form.targetBps.trim() === '' || !Number.isFinite(value) || value < 0) {
+    return 'All-in target must be zero or greater'
   }
   return null
 }
@@ -277,7 +280,7 @@ async function saveAccountFeeTarget(account: AccountRecord) {
   const form = feeTargetForms[account.id]
   const error = feeTargetError(account)
   if (!form || error) {
-    controlError.value = error || 'Account fee target is unavailable.'
+    controlError.value = error || 'Account all-in fee is unavailable.'
     return
   }
   try {
@@ -285,12 +288,12 @@ async function saveAccountFeeTarget(account: AccountRecord) {
       await accounts.updateAccountMetadata(account.id, {}, { clearBuilderTargetOverride: true })
     } else {
       await accounts.updateAccountMetadata(account.id, {
-        builder_target_total_tenths_bps: Math.round(form.targetBps * 10),
+        builder_target_total_tenths_bps: Math.round(Number(form.targetBps) * 10),
       })
     }
     delete feeTargetForms[account.id]
     await accounts.fetchAccounts()
-    controlMessage.value = `Saved fee target policy for ${account.label}.`
+    controlMessage.value = `Saved all-in fee policy for ${account.label}.`
   } catch (err) {
     controlError.value = err instanceof Error ? err.message : String(err)
   }
@@ -301,9 +304,9 @@ function canSaveHyperliquidGuards(account: AccountRecord): boolean {
   const form = guardForms[account.id]
   if (!form || savingGuardAccountIds.value.has(account.id)) return false
   return (
-    isValidExecutionGuardPercent(form.entryPercent) &&
-    isValidExecutionGuardPercent(form.takeProfitPercent) &&
-    isValidExecutionGuardPercent(form.stopLossPercent)
+    parseGuardPercent(form.entryPercent) !== null &&
+    parseGuardPercent(form.takeProfitPercent) !== null &&
+    parseGuardPercent(form.stopLossPercent) !== null
   )
 }
 
@@ -315,12 +318,16 @@ async function saveHyperliquidGuards(account: AccountRecord) {
     return
   }
   const form = guardForms[account.id]
+  const entryPercent = parseGuardPercent(form.entryPercent)
+  const takeProfitPercent = parseGuardPercent(form.takeProfitPercent)
+  const stopLossPercent = parseGuardPercent(form.stopLossPercent)
+  if (entryPercent === null || takeProfitPercent === null || stopLossPercent === null) return
   savingGuardAccountIds.value = new Set([...savingGuardAccountIds.value, account.id])
   try {
     await accounts.updateAccountMetadata(account.id, {
-      entry_market_guard_tenths_bps: percentToTenthsBps(form.entryPercent),
-      take_profit_market_guard_tenths_bps: percentToTenthsBps(form.takeProfitPercent),
-      stop_loss_market_guard_tenths_bps: percentToTenthsBps(form.stopLossPercent),
+      entry_market_guard_tenths_bps: percentToTenthsBps(entryPercent),
+      take_profit_market_guard_tenths_bps: percentToTenthsBps(takeProfitPercent),
+      stop_loss_market_guard_tenths_bps: percentToTenthsBps(stopLossPercent),
     })
     controlMessage.value = `Saved Hyperliquid execution guards for ${account.label}.`
   } catch (err) {
@@ -338,7 +345,7 @@ function validateLeverage(account: AccountRecord): boolean {
   if (!form) return false
   const symbols = parseLeverageSymbols(account, form.symbols)
   if (symbols.length === 0) return false
-  if (!Number.isInteger(form.leverage) || form.leverage <= 0) return false
+  if (parsePositiveInteger(form.leverage) === null) return false
   return accountCommandState(account).ready
 }
 
@@ -352,12 +359,22 @@ function leverageFieldError(
   account: AccountRecord,
   kind: 'leverage' | 'defaultLeverage',
 ): string | null {
-  const value = leverageForms[account.id]?.[kind]
-  return integerError(String(value ?? ''), kind === 'leverage' ? 'Leverage' : 'Default leverage', 1)
+  const value = leverageForms[account.id]?.[kind] ?? ''
+  return integerError(value, kind === 'leverage' ? 'Leverage' : 'Default leverage', 1)
 }
 
-function guardFieldError(value: number, label: string): string | null {
-  return isValidExecutionGuardPercent(value) ? null : `${label} must be between 0% and 50%`
+function parseGuardPercent(value: string): number | null {
+  if (value.trim() === '') return null
+  const parsed = Number(value)
+  return isValidExecutionGuardPercent(parsed) ? parsed : null
+}
+
+function guardFieldError(value: string, label: string): string | null {
+  return parseGuardPercent(value) !== null ? null : `${label} must be between 0% and 50%`
+}
+
+function numericDraft(event: Event): string {
+  return (event.currentTarget as HTMLInputElement).value
 }
 
 function accountCommandState(account: AccountRecord) {
@@ -387,8 +404,8 @@ function canSaveHyperliquidLeveragePrefs(account: AccountRecord): boolean {
   if (account.exchange !== ExchangeType.Hyperliquid) return false
   const form = leverageForms[account.id]
   if (!form) return false
-  if (!Number.isInteger(form.defaultLeverage) || form.defaultLeverage < 1) return false
-  if (!Number.isInteger(form.leverage) || form.leverage < 1) return false
+  if (parsePositiveInteger(form.defaultLeverage) === null) return false
+  if (parsePositiveInteger(form.leverage) === null) return false
   if (form.marginMode !== 'cross' && form.marginMode !== 'isolated') return false
   return true
 }
@@ -683,6 +700,8 @@ async function setLeverage(account: AccountRecord) {
     return
   }
   const symbols = parseLeverageSymbols(account, form.symbols)
+  const leverage = parsePositiveInteger(form.leverage)
+  if (leverage === null) return
   try {
     for (const symbol of symbols) {
       const outcome = await gateway.submitCommand(
@@ -690,7 +709,7 @@ async function setLeverage(account: AccountRecord) {
           kind: 'set_leverage',
           parameters: {
             symbol,
-            leverage: form.leverage,
+            leverage,
             ...(account.exchange === ExchangeType.Hyperliquid
               ? { margin_mode: form.marginMode }
               : {}),
@@ -738,24 +757,27 @@ async function saveHyperliquidLeveragePrefs(account: AccountRecord) {
     return
   }
   const form = leverageForms[account.id]
+  const defaultLeverage = parsePositiveInteger(form.defaultLeverage)
+  const leverage = parsePositiveInteger(form.leverage)
+  if (defaultLeverage === null || leverage === null) return
   const symbols = parseLeverageSymbols(account, form.symbols)
   const overrides = symbols.reduce<Record<string, number>>((map, symbol) => {
-    map[symbol] = form.leverage
+    map[symbol] = leverage
     return map
   }, {})
   try {
     await accounts.updateAccountMetadata(account.id, {
       product: 'usdc_perp',
       hedge_mode_only: false,
-      default_leverage: form.defaultLeverage,
+      default_leverage: defaultLeverage,
       margin_mode: form.marginMode,
       symbol_leverage_overrides: overrides,
     })
     await accounts.fetchAccounts()
     controlMessage.value =
       symbols.length > 0
-        ? `Saved Hyperliquid ${form.defaultLeverage}x default and ${symbols.length} symbol override${symbols.length === 1 ? '' : 's'}.`
-        : `Saved Hyperliquid ${form.defaultLeverage}x default and cleared symbol overrides.`
+        ? `Saved Hyperliquid ${defaultLeverage}x default and ${symbols.length} symbol override${symbols.length === 1 ? '' : 's'}.`
+        : `Saved Hyperliquid ${defaultLeverage}x default and cleared symbol overrides.`
   } catch (err) {
     controlError.value = err instanceof Error ? err.message : String(err)
   }
@@ -764,6 +786,12 @@ async function saveHyperliquidLeveragePrefs(account: AccountRecord) {
 function summarizeSymbols(symbols: string[]): string {
   const shown = symbols.slice(0, 4).join(', ')
   return symbols.length > 4 ? `${shown}, ...` : shown
+}
+
+function parsePositiveInteger(value: string): number | null {
+  if (!/^\d+$/.test(value.trim())) return null
+  const parsed = Number(value)
+  return Number.isSafeInteger(parsed) && parsed >= 1 ? parsed : null
 }
 
 async function enableHedgeMode(account: AccountRecord) {
@@ -967,8 +995,8 @@ watch(
                 class="account-fee-target-grid border-t border-[var(--panel-border-inner)] pt-2"
               >
                 <FormField
-                  label="Fee target source"
-                  help="Inherit the user or plan value, or establish an override for only this trading account."
+                  label="All-in fee source"
+                  help="Inherit the user or global default, or establish an override for only this trading account."
                   required
                 >
                   <select v-model="feeTargetForms[account.id].mode" class="input h-7 text-xs">
@@ -977,22 +1005,23 @@ watch(
                   </select>
                 </FormField>
                 <FormField
-                  label="Target total / side"
-                  help="Exchange fee plus Trad builder fee. Hyperliquid’s approval ceiling is 10 bps."
+                  label="Account all-in override / side"
+                  help="Exchange fee plus Trad builder fee. Hyperliquid caps only Trad’s builder component at 10 bps."
                   :error="feeTargetError(account)"
                   :required="feeTargetForms[account.id].mode === 'override'"
                 >
                   <input
-                    v-model.number="feeTargetForms[account.id].targetBps"
+                    :value="feeTargetForms[account.id].targetBps"
                     class="input h-7 text-xs"
                     type="number"
                     min="0"
-                    max="10"
+                    max="6553.5"
                     step="0.1"
                     :disabled="feeTargetForms[account.id].mode === 'inherit'"
+                    @input="feeTargetForms[account.id].targetBps = numericDraft($event)"
                   />
                   <small class="field-hint">
-                    Effective
+                    Current all-in target
                     {{
                       (hyperliquidTargetTotalTenthsBps(account.exchange_metadata) / 10).toFixed(1)
                     }}
@@ -1005,8 +1034,32 @@ watch(
                   :disabled="Boolean(feeTargetError(account))"
                   @click="saveAccountFeeTarget(account)"
                 >
-                  Save fee target
+                  Save all-in fee
                 </button>
+              </div>
+
+              <div
+                v-if="
+                  showAccountDetails(account) &&
+                  showDetailSection('defaults') &&
+                  account.exchange === ExchangeType.Hyperliquid &&
+                  !account.exchange_metadata?.builder_fee_manager
+                "
+                class="account-fee-target-grid border-t border-[var(--panel-border-inner)] pt-2"
+              >
+                <div>
+                  <span class="field-label">Current all-in target / side</span>
+                  <strong>
+                    {{
+                      (hyperliquidTargetTotalTenthsBps(account.exchange_metadata) / 10).toFixed(1)
+                    }}
+                    bps
+                  </strong>
+                  <small class="field-hint">
+                    Source: {{ builderTargetSourceLabel(account) }}. Only a Trad administrator can
+                    change fee policy.
+                  </small>
+                </div>
               </div>
 
               <div
@@ -1067,12 +1120,13 @@ watch(
                   required
                 >
                   <input
-                    v-model.number="leverageForms[account.id].leverage"
+                    :value="leverageForms[account.id].leverage"
                     class="input h-7 text-xs"
                     type="number"
                     min="1"
                     step="1"
                     @focus="ensureLeverageForm(account)"
+                    @input="leverageForms[account.id].leverage = numericDraft($event)"
                   />
                 </FormField>
                 <FormField
@@ -1083,12 +1137,13 @@ watch(
                   required
                 >
                   <input
-                    v-model.number="leverageForms[account.id].defaultLeverage"
+                    :value="leverageForms[account.id].defaultLeverage"
                     class="input h-7 text-xs"
                     type="number"
                     min="1"
                     step="1"
                     @focus="ensureLeverageForm(account)"
+                    @input="leverageForms[account.id].defaultLeverage = numericDraft($event)"
                   />
                 </FormField>
                 <FormField
@@ -1199,13 +1254,14 @@ watch(
                   required
                 >
                   <input
-                    v-model.number="guardForms[account.id].entryPercent"
+                    :value="guardForms[account.id].entryPercent"
                     class="input h-7 text-xs"
                     type="number"
                     min="0"
                     max="50"
                     step="0.001"
                     @focus="ensureGuardForm(account)"
+                    @input="guardForms[account.id].entryPercent = numericDraft($event)"
                   />
                   <small class="field-hint">Percent</small>
                 </FormField>
@@ -1221,13 +1277,14 @@ watch(
                   required
                 >
                   <input
-                    v-model.number="guardForms[account.id].takeProfitPercent"
+                    :value="guardForms[account.id].takeProfitPercent"
                     class="input h-7 text-xs"
                     type="number"
                     min="0"
                     max="50"
                     step="0.001"
                     @focus="ensureGuardForm(account)"
+                    @input="guardForms[account.id].takeProfitPercent = numericDraft($event)"
                   />
                   <small class="field-hint">Percent</small>
                 </FormField>
@@ -1243,13 +1300,14 @@ watch(
                   required
                 >
                   <input
-                    v-model.number="guardForms[account.id].stopLossPercent"
+                    :value="guardForms[account.id].stopLossPercent"
                     class="input h-7 text-xs"
                     type="number"
                     min="0"
                     max="50"
                     step="0.001"
                     @focus="ensureGuardForm(account)"
+                    @input="guardForms[account.id].stopLossPercent = numericDraft($event)"
                   />
                   <small class="field-hint">Percent</small>
                 </FormField>
@@ -1366,7 +1424,7 @@ watch(
                   </span>
                   <span class="normal-case tracking-normal text-[var(--color-text-dim)]">
                     Trad-controlled recipient. This address receives only the builder component of
-                    the configured target total.
+                    the configured all-in target.
                   </span>
                 </div>
                 <div class="flex flex-col gap-1 text-[10px] uppercase tracking-[0.06em] dim">
@@ -1411,7 +1469,7 @@ watch(
                 <p
                   class="account-builder-policy m-0 text-[11px] leading-relaxed text-[var(--color-text-dim)]"
                 >
-                  Current Trad target total:
+                  Current all-in target:
                   <span class="font-mono text-primary">
                     {{
                       (hyperliquidTargetTotalTenthsBps(account.exchange_metadata) / 10).toFixed(1)
@@ -1420,8 +1478,8 @@ watch(
                   </span>
                   · Source: {{ builderTargetSourceLabel(account) }}.
                   <br />
-                  Exchange fee + Trad builder fee equals the target total. The builder fee is
-                  calculated from the live account fee tier for each submitted order.
+                  Exchange fee + Trad builder fee targets the configured all-in amount. The builder
+                  fee is calculated from the live account fee tier for each submitted order.
                 </p>
                 <p
                   v-if="builderApprovalFeedback[account.id]"

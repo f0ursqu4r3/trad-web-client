@@ -29,8 +29,12 @@ export function tradeWorkspaceProjection(
   )
 
   return {
-    activeTrades: ordered.filter((trade) => trade.lifecycle !== 'closed'),
-    closedTrades: ordered.filter((trade) => trade.lifecycle === 'closed'),
+    activeTrades: ordered.filter(
+      (trade) => trade.lifecycle !== 'closed' && trade.lifecycle !== 'taken_over',
+    ),
+    closedTrades: ordered.filter(
+      (trade) => trade.lifecycle === 'closed' || trade.lifecycle === 'taken_over',
+    ),
     positions: snapshot.positions
       .map((position) => ({
         position,

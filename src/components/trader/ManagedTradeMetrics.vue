@@ -1,13 +1,59 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { ShieldCheck } from 'lucide-vue-next'
 
-import { compareExact, formatExactDecimal } from '@/lib/exactDecimalMath'
+import {
+  addExact,
+  compareExact,
+  formatExactDecimal,
+  multiplyExact,
+  subtractExact,
+} from '@/lib/exactDecimalMath'
 import type { ManagedTradeView } from '@/lib/projection/tradeWorkspace'
 import type { NativeProtectionChildProjection } from '@/lib/gateway'
+import { useAccountsStore } from '@/stores/accounts'
+import { useGatewayStore } from '@/stores/gateway'
+import { useMarketStore } from '@/stores/market'
 
 const props = defineProps<{ trade: ManagedTradeView }>()
 const emit = defineEmits<{ (event: 'move-protection', childId: string): void }>()
+const accounts = useAccountsStore()
+const gateway = useGatewayStore()
+const markets = useMarketStore()
+const accountId = computed(() => accounts.selectedAccountId)
+const market = computed(() => markets.stream(accountId.value, props.trade.symbol))
+const latestPrice = computed(() => {
+  const samples = market.value?.samples ?? []
+  return samples[samples.length - 1]?.price ?? null
+})
+let subscribedAccountId: string | null = null
+const unrealized = computed(() => {
+  if (latestPrice.value === null || props.trade.averageEntryPrice === null) return null
+  const change =
+    props.trade.side === 'long'
+      ? subtractExact(latestPrice.value, props.trade.averageEntryPrice)
+      : subtractExact(props.trade.averageEntryPrice, latestPrice.value)
+  return multiplyExact(change, props.trade.remainingQuantity)
+})
+const liveTradePnl = computed(() => {
+  const realized = props.trade.realizedPnl.get('USDC') ?? '0'
+  const fees = props.trade.totalFees.get('USDC') ?? '0'
+  return unrealized.value === null
+    ? null
+    : subtractExact(addExact(realized, unrealized.value), fees)
+})
+const exchangeFees = computed(() => {
+  const values = new Map(props.trade.totalFees)
+  for (const [asset, builder] of props.trade.builderFees) {
+    values.set(asset, subtractExact(values.get(asset) ?? '0', builder))
+  }
+  return values
+})
+const pinnedAllIn = computed(() =>
+  props.trade.pinnedAllInTargetTenthsBps === null
+    ? '-'
+    : `${(props.trade.pinnedAllInTargetTenthsBps / 10).toFixed(1)} bps`,
+)
 
 const stop = computed(() =>
   props.trade.protection?.plan.children.find((child) => child.protection_kind === 'stop_loss'),
@@ -37,11 +83,22 @@ function totalTone(values: Map<string, string>): '' | 'positive' | 'negative' {
 
 function childState(child: NativeProtectionChildProjection | undefined): string {
   if (child === undefined) return 'planned'
+  if (child.failure_reason?.startsWith('deferred_minimum_notional:')) {
+    return 'waiting for minimum size'
+  }
   if (child.failure_reason) return 'failed'
   if (child.pending_operation_id) return 'updating'
   if (child.remote_order_ids.length > 0) return 'working'
   return 'installing'
 }
+
+onMounted(() => {
+  subscribedAccountId = accountId.value
+  if (subscribedAccountId) gateway.subscribeMarket(subscribedAccountId, props.trade.symbol, 64)
+})
+onBeforeUnmount(() => {
+  if (subscribedAccountId) gateway.unsubscribeMarket(subscribedAccountId, props.trade.symbol)
+})
 </script>
 
 <template>
@@ -64,16 +121,68 @@ function childState(child: NativeProtectionChildProjection | undefined): string 
       <strong>{{ formatExactDecimal(trade.remainingQuantity) }}</strong>
     </div>
     <div>
-      <span>Realized net</span>
+      <span title="Estimate from the latest Trad market sample and this trade's scoped entry basis."
+        >Live trade P&amp;L est.</span
+      >
+      <strong v-if="liveTradePnl !== null" :class="totalTone(new Map([['USDC', liveTradePnl]]))">
+        {{ formatExactDecimal(liveTradePnl) }} USDC
+      </strong>
+      <strong v-else>-</strong>
+    </div>
+    <div>
+      <span title="Scoped exits measured against this trade's own weighted entry basis."
+        >Scoped realized</span
+      >
+      <strong :class="totalTone(trade.realizedPnl)">{{ totals(trade.realizedPnl) }}</strong>
+    </div>
+    <div>
+      <span title="Scoped realized P&amp;L after every fee attributed to this trade."
+        >Realized net</span
+      >
       <strong :class="totalTone(trade.netAfterFees)">{{ totals(trade.netAfterFees) }}</strong>
     </div>
     <div>
-      <span>Planned risk</span>
+      <span title="The loss amount requested when this trade used risk-at-stop sizing."
+        >Risk budget</span
+      >
       <strong>{{ trade.plannedRisk ? formatExactDecimal(trade.plannedRisk) : '-' }}</strong>
     </div>
     <div>
-      <span>Fees · builder</span>
-      <strong>{{ totals(trade.totalFees) }} · {{ totals(trade.builderFees) }}</strong>
+      <span title="Expected loss from the normalized accepted entry plan to its initial stop."
+        >Initial planned loss</span
+      >
+      <strong>{{
+        trade.initialPlannedLoss ? `${formatExactDecimal(trade.initialPlannedLoss)} USDC` : '-'
+      }}</strong>
+    </div>
+    <div>
+      <span
+        title="Expected loss from the scoped entry basis to the current stop for the managed remainder."
+        >Current risk to stop</span
+      >
+      <strong>{{
+        trade.currentStopExposure ? `${formatExactDecimal(trade.currentStopExposure)} USDC` : '-'
+      }}</strong>
+    </div>
+    <div>
+      <span title="Hyperliquid reports a total fee that already includes Trad's builder component."
+        >Exchange · Trad fees</span
+      >
+      <strong>{{ totals(exchangeFees) }} · {{ totals(trade.builderFees) }}</strong>
+    </div>
+    <div>
+      <span
+        title="The all-in target captured when this trade was accepted. Later admin changes do not rewrite it."
+        >Pinned all-in</span
+      >
+      <strong
+        :title="
+          trade.pinnedFeeSource
+            ? `Source: ${trade.pinnedFeeSource} · policy v${trade.pinnedFeePolicyVersion}`
+            : ''
+        "
+        >{{ pinnedAllIn }}</strong
+      >
     </div>
   </div>
 
@@ -119,7 +228,7 @@ function childState(child: NativeProtectionChildProjection | undefined): string 
 <style scoped>
 .trade-metrics {
   display: grid;
-  grid-template-columns: repeat(6, minmax(105px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(116px, 1fr));
   gap: 1px;
   background: var(--border-subtle);
   border-bottom: 1px solid var(--border-subtle);

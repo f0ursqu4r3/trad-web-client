@@ -43,7 +43,7 @@ const admin = [
   { key: 'users', label: 'Users & access', icon: UsersRound },
   { key: 'accounts', label: 'Account health', icon: MonitorCog },
   { key: 'commerce', label: 'Plans & billing', icon: Boxes },
-  { key: 'execution', label: 'Execution policy', icon: BadgeDollarSign },
+  { key: 'execution', label: 'Fees', icon: BadgeDollarSign },
   { key: 'audit', label: 'Audit history', icon: BookOpenCheck },
 ]
 

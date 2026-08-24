@@ -151,14 +151,15 @@ test('mirrors the client workflow with practical presets and redundant trade act
   const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
   const history = eth.getByRole('button', { name: 'history', exact: true }).first()
   await expect(history).toBeVisible()
-  await expect(eth.getByRole('button', { name: 'log', exact: true })).toBeVisible()
-  await expect(eth.getByRole('button', { name: 'resync totals', exact: true })).toBeVisible()
+  await expect(eth.getByRole('button', { name: 'execution', exact: true })).toBeVisible()
+  await expect(eth.getByRole('button', { name: 'log', exact: true })).toHaveCount(0)
+  await expect(eth.getByRole('button', { name: 'resync totals', exact: true })).toHaveCount(0)
   await expect(eth.getByRole('button', { name: 'take over', exact: true }).first()).toBeVisible()
   await expect(eth.getByRole('button', { name: 'close all', exact: true }).first()).toBeVisible()
 
   await history.click()
   await expect(eth.getByText('place order', { exact: true })).toBeVisible()
-  await eth.getByRole('button', { name: 'log', exact: true }).click()
+  await eth.getByRole('button', { name: 'execution', exact: true }).click()
   await expect(eth.getByTestId('projection-details')).toBeVisible()
 
   await eth.getByRole('button', { name: 'close all', exact: true }).first().click()

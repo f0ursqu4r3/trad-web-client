@@ -36,14 +36,20 @@ export interface ManagedTradeView {
   executions: ExecutionProjection[]
   protection: NativeProtectionProjection | null
   plannedRisk: string | null
+  initialPlannedLoss: string | null
+  currentStopExposure: string | null
   requestedQuantity: string | null
   filledQuantity: string
   remainingQuantity: string
   averageEntryPrice: string | null
   realizedPnl: Map<string, string>
+  venueRealizedPnl: Map<string, string>
   netAfterFees: Map<string, string>
   totalFees: Map<string, string>
   builderFees: Map<string, string>
+  pinnedAllInTargetTenthsBps: number | null
+  pinnedFeeSource: string | null
+  pinnedFeePolicyVersion: number | null
 }
 
 export interface WorkspacePositionView {

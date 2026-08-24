@@ -107,6 +107,10 @@ async function applyPrefill(prefill: EngineCommandPrefill): Promise<void> {
   submitError.value = null
 }
 
+function replaceDraft(next: typeof draft): void {
+  Object.assign(draft, next)
+}
+
 defineExpose({ applyPrefill })
 </script>
 
@@ -121,10 +125,23 @@ defineExpose({ applyPrefill })
     </header>
 
     <form class="ticket-body" aria-label="New trade order ticket" @submit.prevent="submit">
-      <TradeTicketCore v-model="draft" :account-id="accountId" :units="units" />
-      <TradeTicketExecution v-model="draft" :units="units" />
-      <TradeTicketSizing v-model="draft" :units="units" />
-      <TradeTicketProtection v-model="draft" :units="units" />
+      <TradeTicketCore
+        :model-value="draft"
+        :account-id="accountId"
+        :units="units"
+        @update:model-value="replaceDraft"
+      />
+      <TradeTicketExecution
+        :model-value="draft"
+        :units="units"
+        @update:model-value="replaceDraft"
+      />
+      <TradeTicketSizing :model-value="draft" :units="units" @update:model-value="replaceDraft" />
+      <TradeTicketProtection
+        :model-value="draft"
+        :units="units"
+        @update:model-value="replaceDraft"
+      />
 
       <details v-if="draft.entryType !== 'chase'" class="ticket-advanced">
         <summary>Advanced execution shape</summary>

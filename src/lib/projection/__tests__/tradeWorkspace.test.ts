@@ -67,6 +67,32 @@ test('does not adopt outside venue exposure into a managed trade', () => {
   )
 })
 
+test('retains requested risk separately from initial and current stop exposure', () => {
+  const snapshot = engineProjectionSnapshot()
+  const primary = snapshot.commands.find((row) => row.accepted.kind === 'place_order')
+  assert.ok(primary)
+  primary.planning = {
+    sizing_mode: 'risk_at_stop',
+    requested_risk_budget: '1',
+    decision_price: '2000',
+    decision_price_source: 'best_ask',
+    market_observed_at_ms: 10,
+    initial_stop_price: '1800',
+    raw_base_quantity: '0.005',
+    normalized_base_quantity: '0.00420001',
+    normalized_quote_notional: '8.4',
+    quantity_step: '0.00000001',
+    minimum_order_quantity: '0.00000001',
+    minimum_order_notional: '5',
+  }
+
+  const trade = tradeWorkspaceProjection(snapshot).activeTrades.find((row) => row.symbol === 'ETH')
+
+  assert.equal(trade?.plannedRisk, '1')
+  assert.equal(trade?.initialPlannedLoss, '0.840002')
+  assert.equal(trade?.currentStopExposure, '0.4985411862859983')
+})
+
 test('surfaces reconciliation attention without losing trade identity', () => {
   const snapshot = engineProjectionSnapshot()
   const eth = snapshot.positions.find((position) => position.symbol === 'ETH')
@@ -89,10 +115,13 @@ test('keeps taken-over and closed scopes as explicit lifecycle states', () => {
   assert.ok(exposure)
   exposure.detached = true
 
-  const takenOverTrade = tradeWorkspaceProjection(takenOverSnapshot).activeTrades.find(
-    (row) => row.symbol === 'ETH',
-  )
+  const takenOverWorkspace = tradeWorkspaceProjection(takenOverSnapshot)
+  const takenOverTrade = takenOverWorkspace.closedTrades.find((row) => row.symbol === 'ETH')
   assert.equal(takenOverTrade?.lifecycle, 'taken_over')
+  assert.equal(
+    takenOverWorkspace.activeTrades.some((row) => row.symbol === 'ETH'),
+    false,
+  )
 
   const closedSnapshot = engineProjectionSnapshot()
   const closed = closedSnapshot.positions.find((position) => position.symbol === 'ETH')
@@ -168,6 +197,26 @@ test('classifies one-way managed closes by workflow identity instead of reduce-o
     last_reason: 'an earlier close attempt expired',
     created_at: primary.accepted_at + 10_000,
   })
+  const entryFill = snapshot.executions.find((row) => row.fill.symbol === 'ETH')
+  assert.ok(entryFill)
+  snapshot.executions.push({
+    ...structuredClone(entryFill),
+    event_id: 'scope-close-fill',
+    fill: {
+      ...entryFill.fill,
+      event_id: 'scope-close-fill',
+      execution_id: 'scope-close-execution',
+      client_order_id: 'managed-close',
+      remote_order_id: 'managed-close-remote',
+      side: 'sell',
+      price: '2000',
+      quantity: '0.002',
+      fee: { asset: 'USDC', amount: '0.1' },
+      builder_fee: { asset: 'USDC', amount: '0.04' },
+      realized_pnl: { asset: 'USDC', amount: '999' },
+    },
+    order: { order_id: closeOrderId, generation: 1 },
+  })
   const exposure = position.owned_exposure['scope-filled']
   assert.ok(exposure)
   exposure.reduced_quantity = exposure.opened_quantity
@@ -184,6 +233,8 @@ test('classifies one-way managed closes by workflow identity instead of reduce-o
   assert.equal(trade.requestedQuantity, '0.00420001')
   assert.equal(trade.filledQuantity, '0.00420001')
   assert.equal(trade.attentionReason, 'an earlier close attempt expired')
+  assert.equal(trade.realizedPnl.get('USDC'), '0.16235000034')
+  assert.equal(trade.venueRealizedPnl.get('USDC'), '999')
 })
 
 test('closes a zero-fill failed entry despite inert protection placeholders', () => {
@@ -219,7 +270,10 @@ test('closes a zero-fill failed entry despite inert protection placeholders', ()
   assert.ok(trade)
   assert.equal(trade.lifecycle, 'closed')
   assert.equal(trade.attentionReason, 'queued market open expired before exchange dispatch')
-  assert.equal(workspace.activeTrades.some((row) => row.symbol === 'ETH'), false)
+  assert.equal(
+    workspace.activeTrades.some((row) => row.symbol === 'ETH'),
+    false,
+  )
 })
 
 test('selects the active strategy chart before older terminal chart sources', () => {

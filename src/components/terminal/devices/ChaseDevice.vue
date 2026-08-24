@@ -175,9 +175,7 @@ function formatBps(fraction: number): string {
       <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
         <div>
           <dt class="dt-label">Requested</dt>
-          <dd class="m-0 font-mono text-primary">
-            {{ device.quantity }} {{ requestedUnit() }}
-          </dd>
+          <dd class="m-0 font-mono text-primary">{{ device.quantity }} {{ requestedUnit() }}</dd>
         </div>
         <div>
           <dt class="dt-label">Normalized Quantity</dt>
@@ -200,7 +198,7 @@ function formatBps(fraction: number): string {
           <dd class="m-0 font-mono text-primary">{{ replacementCount }}</dd>
         </div>
         <div v-if="device.builder_target_total_tenths_bps != null">
-          <dt class="dt-label">Target Total / Side</dt>
+          <dt class="dt-label">Pinned All-in Target / Side</dt>
           <dd class="m-0 font-mono text-primary">
             {{ (device.builder_target_total_tenths_bps / 10).toFixed(1) }} bps
           </dd>
