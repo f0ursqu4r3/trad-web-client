@@ -1,5 +1,11 @@
 import { multiplyExact, sumExact } from '../exactDecimalMath.ts'
-import type { PositionSideIntent, TimeInForceIntent } from '../gateway/intent.ts'
+import type {
+  BrowserCommandIntent,
+  OrderSizingIntent,
+  PositionSideIntent,
+  ProtectionIntent,
+  TimeInForceIntent,
+} from '../gateway/intent.ts'
 import type { CommandProjection } from '../gateway/projection.ts'
 import type {
   ProtectionFormState,
@@ -7,11 +13,7 @@ import type {
   StopLossFormState,
   TakeProfitFormState,
 } from './form.ts'
-import type {
-  ChaseCommandDraft,
-  OrderCommandDraft,
-  TrailingEntryCommandDraft,
-} from './intents.ts'
+import type { ChaseCommandDraft, OrderCommandDraft, TrailingEntryCommandDraft } from './intents.ts'
 
 export type EngineCommandModalName =
   | 'EngineMarketOrder'
@@ -44,6 +46,8 @@ export function duplicateCommandPrefill(
   accountId: string,
 ): EngineCommandPrefill | null {
   try {
+    const authored = command.planning?.authored_intent
+    if (authored) return authoredIntentPrefill(authored, accountId)
     switch (command.accepted.kind) {
       case 'place_order':
         return orderPrefill(command.accepted.parameters, accountId, false)
@@ -58,6 +62,126 @@ export function duplicateCommandPrefill(
     }
   } catch {
     return null
+  }
+}
+
+function authoredIntentPrefill(
+  intent: BrowserCommandIntent,
+  accountId: string,
+): EngineCommandPrefill | null {
+  switch (intent.kind) {
+    case 'place_order': {
+      const value = intent.parameters
+      const sizing = authoredSizing(value.sizing)
+      const split = value.shape.kind === 'split'
+      return {
+        modal: value.execution.kind === 'market' ? 'EngineMarketOrder' : 'EngineLimitOrder',
+        values: {
+          accountId,
+          executionKind: value.execution.kind,
+          symbol: value.symbol,
+          positionSide: value.position_side,
+          ...sizing,
+          limitPrice: value.execution.kind === 'limit' ? value.execution.price : '',
+          timeInForce:
+            value.execution.kind === 'limit' ? value.execution.time_in_force : 'good_til_canceled',
+          shapeMode: split ? 'split' : 'single',
+          targetChildNotional:
+            value.shape.kind === 'split' ? (value.shape.target_child_notional ?? '') : '',
+          maxChildren: value.shape.kind === 'split' ? String(value.shape.max_children) : '20',
+          protection: authoredProtection(value.protection),
+        },
+      }
+    }
+    case 'place_chase': {
+      const value = intent.parameters
+      const boundary = value.adverse_boundary
+      return {
+        modal: 'EngineChaseOrder',
+        values: {
+          accountId,
+          symbol: value.symbol,
+          positionSide: value.position_side,
+          ...authoredSizing(value.sizing),
+          boundaryKind: boundary?.kind ?? 'none',
+          boundaryValue: boundary?.value ?? '',
+          expirySeconds:
+            value.expires_after_ms === undefined ? '' : String(value.expires_after_ms / 1_000),
+          remainder: value.remainder,
+          protection: authoredProtection(value.protection),
+        },
+      }
+    }
+    case 'place_trailing_entry': {
+      const value = intent.parameters
+      const split = value.shape.kind === 'split'
+      return {
+        modal: 'EngineTrailingEntry',
+        values: {
+          accountId,
+          symbol: value.symbol,
+          positionSide: value.position_side,
+          activationPrice: value.activation_price,
+          jumpBasisPoints: value.jump_basis_points,
+          stopLossPrice: value.stop_loss_price,
+          takeProfitPrice: value.take_profit_price ?? '',
+          riskAmount: value.risk_amount,
+          shapeMode: split ? 'split' : 'single',
+          targetChildNotional:
+            value.shape.kind === 'split' ? (value.shape.target_child_notional ?? '') : '',
+          maxChildren: value.shape.kind === 'split' ? String(value.shape.max_children) : '20',
+          oneWaySemantics: value.one_way_semantics,
+        },
+      }
+    }
+    default:
+      return null
+  }
+}
+
+function authoredSizing(sizing: OrderSizingIntent): {
+  sizingMode: 'base' | 'quote_notional' | 'risk_at_stop'
+  amount: string
+} {
+  switch (sizing.kind) {
+    case 'base':
+      return { sizingMode: 'base', amount: sizing.quantity }
+    case 'quote_notional':
+      return { sizingMode: 'quote_notional', amount: sizing.amount }
+    case 'risk_at_stop':
+      return { sizingMode: 'risk_at_stop', amount: sizing.loss_amount }
+  }
+}
+
+function authoredProtection(protection: ProtectionIntent | undefined): ProtectionFormState {
+  if (!protection) return emptyProtection()
+  return {
+    takeProfits: protection.take_profits.map((takeProfit, index) => ({
+      id: `duplicate-tp-${index}`,
+      triggerPrice: takeProfit.trigger_price,
+      triggerSource: takeProfit.trigger_source,
+      executionKind: takeProfit.execution.kind,
+      executionPrice: takeProfit.execution.kind === 'limit' ? takeProfit.execution.price : '',
+      allocationKind: takeProfit.allocation.kind,
+      allocationValue:
+        takeProfit.allocation.kind === 'fraction'
+          ? multiplyExact(takeProfit.allocation.fraction, '100')
+          : takeProfit.allocation.kind === 'exact_base'
+            ? takeProfit.allocation.quantity
+            : '',
+    })),
+    stopLoss: protection.stop_loss
+      ? {
+          enabled: true,
+          triggerPrice: protection.stop_loss.trigger_price,
+          triggerSource: protection.stop_loss.trigger_source,
+          executionKind: protection.stop_loss.execution.kind,
+          executionPrice:
+            protection.stop_loss.execution.kind === 'limit'
+              ? protection.stop_loss.execution.price
+              : '',
+        }
+      : emptyProtection().stopLoss,
   }
 }
 
@@ -101,9 +225,7 @@ function orderPrefill(
     amount: quantity,
     limitPrice: executionKind === 'limit' ? exactString(execution.price, 'limit price') : '',
     timeInForce:
-      executionKind === 'limit'
-        ? timeInForceValue(execution.time_in_force)
-        : 'good_til_canceled',
+      executionKind === 'limit' ? timeInForceValue(execution.time_in_force) : 'good_til_canceled',
     ...shape,
     protection,
   }
@@ -211,10 +333,9 @@ function protectionExecution(value: unknown): {
   throw new Error('unsupported protection execution')
 }
 
-function protectionAllocation(value: unknown): Pick<
-  TakeProfitFormState,
-  'allocationKind' | 'allocationValue'
-> {
+function protectionAllocation(
+  value: unknown,
+): Pick<TakeProfitFormState, 'allocationKind' | 'allocationValue'> {
   const allocation = requiredRecord(value, 'protection allocation')
   switch (allocation.kind) {
     case 'full_remaining':
@@ -223,6 +344,11 @@ function protectionAllocation(value: unknown): Pick<
       return {
         allocationKind: 'fraction',
         allocationValue: multiplyExact(exactString(allocation.value, 'allocation'), '100'),
+      }
+    case 'pro_rata':
+      return {
+        allocationKind: 'fraction',
+        allocationValue: multiplyExact(exactString(allocation.fraction, 'allocation'), '100'),
       }
     case 'exact':
       return {

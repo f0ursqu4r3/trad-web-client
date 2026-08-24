@@ -1,4 +1,4 @@
-import type { ExactDecimal, Uuid } from './intent.ts'
+import type { BrowserCommandIntent, ExactDecimal, Uuid } from './intent.ts'
 
 export type TimestampMillis = number
 export type ProjectionRevision = number
@@ -210,6 +210,7 @@ export interface CommandProjection {
     approved_builder_ceiling_tenths_bps: number | null
   }
   planning?: {
+    authored_intent?: BrowserCommandIntent
     sizing_mode: string
     requested_risk_budget: ExactDecimal | null
     decision_price: ExactDecimal
@@ -661,6 +662,13 @@ export type ProtectionAllocation =
   | { kind: 'full_remaining' }
   | { kind: 'fraction'; value: ExactDecimal }
   | { kind: 'exact'; value: ExactDecimal }
+  | {
+      kind: 'pro_rata'
+      fraction: ExactDecimal
+      terminal: ExactDecimal
+      terminal_basis: ExactDecimal
+      quantity_step: ExactDecimal
+    }
 
 export interface NativeProtectionChildPlan {
   child_id: Uuid
@@ -684,6 +692,7 @@ export interface NativeProtectionChildProjection {
   cumulative_filled_quantity: ExactDecimal
   remote_order_ids: string[]
   pending_operation_id: Uuid | null
+  pending_target_quantity?: ExactDecimal | null
   failure_reason: string | null
 }
 

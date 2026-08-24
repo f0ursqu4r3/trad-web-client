@@ -22,9 +22,16 @@ const gateway = useGatewayStore()
 const markets = useMarketStore()
 const accountId = computed(() => accounts.selectedAccountId)
 const market = computed(() => markets.stream(accountId.value, props.trade.symbol))
-const latestPrice = computed(() => {
+const latestSample = computed(() => {
   const samples = market.value?.samples ?? []
-  return samples[samples.length - 1]?.price ?? null
+  return samples[samples.length - 1] ?? null
+})
+const marketStale = computed(
+  () => latestSample.value !== null && Date.now() - latestSample.value.received_at_ms > 15_000,
+)
+const latestPrice = computed(() => {
+  if (market.value?.status !== 'ready' || marketStale.value) return null
+  return latestSample.value?.price ?? null
 })
 let subscribedAccountId: string | null = null
 const unrealized = computed(() => {
@@ -121,25 +128,29 @@ onBeforeUnmount(() => {
       <strong>{{ formatExactDecimal(trade.remainingQuantity) }}</strong>
     </div>
     <div>
-      <span title="Estimate from the latest Trad market sample and this trade's scoped entry basis."
-        >Live trade P&amp;L est.</span
-      >
-      <strong v-if="liveTradePnl !== null" :class="totalTone(new Map([['USDC', liveTradePnl]]))">
-        {{ formatExactDecimal(liveTradePnl) }} USDC
-      </strong>
-      <strong v-else>-</strong>
-    </div>
-    <div>
-      <span title="Scoped exits measured against this trade's own weighted entry basis."
-        >Scoped realized</span
-      >
-      <strong :class="totalTone(trade.realizedPnl)">{{ totals(trade.realizedPnl) }}</strong>
-    </div>
-    <div>
       <span title="Scoped realized P&amp;L after every fee attributed to this trade."
         >Realized net</span
       >
       <strong :class="totalTone(trade.netAfterFees)">{{ totals(trade.netAfterFees) }}</strong>
+    </div>
+    <div>
+      <span
+        title="Estimate from this trade's scoped fills, remainder, fees, and latest Trad market sample."
+        >Live P&amp;L est.</span
+      >
+      <strong v-if="liveTradePnl !== null" :class="totalTone(new Map([['USDC', liveTradePnl]]))">
+        {{ formatExactDecimal(liveTradePnl) }} USDC
+      </strong>
+      <strong
+        v-else
+        :title="
+          marketStale
+            ? 'The latest Trad market sample is stale'
+            : 'No current Trad market sample is available'
+        "
+      >
+        {{ marketStale ? 'stale' : 'unavailable' }}
+      </strong>
     </div>
     <div>
       <span title="The loss amount requested when this trade used risk-at-stop sizing."
@@ -206,8 +217,35 @@ onBeforeUnmount(() => {
       </span>
       <strong>{{ formatExactDecimal(child.trigger_price) }}</strong>
       <span class="leg-size">
-        size
-        {{ formatExactDecimal(trade.protection.children[child.child_id]?.target_quantity ?? '0') }}
+        {{
+          formatExactDecimal(trade.protection.children[child.child_id]?.confirmed_quantity ?? '0')
+        }}
+        working
+        <template
+          v-if="
+            trade.protection.children[child.child_id]?.pending_target_quantity &&
+            trade.protection.children[child.child_id]?.pending_target_quantity !==
+              trade.protection.children[child.child_id]?.confirmed_quantity
+          "
+        >
+          · resizing to
+          {{
+            formatExactDecimal(
+              trade.protection.children[child.child_id]?.pending_target_quantity ?? '0',
+            )
+          }}
+        </template>
+        <template
+          v-else-if="
+            trade.protection.children[child.child_id]?.target_quantity !==
+            trade.protection.children[child.child_id]?.confirmed_quantity
+          "
+        >
+          · desired
+          {{
+            formatExactDecimal(trade.protection.children[child.child_id]?.target_quantity ?? '0')
+          }}
+        </template>
       </span>
       <span class="leg-state">
         {{ childState(trade.protection.children[child.child_id]) }}

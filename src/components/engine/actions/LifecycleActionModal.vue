@@ -159,13 +159,14 @@ const canSubmit = computed(
 )
 
 watch(
-  () => [
-    props.open,
-    props.action,
-    props.initialTrailingEntry,
-    props.initialClosePercent,
-    props.initialCloseExecution,
-  ] as const,
+  () =>
+    [
+      props.open,
+      props.action,
+      props.initialTrailingEntry,
+      props.initialClosePercent,
+      props.initialCloseExecution,
+    ] as const,
   ([open]) => {
     if (open) reset()
   },
@@ -460,9 +461,10 @@ function chooseClosePercent(percent: string): void {
         settles protection.
       </p>
       <p v-else-if="action?.kind === 'take_over_exposure'" class="help-text">
-        Trad will cancel every working order and protection child for this command, then stop
-        managing its remaining exposure. It will not close or flatten the exchange position. Any
-        remaining position becomes outside Trad control.
+        Stop Trad management; leave the exchange position open. Trad will cancel every working
+        entry/close order and protection child for this command, then detach
+        {{ formatExactDecimal(ownedQuantity) }} of remaining managed exposure. It will not close or
+        flatten the exchange position. Any remaining position becomes outside Trad control.
       </p>
       <p v-else-if="action?.kind === 'enter_trailing_entry'" class="help-text">
         Commits entry immediately from the latest authoritative Trailing Entry state.

@@ -32,6 +32,14 @@ test('presents managed trades instead of a primary command list', async ({ page 
   await expect(cards.filter({ hasText: 'ETH' })).toContainText('SL 1,800.125')
   await expect(cards.filter({ hasText: 'ETH' })).toContainText('1 TP')
   await expect(workspace.getByText('outside Trad')).toBeVisible()
+
+  const metricLabels = await cards
+    .filter({ hasText: 'ETH' })
+    .locator('.trade-metrics > div > span')
+    .allTextContents()
+  const realizedIndex = metricLabels.findIndex((label) => label.trim() === 'Realized net')
+  expect(realizedIndex).toBeGreaterThanOrEqual(0)
+  expect(metricLabels[realizedIndex + 1]?.trim()).toBe('Live P&L est.')
 })
 
 test('expands trades into price charts, devices, sequence, and history', async ({ page }) => {

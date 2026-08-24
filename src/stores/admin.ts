@@ -37,6 +37,12 @@ export interface AdminAccount {
   configuration_revision: number
   exchange_metadata?: ExchangeAccountMetadata | null
 }
+export interface DirectoryPage<T> {
+  items: T[]
+  total: number
+  limit: number
+  offset: number
+}
 export interface ExecutionPolicy {
   hyperliquid_target_total_tenths_bps: number
   hyperliquid_mainnet_builder_address: string | null
@@ -151,6 +157,13 @@ export const useAdminStore = defineStore('admin', () => {
   const overview = ref<AdminOverview | null>(null)
   const users = ref<AdminUser[]>([])
   const accounts = ref<AdminAccount[]>([])
+  const feeUsers = ref<DirectoryPage<AdminUser>>({ items: [], total: 0, limit: 50, offset: 0 })
+  const feeAccounts = ref<DirectoryPage<AdminAccount>>({
+    items: [],
+    total: 0,
+    limit: 50,
+    offset: 0,
+  })
   const policy = ref<ExecutionPolicy | null>(null)
   const feeReport = ref<FeeReport | null>(null)
   const audit = ref<AuditEvent[]>([])
@@ -184,6 +197,24 @@ export const useAdminStore = defineStore('admin', () => {
     load(
       () => apiGet<AdminAccount[]>('/admin/accounts', { throwOnHTTPError: true }),
       (value) => (accounts.value = value),
+    )
+  const fetchFeeUsers = (query = '', offset = 0) =>
+    load(
+      () =>
+        apiGet<DirectoryPage<AdminUser>>(
+          `/admin/fee-users?q=${encodeURIComponent(query)}&limit=50&offset=${offset}`,
+          { throwOnHTTPError: true },
+        ),
+      (value) => (feeUsers.value = value),
+    )
+  const fetchFeeAccounts = (query = '', offset = 0, owner = '') =>
+    load(
+      () =>
+        apiGet<DirectoryPage<AdminAccount>>(
+          `/admin/fee-accounts?q=${encodeURIComponent(query)}&limit=50&offset=${offset}${owner ? `&owner=${encodeURIComponent(owner)}` : ''}`,
+          { throwOnHTTPError: true },
+        ),
+      (value) => (feeAccounts.value = value),
     )
   const fetchPolicy = () =>
     load(
@@ -288,6 +319,8 @@ export const useAdminStore = defineStore('admin', () => {
     overview,
     users,
     accounts,
+    feeUsers,
+    feeAccounts,
     policy,
     feeReport,
     audit,
@@ -298,6 +331,8 @@ export const useAdminStore = defineStore('admin', () => {
     fetchOverview,
     fetchUsers,
     fetchAccounts,
+    fetchFeeUsers,
+    fetchFeeAccounts,
     fetchPolicy,
     fetchFeeReport,
     fetchAudit,
