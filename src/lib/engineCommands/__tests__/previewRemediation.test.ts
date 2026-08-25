@@ -12,8 +12,8 @@ test('routes a builder-approval rejection to the affected account setup', () => 
     {
       title: 'Builder approval required',
       description:
-        "Authorize Trad's builder-fe ceiling for this account before opening a new trade. This ceiling is not the fee charged; the current all-in target remains visible in the order ticket.",
-      actionLabel: 'Review authorization',
+        'Complete the one-time wallet approval for this account. Your configured fee will not change.',
+      actionLabel: 'Authorize builder now →',
       actionPath: '/settings/accounts/account%2Fwith%20space/setup',
     },
   )

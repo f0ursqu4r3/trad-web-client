@@ -233,16 +233,24 @@ onBeforeUnmount(() => {
   line-height: 1.45;
 }
 .preview-action {
+  display: inline-flex;
+  align-items: center;
   justify-self: start;
-  padding: 0.4rem 0.55rem;
+  min-height: 30px;
+  padding: 0.4rem 0.65rem;
   border: 1px solid var(--color-accent);
-  color: var(--color-accent);
+  color: var(--surface-base);
   font-size: 11px;
+  font-weight: 600;
+  background: var(--color-accent);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 45%, transparent);
+  animation: approval-cta-pulse 1.6s ease-out infinite;
 }
 .preview-action:hover,
 .preview-action:focus-visible {
-  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
-  color: var(--color-text);
+  color: var(--surface-base);
+  background: color-mix(in srgb, var(--color-accent) 82%, white);
+  animation-play-state: paused;
 }
 .preview-technical {
   color: var(--color-text-dim);
@@ -250,6 +258,20 @@ onBeforeUnmount(() => {
 }
 .preview-technical .preview-error {
   margin-top: 0.4rem;
+}
+@keyframes approval-cta-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 42%, transparent);
+  }
+  55% {
+    box-shadow: 0 0 0 5px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .preview-action {
+    animation: none;
+  }
 }
 .preview-warning {
   color: var(--color-warning);

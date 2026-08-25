@@ -102,7 +102,7 @@ test('guides a builder approval preview rejection to the affected account setup'
   await completeDefaultStop(modal)
 
   await expect(modal.getByText('Builder approval required', { exact: true })).toBeVisible()
-  await expect(modal.getByRole('link', { name: 'Review authorization' })).toHaveAttribute(
+  await expect(modal.getByRole('link', { name: 'Authorize builder now →' })).toHaveAttribute(
     'href',
     '/settings/accounts/50000000-0000-4000-8000-000000000001/setup',
   )
