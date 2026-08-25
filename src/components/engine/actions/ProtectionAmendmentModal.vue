@@ -109,6 +109,9 @@ async function submit(): Promise<void> {
       <ProtectionFields
         v-model="form"
         mark-price-only
+        :account-id="accountId"
+        :symbol="protection?.symbol ?? ''"
+        :position-side="protection?.position_side ?? 'long'"
         :base-asset="units.base"
         :quote-asset="units.quote"
       />

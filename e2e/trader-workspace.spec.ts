@@ -230,6 +230,22 @@ test('market combobox filters the account catalog and completes with the keyboar
   await expect(market).toHaveValue('ETH')
 })
 
+test('sets directional stop prices from explicit latest-trade distance presets', async ({
+  page,
+}) => {
+  const ticket = page.getByRole('form', { name: 'New trade order ticket' })
+  const stop = ticket.getByLabel('Stop-loss price (USDC)')
+
+  await expect(ticket.getByText('below 63,842.5', { exact: true })).toBeVisible()
+  await ticket.getByRole('button', { name: '−5%' }).click()
+  await expect(stop).toHaveValue('60650.38')
+
+  await ticket.getByRole('button', { name: 'Sell / Short' }).click()
+  await expect(ticket.getByText('above 63,842.5', { exact: true })).toBeVisible()
+  await ticket.getByRole('button', { name: '+2%' }).click()
+  await expect(stop).toHaveValue('65119.35')
+})
+
 test('required fields stay neutral until interaction and then identify the correction', async ({
   page,
 }) => {

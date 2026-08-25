@@ -2,11 +2,12 @@
 import { Plus, Trash2 } from 'lucide-vue-next'
 
 import FormField from '@/components/forms/FormField.vue'
+import StopPricePresets from '@/components/forms/StopPricePresets.vue'
 import { newTakeProfit } from '@/lib/engineCommands/form'
 import { labelWithUnit, type MarketUnits } from '@/lib/engineCommands/marketUnits'
 import type { TradeTicketDraft } from '@/lib/trader/tradeTicketDraft'
 
-defineProps<{ units: MarketUnits }>()
+defineProps<{ units: MarketUnits; accountId: string }>()
 const draft = defineModel<TradeTicketDraft>({ required: true })
 
 function addTakeProfit(): void {
@@ -62,6 +63,12 @@ function removeTakeProfit(id: string): void {
         class="input"
         inputmode="decimal"
         required
+      />
+      <StopPricePresets
+        v-model="draft.protection.stopLoss.triggerPrice"
+        :account-id="accountId"
+        :symbol="draft.symbol"
+        :position-side="draft.positionSide"
       />
     </FormField>
 

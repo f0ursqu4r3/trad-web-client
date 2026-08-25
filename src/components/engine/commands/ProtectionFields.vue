@@ -9,6 +9,8 @@ import {
 } from '@/lib/engineCommands/form'
 import { labelWithUnit } from '@/lib/engineCommands/marketUnits'
 import FormField from '@/components/forms/FormField.vue'
+import StopPricePresets from '@/components/forms/StopPricePresets.vue'
+import type { PositionSideIntent } from '@/lib/gateway'
 import { decimalError, validationError } from '@/lib/formValidation'
 
 const model = defineModel<ProtectionFormState>({ required: true })
@@ -16,6 +18,9 @@ const props = defineProps<{
   markPriceOnly?: boolean
   baseAsset?: string | null
   quoteAsset?: string | null
+  accountId: string
+  symbol: string
+  positionSide: PositionSideIntent
 }>()
 
 function addTakeProfit(): void {
@@ -183,6 +188,12 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
           type="text"
           inputmode="decimal"
           placeholder="Price"
+        />
+        <StopPricePresets
+          v-model="model.stopLoss.triggerPrice"
+          :account-id="props.accountId"
+          :symbol="props.symbol"
+          :position-side="props.positionSide"
         />
       </FormField>
       <FormField

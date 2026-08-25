@@ -245,6 +245,9 @@ function buildIntent() {
       </p>
       <ProtectionFields
         v-model="protection"
+        :account-id="selectedAccountId"
+        :symbol="symbol"
+        :position-side="positionSide"
         :mark-price-only="markPriceOnly"
         :base-asset="units.base"
         :quote-asset="units.quote"

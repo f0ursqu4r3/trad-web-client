@@ -16,6 +16,7 @@ import ShapeFields from './ShapeFields.vue'
 import ExecutionPreviewPanel from './ExecutionPreviewPanel.vue'
 import LiveMarketPrice from './LiveMarketPrice.vue'
 import FormField from '@/components/forms/FormField.vue'
+import StopPricePresets from '@/components/forms/StopPricePresets.vue'
 import { decimalError, symbolError } from '@/lib/formValidation'
 
 const props = defineProps<{ open: boolean }>()
@@ -228,6 +229,12 @@ function buildIntent() {
             aria-label="Stop Loss Price"
             type="text"
             inputmode="decimal"
+          />
+          <StopPricePresets
+            v-model="stopLossPrice"
+            :account-id="selectedAccountId"
+            :symbol="symbol"
+            :position-side="positionSide"
           />
         </FormField>
         <FormField
