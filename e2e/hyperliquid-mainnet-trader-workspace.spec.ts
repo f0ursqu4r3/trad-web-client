@@ -44,6 +44,9 @@ type Evidence = {
   chase?: unknown
   trailingEntry?: unknown
   trailingEntryImmediate?: unknown
+  protectedChase?: unknown
+  takeover?: unknown
+  feeAdministration?: unknown
 }
 
 const evidence: Evidence = {}
@@ -636,6 +639,205 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
     }
   })
 
+  test('risk-sized protected Chase carries proportional protection and duplicates authored intent', async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(240_000)
+    await login(page)
+    expect(positionSize(await clearinghouseState(request), 'ETH')).toBe(0)
+    expect((await openOrders(request)).filter((order) => order.coin === 'ETH')).toEqual([])
+
+    const mid = Number(await midPrice(request, 'ETH'))
+    const stopLoss = significantPrice(mid * 0.9)
+    const takeProfits = [
+      significantPrice(mid * 1.08),
+      significantPrice(mid * 1.12),
+      significantPrice(mid * 1.16),
+    ]
+    const form = ticket(page)
+    await chooseEntry(form, 'chase')
+    await symbolField(form).fill('ETH')
+    await form.getByRole('button', { name: 'Size by risk', exact: true }).click()
+    await amountField(form).fill('3.8')
+    await field(form, 'Stop-loss price').fill(stopLoss)
+    for (let index = 0; index < takeProfits.length; index += 1) {
+      await form.getByRole('button', { name: 'Add TP', exact: true }).click()
+      const row = form.locator('.tp-row').nth(index)
+      await row.locator('input').first().fill(takeProfits[index]!)
+      await row.locator('select').selectOption('fraction')
+      await row.locator('input').last().fill(index === 2 ? '40' : '30')
+    }
+    await form.getByRole('textbox', { name: /Timeout \(seconds\)/ }).fill('60')
+    await expect(form.getByText('Ready', { exact: true })).toBeVisible({ timeout: 20_000 })
+    await form.locator('button[type="submit"]').click()
+    await expect(form.getByText('Buy ETH chase accepted by Trad.')).toBeVisible()
+
+    const card = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' }).first()
+    await expect(card).toBeVisible()
+    const observedPositions = new Set<number>()
+    const observedLegStates = new Set<string>()
+    const observationDeadline = Date.now() + 45_000
+    while (Date.now() < observationDeadline) {
+      const size = positionSize(await clearinghouseState(request), 'ETH')
+      observedPositions.add(size)
+      for (const text of await card.locator('.leg-size').allInnerTexts()) observedLegStates.add(text)
+      if (size > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 3_000))
+        break
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    }
+
+    const cancel = card.getByRole('button', { name: 'Cancel Chase', exact: true })
+    if (await cancel.isVisible()) {
+      await cancel.click()
+      await confirmLifecycle(page, 'Cancel Chase')
+    }
+    const established = positionSize(await clearinghouseState(request), 'ETH')
+    const protection = established > 0
+      ? await waitForOrders(request, (orders) => {
+          const current = orders.filter((order) => order.coin === 'ETH')
+          return current.some((order) => order.isTrigger)
+        })
+      : await openOrders(request)
+
+    await card.getByRole('button', { name: 'Trade actions' }).click()
+    await page.getByRole('menuitem', { name: 'Duplicate trade' }).click()
+    await expect(
+      form.getByText('Duplicated trade loaded. Review it before submitting.'),
+    ).toBeVisible()
+    await expect(form.locator('.entry-tab').filter({ hasText: 'chase' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    await expect(form.getByRole('button', { name: 'Size by risk', exact: true })).toHaveClass(
+      /active/,
+    )
+    await expect(amountField(form)).toHaveValue('3.8')
+    await expect(form.locator('.tp-row')).toHaveCount(3)
+    await expect(form.locator('.tp-row').nth(0).locator('input').last()).toHaveValue('30')
+    await expect(form.locator('.tp-row').nth(1).locator('input').last()).toHaveValue('30')
+    await expect(form.locator('.tp-row').nth(2).locator('input').last()).toHaveValue('40')
+
+    if (established > 0) {
+      const livePnl = card.locator('.trade-metrics > div').filter({ hasText: 'Live P&L est.' })
+      await expect(livePnl.locator('strong')).toContainText('USDC', { timeout: 20_000 })
+      await card.getByRole('button', { name: 'close all', exact: true }).first().click()
+      await confirmLifecycle(page, 'Close Exposure')
+      await waitForPosition(request, 'ETH', (size) => size === 0)
+    }
+    await waitForOrders(request, (orders) => orders.every((order) => order.coin !== 'ETH'))
+
+    evidence.protectedChase = {
+      symbol: 'ETH',
+      riskAtStop: '3.8',
+      stopLoss,
+      takeProfits: takeProfits.map((trigger, index) => ({
+        trigger,
+        allocationPercent: index === 2 ? 40 : 30,
+      })),
+      observedPositionSizes: [...observedPositions],
+      establishedBase: established,
+      observedProtectionStates: [...observedLegStates],
+      protectionOrders: protection.filter((order) => order.coin === 'ETH').map(orderEvidence),
+      duplicatePreservedAuthoredIntent: true,
+      livePnlScopedToTrade: established > 0,
+      finalBase: 0,
+      finalWorkingOrders: 0,
+    }
+  })
+
+  test('Take Over detaches management without closing venue exposure', async ({ page, request }) => {
+    test.setTimeout(180_000)
+    await login(page)
+    expect(positionSize(await clearinghouseState(request), 'ETH')).toBe(0)
+    expect((await openOrders(request)).filter((order) => order.coin === 'ETH')).toEqual([])
+
+    const form = ticket(page)
+    await chooseEntry(form, 'market')
+    await symbolField(form).fill('ETH')
+    await amountField(form).fill('12')
+    await form.locator('.stop-toggle input').uncheck()
+    await expect(form.getByText('Ready', { exact: true })).toBeVisible({ timeout: 20_000 })
+    await form.locator('button[type="submit"]').click()
+    await expect(form.getByText('Buy ETH market accepted by Trad.')).toBeVisible()
+
+    const card = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' }).first()
+    const opened = await waitForPosition(request, 'ETH', (size) => size > 0)
+    await expect(card.getByRole('button', { name: 'Take over', exact: true })).toBeVisible()
+    await card.getByRole('button', { name: 'Take over', exact: true }).click()
+    await confirmLifecycle(page, 'Stop Managing (Take Over)')
+    await expect
+      .poll(async () => positionSize(await clearinghouseState(request), 'ETH'), {
+        timeout: 30_000,
+      })
+      .toBeCloseTo(opened, 8)
+    await waitForOrders(request, (orders) => orders.every((order) => order.coin !== 'ETH'))
+
+    await flattenSymbol(page, 'ETH')
+    await waitForPosition(request, 'ETH', (size) => size === 0)
+    await waitForOrders(request, (orders) => orders.every((order) => order.coin !== 'ETH'))
+
+    evidence.takeover = {
+      symbol: 'ETH',
+      openedBase: opened,
+      baseImmediatelyAfterTakeover: opened,
+      managementDetachedWithoutVenueClose: true,
+      cleanup: 'separate symbol Flatten',
+      finalBase: 0,
+      finalWorkingOrders: 0,
+    }
+  })
+
+  test('fee administration exposes hierarchy, durable fills, revenue, and audit', async ({ page }) => {
+    test.setTimeout(90_000)
+    await login(page)
+    await page.getByRole('link', { name: 'Admin', exact: true }).click()
+    await page.getByRole('link', { name: 'Fees', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Fees', exact: true })).toBeVisible()
+
+    const tabs = page.getByRole('navigation', { name: 'Fee administration' })
+    for (const name of [
+      'Overview',
+      'Users',
+      'Accounts',
+      'Active trade policy',
+      'Revenue & fees',
+      'Audit',
+    ]) {
+      await expect(tabs.getByRole('button', { name, exact: true })).toBeVisible()
+    }
+    await tabs.getByRole('button', { name: 'Users', exact: true }).click()
+    await page.getByPlaceholder('Search email, user ID, or role').fill(email)
+    await expect(page.getByRole('cell', { name: email, exact: true })).toBeVisible()
+
+    await tabs.getByRole('button', { name: 'Accounts', exact: true }).click()
+    await page
+      .getByPlaceholder('Search owner, label, account ID, exchange, or network')
+      .fill(accountLabel)
+    await expect(page.getByRole('cell', { name: accountLabel, exact: true })).toBeVisible()
+
+    await tabs.getByRole('button', { name: 'Revenue & fees', exact: true }).click()
+    await expect(page.getByText('Trad builder revenue', { exact: true })).toBeVisible()
+    await page
+      .getByPlaceholder('Filter by user, account, symbol, phase, or liquidity')
+      .fill(accountLabel)
+    await expect(
+      page.getByRole('row').filter({ hasText: email }).filter({ hasText: accountLabel }).first(),
+    ).toBeVisible()
+
+    await tabs.getByRole('button', { name: 'Audit', exact: true }).click()
+    await expect(page.getByText('Fee policy audit', { exact: true })).toBeVisible()
+    evidence.feeAdministration = {
+      hierarchyTabs: true,
+      serverFilteredUsers: true,
+      serverFilteredAccounts: true,
+      durableRevenueRows: true,
+      feeAudit: true,
+    }
+  })
+
   test('Trailing Entry edits, reloads, charts, and cancels durably before activation', async ({
     page,
     request,
@@ -798,7 +1000,7 @@ async function chooseEntry(form: Locator, name: 'market' | 'limit' | 'chase' | '
 }
 
 function symbolField(form: Locator): Locator {
-  return form.locator('input[placeholder="BTC"]')
+  return form.getByRole('combobox', { name: /market/i }).first()
 }
 
 function amountField(form: Locator): Locator {
@@ -1016,5 +1218,25 @@ async function bestEffortSettleManaged(
     await waitForOrders(request, (orders) => orders.every((order) => order.coin !== symbol))
     return
   }
+  if (target === 0) {
+    await flattenSymbol(page, symbol)
+    await waitForPosition(request, symbol, (size) => Math.abs(size) < 0.000000001)
+    await waitForOrders(request, (orders) => orders.every((order) => order.coin !== symbol))
+    return
+  }
   throw new Error(`Campaign cleanup could not find the Trad-owned ${symbol} close action`)
+}
+
+async function flattenSymbol(page: Page, symbol: 'BTC' | 'ETH'): Promise<void> {
+  await page.getByRole('button', { name: /^commands/i }).click()
+  const palette = page.getByRole('dialog')
+  await palette.getByPlaceholder('Search commands').fill('flatten')
+  await palette.getByRole('button', { name: /Flatten Exposure/ }).click()
+  const modal = page.getByRole('dialog', { name: 'Flatten Exposure' })
+  await modal.getByRole('combobox', { name: 'Target' }).selectOption('symbol')
+  await modal.getByRole('combobox', { name: 'Symbol' }).fill(symbol)
+  await modal.locator('.market-combobox-option').first().click()
+  await modal.getByRole('checkbox').check()
+  await modal.getByRole('button', { name: /^flatten$/i }).click()
+  await expect(modal).toBeHidden({ timeout: 20_000 })
 }
