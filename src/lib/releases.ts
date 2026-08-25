@@ -34,6 +34,20 @@ export function releasePath(version: string): string {
   return `/updates/${version}/`
 }
 
-export function releasePreviewPath(version: string): string {
-  return `/update-previews/${version}.png`
+export function isProductionReleaseHost(hostname: string): boolean {
+  const normalized = hostname.trim().toLowerCase()
+  return normalized === 'trad.lol' || normalized === 'www.trad.lol'
+}
+
+export function releasePreviewPath(version: string, hostname = ''): string {
+  const directory = isProductionReleaseHost(hostname)
+    ? '/prod-update-previews'
+    : '/update-previews'
+  return `${directory}/${version}.png`
+}
+
+export function updatesPreviewPath(currentVersion: string, hostname = ''): string {
+  return isProductionReleaseHost(hostname)
+    ? releasePreviewPath(currentVersion, hostname)
+    : '/test-brand/social-preview.png'
 }
