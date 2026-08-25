@@ -7,6 +7,7 @@ import {
   isHyperliquidAgentAuthorizationCurrent,
   isHyperliquidBuilderAuthorizationCurrent,
   isHyperliquidMetadataReady,
+  AccountDeletionError,
   useAccountsStore,
   type AccountRecord,
 } from '@/stores/accounts'
@@ -73,6 +74,7 @@ const rotatingAgentAccountIds = ref<Set<string>>(new Set())
 const controlError = ref<string | null>(null)
 const controlMessage = ref<string | null>(null)
 const deletionTarget = ref<AccountRecord | null>(null)
+const unverifiedRemovalTarget = ref<AccountRecord | null>(null)
 const deletingAccountIds = ref<Set<string>>(new Set())
 type ApprovalFeedback = { kind: 'info' | 'success' | 'error'; message: string }
 const agentApprovalFeedback = reactive<Record<string, ApprovalFeedback | undefined>>({})
@@ -149,6 +151,37 @@ async function confirmAccountDeletion() {
   } catch (err) {
     controlMessage.value = null
     logger.error('delete failed', err)
+    if (err instanceof AccountDeletionError && err.unverifiedRemovalAvailable) {
+      unverifiedRemovalTarget.value = account
+      controlError.value = null
+    } else {
+      controlError.value = err instanceof Error ? err.message : String(err)
+    }
+  } finally {
+    const next = new Set(deletingAccountIds.value)
+    next.delete(account.id)
+    deletingAccountIds.value = next
+  }
+}
+
+async function confirmUnverifiedRemoval() {
+  const account = unverifiedRemovalTarget.value
+  if (!account) return
+  unverifiedRemovalTarget.value = null
+  deletingAccountIds.value = new Set(deletingAccountIds.value).add(account.id)
+  controlMessage.value = `Removing ${account.label} from Trad without checking the exchange…`
+  try {
+    const result = await accounts.removeAccount(
+      account.label,
+      'remove_without_exchange_verification',
+    )
+    controlMessage.value =
+      result.owner_release === 'completed'
+        ? `Removed ${account.label} from Trad. Exchange positions and orders were not changed.`
+        : `Removed ${account.label} from Trad. Assignment cleanup is completing in the background.`
+  } catch (err) {
+    logger.error('unverified removal failed', err)
+    controlMessage.value = null
     controlError.value = err instanceof Error ? err.message : String(err)
   } finally {
     const next = new Set(deletingAccountIds.value)
@@ -1557,6 +1590,19 @@ watch(
       confirm-label="Check and delete"
       @cancel="deletionTarget = null"
       @confirm="confirmAccountDeletion"
+    />
+    <ActionConfirmationModal
+      :open="unverifiedRemovalTarget !== null"
+      title="Remove without checking the exchange?"
+      :message="
+        unverifiedRemovalTarget
+          ? `Trad cannot inspect ${unverifiedRemovalTarget.label} on the exchange. Check the exchange directly before continuing. This removes the account from Trad, but it does not cancel exchange orders or close exchange positions.`
+          : ''
+      "
+      confirm-label="Remove from Trad only"
+      danger
+      @cancel="unverifiedRemovalTarget = null"
+      @confirm="confirmUnverifiedRemoval"
     />
   </section>
 </template>

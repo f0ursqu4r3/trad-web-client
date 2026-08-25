@@ -9,11 +9,13 @@ const props = withDefaults(
     message: string
     confirmLabel?: string
     rememberLabel?: string | null
+    danger?: boolean
   }>(),
   {
     open: false,
     confirmLabel: 'Confirm',
     rememberLabel: null,
+    danger: false,
   },
 )
 
@@ -34,7 +36,12 @@ const remember = ref(false)
     </label>
     <template #footer>
       <button type="button" class="btn btn-secondary" @click="$emit('cancel')">Cancel</button>
-      <button type="button" class="btn btn-primary" @click="$emit('confirm', remember)">
+      <button
+        type="button"
+        class="btn"
+        :class="props.danger ? 'btn-danger' : 'btn-primary'"
+        @click="$emit('confirm', remember)"
+      >
         {{ confirmLabel }}
       </button>
     </template>

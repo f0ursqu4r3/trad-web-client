@@ -150,10 +150,21 @@ interface AccountDeletionFailure {
   error?: string
   blockers?: AccountDeletionBlocker[]
   retryable?: boolean
+  unverified_removal_available?: boolean
   rejection?: {
     kind: string
     reason?: string
     retryable?: boolean
+  }
+}
+
+export class AccountDeletionError extends Error {
+  readonly unverifiedRemovalAvailable: boolean
+
+  constructor(message: string, unverifiedRemovalAvailable = false) {
+    super(message)
+    this.name = 'AccountDeletionError'
+    this.unverifiedRemovalAvailable = unverifiedRemovalAvailable
   }
 }
 
@@ -393,13 +404,21 @@ export const useAccountsStore = defineStore('accounts', () => {
     return response
   }
 
-  async function removeAccount(label: string): Promise<AccountDeletionResult> {
+  async function removeAccount(
+    label: string,
+    mode:
+      | 'verify_exchange_state'
+      | 'remove_without_exchange_verification' = 'verify_exchange_state',
+  ): Promise<AccountDeletionResult> {
     const encodedLabel = encodeURIComponent(label)
     const response = await apiDelete<AccountDeletionResult | AccountDeletionFailure>(
-      `/accounts/${encodedLabel}`,
+      `/accounts/${encodedLabel}?mode=${mode}`,
     )
     if (!isAccountDeletionResult(response)) {
-      throw new Error(accountDeletionFailureMessage(response))
+      throw new AccountDeletionError(
+        accountDeletionFailureMessage(response),
+        response.unverified_removal_available === true,
+      )
     }
     await fetchAccounts()
     return response

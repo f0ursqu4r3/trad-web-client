@@ -474,6 +474,85 @@ test('account deletion shows retryable owner-node rejection details', async ({ p
   ).toBeVisible()
 })
 
+test('unhydrated account removal requires a second explicit venue warning', async ({ page }) => {
+  let removalMode: string | null = null
+  let deleted = false
+  await page.route('**/api/hyperliquid/agent-wallets', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+  })
+  await page.route('**/api/accounts**', async (route) => {
+    if (route.request().method() === 'DELETE') {
+      const requestUrl = new URL(route.request().url())
+      removalMode = requestUrl.searchParams.get('mode')
+      if (removalMode === 'remove_without_exchange_verification') {
+        deleted = true
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ deleted: true, owner_release: 'completed' }),
+        })
+        return
+      }
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: 'Trad could not inspect the exchange.',
+          retryable: false,
+          unverified_removal_available: true,
+          rejection: {
+            kind: 'exchange_verification_unavailable',
+            reason: 'the account has no hydrated owner capable of checking the exchange',
+            unverified_removal_available: true,
+          },
+        }),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        deleted
+          ? []
+          : [
+              {
+                id: '61616161-6161-4616-8616-616161616161',
+                label: 'Broken owner',
+                key: 'redacted',
+                network: 'mainnet',
+                exchange: 'bybit',
+                exchange_metadata: {
+                  product: 'usdt_perp',
+                  account_mode: 'unified',
+                  margin_mode: 'cross',
+                  key_permissions: ['read', 'order'],
+                },
+              },
+            ],
+      ),
+    })
+  })
+
+  await page.goto('/auth/test-login?email=dev%40trad.local&return_to=%2Fsettings%2Faccounts')
+  await expect(page.getByRole('columnheader', { name: 'Configuration' })).toBeVisible()
+  await page.getByRole('button', { name: 'Delete Broken owner' }).click()
+  await page
+    .getByRole('dialog', { name: 'Delete trading account' })
+    .getByRole('button', { name: 'Check and delete' })
+    .click()
+
+  const recovery = page.getByRole('dialog', {
+    name: 'Remove without checking the exchange?',
+  })
+  await expect(
+    recovery.getByText(/does not cancel exchange orders or close exchange positions/),
+  ).toBeVisible()
+  await recovery.getByRole('button', { name: 'Remove from Trad only' }).click()
+  await expect.poll(() => removalMode).toBe('remove_without_exchange_verification')
+  await expect(page.getByText(/Exchange positions and orders were not changed/)).toBeVisible()
+})
+
 test('new accounts continue into required setup instead of stopping at the directory', async ({
   page,
 }) => {
