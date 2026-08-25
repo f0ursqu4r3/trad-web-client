@@ -131,14 +131,25 @@ onBeforeUnmount(() => {
       <span title="Scoped realized P&amp;L after every fee attributed to this trade."
         >Realized net</span
       >
-      <strong :class="totalTone(trade.netAfterFees)">{{ totals(trade.netAfterFees) }}</strong>
+      <strong
+        class="money-value"
+        :class="totalTone(trade.netAfterFees)"
+        :title="totals(trade.netAfterFees)"
+      >
+        {{ totals(trade.netAfterFees) }}
+      </strong>
     </div>
     <div>
       <span
         title="Estimate from this trade's scoped fills, remainder, fees, and latest Trad market sample."
         >Live P&amp;L est.</span
       >
-      <strong v-if="liveTradePnl !== null" :class="totalTone(new Map([['USDC', liveTradePnl]]))">
+      <strong
+        v-if="liveTradePnl !== null"
+        class="money-value"
+        :class="totalTone(new Map([['USDC', liveTradePnl]]))"
+        :title="`${formatExactDecimal(liveTradePnl)} USDC`"
+      >
         {{ formatExactDecimal(liveTradePnl) }} USDC
       </strong>
       <strong
@@ -162,7 +173,7 @@ onBeforeUnmount(() => {
       <span title="Expected loss from the normalized accepted entry plan to its initial stop."
         >Initial planned loss</span
       >
-      <strong>{{
+      <strong class="money-value">{{
         trade.initialPlannedLoss ? `${formatExactDecimal(trade.initialPlannedLoss)} USDC` : '-'
       }}</strong>
     </div>
@@ -171,7 +182,7 @@ onBeforeUnmount(() => {
         title="Expected loss from the scoped entry basis to the current stop for the managed remainder."
         >Current risk to stop</span
       >
-      <strong>{{
+      <strong class="money-value">{{
         trade.currentStopExposure ? `${formatExactDecimal(trade.currentStopExposure)} USDC` : '-'
       }}</strong>
     </div>
@@ -179,7 +190,12 @@ onBeforeUnmount(() => {
       <span title="Hyperliquid reports a total fee that already includes Trad's builder component."
         >Exchange · Trad fees</span
       >
-      <strong>{{ totals(exchangeFees) }} · {{ totals(trade.builderFees) }}</strong>
+      <strong
+        class="money-value"
+        :title="`${totals(exchangeFees)} · ${totals(trade.builderFees)}`"
+      >
+        {{ totals(exchangeFees) }} · {{ totals(trade.builderFees) }}
+      </strong>
     </div>
     <div>
       <span
@@ -292,6 +308,12 @@ onBeforeUnmount(() => {
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.trade-metrics strong.money-value {
+  overflow: visible;
+  line-height: 1.2;
+  text-overflow: clip;
+  white-space: normal;
 }
 .positive {
   color: var(--state-success) !important;
