@@ -8,20 +8,25 @@ const props = withDefaults(
     title: string
     message: string
     confirmLabel?: string
+    alternateLabel?: string | null
     rememberLabel?: string | null
     danger?: boolean
+    alternateDanger?: boolean
   }>(),
   {
     open: false,
     confirmLabel: 'Confirm',
+    alternateLabel: null,
     rememberLabel: null,
     danger: false,
+    alternateDanger: false,
   },
 )
 
 defineEmits<{
   (event: 'cancel'): void
   (event: 'confirm', remember: boolean): void
+  (event: 'alternate'): void
 }>()
 
 const remember = ref(false)
@@ -36,6 +41,15 @@ const remember = ref(false)
     </label>
     <template #footer>
       <button type="button" class="btn btn-secondary" @click="$emit('cancel')">Cancel</button>
+      <button
+        v-if="props.alternateLabel"
+        type="button"
+        class="btn"
+        :class="props.alternateDanger ? 'btn-danger' : 'btn-secondary'"
+        @click="$emit('alternate')"
+      >
+        {{ props.alternateLabel }}
+      </button>
       <button
         type="button"
         class="btn"

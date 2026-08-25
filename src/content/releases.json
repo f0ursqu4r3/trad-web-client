@@ -1,5 +1,74 @@
 [
   {
+    "version": "0.10.2",
+    "status": "published",
+    "released_at": "2026-08-25",
+    "channel": "Recovery hotfix",
+    "summary": "Restored reliable account authorization, reconciliation readiness, and account removal after agent rotation or external venue activity.",
+    "major": [
+      "Account configuration changes now recover the affected owner when its private stream is not yet active instead of deadlocking revision reload.",
+      "External exchange orders retain authoritative economic scope across private-stream updates, preventing perpetual reconciliation churn.",
+      "Added an explicit Remove from Trad only path that preserves history and leaves venue state untouched."
+    ],
+    "minor": [
+      "Account deletion now distinguishes verified exchange cleanup from deliberate local detachment.",
+      "Agent replacement recovery is bounded to the affected account owner and keeps new risk blocked until the latest configuration starts cleanly."
+    ],
+    "fixes": [
+      "Fixed accounts remaining stuck in reconciling after a Trad-owned Hyperliquid agent was replaced or revoked.",
+      "Fixed repeated external-order observations making an otherwise scoped account appear unready.",
+      "Fixed deletion retries piling up behind a reconciliation refresh that could never become ready."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "Agent-rotation recovery",
+        "items": [
+          "Detect configuration reloads that cannot quiesce because the current private stream is unavailable, already pending, or timed out.",
+          "Fence and stop only the affected owner, install the latest prepared account configuration, and restart hydration under the current assignment lease.",
+          "Subscribe to owner lifecycle events before stopping so a fast terminal event cannot be missed.",
+          "Bound the restart barrier and roll back partially installed owner resources when restart fails.",
+          "Keep new exposure blocked throughout recovery and unlock it only after normal preflight and stream activation complete.",
+          "Treat direct venue-side deletion of Trad's agent as a recoverable authorization change: the user must approve the replacement in Trad, but other accounts remain available."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Stable reconciliation readiness",
+        "items": [
+          "Preserve authoritative symbol, side, quantity, and price scope when a system-external order receives a subsequent private-stream observation.",
+          "Prevent private updates from turning a scoped external order back into an unscoped order that blocks account readiness.",
+          "Stop the five-second restore-and-erase loop that continually scheduled new reconciliation refreshes.",
+          "Retain conservative readiness checks for genuinely unknown external orders rather than weakening reconciliation policy.",
+          "Cover the production sequence with a regression that classifies an authoritative external order, applies a live update, and proves readiness remains stable."
+        ]
+      },
+      {
+        "category": "major",
+        "title": "Two explicit account-removal modes",
+        "items": [
+          "Keep Check and delete as the verified path that reconciles exchange state before removing an account.",
+          "Add Remove from Trad only as an explicitly confirmed path for an effect-free account when exchange verification is unavailable or unwanted.",
+          "Stop the local account owner, fence its exact lease, erase stored exchange credentials, and retire its assignment without sending cancel, close, or reconciliation effects to the venue.",
+          "Retain immutable commands, trades, fills, and audit history after local detachment.",
+          "Block local-only removal while committed or claimed exchange effects remain, avoiding ambiguous in-flight delivery.",
+          "Explain in both confirmation steps that venue positions and orders remain untouched and unmanaged after detachment."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Qualification included in this hotfix",
+        "items": [
+          "Run the complete backend workspace test suite and production unwrap lint.",
+          "Exercise configuration replacement before private-stream activation with a deterministic never-connecting connector.",
+          "Exercise active effect-free account detachment and reject detachment when effects or draining ownership are present.",
+          "Build and type-check the complete frontend, including release-specific test and production social previews.",
+          "Restore exact test and production database clones locally and start the candidate with exchange effects disabled before deployment."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.1",
     "status": "published",
     "released_at": "2026-08-25",

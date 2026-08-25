@@ -94,6 +94,11 @@ function requestAccountDeletion(account: AccountRecord): void {
   deletionTarget.value = account
 }
 
+function requestUnverifiedRemoval(): void {
+  unverifiedRemovalTarget.value = deletionTarget.value
+  deletionTarget.value = null
+}
+
 async function confirmAccountDeletion(): Promise<void> {
   const account = deletionTarget.value
   if (!account) return
@@ -312,7 +317,10 @@ onMounted(async () => {
         : ''
     "
     confirm-label="Check and delete"
+    alternate-label="Remove from Trad only"
+    alternate-danger
     @cancel="deletionTarget = null"
+    @alternate="requestUnverifiedRemoval"
     @confirm="confirmAccountDeletion"
   />
   <ActionConfirmationModal
@@ -320,7 +328,7 @@ onMounted(async () => {
     title="Remove without checking the exchange?"
     :message="
       unverifiedRemovalTarget
-        ? `Trad cannot inspect ${unverifiedRemovalTarget.label} on the exchange. Check the exchange directly before continuing. This removes the account from Trad, but it does not cancel exchange orders or close exchange positions.`
+        ? `Check ${unverifiedRemovalTarget.label} directly on the exchange before continuing. Trad will stop managing it and erase its encrypted credentials without reconciling, cancelling exchange orders, or closing exchange positions. Trad history is retained.`
         : ''
     "
     confirm-label="Remove from Trad only"
