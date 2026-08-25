@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import ProtectionFields from '@/components/engine/commands/ProtectionFields.vue'
@@ -20,6 +20,7 @@ const props = defineProps<{
   accountId: string
   protection: NativeProtectionProjection | null
   activeAmendment: ProtectionAmendmentProjection | null
+  focusChildId?: string | null
 }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
 const gateway = useGatewayStore()
@@ -27,7 +28,6 @@ const accounts = useAccountsStore()
 const submission = useEngineCommandSubmission()
 const form = ref<ProtectionFormState>(newProtectionState())
 const baseline = ref('')
-const confirmed = ref(false)
 const validationError = ref<string | null>(null)
 const units = computed(() =>
   marketUnits(
@@ -44,7 +44,6 @@ const canSubmit = computed(
     props.protection?.status === 'tracking' &&
     props.activeAmendment === null &&
     changed.value &&
-    confirmed.value &&
     !submission.submitting.value,
 )
 
@@ -60,9 +59,20 @@ function reset(): void {
   form.value =
     props.protection === null ? newProtectionState() : protectionForm(props.protection.plan)
   baseline.value = JSON.stringify(form.value)
-  confirmed.value = false
   validationError.value = null
   submission.clearSubmissionError()
+  void focusRequestedChild()
+}
+
+async function focusRequestedChild(): Promise<void> {
+  if (!props.focusChildId) return
+  await nextTick()
+  const row = document.querySelector(
+    `[data-protection-child-id="${CSS.escape(props.focusChildId)}"]`,
+  )
+  const input = row?.querySelector<HTMLInputElement>('input[type="text"]')
+  input?.focus()
+  input?.select()
 }
 
 async function submit(): Promise<void> {
@@ -96,6 +106,9 @@ async function submit(): Promise<void> {
       <ProtectionFields
         v-model="form"
         mark-price-only
+        :account-id="accountId"
+        :symbol="protection?.symbol ?? ''"
+        :position-side="protection?.position_side ?? 'long'"
         :base-asset="units.base"
         :quote-asset="units.quote"
       />
@@ -112,10 +125,6 @@ async function submit(): Promise<void> {
         Another edit is {{ activeAmendment.lifecycle }}: {{ activeAmendment.completed_steps }} /
         {{ activeAmendment.steps.length }} steps complete.
       </p>
-      <label class="confirm-row">
-        <input v-model="confirmed" type="checkbox" />
-        Apply this complete TP/SL plan to the live owned position
-      </label>
       <p v-if="validationError || submission.submissionError.value" class="submission-error">
         {{ validationError || submission.submissionError.value }}
       </p>
@@ -155,11 +164,6 @@ async function submit(): Promise<void> {
 }
 .help-text {
   color: var(--color-text-dim);
-}
-.confirm-row {
-  display: flex;
-  align-items: center;
-  gap: 7px;
 }
 .submission-error {
   color: var(--color-error);

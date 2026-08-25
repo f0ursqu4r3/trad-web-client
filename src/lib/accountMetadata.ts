@@ -152,8 +152,7 @@ export function isHyperliquidBuilderAuthorizationCurrent(
 ): boolean {
   if (!account || account.exchange !== ExchangeType.Hyperliquid) return false
   const meta = account.exchange_metadata
-  const target = hyperliquidTargetTotalTenthsBps(meta)
-  if (target === 0) return true
+  if (hyperliquidTargetTotalTenthsBps(meta) === 0) return true
   return Boolean(
     normalizeMetadataLabel(meta?.builder_address) &&
       normalizeMetadataLabel(meta?.builder_config_version) &&
@@ -162,7 +161,7 @@ export function isHyperliquidBuilderAuthorizationCurrent(
       normalizeAddress(meta?.builder_approval_user_address) ===
         normalizeAddress(meta?.user_address) &&
       meta?.builder_approval_verified_at_ms &&
-      (meta?.max_builder_fee_tenths_bps ?? 0) >= target,
+      (meta?.max_builder_fee_tenths_bps ?? 0) >= HYPERLIQUID_BUILDER_APPROVAL_CEILING_TENTHS_BPS,
   )
 }
 
@@ -173,6 +172,7 @@ function normalizeAddress(value?: string | null): string | null {
 
 export const HYPERLIQUID_TARGET_TOTAL_DEFAULT_TENTHS_BPS = 52
 export const HYPERLIQUID_TARGET_TOTAL_MAX_TENTHS_BPS = 100
+export const HYPERLIQUID_BUILDER_APPROVAL_CEILING_TENTHS_BPS = 100
 
 export function hyperliquidTargetTotalTenthsBps(
   meta: ExchangeAccountMetadataLike | null | undefined,

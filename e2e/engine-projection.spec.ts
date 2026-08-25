@@ -488,7 +488,6 @@ test('submits projected lifecycle actions with authoritative entity identity', a
     .click()
 
   const modal = page.getByRole('dialog', { name: 'Cancel Chase' })
-  await modal.getByLabel('Confirm cancel chase').check()
   await modal.getByRole('button', { name: 'Cancel Chase' }).click()
   await expect(modal).not.toBeVisible()
   await expect(fixture.getByTestId('latest-lifecycle-intent')).toContainText(
@@ -511,7 +510,7 @@ test('submits an exact reduce-only Chase policy for owned exposure', async ({ pa
   await modal.getByLabel('Execution').selectOption('chase')
   await modal.getByLabel('Maximum Distance').fill('25.5')
   await modal.getByLabel('Expiry (minutes)').fill('3')
-  await modal.getByLabel('Confirm close exposure').check()
+  await expect(modal.getByLabel('Confirm close exposure')).toHaveCount(0)
   await modal.getByRole('button', { name: 'Close Exposure' }).click()
 
   await expect(modal).not.toBeVisible()
@@ -543,7 +542,7 @@ test('previews a percentage close from authoritative owned exposure inside the m
   await modal.getByRole('button', { name: '50%' }).click()
   await expect(context).toContainText('0.002100005 ETH')
   await expect(context).toContainText('0.002100005 ETH')
-  await modal.getByLabel('Confirm close exposure').check()
+  await expect(modal.getByLabel('Confirm close exposure')).toHaveCount(0)
   await modal.getByRole('button', { name: 'Close Exposure' }).click()
 
   await expect(fixture.getByTestId('latest-lifecycle-intent')).toContainText(
@@ -607,7 +606,6 @@ test('edits logical native protection without exposing exchange order identity',
   await expect(modal.getByText('Plan revision 4')).toBeVisible()
   await expect(modal.getByText('Mark Price').first()).toBeVisible()
   await modal.getByLabel('TP 1 Trigger').fill('2110.5000')
-  await modal.getByLabel(/Apply this complete TP\/SL plan/).check()
   await modal.getByRole('button', { name: 'Apply Protection' }).click()
 
   await expect(modal).not.toBeVisible()

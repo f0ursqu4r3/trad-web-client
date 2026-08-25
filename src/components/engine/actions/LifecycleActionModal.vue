@@ -27,6 +27,8 @@ const props = defineProps<{
   accountId: string
   action: LifecycleAction | null
   initialTrailingEntry?: Partial<TrailingEntryAmendmentDraft> | null
+  initialClosePercent?: string | null
+  initialCloseExecution?: 'market' | 'limit' | 'chase'
 }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
 const gateway = useGatewayStore()
@@ -48,7 +50,6 @@ const closeChaseExpiryMinutes = ref('5')
 const targetPrice = ref('')
 const targetQuantity = ref('')
 const amendment = ref<TrailingEntryAmendmentDraft>(emptyAmendment())
-const confirmed = ref(false)
 const validationError = ref<string | null>(null)
 const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === props.accountId) ?? null,
@@ -143,31 +144,34 @@ const closeSizingError = computed(() => {
 })
 
 const title = computed(() => props.action?.label ?? 'Action')
-const needsConfirmation = computed(
-  () => props.action?.danger === true || props.action?.kind.startsWith('cancel_') === true,
-)
 const canSubmit = computed(
   () =>
     gateway.isConnected &&
     props.accountId !== '' &&
     props.action !== null &&
     closeSizingError.value === null &&
-    (!needsConfirmation.value || confirmed.value) &&
     !submission.submitting.value,
 )
 
 watch(
-  () => [props.open, props.action, props.initialTrailingEntry] as const,
+  () =>
+    [
+      props.open,
+      props.action,
+      props.initialTrailingEntry,
+      props.initialClosePercent,
+      props.initialCloseExecution,
+    ] as const,
   ([open]) => {
     if (open) reset()
   },
 )
 
 function reset(): void {
-  closeMode.value = 'full'
-  closePercent.value = '25'
+  closeMode.value = props.initialClosePercent == null ? 'full' : 'percent'
+  closePercent.value = props.initialClosePercent ?? '25'
   closeQuantity.value = ''
-  closeExecutionMode.value = 'market'
+  closeExecutionMode.value = props.initialCloseExecution ?? 'market'
   closeLimitPrice.value = ''
   closeLimitTimeInForce.value = 'post_only'
   closeChaseBoundaryEnabled.value = true
@@ -179,7 +183,6 @@ function reset(): void {
   targetQuantity.value =
     props.action?.target.kind === 'order' ? props.action.target.row.target_quantity : ''
   amendment.value = trailingEntryAmendment()
-  confirmed.value = false
   validationError.value = null
   submission.clearSubmissionError()
 }
@@ -452,9 +455,10 @@ function chooseClosePercent(percent: string): void {
         settles protection.
       </p>
       <p v-else-if="action?.kind === 'take_over_exposure'" class="help-text">
-        Trad will cancel every working order and protection child for this command, then stop
-        managing its remaining exposure. It will not close or flatten the exchange position. Any
-        remaining position becomes outside Trad control.
+        Stop Trad management; leave the exchange position open. Trad will cancel every working
+        entry/close order and protection child for this command, then detach
+        {{ formatExactDecimal(ownedQuantity) }} of remaining managed exposure. It will not close or
+        flatten the exchange position. Any remaining position becomes outside Trad control.
       </p>
       <p v-else-if="action?.kind === 'enter_trailing_entry'" class="help-text">
         Commits entry immediately from the latest authoritative Trailing Entry state.
@@ -466,10 +470,6 @@ function chooseClosePercent(percent: string): void {
         Starts tracking immediately without waiting for the configured activation price.
       </p>
 
-      <label v-if="needsConfirmation" class="confirm-row">
-        <input v-model="confirmed" type="checkbox" />
-        Confirm {{ title.toLowerCase() }}
-      </label>
       <p
         v-if="closeSizingError || validationError || submission.submissionError.value"
         class="submission-error"
@@ -501,7 +501,6 @@ function chooseClosePercent(percent: string): void {
 }
 .help-text,
 .check-field,
-.confirm-row,
 .submission-error,
 .close-context,
 .percent-presets {
@@ -537,11 +536,6 @@ function chooseClosePercent(percent: string): void {
 .help-text {
   margin: 0;
   color: var(--color-text-dim);
-}
-.confirm-row {
-  display: flex;
-  align-items: center;
-  gap: 7px;
 }
 .check-field {
   display: flex;

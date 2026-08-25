@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { Menu, ShieldCheck, SlidersHorizontal, SquareTerminal, X } from 'lucide-vue-next'
+import { Menu, Newspaper, ShieldCheck, SlidersHorizontal, SquareTerminal, X } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
 const user = useUserStore()
 const mobileOpen = ref(false)
 const activeArea = computed(() => {
+  if (route.meta.controlArea === 'updates') return 'updates'
   if (route.path.startsWith('/admin')) return 'admin'
   if (route.path.startsWith('/settings')) return 'settings'
+  if (route.path.startsWith('/updates')) return 'updates'
   return 'terminal'
 })
 
@@ -43,6 +45,9 @@ watch(
         :class="{ active: activeArea === 'admin' }"
       >
         <ShieldCheck :size="13" /> <span>Admin</span>
+      </RouterLink>
+      <RouterLink to="/updates" :class="{ active: activeArea === 'updates' }">
+        <Newspaper :size="13" /> <span>Updates</span>
       </RouterLink>
     </div>
   </nav>

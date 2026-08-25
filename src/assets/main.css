@@ -10,6 +10,7 @@
 @import './styles/primitives/surfaces.css'; /* panels, menus, tables, lists, badges, pills */
 
 @import './styles/integrations/dockview.css'; /* dockview theming */
+@import './styles/components/trader.css'; /* trade-centric workspace */
 @import './styles/utilities/helpers.css'; /* utilities & small helpers */
 
 @layer components {

@@ -37,6 +37,12 @@ export interface AdminAccount {
   configuration_revision: number
   exchange_metadata?: ExchangeAccountMetadata | null
 }
+export interface DirectoryPage<T> {
+  items: T[]
+  total: number
+  limit: number
+  offset: number
+}
 export interface ExecutionPolicy {
   hyperliquid_target_total_tenths_bps: number
   hyperliquid_mainnet_builder_address: string | null
@@ -104,12 +110,62 @@ export interface BillingOperation {
   error: string | null
   created_at: string
 }
+export interface FeeReport {
+  totals: {
+    reported_total: Record<string, string>
+    trad_builder: Record<string, string>
+    exchange_ex_builder: Record<string, string>
+  }
+  fills: Array<{
+    event_id: string
+    user_id: string
+    email: string
+    account_id: string
+    account_label: string
+    symbol: string
+    command_id: string | null
+    phase: string
+    liquidity_role: string | null
+    quantity: string
+    price: string
+    fee_asset: string | null
+    reported_total_fee: string | null
+    trad_builder_fee: string | null
+    exchange_fee_ex_builder: string | null
+    actual_all_in_tenths_bps: string | null
+    pinned_all_in_target_tenths_bps: number | null
+    policy_source: string | null
+    policy_version: number | null
+    occurred_at_millis: number
+  }>
+  policy_drift: Array<{
+    command_id: string
+    user_id: string
+    email: string
+    account_id: string
+    account_label: string
+    pinned_all_in_target_tenths_bps: number
+    pinned_source: string
+    pinned_policy_version: number
+    current_all_in_target_tenths_bps: number
+    current_source: string | null
+    accepted_at_millis: number
+  }>
+}
 
 export const useAdminStore = defineStore('admin', () => {
   const overview = ref<AdminOverview | null>(null)
   const users = ref<AdminUser[]>([])
   const accounts = ref<AdminAccount[]>([])
+  const feeUsers = ref<DirectoryPage<AdminUser>>({ items: [], total: 0, limit: 50, offset: 0 })
+  const feeAccounts = ref<DirectoryPage<AdminAccount>>({
+    items: [],
+    total: 0,
+    limit: 50,
+    offset: 0,
+  })
   const policy = ref<ExecutionPolicy | null>(null)
+  const feeReport = ref<FeeReport | null>(null)
   const audit = ref<AuditEvent[]>([])
   const commercialPlans = ref<CommercialPlan[]>([])
   const priceBindings = ref<PriceBinding[]>([])
@@ -142,10 +198,33 @@ export const useAdminStore = defineStore('admin', () => {
       () => apiGet<AdminAccount[]>('/admin/accounts', { throwOnHTTPError: true }),
       (value) => (accounts.value = value),
     )
+  const fetchFeeUsers = (query = '', offset = 0) =>
+    load(
+      () =>
+        apiGet<DirectoryPage<AdminUser>>(
+          `/admin/fee-users?q=${encodeURIComponent(query)}&limit=50&offset=${offset}`,
+          { throwOnHTTPError: true },
+        ),
+      (value) => (feeUsers.value = value),
+    )
+  const fetchFeeAccounts = (query = '', offset = 0, owner = '') =>
+    load(
+      () =>
+        apiGet<DirectoryPage<AdminAccount>>(
+          `/admin/fee-accounts?q=${encodeURIComponent(query)}&limit=50&offset=${offset}${owner ? `&owner=${encodeURIComponent(owner)}` : ''}`,
+          { throwOnHTTPError: true },
+        ),
+      (value) => (feeAccounts.value = value),
+    )
   const fetchPolicy = () =>
     load(
       () => apiGet<ExecutionPolicy>('/admin/execution-policy', { throwOnHTTPError: true }),
       (value) => (policy.value = value),
+    )
+  const fetchFeeReport = () =>
+    load(
+      () => apiGet<FeeReport>('/admin/fee-report', { throwOnHTTPError: true }),
+      (value) => (feeReport.value = value),
     )
   const fetchAudit = () =>
     load(
@@ -221,6 +300,16 @@ export const useAdminStore = defineStore('admin', () => {
       { throwOnHTTPError: true },
     )
   }
+  async function updateAccountAllInTarget(accountId: string, target: number | null) {
+    const account = await apiPut<AdminAccount>(
+      `/admin/accounts/${accountId}/all-in-target`,
+      { target_total_tenths_bps: target },
+      { throwOnHTTPError: true },
+    )
+    const index = accounts.value.findIndex((entry) => entry.account_id === accountId)
+    if (index >= 0) accounts.value[index] = account
+    return account
+  }
   async function updatePolicy(next: ExecutionPolicy) {
     policy.value = await apiPut('/admin/execution-policy', next, { throwOnHTTPError: true })
     await Promise.all([fetchAccounts(), fetchAudit()])
@@ -230,7 +319,10 @@ export const useAdminStore = defineStore('admin', () => {
     overview,
     users,
     accounts,
+    feeUsers,
+    feeAccounts,
     policy,
+    feeReport,
     audit,
     commercialPlans,
     priceBindings,
@@ -239,7 +331,10 @@ export const useAdminStore = defineStore('admin', () => {
     fetchOverview,
     fetchUsers,
     fetchAccounts,
+    fetchFeeUsers,
+    fetchFeeAccounts,
     fetchPolicy,
+    fetchFeeReport,
     fetchAudit,
     fetchCommercialPlans,
     fetchPriceBindings,
@@ -252,6 +347,7 @@ export const useAdminStore = defineStore('admin', () => {
     putPriceBinding,
     updateUser,
     updateUserBuilderTarget,
+    updateAccountAllInTarget,
     updatePolicy,
   }
 })

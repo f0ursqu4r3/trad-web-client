@@ -46,6 +46,10 @@ export function compareExact(left: ExactDecimal, right: ExactDecimal): -1 | 0 | 
   return difference < 0n ? -1 : difference > 0n ? 1 : 0
 }
 
+export function absoluteExact(value: ExactDecimal): ExactDecimal {
+  return compareExact(value, '0') < 0 ? subtractExact('0', value) : value
+}
+
 export function formatExactDecimal(value: ExactDecimal): string {
   const trimmed = value.trim()
   const match = DECIMAL_PATTERN.exec(trimmed)

@@ -224,7 +224,7 @@ const networkLabel = computed(() => {
         </div>
         <div v-if="device.builder_target_total_tenths_bps != null">
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Target Total / Side
+            Pinned All-in Target / Side
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">
             {{ (device.builder_target_total_tenths_bps / 10).toFixed(1) }} bps

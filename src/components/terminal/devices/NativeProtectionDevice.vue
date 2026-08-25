@@ -196,9 +196,17 @@ function fmtDate(d?: Date | null): string {
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
             Take Profit
           </dt>
-          <dd v-if="device.take_profit_ladder" class="m-0 font-mono text-[var(--color-text)] space-y-1">
+          <dd
+            v-if="device.take_profit_ladder"
+            class="m-0 font-mono text-[var(--color-text)] space-y-1"
+          >
             <div v-for="leg in device.take_profit_ladder.legs" :key="leg.leg_id">
-              ${{ formatPrice(leg.trigger_price) }} · {{ leg.allocation.kind === 'fraction' ? `${leg.allocation.value * 100}%` : `${leg.allocation.value} base` }}
+              ${{ formatPrice(leg.trigger_price) }} ·
+              {{
+                leg.allocation.kind === 'fraction'
+                  ? `${leg.allocation.value * 100}%`
+                  : `${leg.allocation.value} base`
+              }}
             </div>
           </dd>
           <dd v-else class="m-0 font-mono text-[var(--color-text)]">
@@ -239,7 +247,7 @@ function fmtDate(d?: Date | null): string {
         </div>
         <div v-if="device.builder_target_total_tenths_bps != null">
           <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            Target Total / Side
+            Pinned All-in Target / Side
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">
             {{ (device.builder_target_total_tenths_bps / 10).toFixed(1) }} bps

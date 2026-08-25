@@ -256,7 +256,7 @@ onUnmounted(() => {
           </dd>
         </div>
         <div v-if="device.builder_target_total_tenths_bps != null">
-          <dt class="dt-label">Target Total / Side</dt>
+          <dt class="dt-label">Pinned All-in Target / Side</dt>
           <dd class="m-0 font-mono text-primary">
             {{ (device.builder_target_total_tenths_bps / 10).toFixed(1) }} bps
           </dd>

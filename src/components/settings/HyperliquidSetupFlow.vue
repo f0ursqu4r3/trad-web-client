@@ -288,10 +288,10 @@ function approvedBuilderMaxLabel(): string {
       <CircleCheckBig :size="22" aria-hidden="true" />
       <div>
         <strong>Nice — you’re ready to trade.</strong>
-        <p>Your first account is connected. Open the terminal and choose a command to begin.</p>
+        <p>Your first account is connected. Open the terminal and place your first trade.</p>
       </div>
-      <RouterLink class="btn btn-primary" to="/terminal?commands=open">
-        Create first command <ArrowRight :size="14" />
+      <RouterLink class="btn btn-primary" to="/terminal?start=trade">
+        Create first trade <ArrowRight :size="14" />
       </RouterLink>
     </div>
   </section>

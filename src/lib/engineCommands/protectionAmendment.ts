@@ -106,6 +106,10 @@ function applyAllocation(form: TakeProfitFormState, allocation: ProtectionAlloca
       form.allocationKind = 'fraction'
       form.allocationValue = decimalShift(allocation.value, 2)
       return
+    case 'pro_rata':
+      form.allocationKind = 'fraction'
+      form.allocationValue = decimalShift(allocation.fraction, 2)
+      return
     case 'exact':
       form.allocationKind = 'exact_base'
       form.allocationValue = allocation.value

@@ -39,6 +39,8 @@
     </div>
     <div class="legend" aria-hidden="true">
       <span><i class="dot done" />done</span>
+      <span><i class="dot active" />active</span>
+      <span><i class="dot failed" />failed</span>
       <span><i class="dot pending" />not-sent</span>
     </div>
     <button
@@ -300,7 +302,11 @@ function onNodeDblClick(n: DagNode) {
 }
 
 function statusClass(status: string) {
-  return status === 'done' ? 'done' : status === 'not-sent' ? 'pending' : ''
+  if (status === 'done') return 'done'
+  if (status === 'active') return 'active'
+  if (status === 'failed') return 'failed'
+  if (status === 'not-sent') return 'pending'
+  return ''
 }
 
 // Pan & zoom state
@@ -683,6 +689,14 @@ watch(
   background: linear-gradient(#db6e73, #c55c61);
   color: var(--pending-ink, #121214);
 }
+.node.active {
+  background: linear-gradient(#6a9fc5, #4f83aa);
+  color: var(--active-ink, #0c141a);
+}
+.node.failed {
+  background: linear-gradient(#db6e73, #c55c61);
+  color: var(--pending-ink, #121214);
+}
 .node.pending .badge {
   background: #00000025;
   color: #ffe9eb;
@@ -701,8 +715,8 @@ watch(
 }
 .legend {
   position: absolute;
-  right: 12px;
-  top: 12px;
+  bottom: 12px;
+  left: 12px;
   background: #00000030;
   border-radius: var(--radius-xl);
   padding: 6px 10px;
@@ -724,6 +738,12 @@ watch(
 }
 .dot.pending {
   background: var(--pending, #d1656a);
+}
+.dot.active {
+  background: var(--active, #5f96bd);
+}
+.dot.failed {
+  background: var(--failed, #d1656a);
 }
 /* fit button */
 .fit-btn {
@@ -780,6 +800,12 @@ watch(
   fill: #65a95e;
 }
 .mini-node.pending {
+  fill: #c55c61;
+}
+.mini-node.active {
+  fill: #4f83aa;
+}
+.mini-node.failed {
   fill: #c55c61;
 }
 .mini-viewport {

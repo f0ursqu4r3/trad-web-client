@@ -167,6 +167,18 @@ test('Trailing Entry immediate actions carry projected optimistic concurrency st
   )
 })
 
+test('Trailing Entry hides market-dependent actions until an authoritative trade arrives', () => {
+  const graph = trailingEntryGraph()
+  graph.trailing_entries[0]!.latest_trade = null
+  graph.trailing_entries[0]!.latest_trade_received_at = null
+  const entry = projectionEntities(graph).get('trailing_entry:te-1')!
+
+  assert.deepEqual(
+    lifecycleActions(entry, graph, []).map((action) => action.kind),
+    ['cancel_trailing_entry'],
+  )
+})
+
 test('standalone live limits expose cancel, modify, and source-owned close', () => {
   const snapshot = engineProjectionSnapshot()
   const command = snapshot.commands.find((row) => row.accepted.kind === 'place_order')!
@@ -250,8 +262,13 @@ function trailingEntryGraph(): ProjectionGraph {
     market_generation: 1,
     market_stale: false,
     cursor: null,
-    latest_trade: null,
-    latest_trade_received_at: null,
+    latest_trade: {
+      generation: 1,
+      exchange_time: 1,
+      trade_id: 'trade-1',
+      price: '64000',
+    },
+    latest_trade_received_at: 1,
     point_count: 0,
     actual_activation_price: null,
     activation_point_index: null,

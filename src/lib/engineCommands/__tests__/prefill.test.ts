@@ -8,10 +8,7 @@ test('duplicates an accepted split limit as exact planned base quantity and prot
   const prefill = duplicateCommandPrefill(
     command('place_execution_group', {
       purpose: 'split',
-      children: [
-        { request: request('0.10000001') },
-        { request: request('0.20000002') },
-      ],
+      children: [{ request: request('0.10000001') }, { request: request('0.20000002') }],
       protection: {
         scope_id: 'scope',
         controller: {
@@ -110,6 +107,77 @@ test('does not offer duplicate for mutations or ambiguous execution groups', () 
       'account',
     ),
     null,
+  )
+})
+
+test('duplicates durable authored Chase intent instead of normalized execution terms', () => {
+  const source = command('place_chase', {
+    plan: {
+      symbol: 'TAO',
+      position_side: 'long',
+      quantity: '125.386',
+      protection: null,
+      remainder_policy: 'cancel',
+    },
+  })
+  source.planning = {
+    authored_intent: {
+      kind: 'place_chase',
+      parameters: {
+        symbol: 'TAO',
+        position_side: 'long',
+        sizing: { kind: 'risk_at_stop', loss_amount: '100' },
+        protection: {
+          take_profits: [
+            {
+              trigger_price: '285',
+              trigger_source: 'mark_price',
+              execution: { kind: 'limit', price: '285' },
+              allocation: { kind: 'fraction', fraction: '0.4' },
+            },
+            {
+              trigger_price: '370',
+              trigger_source: 'mark_price',
+              execution: { kind: 'limit', price: '370' },
+              allocation: { kind: 'fraction', fraction: '0.3' },
+            },
+          ],
+          stop_loss: {
+            trigger_price: '173',
+            trigger_source: 'mark_price',
+            execution: { kind: 'market' },
+          },
+        },
+        adverse_boundary: { kind: 'basis_points', value: '20' },
+        expires_after_ms: 90_000,
+        remainder: 'market_fill',
+      },
+    },
+    sizing_mode: 'risk_at_stop',
+    requested_risk_budget: '100',
+    decision_price: '240',
+    decision_price_source: 'best_ask',
+    market_observed_at_ms: 1,
+    initial_stop_price: '173',
+    raw_base_quantity: '125.386',
+    normalized_base_quantity: '125.386',
+    normalized_quote_notional: '30092.64',
+    quantity_step: '0.001',
+    minimum_order_quantity: '0.001',
+    minimum_order_notional: '10',
+  }
+
+  const duplicate = duplicateCommandPrefill(source, 'account')
+
+  assert.equal(duplicate?.modal, 'EngineChaseOrder')
+  if (duplicate?.modal !== 'EngineChaseOrder') return
+  assert.equal(duplicate.values.sizingMode, 'risk_at_stop')
+  assert.equal(duplicate.values.amount, '100')
+  assert.equal(duplicate.values.expirySeconds, '90')
+  assert.equal(duplicate.values.remainder, 'market_fill')
+  assert.deepEqual(
+    duplicate.values.protection.takeProfits.map((takeProfit) => takeProfit.allocationValue),
+    ['40', '30'],
   )
 })
 

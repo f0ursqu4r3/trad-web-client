@@ -73,7 +73,7 @@ test('settings and administrator control plane are navigable', async ({ page }) 
   await expect(page.getByText('Builder Address', { exact: true })).toBeVisible()
   await expect(page.getByText('Wallet approval ceiling', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Approve 10.0 bps' })).toBeVisible()
-  await expect(page.getByText(/Current Trad target total:/)).toBeVisible()
+  await expect(page.getByText(/Current all-in target:/)).toBeVisible()
   await page.getByRole('link', { name: 'All accounts' }).click()
 
   await expect(page.getByRole('link', { name: 'Authorization & fees' })).toHaveCount(0)
@@ -87,9 +87,16 @@ test('settings and administrator control plane are navigable', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'Users & access' })).toBeVisible()
   await expect(page.getByText('kriocrypto@gmail.com')).toBeVisible()
 
-  await page.getByRole('link', { name: 'Execution policy' }).click()
-  await expect(page.getByRole('heading', { name: 'Execution policy' })).toBeVisible()
-  await expect(page.getByText('10.0 bps / 0.100%')).toBeVisible()
+  await page.getByRole('link', { name: 'Fees' }).click()
+  await expect(page.getByRole('heading', { name: 'Fees' })).toBeVisible()
+  await expect(page.getByText('10.0 bps maximum', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Users', exact: true }).click()
+  await expect(page.getByPlaceholder('Search email, user ID, or role')).toBeVisible()
+  await expect(page.getByText('kriocrypto@gmail.com')).toBeVisible()
+  await page.getByRole('button', { name: 'Revenue & fees', exact: true }).click()
+  await expect(page.getByText('Actual fee ledger', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Audit', exact: true }).click()
+  await expect(page.getByText('Fee policy audit', { exact: true })).toBeVisible()
 
   await page.getByRole('link', { name: 'Plans & billing' }).click()
   await expect(page.getByRole('heading', { name: 'Plans & billing' })).toBeVisible()
@@ -97,6 +104,31 @@ test('settings and administrator control plane are navigable', async ({ page }) 
   await expect(page.getByRole('cell', { name: 'Private beta' })).toBeVisible()
 
   await page.screenshot({ path: 'test-results/settings-control-plane.png', fullPage: true })
+  expect(pageErrors).toEqual([])
+})
+
+test('numeric account drafts survive clearing and recover without a page failure', async ({
+  page,
+}) => {
+  const pageErrors: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  await page.goto('/auth/test-login?email=668es218pur%40gmail.com&return_to=%2Fsettings%2Faccounts')
+  const row = page
+    .getByTestId('account-settings-index')
+    .locator('tbody tr')
+    .filter({ hasText: 'tester' })
+  await row.getByRole('link', { name: /Manage|Set up/ }).click()
+  await page.getByRole('link', { name: 'Trading defaults', exact: true }).click()
+
+  const leverage = page.getByRole('spinbutton', { name: /^Default/ })
+  await leverage.fill('')
+  await expect(leverage).toHaveValue('')
+  await leverage.press('Tab')
+  await expect(page.getByText('Default leverage is required')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save Prefs' })).toBeDisabled()
+  await leverage.fill('1')
+  await expect(page.getByText('Default leverage is required')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Save Prefs' })).toBeEnabled()
   expect(pageErrors).toEqual([])
 })
 
@@ -187,6 +219,8 @@ test('terminal account rail exposes its address and animation state', async ({ p
   await expect(page.getByRole('menuitem', { name: /Copy selected address/i })).toBeVisible()
   await page.keyboard.press('Escape')
 
+  await page.getByRole('button', { name: 'Diagnostics' }).click()
+
   const headerHeights = await Promise.all(
     ['terminal-command-header', 'terminal-device-header', 'terminal-detail-header'].map(
       async (id) => (await page.getByTestId(id).boundingBox())?.height,
@@ -232,7 +266,7 @@ test('authenticated navigation keeps one Gateway connection alive', async ({ pag
   expect(closed).toBe(0)
 })
 
-test('ready first account hands off directly to the command palette', async ({ page }) => {
+test('ready first account hands off directly to the new trade ticket', async ({ page }) => {
   const accountId = '71717171-7171-4717-8717-717171717171'
   const userAddress = '0x1111111111111111111111111111111111111111'
   await page.route('**/api/accounts**', async (route) => {
@@ -274,9 +308,11 @@ test('ready first account hands off directly to the command palette', async ({ p
   )
   await expect(page.getByText('Nice — you’re ready to trade.')).toBeVisible()
   await page.screenshot({ path: 'test-results/first-account-handoff.png', fullPage: true })
-  await page.getByRole('link', { name: 'Create first command' }).click()
-  await expect(page.getByRole('dialog', { name: 'Commands' })).toBeVisible()
-  await expect(page).not.toHaveURL(/commands=open/)
+  await page.getByRole('link', { name: 'Create first trade' }).click()
+  await expect(page.getByText('Start here to make a trade', { exact: true })).toBeVisible()
+  await expect(page.getByRole('form', { name: 'New trade order ticket' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Commands' })).toHaveCount(0)
+  await expect(page).not.toHaveURL(/start=trade/)
 })
 
 test('super-admin role controls are capability-scoped', async ({ page }) => {

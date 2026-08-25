@@ -24,7 +24,7 @@ const draft = reactive<CommercialPlan>({
   display_name: '',
   state: 'draft',
   max_accounts: 1,
-  builder_target_total_tenths_bps: 52,
+  builder_target_total_tenths_bps: 0,
   capabilities: ['terminal_access'],
 })
 const changeReason = ref('')
@@ -45,9 +45,6 @@ const displayNameError = computed(() => requiredText(draft.display_name, 'Displa
 const versionError = computed(() => integerError(String(draft.version), 'Version', 1))
 const accountLimitError = computed(() =>
   unlimitedAccounts.value ? null : integerError(String(draft.max_accounts), 'Account limit', 1),
-)
-const builderTargetError = computed(() =>
-  integerError(String(draft.builder_target_total_tenths_bps), 'Builder target', 0, 100),
 )
 const changeReasonError = computed(() => requiredText(changeReason.value, 'Change reason'))
 const priceIdError = computed(() => requiredText(binding.stripe_price_id, 'Stripe price ID'))
@@ -87,7 +84,6 @@ onMounted(() => Promise.all([admin.fetchCommercialPlans(), admin.fetchPriceBindi
             <th>Version</th>
             <th>State</th>
             <th>Accounts</th>
-            <th>Target</th>
             <th>Capabilities</th>
           </tr>
         </thead>
@@ -102,7 +98,6 @@ onMounted(() => Promise.all([admin.fetchCommercialPlans(), admin.fetchPriceBindi
               <span class="pill pill-info">{{ plan.state }}</span>
             </td>
             <td>{{ plan.max_accounts ?? 'unlimited' }}</td>
-            <td>{{ (plan.builder_target_total_tenths_bps / 10).toFixed(1) }} bps</td>
             <td>
               <span v-for="cap in plan.capabilities" :key="cap" class="pill mr-1">{{
                 cap.replace(/_/g, ' ')
@@ -161,18 +156,6 @@ onMounted(() => Promise.all([admin.fetchCommercialPlans(), admin.fetchPriceBindi
           ><input v-model="unlimitedAccounts" type="checkbox" /> Unlimited</span
         ></FormField
       >
-      <FormField
-        label="Builder target (tenths-bps)"
-        help="User-wide default for this plan. 52 means 5.2 bps; the technical ceiling is 100 (10 bps)."
-        :error="builderTargetError"
-        required
-        ><input
-          v-model.number="draft.builder_target_total_tenths_bps"
-          type="number"
-          min="0"
-          max="100"
-          class="input"
-      /></FormField>
     </div>
     <div class="flex flex-wrap gap-3 py-3">
       <label v-for="cap in capabilityOptions" :key="cap" class="flex items-center gap-2 text-xs"
@@ -199,7 +182,6 @@ onMounted(() => Promise.all([admin.fetchCommercialPlans(), admin.fetchPriceBindi
               displayNameError ||
               versionError ||
               accountLimitError ||
-              builderTargetError ||
               changeReasonError,
           )
         "

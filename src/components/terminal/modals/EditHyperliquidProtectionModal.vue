@@ -24,7 +24,6 @@ const takeProfitLadderValid = ref(true)
 const stopLoss = ref<number | null>(null)
 const marketPrice = ref<number | null>(null)
 const marketError = ref<string | null>(null)
-const confirmed = ref(false)
 const submitting = ref(false)
 let abort: AbortController | null = null
 
@@ -86,7 +85,6 @@ const changed = computed(
 )
 const canSubmit = computed(
   () =>
-    confirmed.value &&
     changed.value &&
     !unsupportedStructureChange.value &&
     takeProfitLadderValid.value &&
@@ -146,7 +144,6 @@ watch(
       : null
     takeProfitLadderValid.value = true
     stopLoss.value = props.device.stop_loss
-    confirmed.value = false
     submitting.value = false
     void loadMarketPrice()
   },
@@ -236,13 +233,10 @@ onBeforeUnmount(() => abort?.abort())
             Missing protection legs cannot be added by this edit path.
           </p>
 
-          <label class="flex items-start gap-2">
-            <input v-model="confirmed" type="checkbox" class="mt-0.5" />
-            <span>
-              Confirm mutation of the exact exchange-owned trigger orders for this command. A mixed
-              exchange outcome blocks further opens until reconciliation.
-            </span>
-          </label>
+          <p class="m-0 text-[var(--color-text-dim)]">
+            Apply protection updates the exact exchange-owned trigger orders for this command. A
+            mixed exchange outcome blocks further opens until reconciliation.
+          </p>
         </div>
 
         <footer class="flex justify-end gap-2 p-3 border-t border-[var(--border-color)]">

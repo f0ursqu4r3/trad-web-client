@@ -127,6 +127,10 @@ const createBlocker = computed(() => {
   return null
 })
 
+function numericDraft(event: Event): string {
+  return (event.currentTarget as HTMLInputElement).value
+}
+
 const isSubmitDisabled = computed(() => {
   return (
     !network.value ||
@@ -418,12 +422,13 @@ function buildExchangeMetadata() {
             required
           >
             <input
-              v-model.trim="hyperliquidDefaultLeverage"
+              :value="hyperliquidDefaultLeverage"
               class="input"
               type="number"
               min="1"
               step="1"
               placeholder="1"
+              @input="hyperliquidDefaultLeverage = numericDraft($event)"
             />
           </FormField>
           <FormField
@@ -441,13 +446,13 @@ function buildExchangeMetadata() {
             <div class="readonly-value">Trad configured</div>
           </div>
           <div class="field">
-            <span>Target Total / Side</span>
-            <div class="readonly-value">Inherited from your Trad plan</div>
+            <span>Current All-in Target / Side</span>
+            <div class="readonly-value">Inherited from the administrator’s fee policy</div>
           </div>
           <p class="col-span-2 text-[11px] text-[var(--color-text-dim)]">
-            Exchange fee + Trad builder fee equals the target total. Trad calculates the builder fee
-            from the account's live exchange tier at order submission. The account wallet must
-            approve the configured Trad builder before trading.
+            Exchange fee + Trad builder fee targets the configured all-in amount. Trad calculates
+            the builder fee from the account's live exchange tier at order submission. The account
+            wallet must approve the configured Trad builder before trading.
           </p>
         </template>
         <p class="col-span-2 text-[11px] text-[var(--color-text-dim)] leading-relaxed">

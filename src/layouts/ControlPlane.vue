@@ -8,6 +8,7 @@ import {
   BookOpenCheck,
   CreditCard,
   MonitorCog,
+  Newspaper,
   SlidersHorizontal,
   UserRound,
   UsersRound,
@@ -43,9 +44,10 @@ const admin = [
   { key: 'users', label: 'Users & access', icon: UsersRound },
   { key: 'accounts', label: 'Account health', icon: MonitorCog },
   { key: 'commerce', label: 'Plans & billing', icon: Boxes },
-  { key: 'execution', label: 'Execution policy', icon: BadgeDollarSign },
+  { key: 'execution', label: 'Fees', icon: BadgeDollarSign },
   { key: 'audit', label: 'Audit history', icon: BookOpenCheck },
 ]
+const product = [{ key: 'updates', label: 'Patch notes', icon: Newspaper, path: '/updates' }]
 
 function openTradingAccounts(): void {
   void router.push({ path: '/settings/accounts', query: { tour: 'new-account' } })
@@ -80,6 +82,18 @@ function openTradingAccounts(): void {
           :to="`/admin/${item.key}`"
           class="control-nav-item"
           :class="{ active: area === 'admin' && section === item.key }"
+        >
+          <component :is="item.icon" :size="14" /><span>{{ item.label }}</span>
+        </RouterLink>
+      </nav>
+      <nav class="control-product-nav" aria-label="Product">
+        <div class="control-nav-label">Product</div>
+        <RouterLink
+          v-for="item in product"
+          :key="item.key"
+          :to="item.path"
+          class="control-nav-item"
+          :class="{ active: area === item.key }"
         >
           <component :is="item.icon" :size="14" /><span>{{ item.label }}</span>
         </RouterLink>
@@ -128,6 +142,11 @@ function openTradingAccounts(): void {
   padding: 0.75rem 0.5rem 0;
 }
 .control-sidebar .control-admin-nav {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border-subtle);
+}
+.control-sidebar .control-product-nav {
   margin-top: 0.9rem;
   padding-top: 0.9rem;
   border-top: 1px solid var(--border-subtle);

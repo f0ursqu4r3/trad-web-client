@@ -16,6 +16,11 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresEntitlement: true, layout: 'authenticated' },
   },
   {
+    path: '/updates/:version?',
+    component: () => import('@/views/ReleaseNotes.vue'),
+    meta: { requiresAuth: true, layout: 'control', controlArea: 'updates' },
+  },
+  {
     path: '/settings',
     redirect: '/settings/profile',
     meta: { requiresAuth: true, layout: 'control' },
@@ -81,6 +86,16 @@ const routes: RouteRecordRaw[] = [
           path: '/e2e/engine-projection-load',
           component: () => import('@/views/e2e/EngineProjectionLoad.vue'),
           meta: { layout: 'blank' },
+        },
+        {
+          path: '/e2e/trader-workspace',
+          component: () => import('@/views/e2e/TraderWorkspaceFixture.vue'),
+          meta: { layout: 'authenticated', fixture: true },
+        },
+        {
+          path: '/e2e/release-notes/:version?',
+          component: () => import('@/views/ReleaseNotes.vue'),
+          meta: { layout: 'control', controlArea: 'updates', fixture: true },
         },
         {
           path: '/e2e/engine-commands',

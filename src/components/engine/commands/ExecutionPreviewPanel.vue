@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import type { BrowserPreviewIntent, CommandPreview } from '@/lib/gateway'
+import { previewRejectionRemediation } from '@/lib/engineCommands/previewRemediation'
 import { useGatewayStore } from '@/stores/gateway'
 
 const props = defineProps<{
@@ -9,14 +11,29 @@ const props = defineProps<{
   intent: BrowserPreviewIntent | null
   active: boolean
   quoteAsset?: string | null
+  compact?: boolean
 }>()
-const emit = defineEmits<{ (event: 'update:ready', ready: boolean): void }>()
+type PreviewStatus = 'idle' | 'planning' | 'ready' | 'rejected'
+
+const emit = defineEmits<{
+  (event: 'update:ready', ready: boolean): void
+  (event: 'update:status', status: PreviewStatus): void
+}>()
 
 const gateway = useGatewayStore()
 const preview = ref<CommandPreview | null>(null)
 const error = ref<string | null>(null)
 const pending = ref(false)
 const ready = computed(() => preview.value !== null && error.value === null && !pending.value)
+const status = computed<PreviewStatus>(() => {
+  if (pending.value) return 'planning'
+  if (error.value !== null) return 'rejected'
+  if (preview.value !== null) return 'ready'
+  return 'idle'
+})
+const remediation = computed(() =>
+  error.value === null ? null : previewRejectionRemediation(error.value, props.accountId),
+)
 let timer: number | null = null
 let generation = 0
 
@@ -40,6 +57,7 @@ watch([() => props.active, () => props.accountId, () => props.intent], schedule,
   immediate: true,
 })
 watch(ready, (value) => emit('update:ready', value), { immediate: true })
+watch(status, (value) => emit('update:status', value), { immediate: true })
 
 function schedule(): void {
   if (timer !== null) window.clearTimeout(timer)
@@ -76,7 +94,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="execution-preview" :class="{ rejected: error !== null }">
+  <section class="execution-preview" :class="{ rejected: error !== null, compact: props.compact }">
     <div class="preview-heading">
       <span>Execution Preview</span>
       <span v-if="pending">Planning…</span>
@@ -85,7 +103,18 @@ onBeforeUnmount(() => {
       <span v-else>Enter order details</span>
     </div>
 
-    <p v-if="error" class="preview-error">{{ error }}</p>
+    <div v-if="error && remediation" class="preview-remediation">
+      <strong>{{ remediation.title }}</strong>
+      <p>{{ remediation.description }}</p>
+      <RouterLink :to="remediation.actionPath" class="preview-action">
+        {{ remediation.actionLabel }}
+      </RouterLink>
+      <details class="preview-technical">
+        <summary>Technical detail</summary>
+        <p class="preview-error">{{ error }}</p>
+      </details>
+    </div>
+    <p v-else-if="error" class="preview-error">{{ error }}</p>
     <template v-else-if="preview">
       <div class="preview-grid">
         <span>{{
@@ -200,10 +229,79 @@ onBeforeUnmount(() => {
 .preview-error {
   color: var(--color-error);
 }
+.preview-remediation {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+  color: var(--color-text);
+}
+.preview-remediation strong {
+  color: var(--color-warning);
+  font-size: 12px;
+  font-weight: 600;
+}
+.preview-remediation p {
+  margin: 0;
+  line-height: 1.45;
+}
+.preview-action {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 30px;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--state-warning);
+  color: #0b0f14;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  background: var(--state-warning);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--state-warning) 45%, transparent);
+  animation: approval-cta-pulse 1.6s ease-out infinite;
+}
+.preview-action:hover,
+.preview-action:focus-visible {
+  color: #0b0f14;
+  background: color-mix(in srgb, var(--state-warning) 82%, white);
+  animation-play-state: paused;
+}
+.preview-technical {
+  color: var(--color-text-dim);
+  font-size: 10px;
+}
+.preview-technical .preview-error {
+  margin-top: 0.4rem;
+}
+@keyframes approval-cta-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--state-warning) 42%, transparent);
+  }
+  55% {
+    box-shadow: 0 0 0 5px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .preview-action {
+    animation: none;
+  }
+}
 .preview-warning {
   color: var(--color-warning);
 }
 .preview-note {
   color: var(--color-text-dim);
+}
+.execution-preview.compact {
+  padding: 0.65rem;
+  background: var(--surface-sunken);
+}
+.execution-preview.compact .preview-heading,
+.execution-preview.compact .preview-grid {
+  font-size: 10px;
+}
+.execution-preview.compact .preview-details,
+.execution-preview.compact .preview-note {
+  font-size: 10px;
 }
 </style>

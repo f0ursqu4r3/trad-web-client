@@ -1,0 +1,308 @@
+[
+  {
+    "version": "0.10.1",
+    "status": "published",
+    "released_at": "2026-08-25",
+    "channel": "Test cluster",
+    "summary": "Scoped trade accounting, safer Chase protection, precise fee administration, and a denser trading workflow.",
+    "major": [
+      "Added trade-scoped live PnL, risk, and fee accounting that stays separate from external Hyperliquid exposure.",
+      "Reworked Chase protection around immediate stop growth, proportional take-profit growth, and explicit confirmed coverage.",
+      "Added administrator-controlled global, user, and account all-in fee policy with immutable trade snapshots and revenue reporting."
+    ],
+    "minor": [
+      "Duplicate Trade now restores the original authored sizing, Chase, protection, and execution settings.",
+      "Builder-approval failures now explain the required action and link directly to account authorization.",
+      "Added direction-aware stop-loss presets and automatic Hyperliquid price normalization.",
+      "Condensed trade economics, risk, fees, creation time, and close actions into denser trade rows.",
+      "Added a versioned Patch Notes area with development-only draft previews."
+    ],
+    "fixes": [
+      "Fixed the BTC rapid-fill race that compared an older protection query with a newer desired quantity.",
+      "Fixed TAO take-profit dust rejection by deferring children below the venue minimum until they become executable.",
+      "Fixed protection replacement lineage so a retired predecessor is not reported as unexplained missing coverage.",
+      "Fixed Take Over trades remaining in Active after Trad management had been detached.",
+      "Fixed fee reports that lost accepted policy snapshots or rejected filtered account pagination.",
+      "Fixed trade metric truncation, unnecessary close confirmations, and several builder-remediation contrast failures."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "Trade-scoped economics and risk",
+        "items": [
+          "Compute each managed trade's entry basis from fills allocated to that durable exposure scope instead of borrowing Hyperliquid's one-way net-position cost basis.",
+          "Keep externally created same-symbol exposure out of a Trad trade's realized and unrealized PnL.",
+          "Show scoped Live PnL beside Realized net on the top-level trade row, using the latest accepted Trad market sample and an explicit unavailable or stale state.",
+          "Retain exact per-fill realized PnL and fee evidence inside History and Execution without inventing device-level PnL ownership.",
+          "Separate requested Risk budget, accepted Initial planned loss to stop, and Current risk to stop.",
+          "Persist the accepted sizing mode, requested risk, decision price, stop, normalized quantity, instrument rules, and fee assumptions needed to reproduce risk after restart.",
+          "Keep initial risk immutable while fills, partial closes, and protection amendments update only current remaining risk.",
+          "Display actual exchange fees, Trad builder fees, pinned all-in target, and policy source on each managed trade."
+        ]
+      },
+      {
+        "category": "major",
+        "title": "Chase protection controller",
+        "items": [
+          "Grow the full stop immediately whenever accepted entry fills increase managed exposure.",
+          "Grow every take-profit child pro rata during partial fills instead of exhausting the first authored tier before starting later tiers.",
+          "Coalesce later take-profit-only growth behind a durable 250 ms Hyperliquid timer while keeping stop growth outside that delay.",
+          "Flush the final authored take-profit allocations immediately when Chase entry terminates.",
+          "Track desired, pending resize, and exchange-confirmed working quantity separately for every protection child.",
+          "Carry immutable expected generation and expected terms in each protection write and authoritative query operation.",
+          "Treat exact late confirmation of an older generation as succeeded and superseded rather than conflicting with a newer desired target.",
+          "Require authoritative successor evidence before retiring the predecessor remote order after a resize.",
+          "Stop and cancel remaining Chase entry when confirmed stop coverage has a non-transient controller failure and remains deficient.",
+          "Continue recording late fills and continue growing desired stop coverage after entry cancellation so already-acquired exposure is not forgotten.",
+          "Keep a deferred or rejected take-profit child independent from healthy stop installation and sibling take profits.",
+          "Avoid repeated unchanged inventory and protection events during reconciliation."
+        ]
+      },
+      {
+        "category": "major",
+        "title": "All-in fee policy and revenue",
+        "items": [
+          "Separate Configured all-in target, per-order Trad builder component, and the wallet's builder approval ceiling throughout planning and presentation.",
+          "Resolve current policy as account override, then user default, then global default; Stripe plans no longer silently control builder charges.",
+          "Keep Hyperliquid's 10 bps perps builder maximum as a read-only venue capability rather than an editable all-in cap.",
+          "Derive the submitted builder component as configured all-in target minus the expected maker or taker exchange fee, bounded by venue and wallet approval.",
+          "Snapshot policy source, version, target, builder recipient, observed approval ceiling, and exchange-rate evidence on every accepted top-level trade.",
+          "Reuse the pinned snapshot for entry slices, Chase reprices, protection, partial closes, and final closes even after an administrator changes current policy.",
+          "Avoid double-counting Hyperliquid builder fees when the venue-reported fill fee already includes the builder component.",
+          "Add Fees tabs for Overview, Users, Accounts, Active trade policy, Revenue and fees, and Audit.",
+          "Add bounded server-side user and account search with owner drilldown and inherit, set, and clear controls.",
+          "Report fill-level exchange-only cost, Trad revenue, actual all-in rate, pinned target, source, version, and policy drift.",
+          "Retain actor, role, reason, before and after values, policy version, and time for fee-policy mutations."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Trade workflow and presentation",
+        "items": [
+          "Rename the former per-card Log shortcut to Execution so it accurately opens execution and device evidence.",
+          "Remove the Fable-derived Resync totals control because Trad reconciliation is account-wide and does not rebuild one card's totals.",
+          "Clarify Take Over as ending Trad management without closing the venue position; taken-over trades become terminal rather than remaining Active.",
+          "Restore authored percentage take profits, sizing mode, risk value, Chase timeout, boundary, remainder behavior, execution shape, and trailing settings when duplicating a trade.",
+          "Show protection rows as working, resizing to, and desired instead of presenting desired quantity as confirmed exchange coverage.",
+          "Add one-click stop presets at 0.5%, 1%, 2%, 5%, and 10% in the direction safer for the selected long or short.",
+          "Normalize preset stop prices with the live cached Hyperliquid instrument rules before preview and show the normalized value in the field.",
+          "Add an account-authorization call to action when builder approval blocks execution preview.",
+          "After guided account setup completes, return first-time users to the new trade ticket instead of opening the legacy command palette.",
+          "Reverse the account identity rail's horizontal letter orientation while retaining its configured vertical movement.",
+          "Add trade creation timestamps and Active, Closed, and All trade filters.",
+          "Remove the redundant confirm-close checkbox from ordinary close-exposure flow.",
+          "Repack PnL, risk, and fee metrics into compact paired rows to reduce truncation without making every trade card taller.",
+          "Give every published update a stable version URL, copy-link control, crawler-readable metadata, and release-specific social preview image.",
+          "Show the running Trad release beside the global brand and link it directly to that version's patch notes."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Account identity and authorization",
+        "items": [
+          "Reject creation of a new Trad trading account when its canonical exchange wallet and network are already owned by another Trad user.",
+          "Preserve existing duplicate historical records non-destructively and quarantine them instead of silently merging financial ownership.",
+          "Refresh cross-session account authorization on browser focus, visibility return, and a bounded periodic interval.",
+          "Keep already-satisfied agent and builder approval actions idempotent.",
+          "Keep ordinary users' fee presentation read-only while administrators control global, user, and account policy."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Incident repairs",
+        "items": [
+          "Reproduced the client's BTC sequence in which partial Chase fills outran protection resize confirmation and older query evidence locked the trade in reconciliation.",
+          "Prevent an older successful query from being compared against a later mutable target quantity.",
+          "Link replacement generations so disappearance of the old physical order is explained by an exact active successor.",
+          "Never label the desired 15.10574 BTC stop as working when exchange evidence confirms only 0.07372 BTC.",
+          "Reproduced the client's TAO sequence in which the middle 370 TP initially produced a 0.026 TAO, $9.62 child below Hyperliquid's $10 minimum.",
+          "Classify below-minimum protection as deferred_minimum_notional instead of fatal failed-unprotected state.",
+          "Re-plan a deferred TP automatically after cumulative fills make its own trigger-price notional executable.",
+          "Consume OwnedExposureDetached in the trader projection so Take Over leaves venue exposure visible but removes the scope from Active Trad management."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Precision, reporting, and density fixes",
+        "items": [
+          "Normalize Hyperliquid stop and take-profit trigger prices to each live instrument's decimal and significant-figure rules in backend planning.",
+          "Use cached instrument metadata in the browser so stop presets do not add a REST request to order entry.",
+          "Fix account-filter query parsing that returned HTTP 400 from the Fees account directory.",
+          "Correlate fee-report policy snapshots by command ID rather than account ID so current fills no longer appear as legacy or unknown.",
+          "Keep cleared leverage and other numeric drafts as text until exact validation so backspacing does not break the settings view.",
+          "Replace low-contrast builder-approval remediation with a concise, visible action button and a collapsible technical detail.",
+          "Prevent long monetary values and USDC units from being clipped inside dense trade metric columns.",
+          "Remove unnecessary confirmation checkboxes from time-sensitive terminal actions while retaining confirmation in destructive settings workflows."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Qualification included in this patch",
+        "items": [
+          "Replay the exact BTC and TAO production-like event sequences with snapshot and restart boundaries.",
+          "Run a 64-case property matrix over late fills and book updates after stop-controller failure.",
+          "Verify immediate stop growth and 250 ms take-profit coalescing with deterministic timing tests.",
+          "Exercise a protected Market entry, restart, Close Half, protection resize, and Close All on disposable Hyperliquid Mainnet funds.",
+          "Exercise a protected risk-sized Chase with three percentage take profits and Duplicate Trade on Hyperliquid Mainnet.",
+          "Exercise Take Over while proving the venue position remains open until an independent Flatten.",
+          "Walk through every Admin Fees tab against real Mainnet-backed fill evidence.",
+          "Keep the test cluster and production untouched during qualification."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.10.0",
+    "status": "published",
+    "released_at": "2026-08-22",
+    "channel": "Test cluster",
+    "summary": "The test deployment that replaced the command-first terminal with a complete managed-trade workspace.",
+    "major": [
+      "Rebuilt the terminal around a conventional order ticket and managed trade cards.",
+      "Added positions and open-orders views that separate Trad-managed exposure from external Hyperliquid activity.",
+      "Added complete settings and administration workspaces for account setup, access, billing, and execution policy."
+    ],
+    "minor": [
+      "Added Market, Limit, Chase, and Trailing Entry tabs with fixed-size and risk-based entry workflows.",
+      "Added expandable Orders and protection, Chart, Devices, Sequence, and History views on every managed trade.",
+      "Added trade duplication, pinning, nickname and color, mini-chart, partial close, protection editing, and takeover actions.",
+      "Added guided Hyperliquid agent-slot and builder-authorization setup.",
+      "Added responsive desktop, tablet, and mobile navigation and trade layouts."
+    ],
+    "fixes": [
+      "Kept the authenticated Gateway connection alive while navigating between terminal and control pages.",
+      "Made account deletion, signing-slot replacement, and authorization failures actionable instead of returning generic delivery errors.",
+      "Standardized required-field validation and added a searchable market combobox backed by live instrument metadata.",
+      "Qualified the workspace on the disposable Hyperliquid Mainnet account before deployment."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "Trade-centric terminal",
+        "items": [
+          "Replace the primary command log with Trades, Positions, Open orders, and Diagnostics product views.",
+          "Keep immutable commands as backend authority and diagnostic history while presenting logical managed trades as the trader's primary unit.",
+          "Group entry, remaining managed exposure, protection, economics, and close actions into one trade card.",
+          "Show venue net position, Trad-owned scopes, and outside-Trad residual separately on one-way Hyperliquid markets.",
+          "Link positions and open orders back to the responsible managed trade and scroll/focus the selected card.",
+          "Retain the command palette as a redundant expert path rather than the required trading workflow."
+        ]
+      },
+      {
+        "category": "major",
+        "title": "Order ticket and trade controls",
+        "items": [
+          "Provide always-visible Market, Limit, Chase, and Trailing order modes on desktop.",
+          "Provide Buy / Long and Sell / Short selection, symbol search, fixed quantity/notional sizing, and risk-at-stop sizing.",
+          "Default new entries to stop-market protection and ordinary resting-limit take profits.",
+          "Support multiple take-profit rows, percentage or base allocation, stop trigger source, execution shape, Chase timeout, boundary, and remainder behavior.",
+          "Add standard and small-test notional presets without hiding exact manual entry.",
+          "Add Close All, Close Half, Close Third, Close Quarter, edit protection, cancel remaining entry, and Take Over controls in context.",
+          "Open legacy full command forms only for advanced fields not yet represented inline."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Trade inspection and correlation",
+        "items": [
+          "Add expandable Orders and protection, Chart, Devices, Sequence, and History tabs under a trade.",
+          "Rename the relationship DAG from Graph to Sequence so Chart remains reserved for price-over-time data.",
+          "Reuse Trailing Entry price charts with activation, peak, jump, stop, take-profit, and decision markers.",
+          "Support a compact mini chart beside a collapsed chartable trade.",
+          "Open device detail in context without losing the owning trade.",
+          "Show commands, generations, fills, protection changes, closes, takeover, and reconciliation chronologically in trade History.",
+          "Add right-click and mobile long-press menus for duplicate, pin, nickname/color, chart, devices, sequence, and history."
+        ]
+      },
+      {
+        "category": "major",
+        "title": "Settings and administration",
+        "items": [
+          "Add full-page Profile, Trading accounts, Preferences, and Billing areas using Trad's control-plane design.",
+          "Turn account setup into explicit identity, signing connection, and builder-authorization steps with current-step guidance.",
+          "Discover the wallet's three Hyperliquid named-agent slots and require explicit replacement when all slots are occupied.",
+          "Keep Trad signing keys durable across deletion and recreation of a disposable trading-account record.",
+          "Add per-account overview, setup, trading defaults, execution safety, authorization, and danger-zone sections.",
+          "Add administrator Operations, Users and access, Account health, Plans and billing, Execution policy, and Audit history areas.",
+          "Add super-admin role boundaries so administrators cannot create or demote super administrators.",
+          "Add profile display names and selectable/uploaded account imagery."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Responsive and visual behavior",
+        "items": [
+          "Standardize terminal, settings, and administration under one top-level product header and account menu.",
+          "Add a mobile hamburger navigation and separate New trade and Trades tabs without discarding scroll position.",
+          "Move the account identity rail to a compact top strip on narrow screens while retaining desktop vertical identity.",
+          "Normalize empty states across trades, devices, details, and trading-account lists with one grid-backed pattern.",
+          "Add explicit desktop and mobile trade filtering and account selection.",
+          "Use account colors as identity accents without reusing them as warning or required-action colors.",
+          "Add test/local favicon variants and test-deployment social preview metadata."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Account and connection durability",
+        "items": [
+          "Move Gateway websocket ownership to the authenticated application session so settings navigation no longer disconnects trading state.",
+          "Replace generic account-deletion delivery failures with owner-node reconciliation and actionable retryable errors.",
+          "Keep expensive snapshot work outside the account-assignment lock to prevent one-user configuration traffic from starving ownership operations.",
+          "Back off repeated identical hydration failure instead of performing unlimited costly recovery loops.",
+          "Refresh Hyperliquid named slots after wallet approval so the setup step immediately reflects the replacement.",
+          "Prevent already-approved agent or builder controls from remaining dangerously repeatable.",
+          "Separate Trad's saved private signing key from the public named slots shown by Hyperliquid."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Forms and execution semantics",
+        "items": [
+          "Mark invalid required fields at the field with red error treatment and a direct explanation instead of unexplained disabled submission.",
+          "Add hover help and required/optional semantics across account and command forms.",
+          "Add live market-price freshness beside symbol selection without redundant Live trade and required labels.",
+          "Add symbol autocomplete from the live Hyperliquid instrument catalog.",
+          "Default Chase entry to post-only maker behavior, take profits to resting limits, and stops to stop-market execution.",
+          "Remove adverse-boundary defaulting from Chase Close Exposure.",
+          "Preserve managed one-way exposure ownership so reducing one Trad trade does not consume unrelated external exposure."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Deployment evidence",
+        "items": [
+          "Rehearse Gateway and node startup against disposable clones of the test databases before touching the VPS.",
+          "Deploy backend 7675ff5 and frontend a593cf2 to the isolated test cluster on 2026-08-22.",
+          "Exercise restart recovery while the client account held a live -0.09157 BTC Mainnet short with exact venue-native stop and take-profit identities.",
+          "Restore both configured accounts with ready reconciliation, zero pending effects, and no changed protection identities.",
+          "Keep production Trad untouched throughout the rehearsal and deployment."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.9.0",
+    "status": "published",
+    "released_at": "2026-07-04",
+    "channel": "Beta",
+    "summary": "The first versioned Trad beta terminal and managed-execution foundation.",
+    "major": [
+      "Released the initial Bybit beta terminal for managed order and execution workflows."
+    ],
+    "minor": [
+      "Included account selection, command entry, device inspection, charts, and durable execution history."
+    ],
+    "fixes": ["Established a tagged frontend baseline for reproducible upgrades and rollback."],
+    "details": [
+      {
+        "category": "major",
+        "title": "Beta foundation",
+        "items": [
+          "Ship the first tagged frontend release for Bybit managed execution.",
+          "Expose command entry, account selection, device inspection, charts, and durable execution history.",
+          "Retain trad-beta-0.9.0 as the rollback and comparison baseline for later architecture work."
+        ]
+      }
+    ]
+  }
+]
