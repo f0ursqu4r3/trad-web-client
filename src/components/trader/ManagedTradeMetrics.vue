@@ -61,6 +61,7 @@ const pinnedAllIn = computed(() =>
     ? '-'
     : `${(props.trade.pinnedAllInTargetTenthsBps / 10).toFixed(1)} bps`,
 )
+const feeAsset = computed(() => commonAsset(exchangeFees.value, props.trade.builderFees))
 
 const stop = computed(() =>
   props.trade.protection?.plan.children.find((child) => child.protection_kind === 'stop_loss'),
@@ -78,6 +79,17 @@ function totals(values: Map<string, string>): string {
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([asset, value]) => `${formatExactDecimal(value)} ${asset}`)
     .join(', ')
+}
+
+function commonAsset(...values: Map<string, string>[]): string | null {
+  const assets = new Set(values.flatMap((totals) => [...totals.keys()]))
+  return assets.size === 1 ? [...assets][0]! : null
+}
+
+function amount(values: Map<string, string>, asset: string | null): string {
+  if (asset === null) return totals(values)
+  const value = values.get(asset)
+  return value === undefined ? '-' : formatExactDecimal(value)
 }
 
 function totalTone(values: Map<string, string>): '' | 'positive' | 'negative' {
@@ -116,86 +128,78 @@ onBeforeUnmount(() => {
         trade.averageEntryPrice ? formatExactDecimal(trade.averageEntryPrice) : '-'
       }}</strong>
     </div>
-    <div>
-      <span>Filled / requested</span>
-      <strong>
-        {{ formatExactDecimal(trade.filledQuantity) }} /
-        {{ trade.requestedQuantity ? formatExactDecimal(trade.requestedQuantity) : '-' }}
-      </strong>
+    <div class="metric-group">
+      <span title="Filled quantity and originally requested quantity">Filled / req.</span>
+      <div class="metric-values metric-values-two">
+        <strong :title="`Filled: ${formatExactDecimal(trade.filledQuantity)}`">
+          <small>F</small>{{ formatExactDecimal(trade.filledQuantity) }}
+        </strong>
+        <strong
+          :title="`Requested: ${trade.requestedQuantity ? formatExactDecimal(trade.requestedQuantity) : '-'}`"
+        >
+          <small>R</small
+          >{{ trade.requestedQuantity ? formatExactDecimal(trade.requestedQuantity) : '-' }}
+        </strong>
+      </div>
     </div>
     <div>
-      <span>Managed remainder</span>
+      <span title="Trad-managed quantity remaining">Managed rem.</span>
       <strong>{{ formatExactDecimal(trade.remainingQuantity) }}</strong>
     </div>
-    <div>
-      <span title="Scoped realized P&amp;L after every fee attributed to this trade."
-        >Realized net</span
-      >
-      <strong
-        class="money-value"
-        :class="totalTone(trade.netAfterFees)"
-        :title="totals(trade.netAfterFees)"
-      >
-        {{ totals(trade.netAfterFees) }}
-      </strong>
+    <div class="metric-group metric-pnl">
+      <span>P&amp;L · USDC</span>
+      <div class="metric-values metric-values-two">
+        <strong
+          :class="totalTone(trade.netAfterFees)"
+          :title="`Realized net: ${totals(trade.netAfterFees)}`"
+        >
+          <small>Net</small>{{ amount(trade.netAfterFees, 'USDC') }}
+        </strong>
+        <strong
+          v-if="liveTradePnl !== null"
+          :class="totalTone(new Map([['USDC', liveTradePnl]]))"
+          :title="`Live estimate: ${formatExactDecimal(liveTradePnl)} USDC`"
+        >
+          <small>Live</small>{{ formatExactDecimal(liveTradePnl) }}
+        </strong>
+        <strong
+          v-else
+          :title="
+            marketStale
+              ? 'The latest Trad market sample is stale'
+              : 'No current Trad market sample is available'
+          "
+        >
+          <small>Live</small>{{ marketStale ? 'stale' : 'unavailable' }}
+        </strong>
+      </div>
     </div>
-    <div>
-      <span
-        title="Estimate from this trade's scoped fills, remainder, fees, and latest Trad market sample."
-        >Live P&amp;L est.</span
-      >
-      <strong
-        v-if="liveTradePnl !== null"
-        class="money-value"
-        :class="totalTone(new Map([['USDC', liveTradePnl]]))"
-        :title="`${formatExactDecimal(liveTradePnl)} USDC`"
-      >
-        {{ formatExactDecimal(liveTradePnl) }} USDC
-      </strong>
-      <strong
-        v-else
-        :title="
-          marketStale
-            ? 'The latest Trad market sample is stale'
-            : 'No current Trad market sample is available'
-        "
-      >
-        {{ marketStale ? 'stale' : 'unavailable' }}
-      </strong>
+    <div class="metric-group metric-risk">
+      <span>Risk · USDC</span>
+      <div class="metric-values metric-values-three">
+        <strong title="Loss amount requested for risk-at-stop sizing">
+          <small>Budget</small>{{ trade.plannedRisk ? formatExactDecimal(trade.plannedRisk) : '-' }}
+        </strong>
+        <strong title="Expected loss from the accepted entry plan to its initial stop">
+          <small>Init.</small
+          >{{ trade.initialPlannedLoss ? formatExactDecimal(trade.initialPlannedLoss) : '-' }}
+        </strong>
+        <strong title="Expected loss from the scoped entry basis to the current stop">
+          <small>To SL</small
+          >{{ trade.currentStopExposure ? formatExactDecimal(trade.currentStopExposure) : '-' }}
+        </strong>
+      </div>
     </div>
-    <div>
-      <span title="The loss amount requested when this trade used risk-at-stop sizing."
-        >Risk budget</span
-      >
-      <strong>{{ trade.plannedRisk ? formatExactDecimal(trade.plannedRisk) : '-' }}</strong>
-    </div>
-    <div>
-      <span title="Expected loss from the normalized accepted entry plan to its initial stop."
-        >Initial planned loss</span
-      >
-      <strong class="money-value">{{
-        trade.initialPlannedLoss ? `${formatExactDecimal(trade.initialPlannedLoss)} USDC` : '-'
-      }}</strong>
-    </div>
-    <div>
-      <span
-        title="Expected loss from the scoped entry basis to the current stop for the managed remainder."
-        >Current risk to stop</span
-      >
-      <strong class="money-value">{{
-        trade.currentStopExposure ? `${formatExactDecimal(trade.currentStopExposure)} USDC` : '-'
-      }}</strong>
-    </div>
-    <div>
-      <span title="Hyperliquid reports a total fee that already includes Trad's builder component."
-        >Exchange · Trad fees</span
-      >
-      <strong
-        class="money-value"
-        :title="`${totals(exchangeFees)} · ${totals(trade.builderFees)}`"
-      >
-        {{ totals(exchangeFees) }} · {{ totals(trade.builderFees) }}
-      </strong>
+    <div class="metric-group metric-fees">
+      <span>Fees{{ feeAsset ? ` · ${feeAsset}` : '' }}</span>
+      <div class="metric-values metric-values-two">
+        <strong :title="`Exchange fee: ${totals(exchangeFees)}`">
+          <small>Exch.</small>{{ amount(exchangeFees, feeAsset) }}
+        </strong>
+        <strong :title="`Trad builder fee: ${totals(trade.builderFees)}`">
+          <small>Trad</small>{{ amount(trade.builderFees, feeAsset) }}
+        </strong>
+      </div>
     </div>
     <div>
       <span
@@ -282,7 +286,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .trade-metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(116px, 1fr));
+  grid-template-columns: 0.75fr 1.15fr 0.8fr 1.4fr 1.8fr 1.4fr 0.75fr;
   gap: 1px;
   background: var(--border-subtle);
   border-bottom: 1px solid var(--border-subtle);
@@ -309,11 +313,29 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.trade-metrics strong.money-value {
-  overflow: visible;
-  line-height: 1.2;
-  text-overflow: clip;
-  white-space: normal;
+.metric-values {
+  display: grid;
+  min-width: 0;
+  gap: 0.5rem;
+}
+.metric-values-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.metric-values-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.metric-values strong {
+  display: flex;
+  min-width: 0;
+  gap: 0.3rem;
+  align-items: baseline;
+}
+.metric-values small {
+  flex: none;
+  color: var(--fg-muted);
+  font-size: 9px;
+  font-weight: 400;
+  text-transform: uppercase;
 }
 .positive {
   color: var(--state-success) !important;

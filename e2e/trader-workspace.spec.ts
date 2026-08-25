@@ -43,9 +43,15 @@ test('presents managed trades instead of a primary command list', async ({ page 
     .filter({ hasText: 'ETH' })
     .locator('.trade-metrics > div > span')
     .allTextContents()
-  const realizedIndex = metricLabels.findIndex((label) => label.trim() === 'Realized net')
-  expect(realizedIndex).toBeGreaterThanOrEqual(0)
-  expect(metricLabels[realizedIndex + 1]?.trim()).toBe('Live P&L est.')
+  expect(metricLabels.map((label) => label.trim())).toEqual([
+    'Entry avg',
+    'Filled / req.',
+    'Managed rem.',
+    'P&L · USDC',
+    'Risk · USDC',
+    'Fees · USDC',
+    'Pinned all-in',
+  ])
 })
 
 test('expands trades into price charts, devices, sequence, and history', async ({ page }) => {

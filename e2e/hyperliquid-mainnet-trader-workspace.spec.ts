@@ -721,8 +721,9 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
     await expect(form.locator('.tp-row').nth(2).locator('input').last()).toHaveValue('40')
 
     if (established > 0) {
-      const livePnl = card.locator('.trade-metrics > div').filter({ hasText: 'Live P&L est.' })
-      await expect(livePnl.locator('strong')).toContainText('USDC', { timeout: 20_000 })
+      const livePnl = card.locator('.metric-pnl')
+      await expect(livePnl).toContainText('P&L · USDC', { timeout: 20_000 })
+      await expect(livePnl).not.toContainText('unavailable', { timeout: 20_000 })
       await card.getByRole('button', { name: 'close all', exact: true }).first().click()
       await confirmLifecycle(page, 'Close Exposure')
       await waitForPosition(request, 'ETH', (size) => size === 0)
@@ -1139,7 +1140,8 @@ async function waitForPosition(
 async function confirmLifecycle(page: Page, title: string): Promise<void> {
   const modal = page.getByRole('dialog', { name: title })
   await expect(modal).toBeVisible()
-  await modal.getByRole('checkbox').check()
+  const checkbox = modal.getByRole('checkbox')
+  if ((await checkbox.count()) > 0) await checkbox.check()
   await modal.getByRole('button', { name: title, exact: true }).click()
   const rejection = modal.locator('.submission-error')
   await expect

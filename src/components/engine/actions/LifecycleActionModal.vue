@@ -146,7 +146,9 @@ const closeSizingError = computed(() => {
 
 const title = computed(() => props.action?.label ?? 'Action')
 const needsConfirmation = computed(
-  () => props.action?.danger === true || props.action?.kind.startsWith('cancel_') === true,
+  () =>
+    props.action?.kind !== 'close_exposure' &&
+    (props.action?.danger === true || props.action?.kind.startsWith('cancel_') === true),
 )
 const canSubmit = computed(
   () =>

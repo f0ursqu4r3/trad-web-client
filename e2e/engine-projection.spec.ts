@@ -511,7 +511,7 @@ test('submits an exact reduce-only Chase policy for owned exposure', async ({ pa
   await modal.getByLabel('Execution').selectOption('chase')
   await modal.getByLabel('Maximum Distance').fill('25.5')
   await modal.getByLabel('Expiry (minutes)').fill('3')
-  await modal.getByLabel('Confirm close exposure').check()
+  await expect(modal.getByLabel('Confirm close exposure')).toHaveCount(0)
   await modal.getByRole('button', { name: 'Close Exposure' }).click()
 
   await expect(modal).not.toBeVisible()
@@ -543,7 +543,7 @@ test('previews a percentage close from authoritative owned exposure inside the m
   await modal.getByRole('button', { name: '50%' }).click()
   await expect(context).toContainText('0.002100005 ETH')
   await expect(context).toContainText('0.002100005 ETH')
-  await modal.getByLabel('Confirm close exposure').check()
+  await expect(modal.getByLabel('Confirm close exposure')).toHaveCount(0)
   await modal.getByRole('button', { name: 'Close Exposure' }).click()
 
   await expect(fixture.getByTestId('latest-lifecycle-intent')).toContainText(
