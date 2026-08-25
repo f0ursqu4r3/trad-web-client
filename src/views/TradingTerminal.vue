@@ -8,9 +8,7 @@ import OrdersColumn from '@/components/terminal/layout/OrdersColumn.vue'
 import EngineWorkspace from '@/components/engine/EngineWorkspace.vue'
 import EngineCommandPalette from '@/components/engine/commands/EngineCommandPalette.vue'
 import TerminalAccountEmptyState from '@/components/terminal/TerminalAccountEmptyState.vue'
-import TradeWorkspace, {
-  type TraderWorkspaceSection,
-} from '@/components/trader/TradeWorkspace.vue'
+import TradeWorkspace, { type TraderWorkspaceSection } from '@/components/trader/TradeWorkspace.vue'
 import { useAccountsStore } from '@/stores/accounts'
 import { openCommandPalette } from '@/lib/engineCommands/palette'
 
@@ -19,6 +17,7 @@ const route = useRoute()
 const router = useRouter()
 const surface = ref<'workspace' | 'diagnostics'>('workspace')
 const section = ref<TraderWorkspaceSection>('trades')
+const startTradeGuide = ref(false)
 
 function selectWorkspace(next: TraderWorkspaceSection): void {
   surface.value = 'workspace'
@@ -32,6 +31,16 @@ onMounted(async () => {
     openCommandPalette()
     const query = { ...route.query }
     delete query.commands
+    void router.replace({ query })
+  }
+  if (route.query.start === 'trade' && accounts.accounts.length > 0) {
+    surface.value = 'workspace'
+    section.value = 'trades'
+    startTradeGuide.value = true
+    await nextTick()
+    startTradeGuide.value = false
+    const query = { ...route.query }
+    delete query.start
     void router.replace({ query })
   }
 })
@@ -76,7 +85,12 @@ onMounted(async () => {
       <EngineCommandPalette />
     </nav>
 
-    <TradeWorkspace v-if="surface === 'workspace'" :section="section" @section="selectWorkspace" />
+    <TradeWorkspace
+      v-if="surface === 'workspace'"
+      :section="section"
+      :start-trade="startTradeGuide"
+      @section="selectWorkspace"
+    />
     <SplitView v-else storage-key="trading-terminal-split-horizontal">
       <template #left>
         <OrdersColumn />

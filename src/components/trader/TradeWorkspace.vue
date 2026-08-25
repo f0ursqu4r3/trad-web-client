@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
-import { Activity, ListChecks, WalletCards } from 'lucide-vue-next'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { Activity, ArrowDown, ListChecks, WalletCards } from 'lucide-vue-next'
 
 import PanelEmptyState from '@/components/general/PanelEmptyState.vue'
 import ReconciliationControl from '@/components/engine/ReconciliationControl.vue'
@@ -17,7 +17,7 @@ import TradeTicket from './TradeTicket.vue'
 
 export type TraderWorkspaceSection = 'trades' | 'positions' | 'orders'
 
-defineProps<{ section: TraderWorkspaceSection }>()
+const props = defineProps<{ section: TraderWorkspaceSection; startTrade?: boolean }>()
 const emit = defineEmits<{ (event: 'section', section: TraderWorkspaceSection): void }>()
 const projections = useAccountProjectionStore()
 const ui = useProjectionUiStore()
@@ -30,6 +30,8 @@ const sidebar = ref<HTMLElement | null>(null)
 const showClosed = ref(false)
 const query = ref('')
 let focusTimer: number | null = null
+const showTradeGuide = ref(false)
+let guideTimer: number | null = null
 
 const snapshot = computed(() => projections.selectedLive)
 const model = computed(() =>
@@ -101,8 +103,26 @@ async function duplicateTrade(prefill: EngineCommandPrefill): Promise<void> {
   sidebar.value?.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true })
 }
 
+function dismissTradeGuide(): void {
+  showTradeGuide.value = false
+  if (guideTimer !== null) window.clearTimeout(guideTimer)
+  guideTimer = null
+}
+
+async function guideFirstTrade(enabled: boolean | undefined): Promise<void> {
+  if (!enabled) return
+  mobilePane.value = 'ticket'
+  showTradeGuide.value = true
+  await nextTick()
+  sidebar.value?.scrollTo({ top: 0, behavior: 'smooth' })
+  guideTimer = window.setTimeout(dismissTradeGuide, 7_000)
+}
+
+watch(() => props.startTrade, guideFirstTrade, { immediate: true })
+
 onBeforeUnmount(() => {
   if (focusTimer !== null) window.clearTimeout(focusTimer)
+  if (guideTimer !== null) window.clearTimeout(guideTimer)
 })
 </script>
 
@@ -118,7 +138,16 @@ onBeforeUnmount(() => {
     </nav>
 
     <aside ref="sidebar" class="workspace-sidebar">
-      <div class="workspace-ticket">
+      <div
+        class="workspace-ticket"
+        :class="{ 'workspace-ticket--guided': showTradeGuide }"
+        @focusin.capture="dismissTradeGuide"
+        @pointerdown.capture="dismissTradeGuide"
+      >
+        <div v-if="showTradeGuide" class="ticket-guide" role="status">
+          <ArrowDown :size="15" aria-hidden="true" />
+          <strong>Start here to make a trade</strong>
+        </div>
         <TradeTicket ref="ticket" />
       </div>
       <div class="workspace-summaries">
@@ -260,6 +289,40 @@ onBeforeUnmount(() => {
 }
 .workspace-ticket {
   padding: 0.75rem 0.75rem 0;
+}
+.workspace-ticket--guided {
+  animation: first-trade-guide 1.35s ease-in-out infinite;
+}
+.ticket-guide {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.6rem;
+  padding: 0.55rem 0.65rem;
+  color: var(--state-warning);
+  font-size: 12px;
+  background: color-mix(in srgb, var(--state-warning) 10%, var(--surface-base));
+  border: 1px solid color-mix(in srgb, var(--state-warning) 72%, transparent);
+}
+.ticket-guide strong {
+  font-weight: 600;
+}
+@keyframes first-trade-guide {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-warning) 42%, transparent);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 2px var(--state-warning),
+      inset 0 0 18px color-mix(in srgb, var(--state-warning) 12%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-ticket--guided {
+    animation: none;
+    box-shadow: inset 0 0 0 2px var(--state-warning);
+  }
 }
 .workspace-summaries {
   display: flex;

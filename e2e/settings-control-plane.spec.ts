@@ -266,7 +266,7 @@ test('authenticated navigation keeps one Gateway connection alive', async ({ pag
   expect(closed).toBe(0)
 })
 
-test('ready first account hands off directly to the command palette', async ({ page }) => {
+test('ready first account hands off directly to the new trade ticket', async ({ page }) => {
   const accountId = '71717171-7171-4717-8717-717171717171'
   const userAddress = '0x1111111111111111111111111111111111111111'
   await page.route('**/api/accounts**', async (route) => {
@@ -308,9 +308,11 @@ test('ready first account hands off directly to the command palette', async ({ p
   )
   await expect(page.getByText('Nice — you’re ready to trade.')).toBeVisible()
   await page.screenshot({ path: 'test-results/first-account-handoff.png', fullPage: true })
-  await page.getByRole('link', { name: 'Create first command' }).click()
-  await expect(page.getByRole('dialog', { name: 'Commands' })).toBeVisible()
-  await expect(page).not.toHaveURL(/commands=open/)
+  await page.getByRole('link', { name: 'Create first trade' }).click()
+  await expect(page.getByText('Start here to make a trade', { exact: true })).toBeVisible()
+  await expect(page.getByRole('form', { name: 'New trade order ticket' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Commands' })).toHaveCount(0)
+  await expect(page).not.toHaveURL(/start=trade/)
 })
 
 test('super-admin role controls are capability-scoped', async ({ page }) => {
