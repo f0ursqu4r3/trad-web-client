@@ -8,6 +8,7 @@ import {
   currentProductRelease,
   releasePath,
   releasePreviewPath,
+  updatesPreviewPath,
   visibleProductReleases,
   type ProductRelease,
   type ReleaseCategory,
@@ -58,8 +59,11 @@ useHead(
     const description = release?.summary ?? 'Detailed Trad releases, improvements, and fixes.'
     const canonicalPath = release ? releasePath(release.version) : '/updates/'
     const canonical = new URL(canonicalPath, window.location.origin).href
+    const previewVersion = release?.version ?? currentRelease.version
     const image = new URL(
-      release ? releasePreviewPath(release.version) : '/test-brand/social-preview.png',
+      release
+        ? releasePreviewPath(previewVersion, window.location.hostname)
+        : updatesPreviewPath(previewVersion, window.location.hostname),
       window.location.origin,
     ).href
     return {

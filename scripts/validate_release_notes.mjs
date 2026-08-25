@@ -63,6 +63,7 @@ for (const [index, release] of releases.entries()) {
   }
   try {
     await access(new URL(`public/update-previews/${release.version}.png`, root))
+    await access(new URL(`public/prod-update-previews/${release.version}.png`, root))
   } catch {
     fail(`${release.version} has no social preview image`)
   }
