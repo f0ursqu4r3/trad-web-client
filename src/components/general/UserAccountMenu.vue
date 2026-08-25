@@ -5,6 +5,7 @@ import {
   ChevronDown,
   CreditCard,
   LogOut,
+  Newspaper,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
@@ -91,6 +92,9 @@ function signOut(): void {
         </button>
         <button v-if="user.isAdmin" role="menuitem" @click="open('/admin/operations')">
           <ShieldCheck :size="16" /> Administration
+        </button>
+        <button role="menuitem" @click="open('/updates')">
+          <Newspaper :size="16" /> Patch notes
         </button>
         <button role="menuitem" @click="open('/settings/profile')">
           <Settings :size="16" /> All settings
