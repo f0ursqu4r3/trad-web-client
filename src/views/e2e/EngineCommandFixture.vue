@@ -17,6 +17,7 @@ const accountId = '50000000-0000-4000-8000-000000000001'
 const accounts = useAccountsStore()
 const gateway = useGatewayStore()
 const outcomeMode = ref<'accepted' | 'rejected' | 'unknown'>('accepted')
+const previewMode = ref<'ready' | 'builder_rejected'>('ready')
 const submissions = ref<Array<{ accountId: string; intent: BrowserCommandIntent }>>([])
 const previews = ref<Array<{ accountId: string; intent: BrowserPreviewIntent }>>([])
 const latest = computed(() => submissions.value[submissions.value.length - 1] ?? null)
@@ -35,6 +36,17 @@ accounts.selectedAccountId = accountId
 gateway.status = 'ready'
 gateway.previewCommand = async (intent, submittedAccount): Promise<BrowserPreviewOutcome> => {
   previews.value.push({ accountId: submittedAccount ?? '', intent })
+  if (previewMode.value === 'builder_rejected') {
+    return {
+      kind: 'rejected',
+      rejection: {
+        code: 'planning_failed',
+        reason:
+          'command planning failed: Hyperliquid builder approval does not cover this account policy',
+        retryable: false,
+      },
+    }
+  }
   const requested = previewRequestedValue(intent)
   return {
     kind: 'ready',
@@ -113,6 +125,9 @@ gateway.submitCommand = async (intent, submittedAccount): Promise<BrowserCommand
       <button class="btn" type="button" @click="outcomeMode = 'accepted'">Accept next</button>
       <button class="btn" type="button" @click="outcomeMode = 'rejected'">Reject next</button>
       <button class="btn" type="button" @click="outcomeMode = 'unknown'">Lose next outcome</button>
+      <button class="btn" type="button" @click="previewMode = 'builder_rejected'">
+        Require builder approval
+      </button>
     </header>
     <pre data-testid="latest-command-intent">{{ latest ? JSON.stringify(latest) : 'none' }}</pre>
     <pre data-testid="latest-preview-intent">{{

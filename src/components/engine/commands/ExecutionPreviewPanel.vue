@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import type { BrowserPreviewIntent, CommandPreview } from '@/lib/gateway'
+import { previewRejectionRemediation } from '@/lib/engineCommands/previewRemediation'
 import { useGatewayStore } from '@/stores/gateway'
 
 const props = defineProps<{
@@ -18,6 +20,9 @@ const preview = ref<CommandPreview | null>(null)
 const error = ref<string | null>(null)
 const pending = ref(false)
 const ready = computed(() => preview.value !== null && error.value === null && !pending.value)
+const remediation = computed(() =>
+  error.value === null ? null : previewRejectionRemediation(error.value, props.accountId),
+)
 let timer: number | null = null
 let generation = 0
 
@@ -86,7 +91,18 @@ onBeforeUnmount(() => {
       <span v-else>Enter order details</span>
     </div>
 
-    <p v-if="error" class="preview-error">{{ error }}</p>
+    <div v-if="error && remediation" class="preview-remediation">
+      <strong>{{ remediation.title }}</strong>
+      <p>{{ remediation.description }}</p>
+      <RouterLink :to="remediation.actionPath" class="preview-action">
+        {{ remediation.actionLabel }}
+      </RouterLink>
+      <details class="preview-technical">
+        <summary>Technical detail</summary>
+        <p class="preview-error">{{ error }}</p>
+      </details>
+    </div>
+    <p v-else-if="error" class="preview-error">{{ error }}</p>
     <template v-else-if="preview">
       <div class="preview-grid">
         <span>{{
@@ -200,6 +216,40 @@ onBeforeUnmount(() => {
 }
 .preview-error {
   color: var(--color-error);
+}
+.preview-remediation {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+  color: var(--color-text);
+}
+.preview-remediation strong {
+  color: var(--color-warning);
+  font-size: 12px;
+  font-weight: 600;
+}
+.preview-remediation p {
+  margin: 0;
+  line-height: 1.45;
+}
+.preview-action {
+  justify-self: start;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+  font-size: 11px;
+}
+.preview-action:hover,
+.preview-action:focus-visible {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-text);
+}
+.preview-technical {
+  color: var(--color-text-dim);
+  font-size: 10px;
+}
+.preview-technical .preview-error {
+  margin-top: 0.4rem;
 }
 .preview-warning {
   color: var(--color-warning);

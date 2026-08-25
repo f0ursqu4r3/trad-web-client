@@ -92,6 +92,29 @@ test('keeps a rejected limit command open with the authoritative reason', async 
   await expect(page.getByTestId('latest-command-intent')).toContainText('"price":"63000.125"')
 })
 
+test('guides a builder approval preview rejection to the affected account setup', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Require builder approval' }).click()
+  await page.getByRole('button', { name: /Commands/ }).click()
+  await page.getByRole('button', { name: /Market Order/ }).click()
+  const modal = page.getByRole('dialog', { name: 'Market Order' })
+  await completeDefaultStop(modal)
+
+  await expect(modal.getByText('Builder approval required', { exact: true })).toBeVisible()
+  await expect(modal.getByRole('link', { name: 'Review authorization' })).toHaveAttribute(
+    'href',
+    '/settings/accounts/50000000-0000-4000-8000-000000000001/setup',
+  )
+  await expect(
+    modal.getByText('command planning failed: Hyperliquid builder approval does not cover'),
+  ).toBeHidden()
+  await modal.getByText('Technical detail', { exact: true }).click()
+  await expect(
+    modal.getByText('command planning failed: Hyperliquid builder approval does not cover'),
+  ).toBeVisible()
+})
+
 test('opens chase and trailing-entry forms from their aliases', async ({ page }) => {
   await page.getByRole('button', { name: /Commands/ }).click()
   await page.getByPlaceholder('Search commands').fill('chase')
