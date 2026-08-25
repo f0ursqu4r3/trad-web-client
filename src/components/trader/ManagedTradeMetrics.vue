@@ -11,6 +11,7 @@ import {
 } from '@/lib/exactDecimalMath'
 import type { ManagedTradeView } from '@/lib/projection/tradeWorkspace'
 import type { NativeProtectionChildProjection } from '@/lib/gateway'
+import { formatNumberShort } from '@/lib/numberFormat'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 import { useMarketStore } from '@/stores/market'
@@ -90,6 +91,14 @@ function amount(values: Map<string, string>, asset: string | null): string {
   if (asset === null) return totals(values)
   const value = values.get(asset)
   return value === undefined ? '-' : formatExactDecimal(value)
+}
+
+function compactAmount(value: string | null): string {
+  if (value === null) return '-'
+  const numeric = Number(value)
+  return Number.isFinite(numeric)
+    ? formatNumberShort(numeric, { maxDecimals: 6 })
+    : formatExactDecimal(value)
 }
 
 function totalTone(values: Map<string, string>): '' | 'positive' | 'negative' {
@@ -178,21 +187,26 @@ onBeforeUnmount(() => {
       <span>Risk · USDC</span>
       <div class="metric-values metric-values-stacked">
         <strong title="Loss amount requested for risk-at-stop sizing">
-          <small>Budget</small
-          ><b>{{ trade.plannedRisk ? formatExactDecimal(trade.plannedRisk) : '-' }}</b>
+          <small>Budget</small><b>{{ compactAmount(trade.plannedRisk) }}</b>
         </strong>
-        <strong title="Expected loss from the accepted entry plan to its initial stop">
-          <small>Initial</small
-          ><b>{{
-            trade.initialPlannedLoss ? formatExactDecimal(trade.initialPlannedLoss) : '-'
-          }}</b>
-        </strong>
-        <strong title="Expected loss from the scoped entry basis to the current stop">
-          <small>To SL</small
-          ><b>{{
-            trade.currentStopExposure ? formatExactDecimal(trade.currentStopExposure) : '-'
-          }}</b>
-        </strong>
+        <div class="metric-inline-pair">
+          <strong
+            :title="
+              'Expected loss from the accepted entry plan to its initial stop: ' +
+              (trade.initialPlannedLoss ? formatExactDecimal(trade.initialPlannedLoss) : '-')
+            "
+          >
+            <small>Initial</small><b>{{ compactAmount(trade.initialPlannedLoss) }}</b>
+          </strong>
+          <strong
+            :title="
+              'Expected loss from the scoped entry basis to the current stop: ' +
+              (trade.currentStopExposure ? formatExactDecimal(trade.currentStopExposure) : '-')
+            "
+          >
+            <small>To SL</small><b>{{ compactAmount(trade.currentStopExposure) }}</b>
+          </strong>
+        </div>
       </div>
     </div>
     <div class="metric-group metric-fees">
@@ -350,6 +364,16 @@ onBeforeUnmount(() => {
   font: inherit;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.metric-inline-pair {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.metric-inline-pair strong {
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.25rem;
 }
 .positive {
   color: var(--state-success) !important;
