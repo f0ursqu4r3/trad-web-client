@@ -11,7 +11,13 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ universe: [{ name: 'BTC' }, { name: 'ETH' }, { name: 'SOL' }] }),
+      body: JSON.stringify({
+        universe: [
+          { name: 'BTC', szDecimals: 5 },
+          { name: 'ETH', szDecimals: 4 },
+          { name: 'SOL', szDecimals: 2 },
+        ],
+      }),
     })
   })
   await page.route('**/auth/session', async (route) => {
@@ -102,7 +108,7 @@ test('guides a builder approval preview rejection to the affected account setup'
   await completeDefaultStop(modal)
 
   await expect(modal.getByText('Builder approval required', { exact: true })).toBeVisible()
-  await expect(modal.getByRole('link', { name: 'Authorize builder now →' })).toHaveAttribute(
+  await expect(modal.getByRole('link', { name: 'Authorize builder →' })).toHaveAttribute(
     'href',
     '/settings/accounts/50000000-0000-4000-8000-000000000001/setup',
   )

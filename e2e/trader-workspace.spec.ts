@@ -5,7 +5,13 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ universe: [{ name: 'BTC' }, { name: 'ETH' }, { name: 'SOL' }] }),
+      body: JSON.stringify({
+        universe: [
+          { name: 'BTC', szDecimals: 5 },
+          { name: 'ETH', szDecimals: 4 },
+          { name: 'SOL', szDecimals: 2 },
+        ],
+      }),
     })
   })
   await page.route('**/auth/session', async (route) => {
@@ -238,12 +244,12 @@ test('sets directional stop prices from explicit latest-trade distance presets',
 
   await expect(ticket.getByText('below 63,842.5', { exact: true })).toBeVisible()
   await ticket.getByRole('button', { name: '−5%' }).click()
-  await expect(stop).toHaveValue('60650.38')
+  await expect(stop).toHaveValue('60650')
 
   await ticket.getByRole('button', { name: 'Sell / Short' }).click()
   await expect(ticket.getByText('above 63,842.5', { exact: true })).toBeVisible()
   await ticket.getByRole('button', { name: '+2%' }).click()
-  await expect(stop).toHaveValue('65119.35')
+  await expect(stop).toHaveValue('65120')
 })
 
 test('required fields stay neutral until interaction and then identify the correction', async ({
