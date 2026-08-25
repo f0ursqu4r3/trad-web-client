@@ -34,6 +34,7 @@ const draft = reactive(
   ),
 )
 const previewReady = ref(false)
+const previewStatus = ref<'idle' | 'planning' | 'ready' | 'rejected'>('idle')
 const acceptedMessage = ref<string | null>(null)
 const submitError = ref<string | null>(null)
 
@@ -55,6 +56,7 @@ const readiness = computed(() => {
     return error instanceof Error ? error.message : String(error)
   }
   if (!gateway.isConnected) return 'Waiting for the Trad gateway.'
+  if (previewStatus.value === 'rejected') return null
   if (!previewReady.value) return 'Waiting for the authoritative execution preview.'
   return null
 })
@@ -172,6 +174,7 @@ defineExpose({ applyPrefill })
         :intent="planningIntent"
         :quote-asset="units.quote"
         @ready="previewReady = $event"
+        @status="previewStatus = $event"
       />
 
       <p v-if="acceptedMessage" class="ticket-success">{{ acceptedMessage }}</p>

@@ -13,13 +13,24 @@ const props = defineProps<{
   quoteAsset?: string | null
   compact?: boolean
 }>()
-const emit = defineEmits<{ (event: 'update:ready', ready: boolean): void }>()
+type PreviewStatus = 'idle' | 'planning' | 'ready' | 'rejected'
+
+const emit = defineEmits<{
+  (event: 'update:ready', ready: boolean): void
+  (event: 'update:status', status: PreviewStatus): void
+}>()
 
 const gateway = useGatewayStore()
 const preview = ref<CommandPreview | null>(null)
 const error = ref<string | null>(null)
 const pending = ref(false)
 const ready = computed(() => preview.value !== null && error.value === null && !pending.value)
+const status = computed<PreviewStatus>(() => {
+  if (pending.value) return 'planning'
+  if (error.value !== null) return 'rejected'
+  if (preview.value !== null) return 'ready'
+  return 'idle'
+})
 const remediation = computed(() =>
   error.value === null ? null : previewRejectionRemediation(error.value, props.accountId),
 )
@@ -46,6 +57,7 @@ watch([() => props.active, () => props.accountId, () => props.intent], schedule,
   immediate: true,
 })
 watch(ready, (value) => emit('update:ready', value), { immediate: true })
+watch(status, (value) => emit('update:status', value), { immediate: true })
 
 function schedule(): void {
   if (timer !== null) window.clearTimeout(timer)
@@ -238,18 +250,19 @@ onBeforeUnmount(() => {
   justify-self: start;
   min-height: 30px;
   padding: 0.4rem 0.65rem;
-  border: 1px solid var(--color-accent);
-  color: var(--surface-base);
-  font-size: 11px;
+  border: 1px solid var(--state-warning);
+  color: #0b0f14;
+  font-size: 12px;
   font-weight: 600;
-  background: var(--color-accent);
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 45%, transparent);
+  text-decoration: none;
+  background: var(--state-warning);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--state-warning) 45%, transparent);
   animation: approval-cta-pulse 1.6s ease-out infinite;
 }
 .preview-action:hover,
 .preview-action:focus-visible {
-  color: var(--surface-base);
-  background: color-mix(in srgb, var(--color-accent) 82%, white);
+  color: #0b0f14;
+  background: color-mix(in srgb, var(--state-warning) 82%, white);
   animation-play-state: paused;
 }
 .preview-technical {
@@ -262,7 +275,7 @@ onBeforeUnmount(() => {
 @keyframes approval-cta-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 42%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--state-warning) 42%, transparent);
   }
   55% {
     box-shadow: 0 0 0 5px transparent;

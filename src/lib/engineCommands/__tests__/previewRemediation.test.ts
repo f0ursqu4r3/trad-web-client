@@ -13,7 +13,7 @@ test('routes a builder-approval rejection to the affected account setup', () => 
       title: 'Builder approval required',
       description:
         'Complete the one-time wallet approval for this account. Your configured fee will not change.',
-      actionLabel: 'Authorize builder now →',
+      actionLabel: 'Authorize builder →',
       actionPath: '/settings/accounts/account%2Fwith%20space/setup',
     },
   )

@@ -15,7 +15,10 @@ const props = defineProps<{
   intent: BrowserPreviewIntent | null
   quoteAsset: string | null
 }>()
-const emit = defineEmits<{ (event: 'ready', value: boolean): void }>()
+const emit = defineEmits<{
+  (event: 'ready', value: boolean): void
+  (event: 'status', value: 'idle' | 'planning' | 'ready' | 'rejected'): void
+}>()
 
 const target = computed(() => props.account?.exchange_metadata?.builder_target_total_tenths_bps)
 const approval = computed(() => props.account?.exchange_metadata?.max_builder_fee_tenths_bps)
@@ -53,6 +56,7 @@ function bps(value: number | null | undefined): string {
     :active="true"
     :quote-asset="quoteAsset"
     @update:ready="emit('ready', $event)"
+    @update:status="emit('status', $event)"
   />
 </template>
 
