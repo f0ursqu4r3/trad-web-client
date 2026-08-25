@@ -38,6 +38,8 @@ test('presents managed trades instead of a primary command list', async ({ page 
   await expect(cards.filter({ hasText: 'ETH' })).toContainText('SL 1,800.125')
   await expect(cards.filter({ hasText: 'ETH' })).toContainText('1 TP')
   await expect(workspace.getByText('outside Trad')).toBeVisible()
+  await expect(workspace.getByRole('button', { name: 'All 3', exact: true })).toBeVisible()
+  await expect(cards.locator('time')).toHaveCount(3)
 
   const metricLabels = await cards
     .filter({ hasText: 'ETH' })
@@ -52,6 +54,8 @@ test('presents managed trades instead of a primary command list', async ({ page 
     'Fees · USDC',
     'Pinned all-in',
   ])
+  await expect(cards.filter({ hasText: 'ETH' }).locator('.metric-pnl')).toContainText('Net')
+  await expect(cards.filter({ hasText: 'ETH' }).locator('.metric-pnl')).toContainText('Live')
 })
 
 test('expands trades into price charts, devices, sequence, and history', async ({ page }) => {

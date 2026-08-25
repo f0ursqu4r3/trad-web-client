@@ -193,7 +193,6 @@ test('cancel entry work is distinct from flatten and submits an account target',
   const modal = page.getByRole('dialog', { name: 'Cancel Entry Work' })
   await expect(modal.getByText(/Existing exposure and its active protection remain/)).toBeVisible()
   await modal.getByLabel('Target').selectOption('account')
-  await modal.getByText(/Confirm cancellation/).click()
   await modal.getByRole('button', { name: 'Cancel Entry Work' }).click()
 
   await expect(page.getByTestId('latest-command-intent')).toHaveText(

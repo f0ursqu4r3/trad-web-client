@@ -51,6 +51,26 @@ const availableActions = computed(() => managedTradeActions(props.trade, props.s
 const activeAmendment = computed(() =>
   activeProtectionAmendment(props.trade.protection, props.snapshot.protection_amendments),
 )
+const createdAtTitle = computed(() => new Date(props.trade.createdAt).toLocaleString())
+const createdAtLabel = computed(() => {
+  const created = new Date(props.trade.createdAt)
+  if (Number.isNaN(created.getTime())) return ''
+  const now = new Date()
+  const sameDay =
+    created.getFullYear() === now.getFullYear() &&
+    created.getMonth() === now.getMonth() &&
+    created.getDate() === now.getDate()
+  if (sameDay) {
+    return `today · ${created.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+  }
+  return created.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    year: created.getFullYear() === now.getFullYear() ? undefined : 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+})
 
 watch(
   () => props.expanded,
@@ -114,6 +134,14 @@ function openMoveProtection(childId: string): void {
         <strong :style="{ color: meta.nicknameColor ?? undefined }">{{ trade.symbol }}</strong>
         <span class="trade-side" :class="trade.side">{{ trade.side }}</span>
         <span class="trade-kind">{{ trade.entryLabel }}</span>
+        <time
+          v-if="createdAtLabel"
+          class="trade-created-at"
+          :datetime="new Date(trade.createdAt).toISOString()"
+          :title="createdAtTitle"
+        >
+          {{ createdAtLabel }}
+        </time>
         <span
           v-if="meta.nickname"
           class="trade-nickname"
@@ -278,6 +306,11 @@ function openMoveProtection(childId: string): void {
   color: var(--fg-muted);
   font-size: 12px;
 }
+.trade-created-at {
+  color: var(--fg-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
 .trade-nickname {
   overflow: hidden;
   max-width: 16rem;
@@ -360,6 +393,9 @@ function openMoveProtection(childId: string): void {
   .trade-kind,
   .trade-side {
     font-size: 10px;
+  }
+  .trade-created-at {
+    font-size: 9px;
   }
   .trade-header-actions {
     display: none;

@@ -177,10 +177,7 @@ test('Hyperliquid position view exposes authoritative projection ownership and t
   await dialog.getByRole('button', { name: 'Flatten symbol' }).first().click()
   const flatten = page.getByRole('dialog', { name: 'Flatten Exposure' })
   await expect(flatten.getByText('authoritative reduce-only close workflows')).toBeVisible()
-  const confirm = flatten.getByLabel(/Confirm flatten this symbol/)
-  await expect(flatten.getByRole('button', { name: 'Flatten', exact: true })).toBeDisabled()
-  await confirm.check()
-  await expect(confirm).toBeChecked()
+  await expect(flatten.getByLabel(/Confirm flatten this symbol/)).toHaveCount(0)
 })
 
 test('account safety commands are discoverable and dispatched through the command palette', async ({
@@ -1562,7 +1559,6 @@ test('Hyperliquid protection edit validates against live mid and emits exact dev
   await expect(dialog.getByLabel('Take Profit')).toHaveValue('51000')
   await expect(dialog.getByLabel('Stop Loss')).toHaveValue('49000')
   await dialog.getByLabel('Take Profit').fill('52000')
-  await dialog.getByRole('checkbox').check()
   await dialog.getByRole('button', { name: 'apply protection' }).click()
 
   await expect
@@ -1627,7 +1623,6 @@ test('Hyperliquid protection edit can replace ladder legs while retaining the st
   const replacement = rows.last()
   await replacement.locator('input').nth(0).fill('53000')
   await replacement.locator('input').nth(1).fill('50')
-  await dialog.getByRole('checkbox').check()
   await dialog.getByRole('button', { name: 'apply protection' }).click()
 
   await expect

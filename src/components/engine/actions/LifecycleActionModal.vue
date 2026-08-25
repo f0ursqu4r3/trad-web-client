@@ -50,7 +50,6 @@ const closeChaseExpiryMinutes = ref('5')
 const targetPrice = ref('')
 const targetQuantity = ref('')
 const amendment = ref<TrailingEntryAmendmentDraft>(emptyAmendment())
-const confirmed = ref(false)
 const validationError = ref<string | null>(null)
 const selectedAccount = computed(
   () => accounts.accounts.find((account) => account.id === props.accountId) ?? null,
@@ -145,18 +144,12 @@ const closeSizingError = computed(() => {
 })
 
 const title = computed(() => props.action?.label ?? 'Action')
-const needsConfirmation = computed(
-  () =>
-    props.action?.kind !== 'close_exposure' &&
-    (props.action?.danger === true || props.action?.kind.startsWith('cancel_') === true),
-)
 const canSubmit = computed(
   () =>
     gateway.isConnected &&
     props.accountId !== '' &&
     props.action !== null &&
     closeSizingError.value === null &&
-    (!needsConfirmation.value || confirmed.value) &&
     !submission.submitting.value,
 )
 
@@ -190,7 +183,6 @@ function reset(): void {
   targetQuantity.value =
     props.action?.target.kind === 'order' ? props.action.target.row.target_quantity : ''
   amendment.value = trailingEntryAmendment()
-  confirmed.value = false
   validationError.value = null
   submission.clearSubmissionError()
 }
@@ -478,10 +470,6 @@ function chooseClosePercent(percent: string): void {
         Starts tracking immediately without waiting for the configured activation price.
       </p>
 
-      <label v-if="needsConfirmation" class="confirm-row">
-        <input v-model="confirmed" type="checkbox" />
-        Confirm {{ title.toLowerCase() }}
-      </label>
       <p
         v-if="closeSizingError || validationError || submission.submissionError.value"
         class="submission-error"
@@ -513,7 +501,6 @@ function chooseClosePercent(percent: string): void {
 }
 .help-text,
 .check-field,
-.confirm-row,
 .submission-error,
 .close-context,
 .percent-presets {
@@ -549,11 +536,6 @@ function chooseClosePercent(percent: string): void {
 .help-text {
   margin: 0;
   color: var(--color-text-dim);
-}
-.confirm-row {
-  display: flex;
-  align-items: center;
-  gap: 7px;
 }
 .check-field {
   display: flex;

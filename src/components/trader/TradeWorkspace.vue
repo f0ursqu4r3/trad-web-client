@@ -27,7 +27,7 @@ const focusedTradeId = ref<string | null>(null)
 const mobilePane = ref<'ticket' | 'trades'>('trades')
 const ticket = ref<InstanceType<typeof TradeTicket> | null>(null)
 const sidebar = ref<HTMLElement | null>(null)
-const showClosed = ref(false)
+const lifecycleFilter = ref<'active' | 'closed' | 'all'>('active')
 const query = ref('')
 let focusTimer: number | null = null
 const showTradeGuide = ref(false)
@@ -37,9 +37,11 @@ const snapshot = computed(() => projections.selectedLive)
 const model = computed(() =>
   snapshot.value === null ? null : tradeWorkspaceProjection(snapshot.value),
 )
-const sourceTrades = computed(() =>
-  showClosed.value ? (model.value?.closedTrades ?? []) : (model.value?.activeTrades ?? []),
-)
+const sourceTrades = computed(() => {
+  if (lifecycleFilter.value === 'active') return model.value?.activeTrades ?? []
+  if (lifecycleFilter.value === 'closed') return model.value?.closedTrades ?? []
+  return [...(model.value?.activeTrades ?? []), ...(model.value?.closedTrades ?? [])]
+})
 const visibleTrades = computed(() => {
   const commandIds = new Set(ui.filteredCommands.map((command) => command.command_id))
   const normalized = query.value.trim().toLowerCase()
@@ -80,7 +82,10 @@ async function selectTrade(tradeId: string): Promise<void> {
   emit('section', 'trades')
   query.value = ''
   ui.resetCommandFilters()
-  showClosed.value = model.value?.closedTrades.some((trade) => trade.tradeId === tradeId) ?? false
+  lifecycleFilter.value =
+    model.value?.closedTrades.some((trade) => trade.tradeId === tradeId) === true
+      ? 'closed'
+      : 'active'
   expandedTradeId.value = tradeId
   selectedTradeId.value = tradeId
   focusedTradeId.value = tradeId
@@ -174,18 +179,26 @@ onBeforeUnmount(() => {
             <button
               class="btn btn-sm"
               type="button"
-              :aria-pressed="!showClosed"
-              @click="showClosed = false"
+              :aria-pressed="lifecycleFilter === 'active'"
+              @click="lifecycleFilter = 'active'"
             >
               Active {{ model?.activeTrades.length ?? 0 }}
             </button>
             <button
               class="btn btn-sm"
               type="button"
-              :aria-pressed="showClosed"
-              @click="showClosed = true"
+              :aria-pressed="lifecycleFilter === 'closed'"
+              @click="lifecycleFilter = 'closed'"
             >
               Closed {{ model?.closedTrades.length ?? 0 }}
+            </button>
+            <button
+              class="btn btn-sm"
+              type="button"
+              :aria-pressed="lifecycleFilter === 'all'"
+              @click="lifecycleFilter = 'all'"
+            >
+              All {{ (model?.activeTrades.length ?? 0) + (model?.closedTrades.length ?? 0) }}
             </button>
           </template>
           <ReconciliationControl />
@@ -225,11 +238,19 @@ onBeforeUnmount(() => {
         />
         <PanelEmptyState
           v-if="visibleTrades.length === 0"
-          :title="showClosed ? 'No closed trades' : 'No trades yet'"
+          :title="
+            lifecycleFilter === 'closed'
+              ? 'No closed trades'
+              : lifecycleFilter === 'all'
+                ? 'No trades yet'
+                : 'No active trades'
+          "
           :description="
-            showClosed
+            lifecycleFilter === 'closed'
               ? 'Closed managed trades will remain available here as durable history.'
-              : 'Use the order ticket or command palette to establish your first managed trade.'
+              : lifecycleFilter === 'all'
+                ? 'Use the order ticket or command palette to establish your first managed trade.'
+                : 'No managed trades currently need attention or execution.'
           "
         >
           <template #icon><Activity :size="18" /></template>

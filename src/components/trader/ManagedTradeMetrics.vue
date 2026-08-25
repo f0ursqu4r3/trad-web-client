@@ -130,15 +130,15 @@ onBeforeUnmount(() => {
     </div>
     <div class="metric-group">
       <span title="Filled quantity and originally requested quantity">Filled / req.</span>
-      <div class="metric-values metric-values-two">
+      <div class="metric-values metric-values-stacked">
         <strong :title="`Filled: ${formatExactDecimal(trade.filledQuantity)}`">
-          <small>F</small>{{ formatExactDecimal(trade.filledQuantity) }}
+          <small>Filled</small><b>{{ formatExactDecimal(trade.filledQuantity) }}</b>
         </strong>
         <strong
           :title="`Requested: ${trade.requestedQuantity ? formatExactDecimal(trade.requestedQuantity) : '-'}`"
         >
-          <small>R</small
-          >{{ trade.requestedQuantity ? formatExactDecimal(trade.requestedQuantity) : '-' }}
+          <small>Req.</small
+          ><b>{{ trade.requestedQuantity ? formatExactDecimal(trade.requestedQuantity) : '-' }}</b>
         </strong>
       </div>
     </div>
@@ -148,19 +148,19 @@ onBeforeUnmount(() => {
     </div>
     <div class="metric-group metric-pnl">
       <span>P&amp;L · USDC</span>
-      <div class="metric-values metric-values-two">
+      <div class="metric-values metric-values-stacked">
         <strong
           :class="totalTone(trade.netAfterFees)"
           :title="`Realized net: ${totals(trade.netAfterFees)}`"
         >
-          <small>Net</small>{{ amount(trade.netAfterFees, 'USDC') }}
+          <small>Net</small><b>{{ amount(trade.netAfterFees, 'USDC') }}</b>
         </strong>
         <strong
           v-if="liveTradePnl !== null"
           :class="totalTone(new Map([['USDC', liveTradePnl]]))"
           :title="`Live estimate: ${formatExactDecimal(liveTradePnl)} USDC`"
         >
-          <small>Live</small>{{ formatExactDecimal(liveTradePnl) }}
+          <small>Live</small><b>{{ formatExactDecimal(liveTradePnl) }}</b>
         </strong>
         <strong
           v-else
@@ -170,34 +170,39 @@ onBeforeUnmount(() => {
               : 'No current Trad market sample is available'
           "
         >
-          <small>Live</small>{{ marketStale ? 'stale' : 'unavailable' }}
+          <small>Live</small><b>{{ marketStale ? 'stale' : 'unavailable' }}</b>
         </strong>
       </div>
     </div>
     <div class="metric-group metric-risk">
       <span>Risk · USDC</span>
-      <div class="metric-values metric-values-three">
+      <div class="metric-values metric-values-stacked">
         <strong title="Loss amount requested for risk-at-stop sizing">
-          <small>Budget</small>{{ trade.plannedRisk ? formatExactDecimal(trade.plannedRisk) : '-' }}
+          <small>Budget</small
+          ><b>{{ trade.plannedRisk ? formatExactDecimal(trade.plannedRisk) : '-' }}</b>
         </strong>
         <strong title="Expected loss from the accepted entry plan to its initial stop">
-          <small>Init.</small
-          >{{ trade.initialPlannedLoss ? formatExactDecimal(trade.initialPlannedLoss) : '-' }}
+          <small>Initial</small
+          ><b>{{
+            trade.initialPlannedLoss ? formatExactDecimal(trade.initialPlannedLoss) : '-'
+          }}</b>
         </strong>
         <strong title="Expected loss from the scoped entry basis to the current stop">
           <small>To SL</small
-          >{{ trade.currentStopExposure ? formatExactDecimal(trade.currentStopExposure) : '-' }}
+          ><b>{{
+            trade.currentStopExposure ? formatExactDecimal(trade.currentStopExposure) : '-'
+          }}</b>
         </strong>
       </div>
     </div>
     <div class="metric-group metric-fees">
       <span>Fees{{ feeAsset ? ` · ${feeAsset}` : '' }}</span>
-      <div class="metric-values metric-values-two">
+      <div class="metric-values metric-values-stacked">
         <strong :title="`Exchange fee: ${totals(exchangeFees)}`">
-          <small>Exch.</small>{{ amount(exchangeFees, feeAsset) }}
+          <small>Exchange</small><b>{{ amount(exchangeFees, feeAsset) }}</b>
         </strong>
         <strong :title="`Trad builder fee: ${totals(trade.builderFees)}`">
-          <small>Trad</small>{{ amount(trade.builderFees, feeAsset) }}
+          <small>Trad</small><b>{{ amount(trade.builderFees, feeAsset) }}</b>
         </strong>
       </div>
     </div>
@@ -286,7 +291,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .trade-metrics {
   display: grid;
-  grid-template-columns: 0.75fr 1.15fr 0.8fr 1.4fr 1.8fr 1.4fr 0.75fr;
+  grid-template-columns: 0.75fr 1.1fr 0.85fr 1.25fr 1.35fr 1.2fr 0.75fr;
   gap: 1px;
   background: var(--border-subtle);
   border-bottom: 1px solid var(--border-subtle);
@@ -295,8 +300,8 @@ onBeforeUnmount(() => {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 0.18rem;
-  padding: 0.65rem 0.7rem;
+  gap: 0.12rem;
+  padding: 0.45rem 0.6rem;
   background: var(--surface-sunken);
 }
 .trade-metrics span {
@@ -318,17 +323,19 @@ onBeforeUnmount(() => {
   min-width: 0;
   gap: 0.5rem;
 }
-.metric-values-two {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.metric-values-three {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.metric-values-stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
 }
 .metric-values strong {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(2.6rem, auto) minmax(0, 1fr);
   min-width: 0;
-  gap: 0.3rem;
+  gap: 0.4rem;
   align-items: baseline;
+  font-size: 11px;
+  line-height: 1.15;
 }
 .metric-values small {
   flex: none;
@@ -336,6 +343,13 @@ onBeforeUnmount(() => {
   font-size: 9px;
   font-weight: 400;
   text-transform: uppercase;
+}
+.metric-values b {
+  overflow: hidden;
+  min-width: 0;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .positive {
   color: var(--state-success) !important;

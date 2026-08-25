@@ -276,7 +276,6 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
 
     await card.getByRole('button', { name: 'Cancel Order', exact: true }).click()
     const cancel = page.getByRole('dialog', { name: 'Cancel Order' })
-    await cancel.getByRole('checkbox').check()
     await cancel.getByRole('button', { name: 'Cancel Order', exact: true }).click()
     await expect(cancel).toBeHidden()
     await waitForNoOpenOrders(request)
@@ -454,7 +453,6 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
     let edit = page.getByRole('dialog', { name: 'Edit Native Protection' })
     await edit.getByRole('button', { name: /Take Profit/ }).click()
     await edit.getByRole('textbox', { name: 'TP 2 Trigger' }).fill(secondTakeProfit)
-    await edit.getByRole('checkbox', { name: /Apply this complete TP\/SL plan/ }).check()
     await edit.getByRole('button', { name: 'Apply Protection', exact: true }).click()
     await expect(edit).toBeHidden()
     const revised = await waitForOrders(
@@ -470,7 +468,6 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
     await move.click()
     edit = page.getByRole('dialog', { name: 'Edit Native Protection' })
     await edit.getByRole('textbox', { name: 'TP 1 Trigger' }).fill(movedTakeProfit)
-    await edit.getByRole('checkbox', { name: /Apply this complete TP\/SL plan/ }).check()
     await edit.getByRole('button', { name: 'Apply Protection', exact: true }).click()
     await expect(edit).toBeHidden()
     const moved = await waitForOrders(request, (orders) => {
@@ -1238,7 +1235,6 @@ async function flattenSymbol(page: Page, symbol: 'BTC' | 'ETH'): Promise<void> {
   await modal.getByRole('combobox', { name: 'Target' }).selectOption('symbol')
   await modal.getByRole('combobox', { name: 'Symbol' }).fill(symbol)
   await modal.locator('.market-combobox-option').first().click()
-  await modal.getByRole('checkbox').check()
   await modal.getByRole('button', { name: /^flatten$/i }).click()
   await expect(modal).toBeHidden({ timeout: 20_000 })
 }

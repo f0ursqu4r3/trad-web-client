@@ -18,7 +18,6 @@ const submission = useEngineCommandSubmission()
 const selectedAccountId = ref('')
 const targetKind = ref<'symbol' | 'account'>('symbol')
 const symbol = ref('')
-const confirmed = ref(false)
 const validationError = ref<string | null>(null)
 const catalogSymbolError = ref<string | null>(null)
 const selectedAccount = computed(
@@ -35,7 +34,6 @@ const canSubmit = computed(
     gateway.isConnected &&
     selectedAccountId.value !== '' &&
     cancelSymbolError.value === null &&
-    confirmed.value &&
     !submission.submitting.value,
 )
 
@@ -55,7 +53,6 @@ function reset(): void {
   selectedAccountId.value = accounts.selectedAccountId ?? accounts.accounts[0]?.id ?? ''
   targetKind.value = 'symbol'
   symbol.value = accounts.getDefaultSymbolForAccount(selectedAccountId.value)
-  confirmed.value = false
   validationError.value = null
   submission.clearSubmissionError()
 }
@@ -114,11 +111,6 @@ async function submit(): Promise<void> {
         Cancels unfilled entry Orders, active Chases, and Trailing Entries that have not established
         a position. Existing exposure and its active protection remain in place.
       </p>
-      <label class="confirm-row">
-        <input v-model="confirmed" type="checkbox" />
-        Confirm cancellation for
-        {{ targetKind === 'account' ? 'the entire account' : 'this symbol' }}
-      </label>
       <p v-if="validationError || submission.submissionError.value" class="submission-error">
         {{ validationError || submission.submissionError.value }}
       </p>
@@ -144,18 +136,12 @@ async function submit(): Promise<void> {
   gap: 10px;
 }
 .warning,
-.confirm-row,
 .submission-error {
   grid-column: 1 / -1;
 }
 .warning {
   margin: 0;
   color: var(--color-warning);
-}
-.confirm-row {
-  display: flex;
-  align-items: center;
-  gap: 7px;
 }
 .submission-error {
   color: var(--color-error);
