@@ -404,15 +404,11 @@ test('projection-native command filters combine without polling device state', a
   await expect(rows.getByText('Market Order', { exact: true })).not.toBeVisible()
 })
 
-test('refreshes account reconciliation and follows projected completion', async ({ page }) => {
+test('shows reconciliation as passive backend-owned status', async ({ page }) => {
   const fixture = page.getByTestId('engine-projection-fixture')
   const control = fixture.getByTestId('reconciliation-control')
   await expect(control).toContainText('reconciled')
-
-  await control.getByTestId('refresh-reconciliation').click()
-
-  await expect(control).toContainText('reconciling')
-  await expect(control).toContainText('reconciled')
+  await expect(control.getByRole('button')).toHaveCount(0)
 })
 
 test('inspects authoritative account positions and pre-fills typed flatten controls', async ({
@@ -446,9 +442,7 @@ test('allocates an ambiguous partial deficit across exact owned scopes', async (
   })
   await fixture.getByRole('button', { name: 'Inspect account positions' }).click()
 
-  const resolution = page.locator(
-    '[data-testid="position-deficit-resolution"][data-side="long"]',
-  )
+  const resolution = page.locator('[data-testid="position-deficit-resolution"][data-side="long"]')
   await expect(resolution).toContainText('Allocate 0.01 externally reduced long')
   const inputs = resolution.locator('input')
   await inputs.nth(0).fill('0.006')

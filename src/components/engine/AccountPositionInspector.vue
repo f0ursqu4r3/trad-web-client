@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { RefreshCw } from 'lucide-vue-next'
 
 import FlattenCommandModal from '@/components/engine/commands/FlattenCommandModal.vue'
 import PositionDeficitResolution from '@/components/engine/PositionDeficitResolution.vue'
@@ -10,18 +9,15 @@ import type { PositionProjection } from '@/lib/gateway'
 import { commandOwnershipScopeIds } from '@/lib/projection/ownership'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
-import { useGatewayStore } from '@/stores/gateway'
 import { useProjectionUiStore } from '@/stores/projectionUi'
 
 defineProps<{ open: boolean }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
 
 const accounts = useAccountsStore()
-const gateway = useGatewayStore()
 const projections = useAccountProjectionStore()
 const projectionUi = useProjectionUiStore()
 const showAll = ref(false)
-const refreshError = ref<string | null>(null)
 const flattenTarget = ref<{ kind: 'account' } | { kind: 'symbol'; symbol: string } | null>(null)
 
 const account = computed(() => accounts.selectedAccount)
@@ -44,7 +40,6 @@ const scopeCommands = computed(() => {
   }
   return result
 })
-const refreshBusy = computed(() => summary.value?.reconciliation_status === 'reconciling')
 const title = computed(() => {
   if (account.value === null) return 'Account Positions'
   const exchange =
@@ -62,7 +57,6 @@ watch(
   () => accounts.selectedAccountId,
   () => {
     flattenTarget.value = null
-    refreshError.value = null
   },
 )
 
@@ -106,15 +100,6 @@ function inspectScope(scopeId: string): void {
   projectionUi.selectCommand(commandId)
   emit('close')
 }
-
-async function refreshExchange(): Promise<void> {
-  refreshError.value = null
-  try {
-    await gateway.refreshReconciliation()
-  } catch (error) {
-    refreshError.value = error instanceof Error ? error.message : String(error)
-  }
-}
 </script>
 
 <template>
@@ -127,15 +112,6 @@ async function refreshExchange(): Promise<void> {
         </p>
         <div class="toolbar-actions">
           <label><input v-model="showAll" type="checkbox" /> Show flat symbols</label>
-          <button
-            class="btn btn-sm"
-            type="button"
-            :disabled="gateway.status !== 'ready' || refreshBusy"
-            @click="refreshExchange"
-          >
-            <RefreshCw :size="12" :class="{ spinning: refreshBusy }" />
-            Refresh exchange state
-          </button>
           <button
             class="btn btn-sm btn-danger"
             type="button"
@@ -171,8 +147,6 @@ async function refreshExchange(): Promise<void> {
           </strong>
         </div>
       </section>
-
-      <p v-if="refreshError" class="danger">{{ refreshError }}</p>
 
       <section v-if="live?.balances.length" class="balance-band">
         <h3>Balances</h3>
@@ -455,16 +429,6 @@ async function refreshExchange(): Promise<void> {
 
 .danger {
   color: var(--color-error) !important;
-}
-
-.spinning {
-  animation: spin 900ms linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 @media (max-width: 720px) {

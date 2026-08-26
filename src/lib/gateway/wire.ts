@@ -12,7 +12,7 @@ import type {
   ProjectionRevision,
 } from './projection.ts'
 
-export const BROWSER_PROTOCOL_VERSION = 11
+export const BROWSER_PROTOCOL_VERSION = 12
 
 export interface BrowserPositionResolutionIntent {
   resolution_id: Uuid
@@ -50,7 +50,6 @@ export type BrowserClientMessage =
       account_id: Uuid
       intent: BrowserPreviewIntent
     }
-  | { kind: 'refresh_reconciliation'; request_id: Uuid; account_id: Uuid }
   | {
       kind: 'resolve_position_deficit'
       request_id: Uuid
@@ -109,17 +108,6 @@ export type BrowserCommandOutcome =
           | 'routing_changed'
           | 'planning_failed'
           | 'engine_rejected'
-        reason: string
-        retryable: boolean
-      }
-    }
-
-export type BrowserReconciliationRefreshOutcome =
-  | { kind: 'accepted'; cycle_id: Uuid; duplicate: boolean }
-  | {
-      kind: 'rejected'
-      rejection: {
-        code: 'invalid_request' | 'unauthorized' | 'account_unavailable' | 'routing_changed'
         reason: string
         retryable: boolean
       }
@@ -203,12 +191,6 @@ export type BrowserServerMessage =
       request_id: Uuid
       account_id: Uuid
       outcome: BrowserPreviewOutcome
-    }
-  | {
-      kind: 'reconciliation_refresh_result'
-      request_id: Uuid
-      account_id: Uuid
-      outcome: BrowserReconciliationRefreshOutcome
     }
   | {
       kind: 'position_resolution_result'

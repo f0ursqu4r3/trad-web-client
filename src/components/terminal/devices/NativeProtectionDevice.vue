@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import type { NativeProtectionState } from '@/stores/devices'
 import { NativeProtectionStatus, type MarketRef, type ProtectionState } from '@/lib/ws/protocol'
 import { formatPrice, formatQty, getPositionSideClass, formatSide } from './utils'
@@ -21,7 +21,6 @@ const props = defineProps<{
 }>()
 
 const ws = useWsStore()
-const reconciliationRequestId = ref<string | null>(null)
 const editProtectionOpen = ref(false)
 const marketContextLabel = computed(() => {
   const refLabel = formatMarketRef(props.marketRef)
@@ -43,11 +42,6 @@ const symbolReconciliation = computed(() =>
     (position) => position.symbol.toUpperCase() === props.device.symbol.toUpperCase(),
   ),
 )
-const reconciliationPending = computed(
-  () =>
-    reconciliationRequestId.value !== null &&
-    reconciliation.value?.request_uuid !== reconciliationRequestId.value,
-)
 const canEditProtection = computed(
   () =>
     isHyperliquid.value &&
@@ -55,27 +49,6 @@ const canEditProtection = computed(
     props.device.status === NativeProtectionStatus.Tracking &&
     props.device.ownership_status === 'consistent' &&
     props.device.owned_remaining_qty > 0,
-)
-
-function refreshExchangeState() {
-  if (!isHyperliquid.value || !props.deviceId) return
-  reconciliationRequestId.value = ws.sendRefreshHyperliquidReconciliation(
-    props.device.market_context,
-    {
-      symbol: props.device.symbol,
-      commandId: props.commandId || null,
-      protectionDeviceId: props.deviceId,
-    },
-  )
-}
-
-watch(
-  () => reconciliation.value?.request_uuid,
-  (requestId) => {
-    if (requestId && requestId === reconciliationRequestId.value) {
-      reconciliationRequestId.value = null
-    }
-  },
 )
 
 function fmtOptionalPrice(value?: number | null): string {
@@ -361,21 +334,11 @@ function fmtDate(d?: Date | null): string {
           </dd>
         </div>
       </div>
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div class="text-[10px] text-[var(--color-text-dim)]">
-          <template v-if="reconciliation?.reconciliation">
-            Exchange observed {{ fmtDate(new Date(reconciliation.observed_at)) }}
-          </template>
-          <template v-else>No explicit exchange reconciliation recorded in this session.</template>
-        </div>
-        <button
-          type="button"
-          class="btn btn-secondary btn-sm"
-          :disabled="reconciliationPending"
-          @click="refreshExchangeState"
-        >
-          {{ reconciliationPending ? 'Refreshing...' : 'Refresh Exchange State' }}
-        </button>
+      <div class="text-[10px] text-[var(--color-text-dim)]">
+        <template v-if="reconciliation?.reconciliation">
+          Exchange observed {{ fmtDate(new Date(reconciliation.observed_at)) }}
+        </template>
+        <template v-else>No explicit exchange reconciliation recorded in this session.</template>
       </div>
       <div
         v-if="symbolReconciliation?.discrepancies.length"

@@ -1,5 +1,66 @@
 [
   {
+    "version": "0.10.3",
+    "status": "published",
+    "released_at": "2026-08-26",
+    "channel": "Protection safety hotfix",
+    "summary": "Hardened TP/SL cancellation against predecessor-successor races and expanded generated reconciliation-liveness coverage.",
+    "major": [
+      "Protection cancels now require terminal evidence for the exact physical exchange order they target, preventing retired predecessors from discharging live-successor cancels.",
+      "NativeProtection, StopGuard, and normal order modify/cancel flows now have generated timing and recovery tests with explicit convergence oracles.",
+      "Exact exchange absence is now durable, monotonic, replayable, and wakes dependent close workflows."
+    ],
+    "minor": [
+      "Managed trades expose a compact copy control for their stable root command ID to make incident reports unambiguous.",
+      "Removed user-triggered reconciliation controls while retaining backend-owned reconciliation and recovery.",
+      "Reduced routine Rust test artifact size while retaining source-level backtraces and an on-demand full-debug profile."
+    ],
+    "fixes": [
+      "Fixed Chase closes leaving resized TP and SL successors live after predecessor cancellation events arrived.",
+      "Fixed wrong-child and stale-predecessor query evidence becoming terminal instead of retrying or entering a healable reconciliation state.",
+      "Fixed exact-absence convergence being lost across journal replay or failing to refresh close settlement."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "Exact physical-order cancellation",
+        "items": [
+          "Require direct TP/SL cancellation observations, cancellation queries, and snapshot absence to prove the exact target remote order terminal.",
+          "Require known resize/install successor acknowledgements to be confirmed by that successor identity.",
+          "Prevent terminal predecessor evidence from proving an unknown normal-order modify successor terminal.",
+          "Reject actionable NativeProtection links to terminal operations except an explicitly failed reconciliation query retained as a healing sentinel."
+        ]
+      },
+      {
+        "category": "major",
+        "title": "Generated reconciliation liveness",
+        "items": [
+          "Vary close and acknowledgement timing, missing responses, duplicate observations, wrong predecessor or child evidence, snapshots, recovery pulses, retry exhaustion, and eventual exact venue evidence.",
+          "Require every generated case to clear actionable mutations, terminalize or prove absent every relevant physical child, converge the logical workflow, validate invariants, and restore identically from durable state.",
+          "Exercise NativeProtection resize-to-close, multi-child StopGuard close, and normal order modify-to-cancel lineages on every ordinary Engine suite run."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Restart and recovery correctness",
+        "items": [
+          "Record authoritative exact absence as a dedicated domain event and reconstruct it during journal replay.",
+          "Normalize absence revision against retained venue evidence so query timestamps cannot regress protection inventory.",
+          "Wake close settlement whenever exact absence changes protection state and allow later exact inventory to heal bounded reconciliation exhaustion."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Safer operational surface",
+        "items": [
+          "Keep reconciliation automatic and backend-owned instead of exposing a browser action that appears to repair state manually.",
+          "Expose stable trade identity beside each managed trade for faster support correlation.",
+          "Keep full debugger information available through an explicit test-debug profile without embedding it into every routine test executable."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.2",
     "status": "published",
     "released_at": "2026-08-25",

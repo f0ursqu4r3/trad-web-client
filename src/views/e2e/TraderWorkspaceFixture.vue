@@ -5,7 +5,6 @@ import type {
   BrowserCommandOutcome,
   BrowserMarketSample,
   BrowserPreviewOutcome,
-  BrowserReconciliationRefreshOutcome,
 } from '@/lib/gateway'
 import { ExchangeType, NetworkType } from '@/lib/ws/protocol'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
@@ -101,12 +100,6 @@ gateway.submitCommand = async (): Promise<BrowserCommandOutcome> => ({
   account_revision: 43,
   duplicate: false,
 })
-gateway.refreshReconciliation = async (): Promise<BrowserReconciliationRefreshOutcome> => ({
-  kind: 'accepted',
-  cycle_id: crypto.randomUUID(),
-  duplicate: false,
-})
-
 onMounted(() => {
   gateway.status = 'ready'
 })

@@ -52,6 +52,9 @@ const activeAmendment = computed(() =>
   activeProtectionAmendment(props.trade.protection, props.snapshot.protection_amendments),
 )
 const createdAtTitle = computed(() => new Date(props.trade.createdAt).toLocaleString())
+const rootCommandId = computed(() => props.trade.primaryCommand.command_id)
+const shortRootCommandId = computed(() => rootCommandId.value.slice(0, 8))
+const tradeIdCopied = ref(false)
 const createdAtLabel = computed(() => {
   const created = new Date(props.trade.createdAt)
   if (Number.isNaN(created.getTime())) return ''
@@ -108,6 +111,15 @@ function openMoveProtection(childId: string): void {
   moveChildId.value = childId
   moveProtectionOpen.value = true
 }
+
+async function copyTradeId(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(rootCommandId.value)
+    tradeIdCopied.value = true
+  } catch {
+    tradeIdCopied.value = false
+  }
+}
 </script>
 
 <template>
@@ -149,6 +161,15 @@ function openMoveProtection(childId: string): void {
         >
           {{ meta.nickname }}
         </span>
+      </button>
+      <button
+        class="trade-id"
+        type="button"
+        :title="tradeIdCopied ? 'Copied full trade ID' : `Copy full trade ID ${rootCommandId}`"
+        :aria-label="`Copy trade ID ${rootCommandId}`"
+        @click.stop="copyTradeId"
+      >
+        #{{ shortRootCommandId }}
       </button>
       <div class="trade-header-actions">
         <button class="btn btn-xs" type="button" @click="openDetail('history')">history</button>
@@ -310,6 +331,21 @@ function openMoveProtection(childId: string): void {
   color: var(--fg-muted);
   font-size: 10px;
   white-space: nowrap;
+}
+.trade-id {
+  flex: 0 0 auto;
+  padding: 0.1rem 0.25rem;
+  border: 1px solid transparent;
+  color: var(--fg-muted);
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.2;
+}
+.trade-id:hover,
+.trade-id:focus-visible {
+  border-color: var(--border-strong);
+  color: var(--fg);
 }
 .trade-nickname {
   overflow: hidden;

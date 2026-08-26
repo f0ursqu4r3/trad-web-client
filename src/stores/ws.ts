@@ -335,29 +335,6 @@ export const useWsStore = defineStore('ws', () => {
     return requestId
   }
 
-  function sendRefreshHyperliquidReconciliation(
-    marketContext: MarketContext,
-    scope?: {
-      symbol?: string | null
-      commandId?: Uuid | null
-      protectionDeviceId?: Uuid | null
-    },
-  ): Uuid {
-    const key = marketContextKey(marketContext)
-    const requestId = sendUserCommandPreview({
-      kind: 'RefreshHyperliquidReconciliation',
-      data: {
-        market_context: marketContext,
-        symbol: scope?.symbol || null,
-        command_id: scope?.commandId || null,
-        protection_device_id: scope?.protectionDeviceId || null,
-      },
-    })
-    pendingPositionOwnership.set(requestId, key)
-    delete hyperliquidPositionOwnershipErrors.value[key]
-    return requestId
-  }
-
   function sendEditHyperliquidProtection(
     protectionDeviceId: Uuid,
     takeProfit: number | null,
@@ -1019,7 +996,6 @@ export const useWsStore = defineStore('ws', () => {
     sendCancelAllDevices,
     sendFlattenHyperliquidSymbol,
     sendFlattenHyperliquidAccount,
-    sendRefreshHyperliquidReconciliation,
     sendEditHyperliquidProtection,
     sendContinueMissedTrailingEntry,
     sendRefreshAccountKeys,

@@ -484,30 +484,6 @@ function confirmPendingAction(): void {
   pending?.action()
 }
 
-function canRefreshExchangeState(command: UserCommandPayload): boolean {
-  if (
-    !['MarketOrder', 'LimitOrder', 'ChaseOrder', 'TrailingEntryOrder'].includes(command.kind) ||
-    !command.data ||
-    !('market_context' in command.data)
-  ) {
-    return false
-  }
-  return normalizeMarketContext(command.data.market_context).type === 'hyperliquid'
-}
-
-function handleRefreshExchangeState(commandId: string): void {
-  const item = commandStore.commandMap[commandId]
-  if (!item || !canRefreshExchangeState(item.command)) return
-  const data = item.command.data as {
-    market_context: MarketContext
-    symbol: string
-  }
-  wsStore.sendRefreshHyperliquidReconciliation(data.market_context, {
-    symbol: data.symbol,
-    commandId,
-  })
-}
-
 function editableProtection(
   commandId: string,
 ): { id: string; state: NativeProtectionState } | null {
@@ -880,7 +856,6 @@ function saveRename() {
                           :canContinueMissedEntry="
                             commandStore.canContinueMissedEntry(cmd.command_id)
                           "
-                          :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
                           :canEditProtection="canEditProtection(cmd.command_id)"
                           :canEditTrailingEntry="canEditTrailingEntry(cmd.command_id)"
                           :canActivateTrailingEntry="canActivateTrailingEntry(cmd.command_id)"
@@ -903,7 +878,6 @@ function saveRename() {
                           @partial-close-position="handlePartialClosePosition"
                           @cancel-remaining-entry="handleCancelRemainingEntry"
                           @continue-missed-entry="handleContinueMissedEntry"
-                          @refresh-exchange-state="handleRefreshExchangeState"
                           @edit-protection="handleEditProtection"
                           @edit-trailing-entry="handleEditTrailingEntry"
                           @activate-trailing-entry="handleActivateTrailingEntry"
@@ -968,7 +942,6 @@ function saveRename() {
                       "
                       :closePositionLabel="commandStore.closePositionLabel(cmd.command_id)"
                       :canContinueMissedEntry="commandStore.canContinueMissedEntry(cmd.command_id)"
-                      :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
                       :canEditProtection="canEditProtection(cmd.command_id)"
                       :canEditTrailingEntry="canEditTrailingEntry(cmd.command_id)"
                       :canActivateTrailingEntry="canActivateTrailingEntry(cmd.command_id)"
@@ -989,7 +962,6 @@ function saveRename() {
                       @partial-close-position="handlePartialClosePosition"
                       @cancel-remaining-entry="handleCancelRemainingEntry"
                       @continue-missed-entry="handleContinueMissedEntry"
-                      @refresh-exchange-state="handleRefreshExchangeState"
                       @edit-protection="handleEditProtection"
                       @edit-trailing-entry="handleEditTrailingEntry"
                       @activate-trailing-entry="handleActivateTrailingEntry"
@@ -1048,7 +1020,6 @@ function saveRename() {
               :canPartialClosePosition="commandStore.canPartialClosePosition(cmd.command_id)"
               :closePositionLabel="commandStore.closePositionLabel(cmd.command_id)"
               :canContinueMissedEntry="commandStore.canContinueMissedEntry(cmd.command_id)"
-              :canRefreshExchangeState="canRefreshExchangeState(cmd.command)"
               :canEditProtection="canEditProtection(cmd.command_id)"
               :canEditTrailingEntry="canEditTrailingEntry(cmd.command_id)"
               :canActivateTrailingEntry="canActivateTrailingEntry(cmd.command_id)"
@@ -1067,7 +1038,6 @@ function saveRename() {
               @partial-close-position="handlePartialClosePosition"
               @cancel-remaining-entry="handleCancelRemainingEntry"
               @continue-missed-entry="handleContinueMissedEntry"
-              @refresh-exchange-state="handleRefreshExchangeState"
               @edit-protection="handleEditProtection"
               @edit-trailing-entry="handleEditTrailingEntry"
               @activate-trailing-entry="handleActivateTrailingEntry"

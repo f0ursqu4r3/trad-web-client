@@ -40,6 +40,14 @@ test('presents managed trades instead of a primary command list', async ({ page 
   await expect(workspace.getByText('outside Trad')).toBeVisible()
   await expect(workspace.getByRole('button', { name: 'All 3', exact: true })).toBeVisible()
   await expect(cards.locator('time')).toHaveCount(3)
+  const ethTradeId = cards
+    .filter({ hasText: 'ETH' })
+    .getByRole('button', { name: 'Copy trade ID 30000000-0000-4000-8000-000000000001' })
+  await expect(ethTradeId).toHaveText('#30000000')
+  await expect(ethTradeId).toHaveAttribute(
+    'title',
+    'Copy full trade ID 30000000-0000-4000-8000-000000000001',
+  )
 
   const metricLabels = await cards
     .filter({ hasText: 'ETH' })

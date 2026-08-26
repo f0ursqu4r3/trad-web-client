@@ -24,14 +24,16 @@ const flattenAcknowledged = ref(false)
 const flattenAllOpen = ref(false)
 const flattenAllAcknowledged = ref(false)
 const actionMessage = ref<string | null>(null)
-const reconciliationScope = ref<string | null>(null)
 
 const marketContext = computed(() =>
   props.account ? accounts.getMarketContextForAccount(props.account.id) : null,
 )
 const ownership = computed(() => ws.hyperliquidOwnershipForMarketContext(marketContext.value))
 const livePositions = computed(
-  () => ownership.value?.symbols.filter((position) => Math.abs(position.live_signed_quantity) > 1e-12) ?? [],
+  () =>
+    ownership.value?.symbols.filter(
+      (position) => Math.abs(position.live_signed_quantity) > 1e-12,
+    ) ?? [],
 )
 const visiblePositions = computed(
   () => ownership.value?.symbols.filter(positionRequiresAttention) ?? [],
@@ -45,15 +47,6 @@ const error = computed(() =>
 function refresh() {
   if (!marketContext.value) return
   ws.requestHyperliquidPositionOwnership(marketContext.value)
-}
-
-function reconcile(symbol?: string) {
-  if (!marketContext.value) return
-  reconciliationScope.value = symbol || 'account'
-  actionMessage.value = `Refreshing authoritative Hyperliquid state for ${symbol || 'this account'}...`
-  ws.sendRefreshHyperliquidReconciliation(marketContext.value, {
-    symbol: symbol || null,
-  })
 }
 
 function inspect(commandId: string) {
@@ -143,19 +136,7 @@ watch(
     flattenAllOpen.value = false
     flattenAllAcknowledged.value = false
     actionMessage.value = null
-    reconciliationScope.value = null
     if (open) refresh()
-  },
-)
-
-watch(
-  () => ownership.value?.request_uuid,
-  () => {
-    if (!ownership.value?.reconciliation) return
-    reconciliationScope.value = null
-    actionMessage.value = ownership.value.reconciliation.errors.length
-      ? 'Exchange refresh completed with diagnostic errors. Review the evidence below.'
-      : 'Exchange refresh completed.'
   },
 )
 </script>
@@ -175,14 +156,6 @@ watch(
         <div class="flex flex-wrap justify-end gap-2">
           <button type="button" class="btn btn-secondary btn-sm" @click="refresh">
             Refresh View
-          </button>
-          <button
-            type="button"
-            class="btn btn-primary btn-sm"
-            :disabled="reconciliationScope !== null"
-            @click="reconcile()"
-          >
-            Refresh Exchange State
           </button>
           <button
             type="button"
@@ -233,10 +206,10 @@ watch(
               !ownership.reconciliation.stream_health.expected
                 ? 'idle (no active devices)'
                 : ownership.reconciliation.stream_health.connected
-                ? ownership.reconciliation.stream_health.fresh
-                  ? 'connected / fresh'
-                  : 'connected / stale'
-                : 'disconnected'
+                  ? ownership.reconciliation.stream_health.fresh
+                    ? 'connected / fresh'
+                    : 'connected / stale'
+                  : 'disconnected'
             }}
           </span>
           <span class="text-[var(--color-text-dim)]">Last stream frame</span>
@@ -246,7 +219,7 @@ watch(
                 ? 'not required while idle'
                 : ownership.reconciliation.stream_health.last_frame_age_ms == null
                   ? '-'
-                : `${ownership.reconciliation.stream_health.last_frame_age_ms} ms ago`
+                  : `${ownership.reconciliation.stream_health.last_frame_age_ms} ms ago`
             }}
           </span>
           <span class="text-[var(--color-text-dim)]">Open orders checked</span>
@@ -287,8 +260,8 @@ watch(
         <strong>Flatten every Hyperliquid position</strong>
         <p class="my-2">
           This cancels affected Trad entry work and submits an independent reduce-only market close
-          for every authoritative nonzero position on {{ account?.label }}. Trad-owned protection
-          is cleared only after each close succeeds. External or manually created quantity is also
+          for every authoritative nonzero position on {{ account?.label }}. Trad-owned protection is
+          cleared only after each close succeeds. External or manually created quantity is also
           closed.
         </p>
         <div class="mb-2 font-mono">
@@ -335,14 +308,6 @@ watch(
             <span v-if="position.opens_blocked" class="pill pill-err">opens blocked</span>
           </div>
           <div class="flex flex-wrap justify-end gap-2">
-            <button
-              type="button"
-              class="btn btn-secondary btn-sm"
-              :disabled="reconciliationScope !== null"
-              @click="reconcile(position.symbol)"
-            >
-              Refresh Exchange State
-            </button>
             <button
               v-if="Math.abs(position.live_signed_quantity) > 1e-12"
               type="button"

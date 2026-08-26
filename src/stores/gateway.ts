@@ -11,7 +11,6 @@ import {
   type BrowserPreviewOutcome,
   type BrowserPositionResolutionIntent,
   type BrowserPositionResolutionOutcome,
-  type BrowserReconciliationRefreshOutcome,
   type BrowserServerMessage,
   type GatewayConnectionStatus,
   type Uuid,
@@ -25,7 +24,6 @@ import { marketKey, useMarketStore } from '@/stores/market'
 
 const logger = createLogger('gateway')
 const COMMAND_RESULT_TIMEOUT_MS = 30_000
-const RECONCILIATION_RESULT_TIMEOUT_MS = 30_000
 const POSITION_RESOLUTION_TIMEOUT_MS = 30_000
 const PREVIEW_RESULT_TIMEOUT_MS = 15_000
 const HISTORY_RESULT_TIMEOUT_MS = 30_000
@@ -55,13 +53,6 @@ interface PendingPreview {
   reject: (error: Error) => void
 }
 
-interface PendingReconciliationRefresh {
-  accountId: Uuid
-  timer: number
-  resolve: (outcome: BrowserReconciliationRefreshOutcome) => void
-  reject: (error: Error) => void
-}
-
 interface PendingPositionResolution {
   accountId: Uuid
   timer: number
@@ -73,13 +64,6 @@ interface MarketDemand {
   accountId: Uuid
   symbol: string
   limit: number
-}
-
-export interface ReconciliationRefreshState {
-  requestId: Uuid
-  cycleId: Uuid | null
-  duplicate: boolean
-  error: string | null
 }
 
 export class CommandOutcomeUnknownError extends Error {
@@ -102,8 +86,6 @@ export const useGatewayStore = defineStore('gateway', () => {
   const sessionValidUntil = ref<number | null>(null)
   const pendingCommandCount = ref(0)
   const pendingHistoryCount = ref(0)
-  const pendingReconciliationCount = ref(0)
-  const reconciliationRefreshByAccount = ref<Record<Uuid, ReconciliationRefreshState>>({})
 
   const subscriptionRequests = new Map<Uuid, Uuid>()
   const subscriptionAccounts = new Map<Uuid, Uuid>()
@@ -118,7 +100,6 @@ export const useGatewayStore = defineStore('gateway', () => {
   const pendingCommands = new Map<Uuid, PendingCommand>()
   const pendingPreviews = new Map<Uuid, PendingPreview>()
   const pendingHistories = new Map<Uuid, PendingHistory>()
-  const pendingReconciliationRefreshes = new Map<Uuid, PendingReconciliationRefresh>()
   const pendingPositionResolutions = new Map<Uuid, PendingPositionResolution>()
   let selectedSubscriptionId: Uuid | null = null
   let started = false
@@ -210,60 +191,6 @@ export const useGatewayStore = defineStore('gateway', () => {
         pendingCommands.delete(requestId)
         updatePendingCounts()
         reject(error instanceof Error ? error : new Error(String(error)))
-      }
-    })
-  }
-
-  function refreshReconciliation(
-    accountId = accounts.selectedAccountId,
-    requestId = uuid(),
-  ): Promise<BrowserReconciliationRefreshOutcome> {
-    if (accountId === null) return Promise.reject(new Error('no trading account is selected'))
-    if (pendingReconciliationRefreshes.has(requestId)) {
-      return Promise.reject(new Error(`reconciliation request ${requestId} is already pending`))
-    }
-    if (
-      Array.from(pendingReconciliationRefreshes.values()).some(
-        (pending) => pending.accountId === accountId,
-      )
-    ) {
-      return Promise.reject(new Error('an account reconciliation request is already pending'))
-    }
-
-    reconciliationRefreshByAccount.value[accountId] = {
-      requestId,
-      cycleId: null,
-      duplicate: false,
-      error: null,
-    }
-    return new Promise((resolve, reject) => {
-      const timer = window.setTimeout(() => {
-        pendingReconciliationRefreshes.delete(requestId)
-        updatePendingCounts()
-        reconciliationRefreshByAccount.value[accountId] = {
-          requestId,
-          cycleId: null,
-          duplicate: false,
-          error: 'gateway response timed out; reconciliation outcome is unknown',
-        }
-        reject(new Error(`reconciliation request ${requestId} timed out`))
-      }, RECONCILIATION_RESULT_TIMEOUT_MS)
-      pendingReconciliationRefreshes.set(requestId, { accountId, timer, resolve, reject })
-      updatePendingCounts()
-      try {
-        send({ kind: 'refresh_reconciliation', request_id: requestId, account_id: accountId })
-      } catch (error) {
-        window.clearTimeout(timer)
-        pendingReconciliationRefreshes.delete(requestId)
-        updatePendingCounts()
-        const failure = error instanceof Error ? error : new Error(String(error))
-        reconciliationRefreshByAccount.value[accountId] = {
-          requestId,
-          cycleId: null,
-          duplicate: false,
-          error: failure.message,
-        }
-        reject(failure)
       }
     })
   }
@@ -484,9 +411,6 @@ export const useGatewayStore = defineStore('gateway', () => {
       case 'command_preview_result':
         handleCommandPreviewResult(message)
         return
-      case 'reconciliation_refresh_result':
-        handleReconciliationRefreshResult(message)
-        return
       case 'position_resolution_result':
         handlePositionResolutionResult(message)
         return
@@ -680,46 +604,6 @@ export const useGatewayStore = defineStore('gateway', () => {
     pending.resolve(message.outcome)
   }
 
-  function handleReconciliationRefreshResult(
-    message: Extract<BrowserServerMessage, { kind: 'reconciliation_refresh_result' }>,
-  ): void {
-    const pending = pendingReconciliationRefreshes.get(message.request_id)
-    if (pending === undefined) return
-    window.clearTimeout(pending.timer)
-    pendingReconciliationRefreshes.delete(message.request_id)
-    updatePendingCounts()
-    if (pending.accountId !== message.account_id) {
-      const error = new Error('reconciliation result account does not match its request')
-      reconciliationRefreshByAccount.value[pending.accountId] = {
-        requestId: message.request_id,
-        cycleId: null,
-        duplicate: false,
-        error: error.message,
-      }
-      pending.reject(error)
-      return
-    }
-
-    reconciliationRefreshByAccount.value[message.account_id] =
-      message.outcome.kind === 'accepted'
-        ? {
-            requestId: message.request_id,
-            cycleId: message.outcome.cycle_id,
-            duplicate: message.outcome.duplicate,
-            error: null,
-          }
-        : {
-            requestId: message.request_id,
-            cycleId: null,
-            duplicate: false,
-            error: message.outcome.rejection.reason,
-          }
-    if (message.outcome.kind === 'accepted') {
-      confirmReconciliationCycle(message.account_id, message.outcome.cycle_id)
-    }
-    pending.resolve(message.outcome)
-  }
-
   function handlePositionResolutionResult(
     message: Extract<BrowserServerMessage, { kind: 'position_resolution_result' }>,
   ): void {
@@ -746,19 +630,6 @@ export const useGatewayStore = defineStore('gateway', () => {
       recoverSelectedProjection(
         accountId,
         `accepted command revision ${expectedRevision} was not observed; current revision is ${actual ?? 'unavailable'}`,
-      )
-    }, PROJECTION_CONFIRM_TIMEOUT_MS)
-  }
-
-  function confirmReconciliationCycle(accountId: Uuid, expectedCycleId: Uuid): void {
-    window.setTimeout(() => {
-      const actual =
-        projections.byAccount[accountId]?.view?.live.checkpoint.summary.reconciliation_cycle_id ??
-        null
-      if (actual === expectedCycleId) return
-      recoverSelectedProjection(
-        accountId,
-        `accepted reconciliation cycle ${expectedCycleId} was not observed; current cycle is ${actual ?? 'unavailable'}`,
       )
     }, PROJECTION_CONFIRM_TIMEOUT_MS)
   }
@@ -1009,17 +880,6 @@ export const useGatewayStore = defineStore('gateway', () => {
       pending.reject(new Error(`history request interrupted: ${reason}`))
     }
     pendingHistories.clear()
-    for (const [requestId, pending] of pendingReconciliationRefreshes) {
-      window.clearTimeout(pending.timer)
-      pending.reject(new Error(`reconciliation request ${requestId} interrupted: ${reason}`))
-      reconciliationRefreshByAccount.value[pending.accountId] = {
-        requestId,
-        cycleId: null,
-        duplicate: false,
-        error: `request interrupted: ${reason}`,
-      }
-    }
-    pendingReconciliationRefreshes.clear()
     for (const [requestId, pending] of pendingPositionResolutions) {
       window.clearTimeout(pending.timer)
       pending.reject(new Error(`position resolution ${requestId} interrupted: ${reason}`))
@@ -1031,7 +891,6 @@ export const useGatewayStore = defineStore('gateway', () => {
   function updatePendingCounts(): void {
     pendingCommandCount.value = pendingCommands.size + pendingPositionResolutions.size
     pendingHistoryCount.value = pendingHistories.size
-    pendingReconciliationCount.value = pendingReconciliationRefreshes.size
   }
 
   return {
@@ -1041,14 +900,11 @@ export const useGatewayStore = defineStore('gateway', () => {
     sessionValidUntil,
     pendingCommandCount,
     pendingHistoryCount,
-    pendingReconciliationCount,
-    reconciliationRefreshByAccount,
     isConnected,
     connect,
     disconnect,
     submitCommand,
     previewCommand,
-    refreshReconciliation,
     resolvePositionDeficit,
     requestOlderHistory,
     requestLegacyHistory,

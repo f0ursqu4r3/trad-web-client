@@ -372,23 +372,6 @@ wsStore.requestHyperliquidPositionOwnership = (marketContext) => {
   publishHyperliquidOwnership(marketContext, requestId, false)
   return requestId
 }
-wsStore.sendRefreshHyperliquidReconciliation = (marketContext, scope) => {
-  const requestId = crypto.randomUUID()
-  commandSends.value = [
-    ...commandSends.value,
-    {
-      kind: 'RefreshHyperliquidReconciliation',
-      data: {
-        market_context: marketContext,
-        symbol: scope?.symbol || null,
-        command_id: scope?.commandId || null,
-        protection_device_id: scope?.protectionDeviceId || null,
-      },
-    },
-  ]
-  publishHyperliquidOwnership(marketContext, requestId, true)
-  return requestId
-}
 wsStore.sendEditHyperliquidProtection = (
   deviceId,
   takeProfit,

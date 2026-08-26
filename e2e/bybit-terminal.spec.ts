@@ -1260,21 +1260,7 @@ test('Hyperliquid Chase renders composed attempts, diagnostics, stale state, and
       { exact: true },
     ),
   ).toBeVisible()
-  await details.getByRole('button', { name: 'Refresh Exchange State' }).click()
-  await expect
-    .poll(() => page.evaluate(() => (window as any).__tradBybitTerminalFixture?.getCommandSends()))
-    .toContainEqual({
-      kind: 'RefreshHyperliquidReconciliation',
-      data: {
-        market_context: {
-          type: 'hyperliquid',
-          account_id: '17171717-1717-4717-8717-171717171717',
-        },
-        symbol: 'BTC',
-        command_id: '25252525-2525-4525-8525-252525252525',
-        protection_device_id: '29292929-2929-4929-8929-292929292929',
-      },
-    })
+  await expect(details.getByRole('button', { name: 'Refresh Exchange State' })).toHaveCount(0)
 })
 
 test('Hyperliquid Chase command summary duplicates all strategy parameters', async ({ page }) => {
@@ -1291,21 +1277,7 @@ test('Hyperliquid Chase command summary duplicates all strategy parameters', asy
   await expect(row.getByText('5m', { exact: true })).toBeVisible()
 
   await row.getByTitle('Menu').click()
-  await page.getByRole('menuitem', { name: 'Refresh Exchange State' }).click()
-  await expect
-    .poll(() => page.evaluate(() => (window as any).__tradBybitTerminalFixture?.getCommandSends()))
-    .toContainEqual({
-      kind: 'RefreshHyperliquidReconciliation',
-      data: {
-        market_context: {
-          hyperliquid: { account_id: '17171717-1717-4717-8717-171717171717' },
-        },
-        symbol: 'BTC',
-        command_id: '25252525-2525-4525-8525-252525252525',
-        protection_device_id: null,
-      },
-    })
-  await row.getByTitle('Menu').click()
+  await expect(page.getByRole('menuitem', { name: 'Refresh Exchange State' })).toHaveCount(0)
   await page.getByRole('menuitem', { name: 'Duplicate' }).click()
   const dialog = page.getByRole('dialog', { name: 'Chase Order' })
   await expect(dialog.getByLabel('USDC Amount')).toHaveValue('75')

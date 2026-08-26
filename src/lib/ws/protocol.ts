@@ -555,12 +555,6 @@ export type FlattenHyperliquidSymbolCommand = {
 export type FlattenHyperliquidAccountCommand = {
   market_context: MarketContext
 }
-export type RefreshHyperliquidReconciliationCommand = {
-  market_context: MarketContext
-  symbol?: string | null
-  command_id?: Uuid | null
-  protection_device_id?: Uuid | null
-}
 export type EditHyperliquidProtectionCommand = {
   protection_device_id: Uuid
   take_profit?: number | null
@@ -610,10 +604,6 @@ export type UserCommandPayload =
   | { kind: 'CancelCommandRemainingEntry'; data: CancelCommandRemainingEntryCommand }
   | { kind: 'FlattenHyperliquidSymbol'; data: FlattenHyperliquidSymbolCommand }
   | { kind: 'FlattenHyperliquidAccount'; data: FlattenHyperliquidAccountCommand }
-  | {
-      kind: 'RefreshHyperliquidReconciliation'
-      data: RefreshHyperliquidReconciliationCommand
-    }
   | {
       kind: 'EditHyperliquidProtection'
       data: EditHyperliquidProtectionCommand
