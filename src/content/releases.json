@@ -1,5 +1,56 @@
 [
   {
+    "version": "0.10.4",
+    "status": "published",
+    "released_at": "2026-08-27",
+    "channel": "Protection convergence hotfix",
+    "summary": "Restored account hydration and TP/SL convergence after terminal dust and rapid partial-close races.",
+    "major": [
+      "Terminal partial fills now settle their actual owned quantity without leaving impossible protection lineage behind.",
+      "Rapid partial-close fill bursts now leave reconciliation only after every newest TP and SL successor exactly matches the remaining owned quantity.",
+      "Successor and cancellation evidence remains bound to the exact physical exchange order it proves."
+    ],
+    "minor": [
+      "Expanded deterministic exchange simulation, replay, snapshot, and multi-venue conformance coverage.",
+      "Recorded the broader versioned-lineage timing class for the dedicated fuzz campaign following this hotfix."
+    ],
+    "fixes": [
+      "Fixed accounts becoming Sync unavailable after a minimum-notional terminal partial left a canceled protection scope with pending lineage.",
+      "Fixed Close ⅓ leaving an otherwise exact TP/SL pair permanently reconciliation-required after intermediate successors briefly exceeded the final target.",
+      "Fixed minimum-notional preparation deferrals retaining actionable operations that could never reach the exchange."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "Exact successor convergence",
+        "items": [
+          "Keep the overcoverage fence while any child remains oversized, failed, or has pending predecessor/successor work.",
+          "Clear only the known transient overcoverage reason after every physical child is exact and pending-free.",
+          "Let ordinary coverage derivation move the controller to Tracking, Flat, or Canceled without weakening unrelated reconciliation failures.",
+          "Replay the production two-child, thirteen-fill ordering and require identical event replay and snapshot restoration."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Terminal dust lifecycle",
+        "items": [
+          "Account for the quantity actually filled when an entry becomes terminal below its requested quantity.",
+          "Supersede minimum-notional protection work before dispatch and clear its pending child link.",
+          "Allow owner recovery to hydrate the resulting effect-free account instead of repeating the same reconciliation failure."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Deferred fuzz campaign seed",
+        "items": [
+          "Register rapid target-version changes, in-flight intermediate successors, and prepared-query stream resolution as a dedicated protection schedule.",
+          "Require convergence only from exact newest-child evidence, with unrelated safety fences remaining sticky.",
+          "Keep the long-running campaign expansion separate from this urgent deterministic patch and deployment qualification."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.3",
     "status": "published",
     "released_at": "2026-08-26",

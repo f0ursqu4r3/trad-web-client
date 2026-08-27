@@ -14,29 +14,23 @@ test.beforeEach(async ({ page }) => {
 test('lists published releases and filters their categories', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Patch notes' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Updates' })).toHaveClass(/active/)
-  await expect(page.getByRole('link', { name: 'v0.10.1' })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'Trad 0.10.4' })).toHaveAttribute(
     'href',
-    '/updates/0.10.1/',
+    '/updates/0.10.4/',
   )
-  await expect(page.getByRole('heading', { name: 'Trad 0.10.1' })).toBeVisible()
-  await expect(page.getByText('Test cluster', { exact: true })).toHaveCount(2)
+  await expect(page.getByRole('heading', { name: 'Trad 0.10.4' })).toBeVisible()
+  await expect(page.getByText('Protection convergence hotfix', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Trad 0.10.0' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Trad 0.9.0' })).toBeVisible()
   await expect(page.getByText('Beta', { exact: true })).toBeVisible()
-  await expect(page.getByText('Chase protection controller', { exact: true })).toBeVisible()
-  await expect(page.getByText('All-in fee policy and revenue', { exact: true })).toBeVisible()
-  await expect(
-    page.getByText("Reproduced the client's BTC sequence", { exact: false }),
-  ).toBeVisible()
+  await expect(page.getByText('Exact successor convergence', { exact: true })).toBeVisible()
+  await expect(page.getByText('Terminal dust lifecycle', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Fixes', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Fixes', exact: true })).toHaveCount(3)
+  await expect(page.getByRole('heading', { name: 'Fixes', exact: true })).toHaveCount(6)
   await expect(page.getByRole('heading', { name: 'Major', exact: true })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Minor', exact: true })).toHaveCount(0)
-  await expect(page.getByText('Incident repairs', { exact: true })).toBeVisible()
-  await expect(
-    page.getByText('Precision, reporting, and density fixes', { exact: true }),
-  ).toBeVisible()
+  await expect(page.getByText('Terminal dust lifecycle', { exact: true })).toBeVisible()
   await expect(page.getByText('Trade-scoped economics and risk', { exact: true })).toHaveCount(0)
 })
 
