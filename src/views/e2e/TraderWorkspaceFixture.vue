@@ -49,6 +49,10 @@ accounts.accountsRaw = [
 accounts.selectedAccountId = ENGINE_ACCOUNT_ID
 accounts.lastFetchedAt = Date.now()
 const initialProjection = engineProjectionSnapshot()
+if (new URLSearchParams(location.search).has('low_margin')) {
+  const settlement = initialProjection.balances.find((balance) => balance.asset === 'USDC')
+  if (settlement) settlement.available = '10'
+}
 if (new URLSearchParams(location.search).has('reconciliation')) {
   const position = initialProjection.positions.find((candidate) => candidate.symbol === 'ETH')
   if (position) {

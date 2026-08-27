@@ -107,6 +107,19 @@ test('surfaces reconciliation attention without losing trade identity', () => {
   assert.equal(trade?.attentionReason, 'Position reconciliation is required.')
 })
 
+test('presents exchange confirmation as progress instead of reconciliation attention', () => {
+  const snapshot = engineProjectionSnapshot()
+  const eth = snapshot.positions.find((position) => position.symbol === 'ETH')
+  assert.ok(eth)
+  eth.reconciliation_required = true
+  eth.status = 'awaiting_exchange_confirmation'
+
+  const trade = tradeWorkspaceProjection(snapshot).activeTrades.find((row) => row.symbol === 'ETH')
+
+  assert.equal(trade?.lifecycle, 'active')
+  assert.equal(trade?.attentionReason, null)
+})
+
 test('keeps taken-over and closed scopes as explicit lifecycle states', () => {
   const takenOverSnapshot = engineProjectionSnapshot()
   const takenOver = takenOverSnapshot.positions.find((position) => position.symbol === 'ETH')

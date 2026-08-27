@@ -235,8 +235,20 @@ test('telemetry correlates modal abandonment and accepted command flow without r
     })
   })
   await page.route('**/api/telemetry/events', async (route) => {
-    batches.push(route.request().postDataJSON())
-    await route.fulfill({ status: 202, contentType: 'application/json', body: '{}' })
+    const batch = route.request().postDataJSON()
+    batches.push(batch)
+    await route.fulfill({
+      status: 202,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        collection_enabled: true,
+        accepted: batch.events.length,
+        duplicate: 0,
+        invalid: 0,
+        dropped: 0,
+        sequence_gaps: 0,
+      }),
+    })
   })
   await page.reload()
 
@@ -258,6 +270,17 @@ test('telemetry correlates modal abandonment and accepted command flow without r
     .toBe(true)
 
   const events = batches.flatMap((batch) => batch.events)
+  expect(
+    events
+      .filter((event) => event.trade_id !== undefined)
+      .every(
+        (event) =>
+          typeof event.trade_id === 'string' &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            event.trade_id,
+          ),
+      ),
+  ).toBe(true)
   const canceled = events.find((event) => event.event_name === 'action_canceled')
   expect(canceled?.action_attempt_id).toBeTruthy()
   expect(
@@ -313,8 +336,20 @@ test('reconciliation-blocked protection edit explains intent without sending a c
     })
   })
   await page.route('**/api/telemetry/events', async (route) => {
-    batches.push(route.request().postDataJSON())
-    await route.fulfill({ status: 202, contentType: 'application/json', body: '{}' })
+    const batch = route.request().postDataJSON()
+    batches.push(batch)
+    await route.fulfill({
+      status: 202,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        collection_enabled: true,
+        accepted: batch.events.length,
+        duplicate: 0,
+        invalid: 0,
+        dropped: 0,
+        sequence_gaps: 0,
+      }),
+    })
   })
   await page.goto('/e2e/trader-workspace?reconciliation=1')
 
@@ -422,6 +457,40 @@ test('sets directional stop prices from explicit latest-trade distance presets',
   await expect(ticket.getByText('above 63,842.5', { exact: true })).toBeVisible()
   await ticket.getByRole('button', { name: '+2%' }).click()
   await expect(stop).toHaveValue('65120')
+})
+
+test('offers exact latest-trade distance controls for activation and take profit', async ({
+  page,
+}) => {
+  const ticket = page.getByRole('form', { name: 'New trade order ticket' })
+  await ticket.getByRole('button', { name: 'Trailing', exact: true }).click()
+
+  const activation = ticket.getByLabel('Activation price (USDC)')
+  const activationField = activation.locator('xpath=ancestor::label[contains(@class, "form-field")]')
+  await activationField.getByRole('button', { name: '+2%' }).click()
+  await expect(activation).toHaveValue('65120')
+  await expect(activationField.getByText(/current \+2%/)).toBeVisible()
+
+  await ticket.getByRole('button', { name: /Add TP/ }).click()
+  const takeProfit = ticket.getByLabel('Take-profit 1 (USDC)')
+  const takeProfitField = takeProfit.locator(
+    'xpath=ancestor::label[contains(@class, "form-field")]',
+  )
+  await takeProfitField.getByRole('button', { name: '+5%' }).click()
+  await expect(takeProfit).toHaveValue('67035')
+  await expect(takeProfitField.getByText(/current \+5%/)).toBeVisible()
+})
+
+test('warns about likely insufficient margin without disabling submission', async ({ page }) => {
+  await page.goto('/e2e/trader-workspace?low_margin=1')
+  const ticket = page.getByRole('form', { name: 'New trade order ticket' })
+  await ticket.getByLabel('Stop-loss price (USDC)').fill('62000')
+
+  await expect(ticket.getByText('Likely above available margin')).toBeVisible()
+  await expect(
+    ticket.getByText(/latest synced 10 available at 1x supports about 10 notional/i),
+  ).toBeVisible()
+  await expect(ticket.getByRole('button', { name: 'Buy BTC chase' })).toBeEnabled()
 })
 
 test('required fields stay neutral until interaction and then identify the correction', async ({

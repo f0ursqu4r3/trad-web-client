@@ -287,7 +287,12 @@ function tradeAttention(
   protection: NativeProtectionProjection | null,
   position: PositionProjection | null,
 ): string | null {
-  if (position?.reconciliation_required) return 'Position reconciliation is required.'
+  if (
+    position?.reconciliation_required &&
+    position.status !== 'awaiting_exchange_confirmation'
+  ) {
+    return 'Position reconciliation is required.'
+  }
   const failedCommand = commands.find(
     (row) => row.lifecycle === 'failed' || row.lifecycle === 'reconciliation_required',
   )

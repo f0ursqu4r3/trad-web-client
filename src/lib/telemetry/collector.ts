@@ -7,7 +7,11 @@ import type {
   TelemetryClientConfig,
   TelemetryRecord,
 } from './contract.ts'
-import { safeTelemetryProperties } from './validation.ts'
+import {
+  safeTelemetryProperties,
+  validTelemetryBatchResult,
+  validTelemetryContextIds,
+} from './validation.ts'
 import { batchBody, enqueueTelemetry, requeueTelemetry, takeTelemetryBatch } from './queue.ts'
 
 const CONFIG_PATH = '/api/telemetry/config'
@@ -83,6 +87,7 @@ export class TelemetryCollector {
       if (!config.collection_enabled) return
       const properties = safeTelemetryProperties(record.properties ?? {})
       if (properties === null) return
+      if (!validTelemetryContextIds(record)) return
       const queuedAt = Date.now()
       const release = currentProductRelease(false).version
       const event: ClientTelemetryEvent = {
@@ -139,6 +144,16 @@ export class TelemetryCollector {
         keepalive,
       })
       if (!response.ok) throw new Error('telemetry ingestion rejected')
+      const result: unknown = await response.json()
+      if (!validTelemetryBatchResult(result)) {
+        throw new Error('telemetry ingestion returned invalid result')
+      }
+      if (
+        result.invalid === 0 &&
+        result.accepted + result.duplicate + result.dropped < batch.length
+      ) {
+        throw new Error('telemetry ingestion dropped retryable events')
+      }
     } catch {
       requeueTelemetry(
         this.queue,

@@ -236,6 +236,7 @@ defineExpose({ applyPrefill })
       />
       <TradeTicketExecution
         :model-value="draft"
+        :account-id="accountId"
         :units="units"
         @update:model-value="replaceDraft"
       />

@@ -3,6 +3,7 @@ import type { MarketPriceRule } from '@/lib/marketCatalog'
 
 export const STOP_PRICE_DISTANCES = ['0.5', '1', '2', '5', '10'] as const
 export type StopPriceDistance = (typeof STOP_PRICE_DISTANCES)[number]
+export type PriceDirection = 'decrease' | 'increase'
 
 const DISTANCE_BPS: Record<StopPriceDistance, bigint> = {
   '0.5': 50n,
@@ -21,27 +22,62 @@ export function stopPriceFromReference(
   distance: StopPriceDistance,
   priceRule?: MarketPriceRule,
 ): ExactDecimal {
+  return priceFromReference(
+    reference,
+    side === 'long' ? 'decrease' : 'increase',
+    distance,
+    priceRule,
+  )
+}
+
+export function priceFromReference(
+  reference: ExactDecimal,
+  direction: PriceDirection,
+  distance: StopPriceDistance,
+  priceRule?: MarketPriceRule,
+): ExactDecimal {
   const parsed = parseDecimal(reference, 'live reference price')
   const outputScale = Math.max(parsed.scale, 2)
   const coefficient = parsed.coefficient * 10n ** BigInt(outputScale - parsed.scale)
   if (coefficient <= 0n) throw new Error('live reference price must be positive')
 
   const distanceBps = DISTANCE_BPS[distance]
-  const factor = side === 'long' ? BASIS - distanceBps : BASIS + distanceBps
+  const factor = direction === 'decrease' ? BASIS - distanceBps : BASIS + distanceBps
   if (priceRule !== undefined) {
-    return normalizeStopPrice(coefficient * factor, outputScale + 4, side, priceRule)
+    return normalizePrice(coefficient * factor, outputScale + 4, direction, priceRule)
   }
   const rounded = (coefficient * factor + BASIS / 2n) / BASIS
   return decimal(rounded, outputScale)
 }
 
-function normalizeStopPrice(
+export function priceDistanceFromReference(
+  value: ExactDecimal,
+  reference: ExactDecimal,
+): string | null {
+  try {
+    const price = parseDecimal(value, 'price')
+    const latest = parseDecimal(reference, 'live reference price')
+    const scale = Math.max(price.scale, latest.scale)
+    const priceUnits = price.coefficient * 10n ** BigInt(scale - price.scale)
+    const latestUnits = latest.coefficient * 10n ** BigInt(scale - latest.scale)
+    if (priceUnits <= 0n || latestUnits <= 0n) return null
+    const delta = priceUnits - latestUnits
+    const magnitude = delta < 0n ? -delta : delta
+    const hundredths = (magnitude * 10_000n + latestUnits / 2n) / latestUnits
+    const sign = delta < 0n ? '−' : delta > 0n ? '+' : ''
+    return `${sign}${decimal(hundredths, 2)}%`
+  } catch {
+    return null
+  }
+}
+
+function normalizePrice(
   coefficient: bigint,
   scale: number,
-  side: PositionSideIntent,
+  direction: PriceDirection,
   rule: MarketPriceRule,
 ): ExactDecimal {
-  if (rule.kind === 'fixed_tick') return alignToTick(coefficient, scale, side, rule.tick)
+  if (rule.kind === 'fixed_tick') return alignToTick(coefficient, scale, direction, rule.tick)
   const rendered = decimal(coefficient, scale)
   const [whole, fraction = ''] = rendered.split('.')
   const integerDigits = whole === '0' ? 0 : whole.length
@@ -50,13 +86,18 @@ function normalizeStopPrice(
       ? Math.max(0, 5 - integerDigits)
       : (fraction.match(/^0*/)?.[0].length ?? 0) + 5
   const maximumDecimals = Math.max(0, 6 - rule.sizeDecimals)
-  return roundScale(coefficient, scale, Math.min(maximumDecimals, significantDecimals), side)
+  return roundScale(
+    coefficient,
+    scale,
+    Math.min(maximumDecimals, significantDecimals),
+    direction,
+  )
 }
 
 function alignToTick(
   coefficient: bigint,
   scale: number,
-  side: PositionSideIntent,
+  direction: PriceDirection,
   tickValue: string,
 ): ExactDecimal {
   const tick = parseDecimal(tickValue, 'price tick')
@@ -65,7 +106,7 @@ function alignToTick(
   const tickUnits = tick.coefficient * 10n ** BigInt(commonScale - tick.scale)
   const quotient = valueUnits / tickUnits
   const aligned =
-    side === 'short' && valueUnits % tickUnits !== 0n
+    direction === 'increase' && valueUnits % tickUnits !== 0n
       ? (quotient + 1n) * tickUnits
       : quotient * tickUnits
   return decimal(aligned, commonScale)
@@ -75,12 +116,13 @@ function roundScale(
   coefficient: bigint,
   scale: number,
   targetScale: number,
-  side: PositionSideIntent,
+  direction: PriceDirection,
 ): ExactDecimal {
   if (scale <= targetScale) return decimal(coefficient, scale)
   const divisor = 10n ** BigInt(scale - targetScale)
   const quotient = coefficient / divisor
-  const rounded = side === 'short' && coefficient % divisor !== 0n ? quotient + 1n : quotient
+  const rounded =
+    direction === 'increase' && coefficient % divisor !== 0n ? quotient + 1n : quotient
   return decimal(rounded, targetScale)
 }
 

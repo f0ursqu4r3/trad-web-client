@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { stopPriceFromReference } from '../stopPricePresets.ts'
+import {
+  priceDistanceFromReference,
+  priceFromReference,
+  stopPriceFromReference,
+} from '../stopPricePresets.ts'
 
 test('places long stops below and short stops above the exact reference', () => {
   assert.equal(stopPriceFromReference('77000', 'long', '5'), '73150')
@@ -34,4 +38,12 @@ test('rejects missing, malformed, and nonpositive references', () => {
   assert.throws(() => stopPriceFromReference('', 'long', '1'))
   assert.throws(() => stopPriceFromReference('market', 'long', '1'))
   assert.throws(() => stopPriceFromReference('0', 'long', '1'))
+})
+
+test('builds either directional price and reports signed current distance', () => {
+  assert.equal(priceFromReference('79000', 'increase', '2'), '80580')
+  assert.equal(priceFromReference('79000', 'decrease', '2'), '77420')
+  assert.equal(priceDistanceFromReference('81000', '79000'), '+2.53%')
+  assert.equal(priceDistanceFromReference('77953', '78904'), '−1.21%')
+  assert.equal(priceDistanceFromReference('', '78904'), null)
 })

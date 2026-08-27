@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import FormField from '@/components/forms/FormField.vue'
+import PriceDistancePresets from '@/components/forms/PriceDistancePresets.vue'
 import { labelWithUnit, type MarketUnits } from '@/lib/engineCommands/marketUnits'
 import type { TradeTicketDraft } from '@/lib/trader/tradeTicketDraft'
 
-defineProps<{ units: MarketUnits }>()
+defineProps<{ units: MarketUnits; accountId: string }>()
 const draft = defineModel<TradeTicketDraft>({ required: true })
 </script>
 
@@ -84,6 +85,13 @@ const draft = defineModel<TradeTicketDraft>({ required: true })
       required
     >
       <input v-model="draft.activationPrice" class="input" inputmode="decimal" required />
+      <PriceDistancePresets
+        v-model="draft.activationPrice"
+        :account-id="accountId"
+        :symbol="draft.symbol"
+        :position-side="draft.positionSide"
+        purpose="activation"
+      />
     </FormField>
     <FormField
       label="Jump threshold (bps)"

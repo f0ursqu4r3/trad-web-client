@@ -39,6 +39,9 @@ const activeAmendment = computed(() =>
 const hasRemainingExposure = computed(() => !isExactZero(props.trade.remainingQuantity))
 const closeBlocker = computed<TelemetryBlockerCode | null>(() => {
   if (closeAction.value !== null || !hasRemainingExposure.value) return null
+  if (props.trade.position?.status === 'awaiting_exchange_confirmation') {
+    return 'POSITION_CONFIRMING'
+  }
   if (
     props.trade.position?.reconciliation_required ||
     props.trade.protection?.status === 'reconciliation_required'
@@ -93,7 +96,7 @@ function blockAction(actionKind: TelemetryActionKind, blockerCode: TelemetryBloc
   recordTelemetry({
     eventName: 'action_blocked',
     accountId: accounts.selectedAccountId,
-    tradeId: props.trade.tradeId,
+    tradeId: props.trade.primaryCommand.command_id,
     commandId: props.trade.primaryCommand.command_id,
     actionAttemptId: newActionAttemptId(),
     properties: { action_kind: actionKind, blocker_code: blockerCode, source: 'managed_trade' },
@@ -108,7 +111,7 @@ function recordUnavailable(
   recordTelemetry({
     eventName: 'action_unavailable_presented',
     accountId: accounts.selectedAccountId,
-    tradeId: props.trade.tradeId,
+    tradeId: props.trade.primaryCommand.command_id,
     commandId: props.trade.primaryCommand.command_id,
     properties: { action_kind: actionKind, blocker_code: blockerCode, control_id: controlId },
   })
@@ -116,6 +119,8 @@ function recordUnavailable(
 
 function blockerExplanation(blockerCode: TelemetryBlockerCode): string {
   switch (blockerCode) {
+    case 'POSITION_CONFIRMING':
+      return 'Trad is confirming the latest position change with the exchange. This action will become available automatically.'
     case 'RECONCILIATION_REQUIRED':
       return 'This trade needs reconciliation before Trad can safely change its exposure or protection.'
     case 'ACTIVE_CLOSE_EXISTS':

@@ -1,4 +1,8 @@
 import type { TelemetryProperties } from './catalog.ts'
+import type { TelemetryBatchResult, TelemetryRecord } from './contract.ts'
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const propertyNames = new Set<keyof TelemetryProperties>([
   'action_kind',
@@ -49,4 +53,31 @@ export function safeTelemetryProperties(
     safe[key] = value
   }
   return safe as TelemetryProperties
+}
+
+export function validTelemetryContextIds(record: TelemetryRecord): boolean {
+  return [
+    record.accountId,
+    record.tradeId,
+    record.actionAttemptId,
+    record.requestId,
+    record.commandId,
+  ].every((value) => value == null || UUID_PATTERN.test(value))
+}
+
+export function validTelemetryBatchResult(value: unknown): value is TelemetryBatchResult {
+  if (typeof value !== 'object' || value === null) return false
+  const result = value as Partial<TelemetryBatchResult>
+  return (
+    typeof result.collection_enabled === 'boolean' &&
+    nonnegativeInteger(result.accepted) &&
+    nonnegativeInteger(result.duplicate) &&
+    nonnegativeInteger(result.invalid) &&
+    nonnegativeInteger(result.dropped) &&
+    nonnegativeInteger(result.sequence_gaps)
+  )
+}
+
+function nonnegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 }

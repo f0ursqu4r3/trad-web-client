@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Pin, TriangleAlert } from 'lucide-vue-next'
 
 import ProtectionAmendmentModal from '@/components/engine/actions/ProtectionAmendmentModal.vue'
 import { activeProtectionAmendment } from '@/lib/engineCommands/protectionAmendment'
+import { isExactZero } from '@/lib/exactDecimalMath'
 import type { EngineCommandPrefill } from '@/lib/engineCommands/prefill'
 import type { BrowserAccountSnapshot } from '@/lib/gateway'
 import type { ManagedTradeView } from '@/lib/projection/tradeWorkspace'
@@ -56,6 +57,20 @@ const createdAtTitle = computed(() => new Date(props.trade.createdAt).toLocaleSt
 const rootCommandId = computed(() => props.trade.primaryCommand.command_id)
 const shortRootCommandId = computed(() => rootCommandId.value.slice(0, 8))
 const tradeIdCopied = ref(false)
+const progressMessage = computed(() => {
+  if (props.trade.lifecycle === 'closing' && isExactZero(props.trade.remainingQuantity)) {
+    if (props.trade.protection?.status === 'reconciliation_required') {
+      return 'Position closed · verifying protection cleanup'
+    }
+    if (props.trade.protection && props.trade.protection.status !== 'canceled') {
+      return 'Position closed · canceling protection'
+    }
+  }
+  if (props.trade.position?.status === 'awaiting_exchange_confirmation') {
+    return 'Confirming the latest position change with the exchange'
+  }
+  return null
+})
 const createdAtLabel = computed(() => {
   const created = new Date(props.trade.createdAt)
   if (Number.isNaN(created.getTime())) return ''
@@ -90,7 +105,7 @@ watch(
     recordTelemetry({
       eventName: 'reconciliation_banner_shown',
       accountId: accounts.selectedAccountId,
-      tradeId: props.trade.tradeId,
+      tradeId: props.trade.primaryCommand.command_id,
       commandId: props.trade.primaryCommand.command_id,
       properties: { blocker_code: 'RECONCILIATION_REQUIRED', source: 'managed_trade' },
     })
@@ -117,7 +132,7 @@ function recordTradeSelected(source: string): void {
   recordTelemetry({
     eventName: 'trade_selected',
     accountId: accounts.selectedAccountId,
-    tradeId: props.trade.tradeId,
+    tradeId: props.trade.primaryCommand.command_id,
     commandId: props.trade.primaryCommand.command_id,
     properties: { source },
   })
@@ -147,7 +162,7 @@ async function copyTradeId(): Promise<void> {
     recordTelemetry({
       eventName: 'trade_id_copied',
       accountId: accounts.selectedAccountId,
-      tradeId: props.trade.tradeId,
+      tradeId: props.trade.primaryCommand.command_id,
       commandId: rootCommandId.value,
       properties: { source: 'managed_trade' },
     })
@@ -253,6 +268,7 @@ async function copyTradeId(): Promise<void> {
     <div class="trade-body">
       <div class="trade-summary">
         <div v-if="trade.attentionReason" class="trade-alert">{{ trade.attentionReason }}</div>
+        <div v-else-if="progressMessage" class="trade-progress">{{ progressMessage }}</div>
         <ManagedTradeMetrics :trade="trade" @move-protection="openMoveProtection" />
         <ManagedTradeActions ref="actionBar" :trade="trade" :snapshot="snapshot" />
       </div>
@@ -312,6 +328,12 @@ async function copyTradeId(): Promise<void> {
 }
 .trade-card.trade-active {
   border-left-color: var(--state-success);
+}
+.trade-progress {
+  padding: 0.45rem 0.75rem;
+  color: var(--state-warning);
+  border-bottom: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--state-warning) 8%, transparent);
 }
 .trade-card.trade-taken_over {
   border-left-color: var(--state-info);

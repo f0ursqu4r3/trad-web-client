@@ -2,6 +2,7 @@
 import { Plus, Trash2 } from 'lucide-vue-next'
 
 import FormField from '@/components/forms/FormField.vue'
+import PriceDistancePresets from '@/components/forms/PriceDistancePresets.vue'
 import StopPricePresets from '@/components/forms/StopPricePresets.vue'
 import { newTakeProfit } from '@/lib/engineCommands/form'
 import { labelWithUnit, type MarketUnits } from '@/lib/engineCommands/marketUnits'
@@ -90,6 +91,13 @@ function removeTakeProfit(id: string): void {
         required
       >
         <input v-model="takeProfit.triggerPrice" class="input" inputmode="decimal" required />
+        <PriceDistancePresets
+          v-model="takeProfit.triggerPrice"
+          :account-id="accountId"
+          :symbol="draft.symbol"
+          :position-side="draft.positionSide"
+          purpose="take_profit"
+        />
       </FormField>
       <FormField
         v-if="draft.entryType !== 'trailing'"

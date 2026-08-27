@@ -2,8 +2,14 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
+import { formatExactDecimal } from '@/lib/exactDecimalMath'
+import { affordabilityAdvisory } from '@/lib/engineCommands/affordability'
 import type { BrowserPreviewIntent, CommandPreview } from '@/lib/gateway'
 import { previewRejectionRemediation } from '@/lib/engineCommands/previewRemediation'
+import { recordTelemetry } from '@/lib/telemetry'
+import { ExchangeType } from '@/lib/ws/protocol'
+import { useAccountProjectionStore } from '@/stores/accountProjection'
+import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 
 const props = defineProps<{
@@ -22,9 +28,34 @@ const emit = defineEmits<{
 }>()
 
 const gateway = useGatewayStore()
+const accounts = useAccountsStore()
+const projections = useAccountProjectionStore()
 const preview = ref<CommandPreview | null>(null)
 const error = ref<string | null>(null)
 const pending = ref(false)
+const account = computed(() => accounts.accounts.find((row) => row.id === props.accountId) ?? null)
+const projection = computed(() => projections.byAccount[props.accountId] ?? null)
+const available = computed(
+  () =>
+    projection.value?.view?.live.balances.find(
+      (balance) => balance.asset === (props.quoteAsset ?? 'USDC'),
+    )?.available ?? null,
+)
+const configuredLeverage = computed(() => {
+  const metadata = account.value?.exchange_metadata
+  const symbol = preview.value?.symbol.toUpperCase()
+  if (!symbol) return null
+  return metadata?.symbol_leverage_overrides?.[symbol] ?? metadata?.default_leverage ?? null
+})
+const affordability = computed(() =>
+  affordabilityAdvisory(preview.value, {
+    hyperliquid: account.value?.exchange === ExchangeType.Hyperliquid,
+    projectionReady: projection.value?.status === 'ready',
+    projectionRevision: projection.value?.view?.live.checkpoint.projection_revision ?? null,
+    available: available.value,
+    configuredLeverage: configuredLeverage.value,
+  }),
+)
 const ready = computed(() => preview.value !== null && error.value === null && !pending.value)
 const status = computed<PreviewStatus>(() => {
   if (pending.value) return 'planning'
@@ -59,6 +90,24 @@ watch([() => props.active, () => props.accountId, () => props.intent], schedule,
 })
 watch(ready, (value) => emit('update:ready', value), { immediate: true })
 watch(status, (value) => emit('update:status', value), { immediate: true })
+watch(
+  () => affordability.value?.fingerprint ?? null,
+  (fingerprint, previous) => {
+    const advisory = affordability.value
+    if (fingerprint === null || advisory === null) return
+    recordTelemetry({
+      eventName: 'affordability_changed',
+      accountId: props.accountId,
+      projectionRevision: advisory.projectionRevision,
+      actionAttemptId: props.actionAttemptId,
+      properties: {
+        state: advisory.state,
+        previous_state: previous?.split(':', 1)[0] ?? 'unknown',
+        source: 'execution_preview',
+      },
+    })
+  },
+)
 
 function schedule(): void {
   if (timer !== null) window.clearTimeout(timer)
@@ -182,6 +231,24 @@ onBeforeUnmount(() => {
       <p v-for="warning in preview.warnings" :key="warning" class="preview-warning">
         {{ warning }}
       </p>
+      <div
+        v-if="affordability?.state === 'insufficient_margin_likely'"
+        class="affordability-warning"
+        role="status"
+      >
+        <strong>Likely above available margin</strong>
+        <span>
+          Planned {{ formatExactDecimal(preview.normalized_quote_notional) }}
+          {{ props.quoteAsset ?? '' }}; the latest synced
+          {{ formatExactDecimal(affordability.available ?? '0') }} available at
+          {{ affordability.leverage }}x supports about
+          {{ formatExactDecimal(affordability.estimatedMaximumNotional ?? '0') }} notional.
+          Hyperliquid may partially fill or reject the order.
+        </span>
+        <small>
+          This is advisory only. Submission remains available and the venue is the final authority.
+        </small>
+      </div>
       <p class="preview-note">Final submission replans against current exchange evidence.</p>
     </template>
   </section>
@@ -294,6 +361,22 @@ onBeforeUnmount(() => {
 }
 .preview-warning {
   color: var(--color-warning);
+}
+.affordability-warning {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 8px;
+  padding: 0.55rem;
+  border: 1px solid var(--state-warning);
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--state-warning) 8%, transparent);
+}
+.affordability-warning strong,
+.affordability-warning small {
+  display: block;
+}
+.affordability-warning small {
+  color: var(--color-text-dim);
 }
 .preview-note {
   color: var(--color-text-dim);

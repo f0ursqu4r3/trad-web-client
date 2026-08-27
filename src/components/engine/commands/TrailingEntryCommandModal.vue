@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import MarketSymbolCombobox from '@/components/forms/MarketSymbolCombobox.vue'
+import PriceDistancePresets from '@/components/forms/PriceDistancePresets.vue'
 import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmission'
 import { useTelemetryAction } from '@/composables/useTelemetryAction'
 import type { PositionSideIntent } from '@/lib/gateway'
@@ -224,6 +225,13 @@ function buildIntent() {
             type="text"
             inputmode="decimal"
           />
+          <PriceDistancePresets
+            v-model="activationPrice"
+            :account-id="selectedAccountId"
+            :symbol="symbol"
+            :position-side="positionSide"
+            purpose="activation"
+          />
         </FormField>
         <FormField
           label="Jump Threshold (bps)"
@@ -265,6 +273,13 @@ function buildIntent() {
             aria-label="Take Profit Price (optional)"
             type="text"
             inputmode="decimal"
+          />
+          <PriceDistancePresets
+            v-model="takeProfitPrice"
+            :account-id="selectedAccountId"
+            :symbol="symbol"
+            :position-side="positionSide"
+            purpose="take_profit"
           />
         </FormField>
         <FormField

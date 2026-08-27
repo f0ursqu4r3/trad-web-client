@@ -14,6 +14,15 @@ export interface TelemetryClientConfig {
   max_event_age_ms: number
 }
 
+export interface TelemetryBatchResult {
+  collection_enabled: boolean
+  accepted: number
+  duplicate: number
+  invalid: number
+  dropped: number
+  sequence_gaps: number
+}
+
 export interface TelemetryContext {
   accountId?: string | null
   tradeId?: string | null
