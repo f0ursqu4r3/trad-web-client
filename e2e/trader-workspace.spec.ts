@@ -229,6 +229,26 @@ test('close presets remain ordinary audited close commands', async ({ page }) =>
   await expect(dialog.getByLabel('Close Percentage (%)')).toHaveValue('50')
 })
 
+test('an active close explains ownership and exposes its durable support reference', async ({
+  page,
+}) => {
+  await page.goto('/e2e/trader-workspace?active_close=1')
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+
+  await expect(eth.getByText('closing', { exact: true })).toBeVisible()
+  await expect(eth.getByText(/Trad is waiting for its authoritative outcome/i)).toBeVisible()
+  await expect(
+    eth.getByRole('button', {
+      name: 'Copy active close command ID 39000000-0000-4000-8000-000000000002',
+    }),
+  ).toHaveText('close #39000000')
+  const duplicateClose = eth.getByRole('button', { name: 'Close ½' })
+  await expect(duplicateClose).toHaveClass(/action-unavailable/)
+  await duplicateClose.click()
+  await expect(eth.getByText(/Trad is waiting for its authoritative outcome/i)).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Close Exposure' })).toHaveCount(0)
+})
+
 test('telemetry correlates modal abandonment and accepted command flow without raw inputs', async ({
   page,
 }) => {
@@ -480,7 +500,9 @@ test('offers exact latest-trade distance controls for activation and take profit
   await ticket.getByRole('button', { name: 'Trailing', exact: true }).click()
 
   const activation = ticket.getByLabel('Activation price (USDC)')
-  const activationField = activation.locator('xpath=ancestor::label[contains(@class, "form-field")]')
+  const activationField = activation.locator(
+    'xpath=ancestor::label[contains(@class, "form-field")]',
+  )
   await activationField.getByRole('button', { name: '+2%' }).click()
   await expect(activation).toHaveValue('65120')
   await expect(activationField.getByText(/current \+2%/)).toBeVisible()

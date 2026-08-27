@@ -4,6 +4,8 @@ import { indexPositions, tradeSeeds } from './tradeWorkspaceRelationships.ts'
 import { buildManagedTrade } from './tradeWorkspaceTrade.ts'
 import type { TradeWorkspaceProjection } from './tradeWorkspaceTypes.ts'
 
+export { activeCloseWorkflowsForTrade } from './tradeWorkspaceClose.ts'
+
 export type {
   ManagedTradeLifecycle,
   ManagedTradeView,

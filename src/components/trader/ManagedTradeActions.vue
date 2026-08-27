@@ -6,7 +6,10 @@ import ProtectionAmendmentModal from '@/components/engine/actions/ProtectionAmen
 import type { LifecycleAction } from '@/lib/engineCommands/lifecycle'
 import { activeProtectionAmendment } from '@/lib/engineCommands/protectionAmendment'
 import type { BrowserAccountSnapshot } from '@/lib/gateway'
-import type { ManagedTradeView } from '@/lib/projection/tradeWorkspace'
+import {
+  activeCloseWorkflowsForTrade,
+  type ManagedTradeView,
+} from '@/lib/projection/tradeWorkspace'
 import { managedTradeActions } from '@/lib/projection/tradeWorkspaceActions'
 import { useAccountsStore } from '@/stores/accounts'
 import { isExactZero } from '@/lib/exactDecimalMath'
@@ -33,12 +36,19 @@ const actions = computed(() => managedTradeActions(props.trade, props.snapshot))
 const closeAction = computed(() => actions.value.close)
 const secondaryActions = computed(() => actions.value.secondary)
 const takeoverAction = computed(() => actions.value.takeover)
+const activeCloseWorkflow = computed(
+  () => activeCloseWorkflowsForTrade(props.trade, props.snapshot)[0] ?? null,
+)
+const activeCloseCommandId = computed(() => activeCloseWorkflow.value?.command_id ?? null)
+const shortActiveCloseCommandId = computed(() => activeCloseCommandId.value?.slice(0, 8) ?? null)
+const closeReferenceCopied = ref(false)
 const activeAmendment = computed(() =>
   activeProtectionAmendment(props.trade.protection, props.snapshot.protection_amendments),
 )
 const hasRemainingExposure = computed(() => !isExactZero(props.trade.remainingQuantity))
 const closeBlocker = computed<TelemetryBlockerCode | null>(() => {
   if (closeAction.value !== null || !hasRemainingExposure.value) return null
+  if (activeCloseWorkflow.value !== null) return 'ACTIVE_CLOSE_EXISTS'
   if (props.trade.position?.status === 'awaiting_exchange_confirmation') {
     return 'POSITION_CONFIRMING'
   }
@@ -48,7 +58,6 @@ const closeBlocker = computed<TelemetryBlockerCode | null>(() => {
   ) {
     return 'RECONCILIATION_REQUIRED'
   }
-  if (props.trade.lifecycle === 'closing') return 'ACTIVE_CLOSE_EXISTS'
   return 'POSITION_INCONSISTENT'
 })
 const protectionBlocker = computed<TelemetryBlockerCode | null>(() => {
@@ -60,6 +69,12 @@ const protectionBlocker = computed<TelemetryBlockerCode | null>(() => {
   if (activeAmendment.value !== null) return 'PROTECTION_AMENDMENT_ACTIVE'
   return null
 })
+const activeCloseMessage = computed(() =>
+  closeBlocker.value === 'ACTIVE_CLOSE_EXISTS'
+    ? 'A close is already active. Trad is waiting for its authoritative outcome before allowing another close.'
+    : null,
+)
+const actionMessage = computed(() => blockedMessage.value ?? activeCloseMessage.value)
 
 watch(
   [closeBlocker, protectionBlocker],
@@ -124,13 +139,26 @@ function blockerExplanation(blockerCode: TelemetryBlockerCode): string {
     case 'RECONCILIATION_REQUIRED':
       return 'This trade needs reconciliation before Trad can safely change its exposure or protection.'
     case 'ACTIVE_CLOSE_EXISTS':
-      return 'A close is already active for this trade. Wait for its outcome before submitting another.'
+      return (
+        activeCloseMessage.value ??
+        'A close is already active for this trade. Wait for its outcome before submitting another.'
+      )
     case 'PROTECTION_NOT_TRACKING':
       return 'Protection is not tracking, so it cannot be edited safely.'
     case 'PROTECTION_AMENDMENT_ACTIVE':
       return 'A protection edit is already active.'
     default:
       return 'Trad cannot prove this action is safe from the current account projection.'
+  }
+}
+
+async function copyActiveCloseReference(): Promise<void> {
+  if (activeCloseCommandId.value === null) return
+  try {
+    await navigator.clipboard.writeText(activeCloseCommandId.value)
+    closeReferenceCopied.value = true
+  } catch {
+    closeReferenceCopied.value = false
   }
 }
 
@@ -202,7 +230,23 @@ defineExpose({ openClose, openTakeover })
     >
       Edit protection
     </button>
-    <p v-if="blockedMessage" class="action-blocker" role="status">{{ blockedMessage }}</p>
+    <p v-if="actionMessage" class="action-blocker" role="status">
+      <span>{{ actionMessage }}</span>
+      <button
+        v-if="activeCloseCommandId"
+        class="close-reference"
+        type="button"
+        :title="
+          closeReferenceCopied
+            ? 'Copied active close command ID'
+            : `Copy active close command ID ${activeCloseCommandId}`
+        "
+        :aria-label="`Copy active close command ID ${activeCloseCommandId}`"
+        @click="copyActiveCloseReference"
+      >
+        close #{{ shortActiveCloseCommandId }}
+      </button>
+    </p>
     <button
       v-for="action in secondaryActions"
       :key="action.kind"
@@ -262,10 +306,27 @@ defineExpose({ openClose, openTakeover })
   opacity: 0.58;
 }
 .action-blocker {
+  display: flex;
   flex-basis: 100%;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
   margin: 0.2rem 0 0;
   color: var(--state-warning);
   font-size: 11px;
+}
+.close-reference {
+  padding: 0.05rem 0.2rem;
+  border: 1px solid var(--border-normal);
+  color: inherit;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: inherit;
+}
+.close-reference:hover,
+.close-reference:focus-visible {
+  border-color: var(--border-strong);
+  color: var(--fg);
 }
 @media (max-width: 760px) {
   .trade-actions {

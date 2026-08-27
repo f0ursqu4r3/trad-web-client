@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { engineProjectionSnapshot } from '../../../views/e2e/engineProjectionFixtureData.ts'
-import { tradeWorkspaceProjection } from '../tradeWorkspace.ts'
+import { activeCloseWorkflowsForTrade, tradeWorkspaceProjection } from '../tradeWorkspace.ts'
 import { managedTradeTrailingEntries } from '../tradeWorkspaceCharts.ts'
 
 test('derives pending and active trades from exposure scope identity', () => {
@@ -20,6 +20,53 @@ test('derives pending and active trades from exposure scope identity', () => {
   assert.equal(
     workspace.activeTrades.find((trade) => trade.symbol === 'ETH')?.scopeId,
     'scope-filled',
+  )
+})
+
+test('reports only the exact active close lineage as the support reference', () => {
+  const snapshot = engineProjectionSnapshot()
+  const trade = tradeWorkspaceProjection(snapshot).activeTrades.find((row) => row.symbol === 'ETH')
+  assert.ok(trade)
+  const base = {
+    close_workflow_id: '39000000-0000-4000-8000-000000000001',
+    command_id: '39000000-0000-4000-8000-000000000002',
+    source_command_ids: [trade.primaryCommand.command_id],
+    symbol: 'ETH',
+    position_side: 'long' as const,
+    requested_reductions: [{ scope_id: trade.scopeId, quantity: '0.002' }],
+    close_all: false,
+    authoritative_side: false,
+    requested_external_quantity: '0',
+    submitted_reductions: null,
+    submitted_external_quantity: '0',
+    requested_quantity: '0.002',
+    source_order_ids: [],
+    execution: { kind: 'market' as const },
+    execution_root: {
+      kind: 'order' as const,
+      order_id: '39000000-0000-4000-8000-000000000003',
+    },
+    close_order_id: '39000000-0000-4000-8000-000000000003',
+    submission_operation_id: '39000000-0000-4000-8000-000000000004',
+    client_order_id: 'exact-close',
+    lifecycle: 'running',
+    last_reason: null,
+    created_at: 30,
+  }
+  snapshot.close_workflows.push(
+    { ...base, command_id: 'old-terminal', lifecycle: 'failed', created_at: 10 },
+    {
+      ...base,
+      command_id: 'other-scope',
+      requested_reductions: [{ scope_id: 'scope-other', quantity: '0.002' }],
+      created_at: 40,
+    },
+    base,
+  )
+
+  assert.deepEqual(
+    activeCloseWorkflowsForTrade(trade, snapshot).map((workflow) => workflow.command_id),
+    [base.command_id],
   )
 })
 

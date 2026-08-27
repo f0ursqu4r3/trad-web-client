@@ -67,6 +67,41 @@ if (new URLSearchParams(location.search).has('reconciliation')) {
     protection.failure_reason = 'fixture protection quantity mismatch'
   }
 }
+if (new URLSearchParams(location.search).has('active_close')) {
+  const entry = initialProjection.orders.find(
+    (candidate) => candidate.current_request.symbol === 'ETH',
+  )
+  const position = initialProjection.positions.find((candidate) => candidate.symbol === 'ETH')
+  const primary = initialProjection.commands.find(
+    (candidate) => candidate.accepted.kind === 'place_order',
+  )
+  if (entry && position && primary) {
+    position.status = 'awaiting_exchange_confirmation'
+    initialProjection.close_workflows.push({
+      close_workflow_id: '39000000-0000-4000-8000-000000000001',
+      command_id: '39000000-0000-4000-8000-000000000002',
+      source_command_ids: [primary.command_id],
+      symbol: 'ETH',
+      position_side: 'long',
+      requested_reductions: [{ scope_id: 'scope-filled', quantity: '0.00210001' }],
+      close_all: false,
+      authoritative_side: false,
+      requested_external_quantity: '0',
+      submitted_reductions: null,
+      submitted_external_quantity: '0',
+      requested_quantity: '0.00210001',
+      source_order_ids: [entry.order_id],
+      execution: { kind: 'market' },
+      execution_root: { kind: 'order', order_id: '39000000-0000-4000-8000-000000000003' },
+      close_order_id: '39000000-0000-4000-8000-000000000003',
+      submission_operation_id: '39000000-0000-4000-8000-000000000004',
+      client_order_id: 'fixture-active-close',
+      lifecycle: 'running',
+      last_reason: null,
+      created_at: Date.now(),
+    })
+  }
+}
 projections.install(
   ENGINE_ACCOUNT_ID,
   ENGINE_SUBSCRIPTION_ID,
