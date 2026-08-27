@@ -1,5 +1,59 @@
 [
   {
+    "version": "0.10.9",
+    "status": "published",
+    "released_at": "2026-08-27",
+    "channel": "Chase activation hotfix",
+    "summary": "Recovered retired overlapping close fills as exact external reductions so authoritative startup can converge without hiding the resulting position.",
+    "major": [
+      "An old close fill beyond its exact scope capacity is now preserved as an external reduction from that source order, never borrowed from another managed trade.",
+      "Fresh venue position evidence confirms the outside exposure and allows account activation instead of a repeating Sync Unavailable recovery cycle.",
+      "The recovery performs no automatic close or ownership claim; the resulting venue position remains explicitly outside every managed trade."
+    ],
+    "minor": [
+      "The production-shaped generated campaign now requires successful activation semantics as well as replay-safe accounting conservation.",
+      "Expected post-only Chase races remain fresh-book paced and unbounded by the separate three-hard-rejection safety limit.",
+      "Forward lineage fencing and exact TP/SL cancellation identity from 0.10.7 remain unchanged."
+    ],
+    "fixes": [
+      "Fixed known historic overfill recovery remaining trapped in startup because an otherwise authoritative position retained an unallocated-fill blocker.",
+      "Fixed a recovered account staying Sync Unavailable even after fresh venue evidence proved its exact external position.",
+      "Kept the retired order's excess quantity durable without weakening startup checks for genuinely unknown or ambiguous fills."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "Exact externalization boundary",
+        "items": [
+          "Apply a late reduction only up to the quantity its referenced exposure scope still owns.",
+          "Represent every excess unit as ReduceExternal with the same position side and source-order event.",
+          "Require authoritative venue position evidence to establish the resulting outside long or short quantity.",
+          "Leave unrelated unallocated fills and startup blockers strict; only this proven retired-reduction shape converges automatically."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Activation-loop rehearsal",
+        "items": [
+          "Reproduced the production startup loop on a fresh read-only database copy with exchange effects disabled.",
+          "Verified the accounting repair before changing activation behavior, then rejected the intermediate release because it still left Sync Unavailable.",
+          "Require the final candidate to activate from the untouched production history while exposing the 6.61375 BTC position as external.",
+          "Never close, cancel, resize, or otherwise mutate the venue position during local rehearsal."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Generated recovery schedules",
+        "items": [
+          "Permute two through nine overlapping reductions, partial fills, duplicate evidence, and arbitrary completion order.",
+          "Restart through event replay and snapshots between generated transitions.",
+          "Assert that owned exposure saturates at zero, excess never moves to another scope, and the authoritative residual is external.",
+          "Run the target in bounded CI and separate nightly and weekly campaigns."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.8",
     "status": "published",
     "released_at": "2026-08-27",
