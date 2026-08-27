@@ -1,5 +1,59 @@
 [
   {
+    "version": "0.10.7",
+    "status": "published",
+    "released_at": "2026-08-27",
+    "channel": "Chase lineage hotfix",
+    "summary": "Kept post-only Chase races inside their owning trade and close lineage without unlocking overlapping actions.",
+    "major": [
+      "Post-only submit and native-modify races now wait for fresh market evidence without consuming the Chase hard-failure budget.",
+      "A live close Chase retains exclusive ownership of its exposure scope across every physical order generation, duplicate, late predecessor event, and restart.",
+      "Added a dedicated generated Chase lineage campaign covering repeated submit and modify races, snapshot and event replay, and overlapping close attempts."
+    ],
+    "minor": [
+      "Close controls now distinguish exchange confirmation from a stable reconciliation blocker and explain which active close owns the trade.",
+      "Hyperliquid capacity guidance remains advisory so stale balance evidence never becomes a hard client-side trading gate.",
+      "Release qualification includes deterministic incident replays plus bounded CI, nightly, and sustained fuzz shards."
+    ],
+    "fixes": [
+      "Fixed Hyperliquid badAloPxRejected evidence dropping a zero-fill Chase instead of repricing from the next book update.",
+      "Fixed one rejected physical close generation falsely failing its parent and allowing another close to cross the account through flat.",
+      "Fixed stale predecessor cancellation evidence discharging work intended for the newest TP or SL successor."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "One Chase, many physical generations",
+        "items": [
+          "Treat each venue CLOID and OID as one physical attempt while the Chase and parent close remain the lifecycle authorities.",
+          "Require a later fresh book before exactly one retry can be prepared, with one operation in flight and normal cancel, boundary, and deadline controls intact.",
+          "Keep genuine hard native-modify failures separately bounded while expected post-only races remain normal Chase churn.",
+          "Preserve backward replay compatibility by decoding older untyped rejection events conservatively as hard unclassified failures."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Close ownership and exact cancellation",
+        "items": [
+          "Follow the whole close Chase lifecycle instead of terminalizing the parent from one rejected physical generation.",
+          "Defensively reserve an exposure scope whenever its parent, Chase, or referenced order still contains live work.",
+          "Require exact remote-order identity before a predecessor cancellation or query can resolve a current normal or protection successor.",
+          "Explain active close ownership and exchange-confirmation progress without flashing a stable reconciliation error for ordinary latency."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Generated incident qualification",
+        "items": [
+          "Generate one through thirty-two consecutive submit or native-modify races per schedule.",
+          "Inject duplicate responses, late generation-one evidence, event replay, snapshot restore, and competing partial or full closes.",
+          "Require the parent to remain Closing, reject every overlap, retain zero hard-failure count for expected races, and eventually fill exactly once.",
+          "Run the target in bounded CI and separate longer nightly and weekly campaigns so ordinary tests remain fast."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.6",
     "status": "published",
     "released_at": "2026-08-27",
