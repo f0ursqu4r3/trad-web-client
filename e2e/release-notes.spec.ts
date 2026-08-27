@@ -14,11 +14,11 @@ test.beforeEach(async ({ page }) => {
 test('lists published releases and filters their categories', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Patch notes' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Updates' })).toHaveClass(/active/)
-  await expect(page.getByRole('link', { name: 'Trad 0.10.7' })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'Trad 0.10.8' })).toHaveAttribute(
     'href',
-    '/updates/0.10.7/',
+    '/updates/0.10.8/',
   )
-  await expect(page.getByRole('heading', { name: 'Trad 0.10.7' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Trad 0.10.8' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Trad 0.10.5' })).toHaveAttribute(
     'href',
     '/updates/0.10.5/',
@@ -34,7 +34,7 @@ test('lists published releases and filters their categories', async ({ page }) =
   await expect(page.getByText('Account removal fencing', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Fixes', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Fixes', exact: true })).toHaveCount(9)
+  await expect(page.getByRole('heading', { name: 'Fixes', exact: true })).toHaveCount(10)
   await expect(page.getByRole('heading', { name: 'Major', exact: true })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Minor', exact: true })).toHaveCount(0)
   await expect(page.getByText('Account removal fencing', { exact: true })).toBeVisible()

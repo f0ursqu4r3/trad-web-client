@@ -1,5 +1,58 @@
 [
   {
+    "version": "0.10.8",
+    "status": "published",
+    "released_at": "2026-08-27",
+    "channel": "Chase recovery hotfix",
+    "summary": "Recovered historic overlapping Chase closes without hiding their resulting external exposure or locking account hydration.",
+    "major": [
+      "Historic close fills that exceed a trade's remaining owned quantity now preserve the excess as explicit unallocated exposure instead of preventing account startup.",
+      "The account converges to Reconciliation Required with the venue-observed position visible; Trad never silently claims, closes, or discards the excess.",
+      "Added deterministic production-number replay and generated schedules for overlapping reductions, late fills, duplicates, partials, and restarts."
+    ],
+    "minor": [
+      "The 0.10.7 forward lineage fix remains intact: a post-only physical generation cannot terminate its parent Chase or release close ownership.",
+      "Generated recovery schedules assert accounting conservation across event replay and snapshot restore.",
+      "The recovery path performs no automatic financial action and leaves operator or customer resolution explicit."
+    ],
+    "fixes": [
+      "Fixed an already-persisted overlapping close fill repeatedly failing owner hydration with reduction exceeds exposure scope.",
+      "Fixed excess historic reduction being represented only as a startup error instead of durable unallocated exposure.",
+      "Kept late physical-generation evidence bounded to its exact order while the logical Chase remains the lifecycle authority."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "Backward-safe exposure recovery",
+        "items": [
+          "Cap each historic owned-reduction effect at the quantity its exact exposure scope still owns.",
+          "Record every excess unit against its source order as unallocated fill rather than borrowing ownership from another trade.",
+          "Hydrate successfully into explicit reconciliation state with external venue exposure still visible and unchanged.",
+          "Preserve the normalized result in durable events so replay and snapshot restore cannot reinterpret it."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Production incident replay",
+        "items": [
+          "Replay the 13.22751 BTC entry, 6.61375 BTC half-close, overlapping close-all, and retired half-close fill in their observed order.",
+          "Require owned exposure to reach exactly zero while the resulting 6.61375 BTC short remains external and requires reconciliation.",
+          "Verify the same result after duplicate evidence, event replay, and snapshot restoration instead of a repeating hydration failure."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Sustained overlap campaign",
+        "items": [
+          "Generate two through nine historic reductions with arbitrary fill ordering and partial completion.",
+          "Inject duplicate fills and event or snapshot restarts between every meaningful transition.",
+          "Cross through flat in the fake Hyperliquid model and require exact conservation of owned, external, and unallocated quantities.",
+          "Run bounded CI plus longer nightly and weekly shards independently from routine product tests."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.7",
     "status": "published",
     "released_at": "2026-08-27",
