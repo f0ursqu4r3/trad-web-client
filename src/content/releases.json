@@ -1,5 +1,57 @@
 [
   {
+    "version": "0.10.5",
+    "status": "published",
+    "released_at": "2026-08-27",
+    "channel": "Lifecycle safety",
+    "summary": "Completed the multi-venue state-machine campaign and hardened account removal against owner and storage races.",
+    "major": [
+      "Added maintained generated campaigns for order lineage, protection, external venue activity, balances, configuration, account lifecycle, ownership, durability, projections, isolation, and three venue profiles.",
+      "Account removal quarantine now survives lease expiry, preventing another owner from reacquiring an account after credentials were erased but before assignment retirement completed.",
+      "Configuration and removal schedules now continuously exercise stale credentials, disable and re-enable, committed effects, owner epochs, and retry boundaries without exchange access."
+    ],
+    "minor": [
+      "Added dedicated bounded fuzz targets and seed corpora for account configuration and removal.",
+      "Kept nightly and weekly campaigns isolated, reproducible, and subject to corpus, artifact, target, memory, and time budgets."
+    ],
+    "fixes": [
+      "Fixed local-only account removal becoming non-resumable when credential deletion failed after the durable quarantine was installed.",
+      "Fixed an expired quarantined assignment being eligible for owner reacquisition before destructive account removal retired it.",
+      "Required stale owners to remain fenced after an account is removed and recreated with a fresh owner epoch."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "Multi-venue state-machine campaign",
+        "items": [
+          "Run shared semantic order and evidence histories through Hyperliquid, Binance, and Bybit capability profiles.",
+          "Compose user actions, direct venue activity, response timing, snapshots, balance changes, credential revisions, owner transfer, durable retry, and replay.",
+          "Require every generated history to converge, wait on named bounded evidence, or enter an explicit stable blocker instead of looping invisibly.",
+          "Keep deterministic regressions in routine tests and long coverage-guided runs in isolated bounded targets."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Account removal fencing",
+        "items": [
+          "Resume only a quarantine created by the explicit unverified-removal workflow; an unrelated operator quarantine remains ineligible.",
+          "Keep credential-erasure quarantine authoritative even after its lease deadline passes.",
+          "Block removal while committed or claimed exchange effects exist and retire only the exact fenced lease.",
+          "Require recreation to acquire a fresh owner epoch that stale cleanup cannot mutate."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Bounded campaign operations",
+        "items": [
+          "Add source-controlled CI, nightly, and weekly shards for configuration and account removal.",
+          "Pin the fuzz toolchain and enforce build, corpus, artifact, report, file-count, and execution-time limits.",
+          "Run runtime targets only with in-memory journals and the synthetic Bifake executor, with no credential or real-exchange path."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.4",
     "status": "published",
     "released_at": "2026-08-27",

@@ -14,23 +14,24 @@ test.beforeEach(async ({ page }) => {
 test('lists published releases and filters their categories', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Patch notes' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Updates' })).toHaveClass(/active/)
-  await expect(page.getByRole('link', { name: 'Trad 0.10.4' })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'Trad 0.10.5' })).toHaveAttribute(
     'href',
-    '/updates/0.10.4/',
+    '/updates/0.10.5/',
   )
-  await expect(page.getByRole('heading', { name: 'Trad 0.10.4' })).toBeVisible()
-  await expect(page.getByText('Protection convergence hotfix', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Trad 0.10.5' })).toBeVisible()
+  await expect(page.getByText('Lifecycle safety', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Trad 0.10.0' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Trad 0.9.0' })).toBeVisible()
   await expect(page.getByText('Beta', { exact: true })).toBeVisible()
-  await expect(page.getByText('Exact successor convergence', { exact: true })).toBeVisible()
-  await expect(page.getByText('Terminal dust lifecycle', { exact: true })).toBeVisible()
+  await expect(page.getByText('Multi-venue state-machine campaign', { exact: true })).toBeVisible()
+  await expect(page.getByText('Account removal fencing', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Fixes', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Fixes', exact: true })).toHaveCount(6)
+  await expect(page.getByRole('heading', { name: 'Fixes', exact: true })).toHaveCount(7)
   await expect(page.getByRole('heading', { name: 'Major', exact: true })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Minor', exact: true })).toHaveCount(0)
-  await expect(page.getByText('Terminal dust lifecycle', { exact: true })).toBeVisible()
+  await expect(page.getByText('Account removal fencing', { exact: true })).toBeVisible()
+  await expect(page.getByText('Multi-venue state-machine campaign', { exact: true })).toHaveCount(0)
   await expect(page.getByText('Trade-scoped economics and risk', { exact: true })).toHaveCount(0)
 })
 
