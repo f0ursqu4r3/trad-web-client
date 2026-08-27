@@ -11,7 +11,7 @@ test('Bybit command and device filters are explicit, not selected-account scoped
     })
   })
 
-  await page.goto('/e2e/bybit-terminal')
+  await page.goto('/e2e/bybit-terminal?filters=1')
 
   const commandPanel = page.getByTestId('command-panel')
   const devicePanel = page.getByTestId('device-tree-panel')
@@ -285,6 +285,13 @@ test('Hyperliquid opposite-side order preview requires fresh economic confirmati
 test('partially filled Hyperliquid command offers cancel-remaining-and-close, not cancel', async ({
   page,
 }) => {
+  await page.route('https://api.hyperliquid-testnet.xyz/info', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ universe: [{ name: 'BTC', szDecimals: 5 }] }),
+    })
+  })
   await page.goto('/e2e/bybit-terminal')
 
   const row = page
@@ -368,19 +375,23 @@ test('Hyperliquid fee manager sees and saves target total cost clearly', async (
     accountPanel.getByText('0x1111111111111111111111111111111111111111', { exact: true }).first(),
   ).toBeVisible()
   await expect(accountPanel.getByText('(main account)', { exact: true })).toBeVisible()
-  await expect(accountPanel.getByRole('button', { name: 'Approve Agent' })).toBeEnabled()
+  await expect(
+    accountPanel.getByRole('button', { name: 'Agent approved', exact: true }),
+  ).toBeDisabled()
   await expect(accountPanel.getByRole('button', { name: 'Refresh Agent' })).toBeEnabled()
   await expect(accountPanel.getByText('Builder Address')).toBeVisible()
   await expect(accountPanel.getByText('0x3333333333333333333333333333333333333333')).toBeVisible()
   await expect(accountPanel.getByPlaceholder('0x builder wallet')).toHaveCount(0)
-  await expect(accountPanel.getByText('5.2 bps = 0.052%')).toBeVisible()
-  await expect(accountPanel.getByText('Approved max:')).toBeVisible()
-  await expect(accountPanel.getByText('10.0 bps', { exact: true })).toBeVisible()
-  await expect(accountPanel.getByText('approved', { exact: true }).last()).toBeVisible()
+  await expect(accountPanel.getByText(/Current all-in target 5\.2 bps/)).toBeVisible()
+  await expect(accountPanel.getByText('Approved maximum:')).toBeVisible()
+  await expect(accountPanel.getByText('10.0 bps / 0.100%', { exact: true })).toBeVisible()
+  await expect(
+    accountPanel.getByRole('button', { name: 'Builder approved', exact: true }),
+  ).toBeDisabled()
 
-  await accountPanel.getByRole('spinbutton', { name: /Target total/ }).fill('2.5')
-  await expect(accountPanel.getByText('2.5 bps = 0.025%')).toBeVisible()
-  await accountPanel.getByRole('button', { name: 'Save', exact: true }).click()
+  await accountPanel.getByLabel('All-in fee source').selectOption('override')
+  await accountPanel.getByLabel('Account all-in override / side').fill('2.5')
+  await accountPanel.getByRole('button', { name: 'Save all-in fee', exact: true }).click()
 
   await expect.poll(() => metadataPayload).not.toBeNull()
   expect(metadataPayload).toEqual({
@@ -388,9 +399,7 @@ test('Hyperliquid fee manager sees and saves target total cost clearly', async (
       builder_target_total_tenths_bps: 25,
     },
   })
-  await expect(
-    accountPanel.getByText('Saved Hyperliquid target total for Hyperliquid QA.'),
-  ).toBeVisible()
+  await expect(accountPanel.getByText('Saved all-in fee policy for Hyperliquid QA.')).toBeVisible()
 })
 
 test('ordinary Hyperliquid user sees target total as read-only', async ({ page }) => {
@@ -398,18 +407,15 @@ test('ordinary Hyperliquid user sees target total as read-only', async ({ page }
 
   const accountPanel = page.getByTestId('accounts-panel')
   await accountPanel.getByRole('button', { name: /Hyperliquid QA/ }).click()
-  await expect(
-    accountPanel
-      .locator('label')
-      .filter({ hasText: 'Target total / side' })
-      .getByText('5.2 bps', { exact: true }),
-  ).toBeVisible()
+  await expect(accountPanel.getByText(/Current all-in target: 5\.2 bps per side/)).toBeVisible()
   await expect(accountPanel.getByRole('spinbutton', { name: /Target total/ })).toHaveCount(0)
   await expect(accountPanel.getByRole('button', { name: 'Save', exact: true })).toHaveCount(0)
 
   await page.getByTestId('open-hyperliquid-mo').click()
   const dialog = page.getByRole('dialog', { name: 'Market Order' })
-  await expect(dialog.getByLabel('Target total cost per side')).toHaveText('5.2 bps')
+  await expect(
+    dialog.getByText(/Estimated exchange fee \+ Trad builder fee = 5\.2 bps/),
+  ).toBeVisible()
   await expect(
     dialog.getByRole('spinbutton', { name: 'Target total cost per side in basis points' }),
   ).toHaveCount(0)
@@ -843,7 +849,7 @@ test('Hyperliquid TE is capability-gated, previewed, and submitted with native s
   await page.evaluate(() => window.__tradBybitTerminalFixture?.setHyperliquidTeEnabled(true))
   await expect(dialog.getByText('Unavailable', { exact: true })).toBeHidden()
   await expect(dialog.getByLabel('Take Profit')).toBeVisible()
-  await expect(dialog.getByText(/Hyperliquid public mid \$50.00k/)).toBeVisible()
+  await expect(dialog.getByText(/Hyperliquid public mid \$50,000\.00/)).toBeVisible()
   await dialog.getByRole('button', { name: 'One-way position behavior' }).click()
   const positionInfo = dialog.getByTestId('hyperliquid-te-position-info')
   const sizingMode = dialog.getByRole('combobox', { name: 'One-way entry sizing' })
@@ -1040,8 +1046,8 @@ test('Hyperliquid TE tree exposes owned exposure, reversal, mixed children, and 
   await expect(details.getByText('One-Way Net Effect', { exact: true })).toBeVisible()
   await expect(details.getByText('Reversal', { exact: true })).toBeVisible()
   await expect(details.getByText('Target side exposure', { exact: true })).toBeVisible()
-  await expect(details.getByText('Short 0.2500', { exact: true })).toBeVisible()
-  await expect(details.getByText('0.7500', { exact: true }).first()).toBeVisible()
+  await expect(details.getByText('Short 0.25', { exact: true })).toBeVisible()
+  await expect(details.getByText('0.75', { exact: true }).first()).toBeVisible()
 
   await deviceRows.filter({ hasText: 'Market Order' }).filter({ hasText: 'Failed' }).click()
   await expect(details.getByText('Rejected', { exact: true }).first()).toBeVisible()
@@ -1067,24 +1073,13 @@ test('Hyperliquid TE tree exposes owned exposure, reversal, mixed children, and 
   const closeExposureItem = page.getByRole('menuitem', { name: 'Close Command Exposure' })
   await expect(closeExposureItem).toHaveAttribute(
     'title',
-    "Submits a reduce-only market close for this command's owned exposure. Other command and external exposure is unchanged.",
+    "Closes this command's owned exposure. Other command and outside-Trad exposure is unchanged.",
   )
   await closeExposureItem.click()
-  const closeDialog = page.getByRole('dialog', { name: 'Close Command Exposure' })
-  await expect(closeDialog).toBeVisible()
-  await closeDialog.getByLabel("Don't ask again for position closes").check()
-  await closeDialog.getByRole('button', { name: 'Close Command Exposure' }).click()
+  await expect(page.getByRole('dialog', { name: 'Close Command Exposure' })).toHaveCount(0)
   await expect
     .poll(() => page.evaluate(() => window.__tradBybitTerminalFixture?.getClosePositionSends()))
     .toEqual(['61616161-6161-4161-8161-616161616161'])
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => JSON.parse(localStorage.getItem('trad-ui-store') ?? '{}').confirmPositionCloses,
-      ),
-    )
-    .toBe(false)
-
   await commandRow.getByTitle('Menu').click()
   await page.getByRole('menuitem', { name: 'Close Command Exposure' }).click()
   await expect(page.getByRole('dialog', { name: 'Close Command Exposure' })).toHaveCount(0)
@@ -1222,12 +1217,12 @@ test('Hyperliquid Chase renders composed attempts, diagnostics, stale state, and
   const details = page.getByTestId('device-details-panel')
   await expect(details.getByText('Chase Device')).toBeVisible()
   await expect(details.getByText('Best Bid', { exact: true })).toBeVisible()
-  await expect(details.getByText('$50.02k', { exact: true }).first()).toBeVisible()
-  await expect(details.getByText('0.000500', { exact: true }).first()).toBeVisible()
-  await expect(details.getByText('0.001000', { exact: true }).first()).toBeVisible()
+  await expect(details.getByText('$50,020.00', { exact: true }).first()).toBeVisible()
+  await expect(details.getByText('0.0005', { exact: true }).first()).toBeVisible()
+  await expect(details.getByText('0.001', { exact: true }).first()).toBeVisible()
   await expect(details.getByText('33.33%', { exact: true })).toBeVisible()
   await expect(details.getByText('20 bps (0.2%)', { exact: true })).toBeVisible()
-  await expect(details.getByText('TP $51.00k / SL $49.00k', { exact: true })).toBeVisible()
+  await expect(details.getByText('TP $51,000.00 / SL $49,000.00', { exact: true })).toBeVisible()
   await expect(details.getByText('Child protection devices', { exact: true })).toBeVisible()
 
   const attempts = details.getByTestId('chase-attempt-history').locator('tbody tr')
@@ -1408,9 +1403,9 @@ test('editable TE exposes actions and clickable off-scale tabs synchronized with
   }
   const upperTabs = page.getByTestId('offscale-upper-tabs')
   const lowerTabs = page.getByTestId('offscale-lower-tabs')
-  await expect(upperTabs.getByText(/↑ TP 3\.20k/)).toBeVisible()
-  await expect(lowerTabs.getByText(/↓ Act 2\.92k/)).toBeVisible()
-  await expect(lowerTabs.getByText(/↓ Stop 2\.90k/)).toBeVisible()
+  await expect(upperTabs.getByText(/↑ TP 3,200\.00/)).toBeVisible()
+  await expect(lowerTabs.getByText(/↓ Act 2,920\.00/)).toBeVisible()
+  await expect(lowerTabs.getByText(/↓ Stop 2,900\.00/)).toBeVisible()
 
   const upperBox = await upperTabs.boundingBox()
   const lowerBox = await lowerTabs.boundingBox()
@@ -1435,8 +1430,8 @@ test('editable TE exposes actions and clickable off-scale tabs synchronized with
       lowerTabBoxes[1].bottom <= lowerTabBoxes[0].top,
   ).toBe(true)
 
-  await page.getByRole('button', { name: /Show TP 3\.20k/ }).click()
-  await expect(page.getByRole('button', { name: /Show TP 3\.20k/ })).toBeHidden()
+  await page.getByRole('button', { name: /Show TP 3,200\.00/ }).click()
+  await expect(page.getByRole('button', { name: /Show TP 3,200\.00/ })).toBeHidden()
   await expect(lowerTabs).toBeVisible()
   await expect(page.getByRole('button', { name: /Show Peak/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Show Jump/ })).toHaveCount(0)
@@ -1457,9 +1452,9 @@ test('editable TE exposes actions and clickable off-scale tabs synchronized with
   for (let index = 0; index < 16; index += 1) {
     await page.mouse.wheel(0, -120)
   }
-  await expect(page.getByRole('button', { name: /Show Stop 2\.90k/ })).toBeVisible()
-  await page.getByRole('button', { name: /Show Stop 2\.90k/ }).click()
-  await expect(page.getByRole('button', { name: /Show Stop 2\.90k/ })).toBeHidden()
+  await expect(page.getByRole('button', { name: /Show Stop 2,900\.00/ })).toBeVisible()
+  await page.getByRole('button', { name: /Show Stop 2,900\.00/ }).click()
+  await expect(page.getByRole('button', { name: /Show Stop 2,900\.00/ })).toBeHidden()
   await expect(page.getByRole('button', { name: /Show Peak/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Show Jump/ })).toHaveCount(0)
   const lowerFocusState = await page.evaluate(() =>
@@ -1526,7 +1521,7 @@ test('Hyperliquid protection edit validates against live mid and emits exact dev
   await expect(editButton).toHaveAttribute('aria-expanded', 'true')
 
   const dialog = page.getByRole('dialog', { name: 'Edit Hyperliquid protection' })
-  await expect(dialog.getByText('Current mid: $50.00k', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('Current mid: $50,000.00', { exact: true })).toBeVisible()
   await expect(dialog.getByText(/Existing legs: atomic batch modify by exact CLOID/)).toBeVisible()
   await expect(dialog.getByLabel('Take Profit')).toHaveValue('51000')
   await expect(dialog.getByLabel('Stop Loss')).toHaveValue('49000')
@@ -1647,15 +1642,15 @@ test('Hyperliquid partial close previews normalized remainder and emits stale-sa
   await page.getByRole('menuitem', { name: 'Close Part...' }).click()
 
   const dialog = page.getByRole('dialog', { name: 'Partially close Hyperliquid command' })
-  await expect(dialog.getByText('0.000120', { exact: true })).toBeVisible()
-  await expect(dialog.getByText('0.000380', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('0.00012', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('0.00038', { exact: true })).toBeVisible()
   await expect(
     dialog.getByText('atomically resize 1 protection group(s)', { exact: true }),
   ).toBeVisible()
-  await expect(dialog.getByText('0.003000', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('0.003', { exact: true })).toBeVisible()
 
   await dialog.getByLabel('Exact Quantity').fill('0.00026')
-  await expect(dialog.getByText('0.000240', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('0.00024', { exact: true })).toBeVisible()
   await expect(dialog.getByRole('checkbox')).toHaveCount(0)
   await expect(dialog.getByRole('button', { name: 'close part' })).toBeEnabled()
   await dialog.getByRole('button', { name: 'close part' }).click()
@@ -1793,16 +1788,16 @@ test('working Hyperliquid limit order can be canceled from device details', asyn
   const details = page.getByTestId('device-details-panel')
   await expect(details.getByText('Limit Order Device')).toBeVisible()
   await expect(details.getByText('Filled Quantity')).toBeVisible()
-  await expect(details.getByText('0.000200', { exact: true })).toBeVisible()
+  await expect(details.getByText('0.0002', { exact: true })).toBeVisible()
   await expect(details.getByText('Remaining Quantity')).toBeVisible()
-  await expect(details.getByText('0.000300', { exact: true })).toBeVisible()
+  await expect(details.getByText('0.0003', { exact: true })).toBeVisible()
   await expect(details.getByText('Fill Progress')).toBeVisible()
   await expect(details.getByText('40%', { exact: true })).toBeVisible()
   await expect(details.getByText('Account ID')).toBeVisible()
   await expect(details.getByText('17171717...', { exact: true })).toBeVisible()
   const executionSummary = details.getByTestId('execution-fill-summary')
   await expect(executionSummary.getByText('Average Fill')).toBeVisible()
-  await expect(executionSummary.getByText('$50.01k', { exact: true })).toBeVisible()
+  await expect(executionSummary.getByText('$50,005.00000000001', { exact: true })).toBeVisible()
   await expect(executionSummary.getByText('Total Fee')).toBeVisible()
   await expect(executionSummary.getByText('0.01 USDC', { exact: true })).toBeVisible()
   await expect(executionSummary.getByText('Builder Component')).toBeVisible()
@@ -2744,15 +2739,15 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
     dialog.getByText('Required: click Check permissions above to unlock Create'),
   ).toBeVisible()
   await expect(dialog.getByRole('button', { name: 'Create' })).toBeDisabled()
-  await expect(dialog.getByRole('button', { name: 'Check permissions — required' })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Check permissions' })).toBeVisible()
   await dialog
     .getByPlaceholder('Optional 0x vault address')
     .fill('0x4444444444444444444444444444444444444444')
   await dialog.getByLabel('Default Leverage').fill('3')
   await dialog.getByLabel('Margin Mode').selectOption('isolated')
   await expect(dialog.getByText('Trad configured')).toBeVisible()
-  await expect(dialog.getByText('5.2 bps')).toBeVisible()
-  await expect(dialog.getByText('0.052%')).toBeVisible()
+  await expect(dialog.getByText('Current All-in Target / Side')).toBeVisible()
+  await expect(dialog.getByText('Inherited from the administrator’s fee policy')).toBeVisible()
 
   await dialog.getByRole('button', { name: 'Check permissions' }).click()
   await expect(
@@ -2769,7 +2764,6 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
     product: 'usdc_perp',
     hedge_mode_only: false,
     vault_address: '0x4444444444444444444444444444444444444444',
-    builder_target_total_tenths_bps: 52,
     builder_approved: false,
     agent_approved: false,
     default_leverage: 3,
@@ -2882,9 +2876,10 @@ test('Hyperliquid account creation accepts a pasted existing agent key', async (
   await expect(dialog.getByText('Most users should not use this.')).toBeVisible()
   await expect(dialog.getByText('Never enter the main wallet private key')).toBeVisible()
   await dialog.getByPlaceholder('Account alias').fill('Existing Agent QA')
-  await dialog.getByPlaceholder('0x...').fill('0x1111111111111111111111111111111111111111')
+  await dialog.getByPlaceholder('0x...').fill('0x6666666666666666666666666666666666666666')
   await dialog.getByPlaceholder('32-byte hex private key').fill(existingSecret)
-  await expect(dialog.getByText('5.2 bps')).toBeVisible()
+  await expect(dialog.getByText('Current All-in Target / Side')).toBeVisible()
+  await expect(dialog.getByText('Inherited from the administrator’s fee policy')).toBeVisible()
   await dialog.getByRole('button', { name: 'Check permissions' }).click()
   await expect(dialog.getByText('Existing agent key valid')).toBeVisible()
   await dialog.getByRole('button', { name: 'Create' }).click()

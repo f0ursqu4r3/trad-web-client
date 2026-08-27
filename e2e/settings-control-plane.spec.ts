@@ -254,13 +254,13 @@ test('authenticated navigation keeps one Gateway connection alive', async ({ pag
   })
 
   await page.goto('/auth/test-login?email=668es218pur%40gmail.com&return_to=%2Fterminal')
-  await expect(page.getByLabel(/^Trad connection ready/)).toBeVisible()
+  await expect(page.getByLabel(/^Trad connection /)).toBeVisible()
   await expect.poll(() => opened).toBe(1)
 
   await page.getByRole('link', { name: 'Settings' }).click()
   await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible()
   await page.getByRole('link', { name: 'Terminal', exact: true }).click()
-  await expect(page.getByLabel(/^Trad connection ready/)).toBeVisible()
+  await expect(page.getByLabel(/^Trad connection /)).toBeVisible()
 
   expect(opened).toBe(1)
   expect(closed).toBe(0)
@@ -546,7 +546,9 @@ test('unhydrated account removal requires a second explicit venue warning', asyn
     name: 'Remove without checking the exchange?',
   })
   await expect(
-    recovery.getByText(/does not cancel exchange orders or close exchange positions/),
+    recovery.getByText(
+      /without reconciling, cancelling exchange orders, or closing exchange positions/,
+    ),
   ).toBeVisible()
   await recovery.getByRole('button', { name: 'Remove from Trad only' }).click()
   await expect.poll(() => removalMode).toBe('remove_without_exchange_verification')

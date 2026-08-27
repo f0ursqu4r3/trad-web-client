@@ -16,7 +16,7 @@ async function openFixture(page: Page, viewport = { width: 1680, height: 940 }) 
       body: JSON.stringify({ BTC: '64100', ETH: '3100', SOL: '180' }),
     })
   })
-  await page.goto('/e2e/bybit-terminal')
+  await page.goto('/e2e/bybit-terminal?filters=1')
   await page.addStyleTag({ content: '* { caret-color: transparent !important; }' })
   await expect(page.getByTestId('command-panel')).toBeVisible()
   await page.waitForTimeout(500)
@@ -39,9 +39,13 @@ test('R1 selected trailing-entry graph and device details', async ({ page }) => 
     .locator('.command-row')
     .filter({ hasText: 'Hyperliquid ETH ownership conflict' })
   await command.click()
-  await expect(page.getByTestId('device-tree-panel').getByText('Trailing Entry').first()).toBeVisible()
+  await expect(
+    page.getByTestId('device-tree-panel').getByText('Trailing Entry').first(),
+  ).toBeVisible()
   await page.getByTestId('device-tree-panel').getByText('Trailing Entry').first().click()
-  await expect(page.getByTestId('device-details-panel').getByText('Trailing Entry Device')).toBeVisible()
+  await expect(
+    page.getByTestId('device-details-panel').getByText('Trailing Entry Device'),
+  ).toBeVisible()
 
   await expect(page).toHaveScreenshot('r1-trailing-entry-selected.png', {
     animations: 'disabled',
@@ -58,9 +62,7 @@ test('R1 protected market-order form', async ({ page }) => {
   await expect(page).toHaveScreenshot('r1-market-order-form.png', {
     animations: 'disabled',
     fullPage: true,
-    mask: [
-      page.locator('[aria-label="Hyperliquid position effect"] .grid span:last-of-type'),
-    ],
+    mask: [page.locator('[aria-label="Hyperliquid position effect"] .grid span:last-of-type')],
   })
 })
 
@@ -98,8 +100,6 @@ test('R1 market form remains usable at a narrow viewport', async ({ page }) => {
 
   await expect(dialog).toHaveScreenshot('r1-market-order-narrow.png', {
     animations: 'disabled',
-    mask: [
-      dialog.locator('[aria-label="Hyperliquid position effect"] .grid span:last-of-type'),
-    ],
+    mask: [dialog.locator('[aria-label="Hyperliquid position effect"] .grid span:last-of-type')],
   })
 })

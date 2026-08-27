@@ -722,6 +722,7 @@ const accounts = [
       hedge_mode_only: false,
       user_address: '0x1111111111111111111111111111111111111111',
       agent_address: '0x2222222222222222222222222222222222222222',
+      agent_name: 'trad-17171717',
       agent_approved: hyperliquidAgentApprovedFixture,
       agent_approval_verified_at_ms: 1_780_000_000_000,
       builder_address: '0x3333333333333333333333333333333333333333',
@@ -2398,7 +2399,9 @@ onMounted(async () => {
   highCountHyperliquidDevices.forEach((device) => deviceStore.handleDeviceSnapshotLite(device))
 
   await nextTick()
-  commandPanelRef.value?.toggleFilters()
+  if (new URLSearchParams(window.location.search).get('filters') === '1') {
+    commandPanelRef.value?.toggleFilters()
+  }
 })
 </script>
 

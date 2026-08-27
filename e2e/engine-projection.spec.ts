@@ -25,10 +25,10 @@ test('renders the typed command graph and exact execution evidence', async ({ pa
   await commands.getByText('Market Order', { exact: true }).click()
   await tree.locator('[data-node-kind="order"]').getByText('Market Order', { exact: true }).click()
   await expect(details.getByText('0.00420001', { exact: true }).first()).toBeVisible()
-  await expect(details.getByText('0.00420001 @ 1918.90000001', { exact: true })).toBeVisible()
+  await expect(details.getByText('0.0021 @ 1918.90000001', { exact: true })).toBeVisible()
   await expect(details.getByText('Fee 0.003223456789 USDC', { exact: true })).toBeVisible()
-  await expect(details.getByText('0.002112345678 USDC', { exact: true })).toBeVisible()
-  await expect(details.getByText('-0.003223456789 USDC', { exact: true })).toBeVisible()
+  await expect(details.getByText('0.001666666666 USDC', { exact: true })).toBeVisible()
+  await expect(details.getByText('-0.004835185183 USDC', { exact: true })).toBeVisible()
   await expect(details.getByText('stop_loss @ 1800.125', { exact: true }).first()).toBeVisible()
 })
 
@@ -426,7 +426,7 @@ test('inspects authoritative account positions and pre-fills typed flatten contr
   await eth.getByRole('button', { name: 'Flatten symbol' }).click()
   const flatten = page.getByRole('dialog', { name: 'Flatten Exposure' })
   await expect(flatten.getByRole('combobox', { name: 'Target' })).toHaveValue('symbol')
-  await expect(flatten.getByRole('textbox', { name: 'Symbol' })).toHaveValue('ETH')
+  await expect(flatten.getByRole('combobox', { name: 'Symbol' })).toHaveValue('ETH')
   await flatten.getByRole('button', { name: 'Cancel' }).click()
 
   await eth.getByRole('button', { name: 'scope-filled' }).click()
