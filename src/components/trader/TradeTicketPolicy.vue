@@ -14,6 +14,7 @@ const props = defineProps<{
   accountId: string
   intent: BrowserPreviewIntent | null
   quoteAsset: string | null
+  actionAttemptId?: string | null
 }>()
 const emit = defineEmits<{
   (event: 'ready', value: boolean): void
@@ -55,6 +56,7 @@ function bps(value: number | null | undefined): string {
     :intent="intent"
     :active="true"
     :quote-asset="quoteAsset"
+    :action-attempt-id="actionAttemptId"
     @update:ready="emit('ready', $event)"
     @update:status="emit('status', $event)"
   />

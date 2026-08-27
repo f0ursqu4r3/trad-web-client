@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
+import CloseExposureSummary from './CloseExposureSummary.vue'
 import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmission'
 import {
   actionOwnedExposure,
@@ -21,6 +22,8 @@ import { useAccountsStore } from '@/stores/accounts'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useGatewayStore } from '@/stores/gateway'
 import { useMarketStore } from '@/stores/market'
+import { useTelemetryAction } from '@/composables/useTelemetryAction'
+import { lifecycleTelemetryKind } from '@/lib/telemetry/lifecycleObservation'
 
 const props = defineProps<{
   open: boolean
@@ -36,6 +39,14 @@ const accounts = useAccountsStore()
 const projections = useAccountProjectionStore()
 const markets = useMarketStore()
 const submission = useEngineCommandSubmission()
+const telemetryAction = useTelemetryAction({
+  open: () => props.open,
+  accountId: () => props.accountId || null,
+  tradeId: () => props.action?.command.command_id ?? null,
+  commandId: () => props.action?.command.command_id ?? null,
+  actionKind: () => lifecycleTelemetryKind(props.action?.kind),
+  source: 'lifecycle_modal',
+})
 const closeMode = ref<'full' | 'percent' | 'base'>('full')
 const closePercent = ref('25')
 const closeQuantity = ref('')
@@ -190,6 +201,7 @@ function reset(): void {
 async function submit(): Promise<void> {
   if (props.action === null) return
   validationError.value = null
+  const actionAttemptId = telemetryAction.confirm()
   try {
     const intent = lifecycleIntent(props.action, {
       closeMode: closeMode.value,
@@ -207,10 +219,18 @@ async function submit(): Promise<void> {
       targetQuantity: targetQuantity.value,
       trailingEntry: amendment.value,
     })
-    if (await submission.submit({ accountId: props.accountId, intent })) emit('close')
+    if (await submission.submit({ accountId: props.accountId, intent }, actionAttemptId)) {
+      emit('close')
+    }
   } catch (error) {
+    telemetryAction.validationFailed()
     validationError.value = error instanceof Error ? error.message : String(error)
   }
+}
+
+function closeModal(): void {
+  telemetryAction.cancel()
+  emit('close')
 }
 
 function orderValue(key: string): string {
@@ -262,42 +282,21 @@ function chooseClosePercent(percent: string): void {
     :title="title"
     :open="open"
     :blur-backdrop="action?.kind !== 'close_exposure'"
-    @close="emit('close')"
+    @close="closeModal"
   >
     <form id="engine-lifecycle-action" class="action-form" @submit.prevent="submit">
       <template v-if="action?.kind === 'close_exposure'">
-        <section class="close-context" data-testid="close-exposure-context">
-          <div>
-            <span>Source Exposure</span>
-            <strong>
-              {{ actionSymbol }} · {{ ownedExposure?.side ?? '-' }} ·
-              {{ formatExactDecimal(ownedQuantity) }} {{ units.base ?? '' }}
-            </strong>
-          </div>
-          <div>
-            <span>Selected Close</span>
-            <strong>
-              {{ closeQuantityResolved ? formatExactDecimal(closeQuantityResolved) : '-' }}
-              {{ units.base ?? '' }}
-            </strong>
-          </div>
-          <div>
-            <span>Owned Remainder</span>
-            <strong>
-              {{ closeRemainder === '-' ? '-' : formatExactDecimal(closeRemainder) }}
-              {{ units.base ?? '' }}
-            </strong>
-          </div>
-          <div>
-            <span>
-              Estimated Notional<span v-if="closeReferenceLabel"> · {{ closeReferenceLabel }}</span>
-            </span>
-            <strong>
-              {{ closeNotional === null ? '-' : formatExactDecimal(closeNotional) }}
-              {{ closeNotional === null ? '' : (units.quote ?? '') }}
-            </strong>
-          </div>
-        </section>
+        <CloseExposureSummary
+          :symbol="actionSymbol"
+          :side="ownedExposure?.side ?? '-'"
+          :owned-quantity="ownedQuantity"
+          :selected-quantity="closeQuantityResolved"
+          :remainder="closeRemainder"
+          :notional="closeNotional"
+          :reference-label="closeReferenceLabel"
+          :base-unit="units.base"
+          :quote-unit="units.quote"
+        />
         <label class="field">
           <span>Close Amount</span>
           <select v-model="closeMode" class="input">
@@ -479,7 +478,7 @@ function chooseClosePercent(percent: string): void {
     </form>
 
     <template #footer>
-      <button class="btn" type="button" @click="emit('close')">Back</button>
+      <button class="btn" type="button" @click="closeModal">Back</button>
       <button
         class="btn"
         :class="action?.danger ? 'btn-danger' : 'btn-primary'"
@@ -493,62 +492,4 @@ function chooseClosePercent(percent: string): void {
   </BaseCommandModal>
 </template>
 
-<style scoped>
-.action-form {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-.help-text,
-.check-field,
-.submission-error,
-.close-context,
-.percent-presets {
-  grid-column: 1 / -1;
-}
-.close-context {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-block: 1px solid var(--border-color);
-}
-.close-context > div {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  padding: 8px 10px;
-}
-.close-context span {
-  color: var(--color-text-dim);
-  font-size: 10px;
-  text-transform: uppercase;
-}
-.close-context strong {
-  overflow-wrap: anywhere;
-  color: var(--color-text);
-  font-size: 12px;
-  font-weight: normal;
-}
-.percent-presets {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-}
-.help-text {
-  margin: 0;
-  color: var(--color-text-dim);
-}
-.check-field {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.submission-error {
-  color: var(--color-error);
-  overflow-wrap: anywhere;
-}
-@media (max-width: 640px) {
-  .action-form {
-    grid-template-columns: 1fr;
-  }
-}
-</style>
+<style scoped src="./LifecycleActionModal.css"></style>

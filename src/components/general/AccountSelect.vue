@@ -5,6 +5,7 @@ import { accountIdentityChips, useAccountsStore } from '@/stores/accounts'
 import { useUiStore } from '@/stores/ui'
 import DropMenu, { type DropMenuItem } from '@/components/general/DropMenu.vue'
 import { accountColorFromId } from '@/lib/accountColors'
+import { recordTelemetry } from '@/lib/telemetry'
 
 const accounts = useAccountsStore()
 const ui = useUiStore()
@@ -40,6 +41,11 @@ async function copySelectedAddress(): Promise<void> {
   try {
     await navigator.clipboard.writeText(selectedAddress.value)
     copiedAddress.value = true
+    recordTelemetry({
+      eventName: 'support_reference_copied',
+      accountId: selectedAccount.value?.id ?? null,
+      properties: { source: 'account_selector' },
+    })
     if (copiedTimer) clearTimeout(copiedTimer)
     copiedTimer = setTimeout(() => {
       copiedAddress.value = false

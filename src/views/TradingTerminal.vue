@@ -11,6 +11,7 @@ import TerminalAccountEmptyState from '@/components/terminal/TerminalAccountEmpt
 import TradeWorkspace, { type TraderWorkspaceSection } from '@/components/trader/TradeWorkspace.vue'
 import { useAccountsStore } from '@/stores/accounts'
 import { openCommandPalette } from '@/lib/engineCommands/palette'
+import { recordTelemetry } from '@/lib/telemetry'
 
 const accounts = useAccountsStore()
 const route = useRoute()
@@ -22,6 +23,20 @@ const startTradeGuide = ref(false)
 function selectWorkspace(next: TraderWorkspaceSection): void {
   surface.value = 'workspace'
   section.value = next
+  recordTelemetry({
+    eventName: 'workspace_tab_selected',
+    accountId: accounts.selectedAccountId,
+    properties: { tab_id: next },
+  })
+}
+
+function selectDiagnostics(): void {
+  surface.value = 'diagnostics'
+  recordTelemetry({
+    eventName: 'support_or_diagnostics_opened',
+    accountId: accounts.selectedAccountId,
+    properties: { source: 'terminal_navigation' },
+  })
 }
 
 onMounted(async () => {
@@ -77,7 +92,7 @@ onMounted(async () => {
         <button
           type="button"
           :class="{ active: surface === 'diagnostics' }"
-          @click="surface = 'diagnostics'"
+          @click="selectDiagnostics"
         >
           <Network :size="13" /> Diagnostics
         </button>

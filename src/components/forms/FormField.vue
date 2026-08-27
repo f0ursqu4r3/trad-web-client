@@ -10,6 +10,7 @@ const props = defineProps<{
   required?: boolean
   optional?: boolean
   eagerError?: boolean
+  telemetryField?: string
 }>()
 
 let nextFieldId = 0
@@ -51,6 +52,9 @@ function syncControl(): void {
   const control = primaryControl()
   missing.value = control ? controlIsMissing(control) : false
   if (!control) return
+
+  if (props.telemetryField) control.dataset.telemetryField = props.telemetryField
+  else delete control.dataset.telemetryField
 
   control.required = Boolean(props.required)
   if (props.required) control.setAttribute('aria-required', 'true')

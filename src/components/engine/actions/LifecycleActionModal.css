@@ -1,0 +1,40 @@
+.action-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.help-text,
+.check-field,
+.submission-error,
+.percent-presets {
+  grid-column: 1 / -1;
+}
+
+.percent-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.help-text {
+  margin: 0;
+  color: var(--color-text-dim);
+}
+
+.check-field {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.submission-error {
+  overflow-wrap: anywhere;
+  color: var(--color-error);
+}
+
+@media (max-width: 640px) {
+  .action-form {
+    grid-template-columns: 1fr;
+  }
+}

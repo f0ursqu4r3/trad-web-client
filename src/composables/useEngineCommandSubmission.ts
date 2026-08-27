@@ -8,11 +8,19 @@ export function useEngineCommandSubmission() {
   const submitting = ref(false)
   const submissionError = ref<string | null>(null)
 
-  async function submit(submission: EngineCommandSubmission): Promise<boolean> {
+  async function submit(
+    submission: EngineCommandSubmission,
+    actionAttemptId?: string | null,
+  ): Promise<boolean> {
     submissionError.value = null
     submitting.value = true
     try {
-      const outcome = await gateway.submitCommand(submission.intent, submission.accountId)
+      const outcome = await gateway.submitCommand(
+        submission.intent,
+        submission.accountId,
+        undefined,
+        actionAttemptId ?? undefined,
+      )
       if (outcome.kind === 'rejected') {
         submissionError.value = outcome.rejection.reason
         return false

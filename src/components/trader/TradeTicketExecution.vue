@@ -17,6 +17,7 @@ const draft = defineModel<TradeTicketDraft>({ required: true })
     <FormField
       :label="labelWithUnit('Limit price', units.quote)"
       help="Exact resting order price."
+      telemetry-field="limit_price"
       required
     >
       <input v-model="draft.limitPrice" class="input" inputmode="decimal" required />
@@ -24,6 +25,7 @@ const draft = defineModel<TradeTicketDraft>({ required: true })
     <FormField
       label="Time in force"
       help="Post Only guarantees maker behavior; GTC may immediately take liquidity."
+      telemetry-field="time_in_force"
       required
     >
       <select v-model="draft.timeInForce" class="input">
@@ -37,6 +39,7 @@ const draft = defineModel<TradeTicketDraft>({ required: true })
     <FormField
       label="Timeout (seconds)"
       help="Optional chase lifetime. Blank means no time expiry."
+      telemetry-field="chase_timeout"
       optional
     >
       <input v-model="draft.expirySeconds" class="input" inputmode="numeric" placeholder="None" />
@@ -44,6 +47,7 @@ const draft = defineModel<TradeTicketDraft>({ required: true })
     <FormField
       label="Give-up boundary"
       help="Optional adverse price or basis-point boundary. None follows until canceled or filled."
+      telemetry-field="chase_boundary_kind"
       optional
     >
       <select v-model="draft.boundaryKind" class="input">
@@ -56,6 +60,7 @@ const draft = defineModel<TradeTicketDraft>({ required: true })
       v-if="draft.boundaryKind !== 'none'"
       :label="draft.boundaryKind === 'price' ? 'Give-up price' : 'Maximum adverse bps'"
       help="The chase cancels once this boundary is reached."
+      telemetry-field="chase_boundary_value"
       required
     >
       <input v-model="draft.boundaryValue" class="input" inputmode="decimal" required />
@@ -63,6 +68,7 @@ const draft = defineModel<TradeTicketDraft>({ required: true })
     <label class="remainder-toggle">
       <input
         type="checkbox"
+        data-telemetry-field="chase_remainder"
         :checked="draft.remainder === 'market_fill'"
         @change="draft.remainder = draft.remainder === 'cancel' ? 'market_fill' : 'cancel'"
       />
@@ -74,6 +80,7 @@ const draft = defineModel<TradeTicketDraft>({ required: true })
     <FormField
       :label="labelWithUnit('Activation price', units.quote)"
       help="Price that arms the trailing-entry workflow."
+      telemetry-field="trailing_activation_price"
       required
     >
       <input v-model="draft.activationPrice" class="input" inputmode="decimal" required />
@@ -81,6 +88,7 @@ const draft = defineModel<TradeTicketDraft>({ required: true })
     <FormField
       label="Jump threshold (bps)"
       help="Required favorable move before the entry executes."
+      telemetry-field="trailing_jump_threshold"
       required
     >
       <input v-model="draft.jumpBasisPoints" class="input" inputmode="decimal" required />

@@ -20,6 +20,7 @@ import {
   isHyperliquidMetadataReady,
 } from '@/lib/accountMetadata'
 import { accountsStoreKey, getSessionUserId } from '@/lib/userSession'
+import { observeAccountAction } from '@/lib/telemetry/accountObservation'
 export interface AccountFormPayload {
   label: string
   key: string
@@ -284,26 +285,28 @@ export const useAccountsStore = defineStore('accounts', () => {
   async function addAccount(payload: AccountFormPayload): Promise<AccountRecord | null> {
     const configured = existingAccountForIdentity(accounts.value, payload)
     if (configured) return configured
-    const label = encodeURIComponent(payload.label.trim())
-    try {
-      await apiPut<void, AccountFormPayload>(`/accounts/${label}`, payload, {
-        throwOnHTTPError: true,
-      })
-    } catch (error) {
+    return observeAccountAction('add_account', null, async () => {
+      const label = encodeURIComponent(payload.label.trim())
+      try {
+        await apiPut<void, AccountFormPayload>(`/accounts/${label}`, payload, {
+          throwOnHTTPError: true,
+        })
+      } catch (error) {
+        await fetchAccounts()
+        const existing = existingAccountForIdentity(accounts.value, payload)
+        if (existing) return existing
+        throw error
+      }
       await fetchAccounts()
-      const existing = existingAccountForIdentity(accounts.value, payload)
-      if (existing) return existing
-      throw error
-    }
-    await fetchAccounts()
-    return (
-      accounts.value.find(
-        (account) =>
-          account.label === payload.label.trim() &&
-          account.exchange === payload.exchange &&
-          account.network === payload.network,
-      ) ?? null
-    )
+      return (
+        accounts.value.find(
+          (account) =>
+            account.label === payload.label.trim() &&
+            account.exchange === payload.exchange &&
+            account.network === payload.network,
+        ) ?? null
+      )
+    })
   }
 
   async function validateAccountKey(
@@ -324,19 +327,21 @@ export const useAccountsStore = defineStore('accounts', () => {
     exchangeMetadata: ExchangeAccountMetadata | null,
     options: { clearBuilderTargetOverride?: boolean } = {},
   ): Promise<AccountRecord> {
-    const response = await apiPut<
-      AccountRecord,
-      {
-        exchange_metadata: ExchangeAccountMetadata | null
-        clear_builder_target_override?: boolean
-      }
-    >(
-      `/accounts/${encodeURIComponent(accountId)}/exchange-metadata`,
-      {
-        exchange_metadata: exchangeMetadata,
-        ...(options.clearBuilderTargetOverride ? { clear_builder_target_override: true } : {}),
-      },
-      { throwOnHTTPError: true },
+    const response = await observeAccountAction('update_account_metadata', accountId, () =>
+      apiPut<
+        AccountRecord,
+        {
+          exchange_metadata: ExchangeAccountMetadata | null
+          clear_builder_target_override?: boolean
+        }
+      >(
+        `/accounts/${encodeURIComponent(accountId)}/exchange-metadata`,
+        {
+          exchange_metadata: exchangeMetadata,
+          ...(options.clearBuilderTargetOverride ? { clear_builder_target_override: true } : {}),
+        },
+        { throwOnHTTPError: true },
+      ),
     )
     replaceAccount(response)
     return response
@@ -346,12 +351,13 @@ export const useAccountsStore = defineStore('accounts', () => {
     accountId: string,
     payload: HyperliquidBuilderApprovalPayload,
   ): Promise<HyperliquidBuilderApprovalResponse> {
-    const response = await apiPost<
-      HyperliquidBuilderApprovalResponse,
-      HyperliquidBuilderApprovalPayload
-    >(`/accounts/${encodeURIComponent(accountId)}/hyperliquid/builder-approval`, payload, {
-      throwOnHTTPError: true,
-    })
+    const response = await observeAccountAction('approve_builder', accountId, () =>
+      apiPost<HyperliquidBuilderApprovalResponse, HyperliquidBuilderApprovalPayload>(
+        `/accounts/${encodeURIComponent(accountId)}/hyperliquid/builder-approval`,
+        payload,
+        { throwOnHTTPError: true },
+      ),
+    )
     replaceAccount(response.account)
     return response
   }
@@ -359,10 +365,12 @@ export const useAccountsStore = defineStore('accounts', () => {
   async function refreshHyperliquidBuilderApproval(
     accountId: string,
   ): Promise<HyperliquidBuilderApprovalRefreshResponse> {
-    const response = await apiPost<HyperliquidBuilderApprovalRefreshResponse>(
-      `/accounts/${encodeURIComponent(accountId)}/hyperliquid/builder-approval/refresh`,
-      undefined,
-      { throwOnHTTPError: true },
+    const response = await observeAccountAction('refresh_builder_approval', accountId, () =>
+      apiPost<HyperliquidBuilderApprovalRefreshResponse>(
+        `/accounts/${encodeURIComponent(accountId)}/hyperliquid/builder-approval/refresh`,
+        undefined,
+        { throwOnHTTPError: true },
+      ),
     )
     replaceAccount(response.account)
     return response
@@ -372,21 +380,24 @@ export const useAccountsStore = defineStore('accounts', () => {
     accountId: string,
     payload: HyperliquidAgentApprovalPayload,
   ): Promise<HyperliquidAgentApprovalResponse> {
-    const response = await apiPost<
-      HyperliquidAgentApprovalResponse,
-      HyperliquidAgentApprovalPayload
-    >(`/accounts/${encodeURIComponent(accountId)}/hyperliquid/agent-approval`, payload, {
-      throwOnHTTPError: true,
-    })
+    const response = await observeAccountAction('approve_agent', accountId, () =>
+      apiPost<HyperliquidAgentApprovalResponse, HyperliquidAgentApprovalPayload>(
+        `/accounts/${encodeURIComponent(accountId)}/hyperliquid/agent-approval`,
+        payload,
+        { throwOnHTTPError: true },
+      ),
+    )
     replaceAccount(response.account)
     return response
   }
 
   async function rotateHyperliquidAgent(accountId: string): Promise<AccountRecord> {
-    const response = await apiPost<AccountRecord>(
-      `/accounts/${encodeURIComponent(accountId)}/hyperliquid/agent/rotate`,
-      undefined,
-      { throwOnHTTPError: true },
+    const response = await observeAccountAction('rotate_agent', accountId, () =>
+      apiPost<AccountRecord>(
+        `/accounts/${encodeURIComponent(accountId)}/hyperliquid/agent/rotate`,
+        undefined,
+        { throwOnHTTPError: true },
+      ),
     )
     replaceAccount(response)
     return response
@@ -395,10 +406,12 @@ export const useAccountsStore = defineStore('accounts', () => {
   async function refreshHyperliquidAgentApproval(
     accountId: string,
   ): Promise<HyperliquidAgentApprovalResponse> {
-    const response = await apiPost<HyperliquidAgentApprovalResponse>(
-      `/accounts/${encodeURIComponent(accountId)}/hyperliquid/agent-approval/refresh`,
-      undefined,
-      { throwOnHTTPError: true },
+    const response = await observeAccountAction('refresh_agent_approval', accountId, () =>
+      apiPost<HyperliquidAgentApprovalResponse>(
+        `/accounts/${encodeURIComponent(accountId)}/hyperliquid/agent-approval/refresh`,
+        undefined,
+        { throwOnHTTPError: true },
+      ),
     )
     replaceAccount(response.account)
     return response
@@ -411,8 +424,14 @@ export const useAccountsStore = defineStore('accounts', () => {
       | 'remove_without_exchange_verification' = 'verify_exchange_state',
   ): Promise<AccountDeletionResult> {
     const encodedLabel = encodeURIComponent(label)
-    const response = await apiDelete<AccountDeletionResult | AccountDeletionFailure>(
-      `/accounts/${encodedLabel}?mode=${mode}`,
+    const accountId = accounts.value.find((account) => account.label === label)?.id ?? null
+    const response = await observeAccountAction(
+      mode === 'verify_exchange_state' ? 'delete_account' : 'remove_account',
+      accountId,
+      () =>
+        apiDelete<AccountDeletionResult | AccountDeletionFailure>(
+          `/accounts/${encodedLabel}?mode=${mode}`,
+        ),
     )
     if (!isAccountDeletionResult(response)) {
       throw new AccountDeletionError(

@@ -14,6 +14,7 @@ import { marketUnits } from '@/lib/engineCommands/marketUnits'
 import { protectionForm } from '@/lib/engineCommands/protectionAmendment'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
+import { useTelemetryAction } from '@/composables/useTelemetryAction'
 
 const props = defineProps<{
   open: boolean
@@ -26,6 +27,12 @@ const emit = defineEmits<{ (event: 'close'): void }>()
 const gateway = useGatewayStore()
 const accounts = useAccountsStore()
 const submission = useEngineCommandSubmission()
+const telemetryAction = useTelemetryAction({
+  open: () => props.open,
+  accountId: () => props.accountId || null,
+  actionKind: () => 'edit_protection',
+  source: 'protection_modal',
+})
 const form = ref<ProtectionFormState>(newProtectionState())
 const baseline = ref('')
 const validationError = ref<string | null>(null)
@@ -78,21 +85,30 @@ async function focusRequestedChild(): Promise<void> {
 async function submit(): Promise<void> {
   if (props.protection === null) return
   validationError.value = null
+  const actionAttemptId = telemetryAction.confirm()
   try {
     const intent = protectionAmendmentIntent(
       props.protection.protection_id,
       props.protection.plan_revision,
       form.value,
     )
-    if (await submission.submit({ accountId: props.accountId, intent })) emit('close')
+    if (await submission.submit({ accountId: props.accountId, intent }, actionAttemptId)) {
+      emit('close')
+    }
   } catch (error) {
+    telemetryAction.validationFailed()
     validationError.value = error instanceof Error ? error.message : String(error)
   }
+}
+
+function closeModal(): void {
+  telemetryAction.cancel()
+  emit('close')
 }
 </script>
 
 <template>
-  <BaseCommandModal title="Edit Native Protection" :open="open" size="wide" @close="emit('close')">
+  <BaseCommandModal title="Edit Native Protection" :open="open" size="wide" @close="closeModal">
     <form id="engine-protection-amendment" class="amendment-form" @submit.prevent="submit">
       <div v-if="protection" class="controller-summary">
         <span>{{ protection.symbol }} · {{ protection.position_side }}</span>
@@ -131,7 +147,7 @@ async function submit(): Promise<void> {
     </form>
 
     <template #footer>
-      <button class="btn" type="button" @click="emit('close')">Back</button>
+      <button class="btn" type="button" @click="closeModal">Back</button>
       <button
         class="btn btn-primary"
         type="submit"

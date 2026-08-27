@@ -60,6 +60,37 @@ export interface AuditEvent {
   detail: Record<string, unknown>
   created_at: string
 }
+export interface TelemetryTimelineEvent {
+  event_id: string
+  event_name: string
+  occurred_at_ms: number
+  received_at: string
+  session_id: string
+  session_sequence: number
+  user_id: string
+  account_id: string | null
+  trade_id: string | null
+  projection_revision: number | null
+  client_release: string
+  client_commit: string
+  connection_state: string
+  action_attempt_id: string | null
+  request_id: string | null
+  command_id: string | null
+  properties: Record<string, string | number | boolean>
+  late: boolean
+  sequence_gap: number
+}
+export interface TelemetryTimelineFilters {
+  user_id?: string
+  account_id?: string
+  trade_id?: string
+  session_id?: string
+  action_attempt_id?: string
+  request_id?: string
+  command_id?: string
+  event_name?: string
+}
 export interface PriceBinding {
   stripe_account_id: string
   livemode: boolean
@@ -167,6 +198,7 @@ export const useAdminStore = defineStore('admin', () => {
   const policy = ref<ExecutionPolicy | null>(null)
   const feeReport = ref<FeeReport | null>(null)
   const audit = ref<AuditEvent[]>([])
+  const telemetryTimeline = ref<TelemetryTimelineEvent[]>([])
   const commercialPlans = ref<CommercialPlan[]>([])
   const priceBindings = ref<PriceBinding[]>([])
   const loading = ref(false)
@@ -231,6 +263,19 @@ export const useAdminStore = defineStore('admin', () => {
       () => apiGet<AuditEvent[]>('/admin/audit?limit=200', { throwOnHTTPError: true }),
       (value) => (audit.value = value),
     )
+  const fetchTelemetryTimeline = (filters: TelemetryTimelineFilters) => {
+    const query = new URLSearchParams({ limit: '500' })
+    for (const [key, value] of Object.entries(filters)) {
+      if (value?.trim()) query.set(key, value.trim())
+    }
+    return load(
+      () =>
+        apiGet<TelemetryTimelineEvent[]>(`/admin/telemetry/timeline?${query}`, {
+          throwOnHTTPError: true,
+        }),
+      (value) => (telemetryTimeline.value = value),
+    )
+  }
   const fetchCommercialPlans = () =>
     load(
       () => apiGet<CommercialPlan[]>('/admin/commercial-plans', { throwOnHTTPError: true }),
@@ -324,6 +369,7 @@ export const useAdminStore = defineStore('admin', () => {
     policy,
     feeReport,
     audit,
+    telemetryTimeline,
     commercialPlans,
     priceBindings,
     loading,
@@ -336,6 +382,7 @@ export const useAdminStore = defineStore('admin', () => {
     fetchPolicy,
     fetchFeeReport,
     fetchAudit,
+    fetchTelemetryTimeline,
     fetchCommercialPlans,
     fetchPriceBindings,
     fetchUserEntitlement,

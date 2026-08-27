@@ -40,6 +40,7 @@ function removeTakeProfit(id: string): void {
       </div>
       <button
         class="btn btn-sm btn-ghost"
+        data-telemetry-field="take_profit_count"
         type="button"
         :disabled="draft.entryType === 'trailing' && draft.protection.takeProfits.length >= 1"
         @click="addTakeProfit"
@@ -49,13 +50,18 @@ function removeTakeProfit(id: string): void {
     </div>
 
     <label class="stop-toggle">
-      <input v-model="draft.protection.stopLoss.enabled" type="checkbox" />
+      <input
+        v-model="draft.protection.stopLoss.enabled"
+        data-telemetry-field="stop_loss_enabled"
+        type="checkbox"
+      />
       Protective stop market <span>recommended</span>
     </label>
     <FormField
       v-if="draft.protection.stopLoss.enabled"
       :label="labelWithUnit('Stop-loss price', units.quote)"
       help="Triggers a reduce-only market exit sized only to this Trad-managed exposure."
+      telemetry-field="stop_loss_price"
       required
     >
       <input
@@ -80,11 +86,17 @@ function removeTakeProfit(id: string): void {
       <FormField
         :label="labelWithUnit(`Take-profit ${index + 1}`, units.quote)"
         help="A plain reduce-only limit order for this managed exposure."
+        telemetry-field="take_profit_price"
         required
       >
         <input v-model="takeProfit.triggerPrice" class="input" inputmode="decimal" required />
       </FormField>
-      <FormField v-if="draft.entryType !== 'trailing'" label="Close amount" required>
+      <FormField
+        v-if="draft.entryType !== 'trailing'"
+        label="Close amount"
+        telemetry-field="take_profit_allocation_kind"
+        required
+      >
         <select v-model="takeProfit.allocationKind" class="input">
           <option value="full_remaining">Full remainder</option>
           <option value="fraction">Percent</option>
@@ -94,12 +106,14 @@ function removeTakeProfit(id: string): void {
       <FormField
         v-if="draft.entryType !== 'trailing' && takeProfit.allocationKind !== 'full_remaining'"
         :label="takeProfit.allocationKind === 'fraction' ? 'Percent' : 'Base quantity'"
+        telemetry-field="take_profit_allocation_value"
         required
       >
         <input v-model="takeProfit.allocationValue" class="input" inputmode="decimal" required />
       </FormField>
       <button
         class="btn icon-btn remove-tp"
+        data-telemetry-field="take_profit_count"
         type="button"
         title="Remove take profit"
         @click="removeTakeProfit(takeProfit.id)"

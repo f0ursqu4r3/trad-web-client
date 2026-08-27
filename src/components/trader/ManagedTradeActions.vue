@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import LifecycleActionModal from '@/components/engine/actions/LifecycleActionModal.vue'
 import ProtectionAmendmentModal from '@/components/engine/actions/ProtectionAmendmentModal.vue'
@@ -9,6 +9,13 @@ import type { BrowserAccountSnapshot } from '@/lib/gateway'
 import type { ManagedTradeView } from '@/lib/projection/tradeWorkspace'
 import { managedTradeActions } from '@/lib/projection/tradeWorkspaceActions'
 import { useAccountsStore } from '@/stores/accounts'
+import { isExactZero } from '@/lib/exactDecimalMath'
+import {
+  newActionAttemptId,
+  recordTelemetry,
+  type TelemetryActionKind,
+  type TelemetryBlockerCode,
+} from '@/lib/telemetry'
 
 const props = defineProps<{
   trade: ManagedTradeView
@@ -20,6 +27,7 @@ const selectedAction = ref<LifecycleAction | null>(null)
 const closePercent = ref<string | null>(null)
 const closeExecution = ref<'market' | 'limit' | 'chase'>('market')
 const editProtectionOpen = ref(false)
+const blockedMessage = ref<string | null>(null)
 
 const actions = computed(() => managedTradeActions(props.trade, props.snapshot))
 const closeAction = computed(() => actions.value.close)
@@ -28,11 +36,97 @@ const takeoverAction = computed(() => actions.value.takeover)
 const activeAmendment = computed(() =>
   activeProtectionAmendment(props.trade.protection, props.snapshot.protection_amendments),
 )
+const hasRemainingExposure = computed(() => !isExactZero(props.trade.remainingQuantity))
+const closeBlocker = computed<TelemetryBlockerCode | null>(() => {
+  if (closeAction.value !== null || !hasRemainingExposure.value) return null
+  if (
+    props.trade.position?.reconciliation_required ||
+    props.trade.protection?.status === 'reconciliation_required'
+  ) {
+    return 'RECONCILIATION_REQUIRED'
+  }
+  if (props.trade.lifecycle === 'closing') return 'ACTIVE_CLOSE_EXISTS'
+  return 'POSITION_INCONSISTENT'
+})
+const protectionBlocker = computed<TelemetryBlockerCode | null>(() => {
+  if (!props.trade.protection) return null
+  if (props.trade.protection.status === 'reconciliation_required') {
+    return 'RECONCILIATION_REQUIRED'
+  }
+  if (props.trade.protection.status !== 'tracking') return 'PROTECTION_NOT_TRACKING'
+  if (activeAmendment.value !== null) return 'PROTECTION_AMENDMENT_ACTIVE'
+  return null
+})
+
+watch(
+  [closeBlocker, protectionBlocker],
+  ([close, protection], previous) => {
+    if (close !== null && close !== previous?.[0]) {
+      recordUnavailable('partial_close', close, 'managed_trade_close')
+    }
+    if (protection !== null && protection !== previous?.[1]) {
+      recordUnavailable('edit_protection', protection, 'managed_trade_protection')
+    }
+  },
+  { immediate: true },
+)
 
 function openClose(percent: string | null): void {
-  if (closeAction.value === null) return
+  if (closeAction.value === null) {
+    if (closeBlocker.value !== null) blockAction('partial_close', closeBlocker.value)
+    return
+  }
   closePercent.value = percent
   selectedAction.value = closeAction.value
+}
+
+function openProtection(): void {
+  if (protectionBlocker.value !== null) {
+    blockAction('edit_protection', protectionBlocker.value)
+    return
+  }
+  editProtectionOpen.value = true
+}
+
+function blockAction(actionKind: TelemetryActionKind, blockerCode: TelemetryBlockerCode): void {
+  blockedMessage.value = blockerExplanation(blockerCode)
+  recordTelemetry({
+    eventName: 'action_blocked',
+    accountId: accounts.selectedAccountId,
+    tradeId: props.trade.tradeId,
+    commandId: props.trade.primaryCommand.command_id,
+    actionAttemptId: newActionAttemptId(),
+    properties: { action_kind: actionKind, blocker_code: blockerCode, source: 'managed_trade' },
+  })
+}
+
+function recordUnavailable(
+  actionKind: TelemetryActionKind,
+  blockerCode: TelemetryBlockerCode,
+  controlId: string,
+): void {
+  recordTelemetry({
+    eventName: 'action_unavailable_presented',
+    accountId: accounts.selectedAccountId,
+    tradeId: props.trade.tradeId,
+    commandId: props.trade.primaryCommand.command_id,
+    properties: { action_kind: actionKind, blocker_code: blockerCode, control_id: controlId },
+  })
+}
+
+function blockerExplanation(blockerCode: TelemetryBlockerCode): string {
+  switch (blockerCode) {
+    case 'RECONCILIATION_REQUIRED':
+      return 'This trade needs reconciliation before Trad can safely change its exposure or protection.'
+    case 'ACTIVE_CLOSE_EXISTS':
+      return 'A close is already active for this trade. Wait for its outcome before submitting another.'
+    case 'PROTECTION_NOT_TRACKING':
+      return 'Protection is not tracking, so it cannot be edited safely.'
+    case 'PROTECTION_AMENDMENT_ACTIVE':
+      return 'A protection edit is already active.'
+    default:
+      return 'Trad cannot prove this action is safe from the current account projection.'
+  }
 }
 
 function openAction(action: LifecycleAction): void {
@@ -58,31 +152,52 @@ defineExpose({ openClose, openTakeover })
       </select>
     </label>
     <button
-      v-if="closeAction"
+      v-if="closeAction || closeBlocker"
       class="btn btn-sm btn-outline-danger"
+      :class="{ 'action-unavailable': !closeAction }"
       type="button"
       @click="openClose(null)"
     >
       Close all
     </button>
-    <button v-if="closeAction" class="btn btn-sm" type="button" @click="openClose('50')">
+    <button
+      v-if="closeAction || closeBlocker"
+      class="btn btn-sm"
+      :class="{ 'action-unavailable': !closeAction }"
+      type="button"
+      @click="openClose('50')"
+    >
       Close ½
     </button>
-    <button v-if="closeAction" class="btn btn-sm" type="button" @click="openClose('33.33333333')">
+    <button
+      v-if="closeAction || closeBlocker"
+      class="btn btn-sm"
+      :class="{ 'action-unavailable': !closeAction }"
+      type="button"
+      @click="openClose('33.33333333')"
+    >
       Close ⅓
     </button>
-    <button v-if="closeAction" class="btn btn-sm" type="button" @click="openClose('25')">
+    <button
+      v-if="closeAction || closeBlocker"
+      class="btn btn-sm"
+      :class="{ 'action-unavailable': !closeAction }"
+      type="button"
+      @click="openClose('25')"
+    >
       Close ¼
     </button>
     <button
       v-if="trade.protection"
       class="btn btn-sm"
       type="button"
-      :disabled="trade.protection.status !== 'tracking' || activeAmendment !== null"
-      @click="editProtectionOpen = true"
+      :aria-disabled="protectionBlocker !== null"
+      :class="{ 'action-unavailable': protectionBlocker !== null }"
+      @click="openProtection"
     >
       Edit protection
     </button>
+    <p v-if="blockedMessage" class="action-blocker" role="status">{{ blockedMessage }}</p>
     <button
       v-for="action in secondaryActions"
       :key="action.kind"
@@ -137,6 +252,15 @@ defineExpose({ openClose, openTakeover })
   width: 92px;
   min-height: 28px;
   padding-block: 0.2rem;
+}
+.action-unavailable {
+  opacity: 0.58;
+}
+.action-blocker {
+  flex-basis: 100%;
+  margin: 0.2rem 0 0;
+  color: var(--state-warning);
+  font-size: 11px;
 }
 @media (max-width: 760px) {
   .trade-actions {

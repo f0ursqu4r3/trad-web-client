@@ -21,6 +21,10 @@ import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
 import { accountCommandReadiness } from '@/lib/gateway/accountCommandReadiness'
 import { marketKey, useMarketStore } from '@/stores/market'
+import {
+  GatewayTelemetryObserver,
+  type GatewayActionAttempt,
+} from '@/lib/telemetry/gatewayObservation'
 
 const logger = createLogger('gateway')
 const COMMAND_RESULT_TIMEOUT_MS = 30_000
@@ -31,8 +35,7 @@ const PROJECTION_CONFIRM_TIMEOUT_MS = 3_000
 const SUBSCRIPTION_RETRY_INITIAL_MS = 1_000
 const SUBSCRIPTION_RETRY_MAX_MS = 30_000
 
-interface PendingCommand {
-  accountId: Uuid
+interface PendingCommand extends GatewayActionAttempt {
   timer: number
   resolve: (outcome: BrowserCommandOutcome) => void
   reject: (error: Error) => void
@@ -46,15 +49,13 @@ interface PendingHistory {
   reject: (error: Error) => void
 }
 
-interface PendingPreview {
-  accountId: Uuid
+interface PendingPreview extends GatewayActionAttempt {
   timer: number
   resolve: (outcome: BrowserPreviewOutcome) => void
   reject: (error: Error) => void
 }
 
-interface PendingPositionResolution {
-  accountId: Uuid
+interface PendingPositionResolution extends GatewayActionAttempt {
   timer: number
   resolve: (outcome: BrowserPositionResolutionOutcome) => void
   reject: (error: Error) => void
@@ -101,6 +102,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   const pendingPreviews = new Map<Uuid, PendingPreview>()
   const pendingHistories = new Map<Uuid, PendingHistory>()
   const pendingPositionResolutions = new Map<Uuid, PendingPositionResolution>()
+  const telemetry = new GatewayTelemetryObserver()
   let selectedSubscriptionId: Uuid | null = null
   let started = false
 
@@ -120,6 +122,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     const wasReady = status.value === 'ready'
     status.value = next
     lastError.value = error
+    telemetry.connection(next)
     if (wasReady && next !== 'ready') {
       projections.markAllStale(error ?? 'gateway connection interrupted')
       markets.disconnected(error ?? 'gateway connection interrupted')
@@ -137,8 +140,20 @@ export const useGatewayStore = defineStore('gateway', () => {
 
   watch(
     () => accounts.selectedAccountId,
-    () => {
+    (accountId) => {
+      if (accountId !== null) {
+        telemetry.accountSelected(accountId)
+      }
       if (status.value === 'ready') switchSelectedAccount()
+    },
+    { immediate: true },
+  )
+
+  watch(
+    () => projections.selected?.status ?? 'idle',
+    (next, previous) => {
+      if (next === previous) return
+      telemetry.sync(accounts.selectedAccountId, next, previous)
     },
   )
 
@@ -162,8 +177,13 @@ export const useGatewayStore = defineStore('gateway', () => {
     intent: BrowserCommandIntent,
     accountId = accounts.selectedAccountId,
     requestId = uuid(),
+    actionAttemptId?: Uuid,
   ): Promise<BrowserCommandOutcome> {
-    if (accountId === null) return Promise.reject(new Error('no trading account is selected'))
+    if (accountId === null) {
+      telemetry.blockedIntent(intent, null, 'ACCOUNT_NOT_HYDRATED', actionAttemptId)
+      return Promise.reject(new Error('no trading account is selected'))
+    }
+    const attempt = telemetry.attempt(intent, accountId, requestId, actionAttemptId)
     const account = accounts.accounts.find((candidate) => candidate.id === accountId)
     const exchangeCredentialReady =
       account?.exchange !== 'hyperliquid' || account.exchange_metadata?.agent_approved === true
@@ -172,24 +192,32 @@ export const useGatewayStore = defineStore('gateway', () => {
       projections.byAccount[accountId]?.status,
       exchangeCredentialReady,
     )
-    if (!readiness.ready) return Promise.reject(new Error(readiness.reason!))
+    if (!readiness.ready) {
+      telemetry.readinessBlocked(attempt, readiness.reason)
+      return Promise.reject(new Error(readiness.reason!))
+    }
     if (pendingCommands.has(requestId)) {
+      telemetry.blocked(attempt.actionAttemptId, attempt.actionKind, accountId, 'COMMAND_REJECTED')
       return Promise.reject(new Error(`command request ${requestId} is already pending`))
     }
     return new Promise((resolve, reject) => {
       const timer = window.setTimeout(() => {
         pendingCommands.delete(requestId)
         updatePendingCounts()
+        telemetry.timedOut(attempt)
         reject(new CommandOutcomeUnknownError(requestId, 'gateway response timed out'))
       }, COMMAND_RESULT_TIMEOUT_MS)
-      pendingCommands.set(requestId, { accountId, timer, resolve, reject })
+      telemetry.submitted(attempt)
+      pendingCommands.set(requestId, { ...attempt, timer, resolve, reject })
       updatePendingCounts()
       try {
         send({ kind: 'submit_command', request_id: requestId, account_id: accountId, intent })
+        telemetry.requestSent(attempt)
       } catch (error) {
         window.clearTimeout(timer)
         pendingCommands.delete(requestId)
         updatePendingCounts()
+        telemetry.sendFailed(attempt)
         reject(error instanceof Error ? error : new Error(String(error)))
       }
     })
@@ -200,9 +228,17 @@ export const useGatewayStore = defineStore('gateway', () => {
     accountId = accounts.selectedAccountId,
     requestId = uuid(),
   ): Promise<BrowserPositionResolutionOutcome> {
-    if (accountId === null) return Promise.reject(new Error('no trading account is selected'))
-    if (status.value !== 'ready') return Promise.reject(new Error('gateway is not connected'))
+    if (accountId === null) {
+      telemetry.blockedPosition(null, 'ACCOUNT_NOT_HYDRATED')
+      return Promise.reject(new Error('no trading account is selected'))
+    }
+    const attempt = telemetry.positionAttempt(accountId, requestId)
+    if (status.value !== 'ready') {
+      telemetry.blocked(attempt.actionAttemptId, attempt.actionKind, accountId, 'TRANSPORT_OFFLINE')
+      return Promise.reject(new Error('gateway is not connected'))
+    }
     if (pendingPositionResolutions.has(requestId)) {
+      telemetry.blocked(attempt.actionAttemptId, attempt.actionKind, accountId, 'COMMAND_REJECTED')
       return Promise.reject(new Error(`position resolution ${requestId} is already pending`))
     }
     if (
@@ -210,16 +246,19 @@ export const useGatewayStore = defineStore('gateway', () => {
         (pending) => pending.accountId === accountId,
       )
     ) {
+      telemetry.blocked(attempt.actionAttemptId, attempt.actionKind, accountId, 'COMMAND_REJECTED')
       return Promise.reject(new Error('an account position resolution is already pending'))
     }
     return new Promise((resolve, reject) => {
       const timer = window.setTimeout(() => {
         pendingPositionResolutions.delete(requestId)
         updatePendingCounts()
+        telemetry.timedOut(attempt)
         reject(new Error(`position resolution ${requestId} timed out; its outcome is unknown`))
       }, POSITION_RESOLUTION_TIMEOUT_MS)
-      pendingPositionResolutions.set(requestId, { accountId, timer, resolve, reject })
+      pendingPositionResolutions.set(requestId, { ...attempt, timer, resolve, reject })
       updatePendingCounts()
+      telemetry.submitted(attempt, 'position_resolution')
       try {
         send({
           kind: 'resolve_position_deficit',
@@ -227,10 +266,12 @@ export const useGatewayStore = defineStore('gateway', () => {
           account_id: accountId,
           resolution,
         })
+        telemetry.requestSent(attempt)
       } catch (error) {
         window.clearTimeout(timer)
         pendingPositionResolutions.delete(requestId)
         updatePendingCounts()
+        telemetry.sendFailed(attempt)
         reject(error instanceof Error ? error : new Error(String(error)))
       }
     })
@@ -240,22 +281,32 @@ export const useGatewayStore = defineStore('gateway', () => {
     intent: BrowserPreviewIntent,
     accountId = accounts.selectedAccountId,
     requestId = uuid(),
+    actionAttemptId?: Uuid,
   ): Promise<BrowserPreviewOutcome> {
-    if (accountId === null) return Promise.reject(new Error('no trading account is selected'))
+    if (accountId === null) {
+      telemetry.blockedIntent(intent, null, 'ACCOUNT_NOT_HYDRATED', actionAttemptId)
+      return Promise.reject(new Error('no trading account is selected'))
+    }
+    const attempt = telemetry.attempt(intent, accountId, requestId, actionAttemptId)
     if (pendingPreviews.has(requestId)) {
+      telemetry.blocked(attempt.actionAttemptId, attempt.actionKind, accountId, 'COMMAND_REJECTED')
       return Promise.reject(new Error(`planning request ${requestId} is already pending`))
     }
     return new Promise((resolve, reject) => {
       const timer = window.setTimeout(() => {
         pendingPreviews.delete(requestId)
+        telemetry.timedOut(attempt)
         reject(new Error(`planning request ${requestId} timed out`))
       }, PREVIEW_RESULT_TIMEOUT_MS)
-      pendingPreviews.set(requestId, { accountId, timer, resolve, reject })
+      pendingPreviews.set(requestId, { ...attempt, timer, resolve, reject })
+      telemetry.previewRequested(attempt)
       try {
         send({ kind: 'preview_command', request_id: requestId, account_id: accountId, intent })
+        telemetry.requestSent(attempt)
       } catch (error) {
         window.clearTimeout(timer)
         pendingPreviews.delete(requestId)
+        telemetry.sendFailed(attempt)
         reject(error instanceof Error ? error : new Error(String(error)))
       }
     })
@@ -464,6 +515,11 @@ export const useGatewayStore = defineStore('gateway', () => {
     selectedSubscriptionId = message.subscription_id
     clearSubscriptionRetry(accountId)
     projections.install(accountId, message.subscription_id, message.cause, message.snapshot)
+    telemetry.snapshot(accountId, message.snapshot.checkpoint.projection_revision, message.cause)
+    telemetry.terminalCommands(
+      message.snapshot.commands,
+      message.snapshot.checkpoint.projection_revision,
+    )
   }
 
   function handleDelta(message: Extract<BrowserServerMessage, { kind: 'account_delta' }>): void {
@@ -471,8 +527,13 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (accountId === undefined || accountId !== message.route.account_id) return
     try {
       projections.apply(accountId, message.subscription_id, message.delta)
+      telemetry.terminalCommands(
+        message.delta.commands,
+        message.delta.checkpoint.projection_revision,
+      )
     } catch (error) {
       logger.warn('Projection delta rejected; requesting a fresh snapshot', error)
+      telemetry.projectionGap(accountId, message.delta.checkpoint.projection_revision)
       resubscribe(accountId, message.subscription_id)
     }
   }
@@ -487,6 +548,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     }
     const failure = subscriptionFailure(message.error)
     projections.fail(message.account_id, failure.reason, failure.kind)
+    telemetry.accountUnavailable(message.account_id, message.error.kind)
     if (message.error.kind !== 'unauthorized') scheduleSubscriptionRetry(message.account_id)
   }
 
@@ -584,6 +646,7 @@ export const useGatewayStore = defineStore('gateway', () => {
       pending.reject(new Error('command result account does not match its request'))
       return
     }
+    telemetry.commandResult(pending, message.outcome)
     if (message.outcome.kind === 'accepted') {
       confirmProjectionRevision(message.account_id, message.outcome.account_revision)
     }
@@ -601,6 +664,7 @@ export const useGatewayStore = defineStore('gateway', () => {
       pending.reject(new Error('planning result account does not match its request'))
       return
     }
+    telemetry.previewResult(pending, message.outcome)
     pending.resolve(message.outcome)
   }
 
@@ -616,6 +680,7 @@ export const useGatewayStore = defineStore('gateway', () => {
       pending.reject(new Error('position resolution result account does not match its request'))
       return
     }
+    telemetry.positionResult(pending, message.outcome)
     if (message.outcome.kind === 'accepted') {
       confirmProjectionRevision(message.account_id, message.outcome.account_revision)
     }
@@ -729,6 +794,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   }
 
   function resubscribe(accountId: Uuid, subscriptionId: Uuid): void {
+    telemetry.resnapshot(accountId)
     subscriptionAccounts.delete(subscriptionId)
     if (selectedSubscriptionId === subscriptionId) selectedSubscriptionId = null
     try {
@@ -867,6 +933,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   function losePendingRequests(reason: string): void {
     for (const [requestId, pending] of pendingCommands) {
       window.clearTimeout(pending.timer)
+      telemetry.interrupted(pending)
       pending.reject(new CommandOutcomeUnknownError(requestId, reason))
     }
     pendingCommands.clear()

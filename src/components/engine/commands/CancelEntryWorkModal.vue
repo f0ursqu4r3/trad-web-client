@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import MarketSymbolCombobox from '@/components/forms/MarketSymbolCombobox.vue'
 import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmission'
+import { useTelemetryAction } from '@/composables/useTelemetryAction'
 import { buildCancelEntryWorkIntent } from '@/lib/engineCommands/intents'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
@@ -16,6 +17,12 @@ const accounts = useAccountsStore()
 const gateway = useGatewayStore()
 const submission = useEngineCommandSubmission()
 const selectedAccountId = ref('')
+const telemetryAction = useTelemetryAction({
+  open: () => props.open,
+  accountId: () => selectedAccountId.value || null,
+  actionKind: () => 'cancel',
+  source: 'cancel_entry_modal',
+})
 const targetKind = ref<'symbol' | 'account'>('symbol')
 const symbol = ref('')
 const validationError = ref<string | null>(null)
@@ -59,17 +66,26 @@ function reset(): void {
 
 async function submit(): Promise<void> {
   validationError.value = null
+  const actionAttemptId = telemetryAction.confirm()
   try {
     const intent = buildCancelEntryWorkIntent(targetKind.value, symbol.value)
-    if (await submission.submit({ accountId: selectedAccountId.value, intent })) emit('close')
+    if (await submission.submit({ accountId: selectedAccountId.value, intent }, actionAttemptId)) {
+      emit('close')
+    }
   } catch (error) {
+    telemetryAction.validationFailed()
     validationError.value = error instanceof Error ? error.message : String(error)
   }
+}
+
+function closeModal(): void {
+  telemetryAction.cancel()
+  emit('close')
 }
 </script>
 
 <template>
-  <BaseCommandModal title="Cancel Entry Work" :open="open" @close="emit('close')">
+  <BaseCommandModal title="Cancel Entry Work" :open="open" @close="closeModal">
     <form id="engine-cancel-entry-work" class="command-form" @submit.prevent="submit">
       <FormField
         label="Account"
@@ -116,7 +132,7 @@ async function submit(): Promise<void> {
       </p>
     </form>
     <template #footer>
-      <button class="btn" type="button" @click="emit('close')">Back</button>
+      <button class="btn" type="button" @click="closeModal">Back</button>
       <button
         class="btn btn-danger"
         type="submit"

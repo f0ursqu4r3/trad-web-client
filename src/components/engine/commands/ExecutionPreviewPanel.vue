@@ -12,6 +12,7 @@ const props = defineProps<{
   active: boolean
   quoteAsset?: string | null
   compact?: boolean
+  actionAttemptId?: string | null
 }>()
 type PreviewStatus = 'idle' | 'planning' | 'ready' | 'rejected'
 
@@ -75,7 +76,12 @@ async function request(current: number): Promise<void> {
   if (current !== generation || props.intent === null) return
   pending.value = true
   try {
-    const outcome = await gateway.previewCommand(props.intent, props.accountId)
+    const outcome = await gateway.previewCommand(
+      props.intent,
+      props.accountId,
+      undefined,
+      props.actionAttemptId ?? undefined,
+    )
     if (current !== generation) return
     if (outcome.kind === 'ready') preview.value = outcome.preview
     else error.value = outcome.rejection.reason

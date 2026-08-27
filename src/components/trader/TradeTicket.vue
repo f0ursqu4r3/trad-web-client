@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 
 import FormField from '@/components/forms/FormField.vue'
 import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmission'
@@ -20,6 +20,12 @@ import TradeTicketExecution from './TradeTicketExecution.vue'
 import TradeTicketPolicy from './TradeTicketPolicy.vue'
 import TradeTicketProtection from './TradeTicketProtection.vue'
 import TradeTicketSizing from './TradeTicketSizing.vue'
+import {
+  newActionAttemptId,
+  recordTelemetry,
+  type TelemetryActionKind,
+  type TelemetryBlockerCode,
+} from '@/lib/telemetry'
 
 const accounts = useAccountsStore()
 const gateway = useGatewayStore()
@@ -37,6 +43,8 @@ const previewReady = ref(false)
 const previewStatus = ref<'idle' | 'planning' | 'ready' | 'rejected'>('idle')
 const acceptedMessage = ref<string | null>(null)
 const submitError = ref<string | null>(null)
+const actionAttemptId = ref(newActionAttemptId())
+const observedFields = new Set<string>()
 
 const account = computed(() => accounts.selectedAccount)
 const accountId = computed(() => account.value?.id ?? '')
@@ -70,6 +78,8 @@ const submitLabel = computed(() => {
 
 watch(accountId, (next) => {
   if (next !== '') draft.symbol = accounts.getDefaultSymbolForAccount(next)
+  actionAttemptId.value = newActionAttemptId()
+  observedFields.clear()
 })
 watch(
   () => draft.sizingMode,
@@ -90,16 +100,101 @@ watch(
   },
 )
 
+onMounted(() => {
+  recordTelemetry({
+    eventName: 'form_opened',
+    accountId: accountId.value || null,
+    actionAttemptId: actionAttemptId.value,
+    properties: { action_kind: ticketActionKind(), source: 'trade_ticket' },
+  })
+})
+
 async function submit(): Promise<void> {
   submitError.value = null
   acceptedMessage.value = null
+  if (!canSubmit.value) {
+    recordTelemetry({
+      eventName: 'action_blocked',
+      accountId: accountId.value || null,
+      actionAttemptId: actionAttemptId.value,
+      properties: {
+        action_kind: ticketActionKind(),
+        blocker_code: ticketBlocker(),
+        source: 'trade_ticket',
+      },
+    })
+    return
+  }
+  recordTelemetry({
+    eventName: 'action_confirmed',
+    accountId: accountId.value,
+    actionAttemptId: actionAttemptId.value,
+    properties: { action_kind: ticketActionKind(), source: 'trade_ticket' },
+  })
   try {
     const intent = buildTradeTicketIntent(draft)
-    const accepted = await submission.submit({ accountId: accountId.value, intent })
+    const accepted = await submission.submit(
+      { accountId: accountId.value, intent },
+      actionAttemptId.value,
+    )
     if (accepted) acceptedMessage.value = `${submitLabel.value} accepted by Trad.`
   } catch (error) {
+    recordTelemetry({
+      eventName: 'validation_failed',
+      accountId: accountId.value || null,
+      actionAttemptId: actionAttemptId.value,
+      properties: {
+        action_kind: ticketActionKind(),
+        reason_code: 'client_validation',
+        source: 'trade_ticket',
+      },
+    })
     submitError.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    actionAttemptId.value = newActionAttemptId()
+    observedFields.clear()
   }
+}
+
+function observeFieldInteraction(event: Event): void {
+  const target = event.target instanceof Element ? event.target : null
+  const fieldName = (target?.closest('[data-telemetry-field]') as HTMLElement | null)?.dataset
+    .telemetryField
+  if (!fieldName || !/^[a-z0-9_]{1,48}$/.test(fieldName)) return
+  const key = `${actionAttemptId.value}:${fieldName}`
+  if (observedFields.has(key)) return
+  observedFields.add(key)
+  recordTelemetry({
+    eventName: 'field_interacted',
+    accountId: accountId.value || null,
+    actionAttemptId: actionAttemptId.value,
+    properties: {
+      action_kind: ticketActionKind(),
+      field_name: fieldName,
+      interaction: 'first_interaction',
+      source: 'trade_ticket',
+    },
+  })
+}
+
+function ticketActionKind(): TelemetryActionKind {
+  switch (draft.entryType) {
+    case 'chase':
+      return 'place_chase'
+    case 'trailing':
+      return 'place_trailing_entry'
+    case 'market':
+    case 'limit':
+      return 'place_order'
+  }
+}
+
+function ticketBlocker(): TelemetryBlockerCode {
+  if (accountId.value === '') return 'ACCOUNT_NOT_HYDRATED'
+  if (!gateway.isConnected) return 'TRANSPORT_OFFLINE'
+  if (previewStatus.value === 'rejected') return 'COMMAND_REJECTED'
+  if (!previewReady.value) return 'MARKET_EVIDENCE_STALE'
+  return 'UNCLASSIFIED_BLOCKER'
 }
 
 async function applyPrefill(prefill: EngineCommandPrefill): Promise<void> {
@@ -126,7 +221,13 @@ defineExpose({ applyPrefill })
       <span class="account-context">{{ account?.label ?? 'No account' }}</span>
     </header>
 
-    <form class="ticket-body" aria-label="New trade order ticket" @submit.prevent="submit">
+    <form
+      class="ticket-body"
+      aria-label="New trade order ticket"
+      @submit.prevent="submit"
+      @focusout.capture="observeFieldInteraction"
+      @click.capture="observeFieldInteraction"
+    >
       <TradeTicketCore
         :model-value="draft"
         :account-id="accountId"
@@ -152,6 +253,7 @@ defineExpose({ applyPrefill })
           <FormField
             label="Execution shape"
             help="Single order or bounded child-order split."
+            telemetry-field="execution_shape"
             required
           >
             <select v-model="draft.shapeMode" class="input">
@@ -159,10 +261,20 @@ defineExpose({ applyPrefill })
               <option value="split">Split order</option>
             </select>
           </FormField>
-          <FormField v-if="draft.shapeMode === 'split'" label="Maximum children" required>
+          <FormField
+            v-if="draft.shapeMode === 'split'"
+            label="Maximum children"
+            telemetry-field="maximum_children"
+            required
+          >
             <input v-model="draft.maxChildren" class="input" inputmode="numeric" required />
           </FormField>
-          <FormField v-if="draft.shapeMode === 'split'" label="Target child notional" optional>
+          <FormField
+            v-if="draft.shapeMode === 'split'"
+            label="Target child notional"
+            telemetry-field="target_child_notional"
+            optional
+          >
             <input v-model="draft.targetChildNotional" class="input" inputmode="decimal" />
           </FormField>
         </div>
@@ -173,6 +285,7 @@ defineExpose({ applyPrefill })
         :account-id="accountId"
         :intent="planningIntent"
         :quote-asset="units.quote"
+        :action-attempt-id="actionAttemptId"
         @ready="previewReady = $event"
         @status="previewStatus = $event"
       />
@@ -183,7 +296,7 @@ defineExpose({ applyPrefill })
       </p>
       <p v-else-if="readiness" class="ticket-readiness">{{ readiness }}</p>
 
-      <button class="btn btn-primary submit-button" type="submit" :disabled="!canSubmit">
+      <button class="btn btn-primary submit-button" type="submit" :aria-disabled="!canSubmit">
         {{ submission.submitting.value ? 'Submitting…' : submitLabel }}
       </button>
     </form>

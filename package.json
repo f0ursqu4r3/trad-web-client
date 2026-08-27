@@ -1,6 +1,6 @@
 {
   "name": "trad-web-client",
-  "version": "0.10.5",
+  "version": "0.10.6",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
-    "test:engine-client": "node --experimental-strip-types --test src/lib/engineCommands/__tests__/*.test.ts src/lib/gateway/__tests__/*.test.ts src/lib/projection/__tests__/*.test.ts",
+    "test:engine-client": "node --experimental-strip-types --test src/lib/engineCommands/__tests__/*.test.ts src/lib/gateway/__tests__/*.test.ts src/lib/projection/__tests__/*.test.ts src/lib/telemetry/__tests__/*.test.ts",
     "test:projection": "node --experimental-strip-types --test src/lib/projection/__tests__/*.test.ts",
     "test:e2e": "playwright test",
     "validate:releases": "node scripts/validate_release_notes.mjs",

@@ -13,6 +13,8 @@ import { createBffAuthProvider } from '@/plugins/bffAuth'
 import { clearLegacyAuthStorage, setAuthProvider } from '@/lib/auth'
 import { applyEnvironmentBranding } from '@/lib/environmentBranding'
 import { useUiStore } from '@/stores/ui'
+import { useAuth } from '@/lib/auth'
+import { startTelemetry } from '@/lib/telemetry'
 
 applyEnvironmentBranding()
 
@@ -31,6 +33,11 @@ setAuthProvider(createBffAuthProvider())
 app.use(router)
 
 app.mount('#app')
+
+void useAuth()
+  .waitUntilReady()
+  .then(() => startTelemetry(router))
+  .catch(() => undefined)
 
 // Apply theme class after mount
 const ui = useUiStore()

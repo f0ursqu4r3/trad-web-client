@@ -17,6 +17,7 @@ import ManagedTradeChart from './ManagedTradeChart.vue'
 import ManagedTradeExpansion from './ManagedTradeExpansion.vue'
 import ManagedTradeMenu, { type ManagedTradeDetailTab } from './ManagedTradeMenu.vue'
 import ManagedTradeMetrics from './ManagedTradeMetrics.vue'
+import { recordTelemetry } from '@/lib/telemetry'
 
 const props = defineProps<{
   trade: ManagedTradeView
@@ -82,17 +83,44 @@ watch(
   },
 )
 
+watch(
+  () => props.trade.attentionReason,
+  (reason, previous) => {
+    if (reason === null || reason === previous || !reason.toLowerCase().includes('reconcil')) return
+    recordTelemetry({
+      eventName: 'reconciliation_banner_shown',
+      accountId: accounts.selectedAccountId,
+      tradeId: props.trade.tradeId,
+      commandId: props.trade.primaryCommand.command_id,
+      properties: { blocker_code: 'RECONCILIATION_REQUIRED', source: 'managed_trade' },
+    })
+  },
+  { immediate: true },
+)
+
 function toggle(): void {
+  recordTradeSelected('trade_card')
   emit('select', props.trade.tradeId)
   if (!props.expanded) ui.selectCommand(props.trade.primaryCommand.command_id)
   emit('toggle', props.trade.tradeId)
 }
 
 function openDetail(tab: ManagedTradeDetailTab): void {
+  recordTradeSelected('trade_detail')
   emit('select', props.trade.tradeId)
   detailTab.value = tab
   ui.selectCommand(props.trade.primaryCommand.command_id)
   if (!props.expanded) emit('toggle', props.trade.tradeId)
+}
+
+function recordTradeSelected(source: string): void {
+  recordTelemetry({
+    eventName: 'trade_selected',
+    accountId: accounts.selectedAccountId,
+    tradeId: props.trade.tradeId,
+    commandId: props.trade.primaryCommand.command_id,
+    properties: { source },
+  })
 }
 
 function openContext(event: MouseEvent): void {
@@ -116,6 +144,13 @@ async function copyTradeId(): Promise<void> {
   try {
     await navigator.clipboard.writeText(rootCommandId.value)
     tradeIdCopied.value = true
+    recordTelemetry({
+      eventName: 'trade_id_copied',
+      accountId: accounts.selectedAccountId,
+      tradeId: props.trade.tradeId,
+      commandId: rootCommandId.value,
+      properties: { source: 'managed_trade' },
+    })
   } catch {
     tradeIdCopied.value = false
   }

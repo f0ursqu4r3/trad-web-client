@@ -215,6 +215,160 @@ test('close presets remain ordinary audited close commands', async ({ page }) =>
   await expect(dialog.getByLabel('Close Percentage (%)')).toHaveValue('50')
 })
 
+test('telemetry correlates modal abandonment and accepted command flow without raw inputs', async ({
+  page,
+}) => {
+  const batches: Array<{ events: Array<Record<string, unknown>> }> = []
+  await page.route('**/api/telemetry/config', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        schema_version: 1,
+        collection_enabled: true,
+        max_batch_bytes: 64 * 1024,
+        max_events_per_batch: 32,
+        flush_interval_ms: 1_000,
+        queue_capacity: 128,
+        max_event_age_ms: 120_000,
+      }),
+    })
+  })
+  await page.route('**/api/telemetry/events', async (route) => {
+    batches.push(route.request().postDataJSON())
+    await route.fulfill({ status: 202, contentType: 'application/json', body: '{}' })
+  })
+  await page.reload()
+
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  await eth.getByRole('button', { name: 'Close ½' }).click()
+  await page
+    .getByRole('dialog', { name: 'Close Exposure' })
+    .getByRole('button', { name: 'Back' })
+    .click()
+
+  const ticket = page.getByRole('form', { name: 'New trade order ticket' })
+  await ticket.getByLabel('Stop-loss price (USDC)').fill('62000')
+  await expect(ticket.getByText('Ready', { exact: true })).toBeVisible()
+  await ticket.getByRole('button', { name: 'Buy BTC chase' }).click()
+  await expect(ticket.getByText('Buy BTC chase accepted by Trad.')).toBeVisible()
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')))
+  await expect
+    .poll(() => hasCorrelatedEvent(batches, 'place_chase', 'durable_command_linked'))
+    .toBe(true)
+
+  const events = batches.flatMap((batch) => batch.events)
+  const canceled = events.find((event) => event.event_name === 'action_canceled')
+  expect(canceled?.action_attempt_id).toBeTruthy()
+  expect(
+    events.some(
+      (event) =>
+        event.event_name === 'action_opened' &&
+        event.action_attempt_id === canceled?.action_attempt_id,
+    ),
+  ).toBe(true)
+
+  const confirmed = events.find(
+    (event) =>
+      event.event_name === 'action_confirmed' &&
+      (event.properties as { action_kind?: string }).action_kind === 'place_chase',
+  )
+  expect(confirmed?.action_attempt_id).toBeTruthy()
+  const correlated = events
+    .filter((event) => event.action_attempt_id === confirmed?.action_attempt_id)
+    .map((event) => event.event_name)
+  expect(correlated).toEqual(
+    expect.arrayContaining([
+      'preview_requested',
+      'request_queued',
+      'request_sent',
+      'response_received',
+      'action_confirmed',
+      'action_submitted',
+      'action_accepted',
+      'command_route_accepted',
+      'durable_command_linked',
+    ]),
+  )
+  expect(JSON.stringify(events)).not.toContain('62000')
+})
+
+test('reconciliation-blocked protection edit explains intent without sending a command', async ({
+  page,
+}) => {
+  const batches: Array<{ events: Array<Record<string, unknown>> }> = []
+  await page.route('**/api/telemetry/config', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        schema_version: 1,
+        collection_enabled: true,
+        max_batch_bytes: 64 * 1024,
+        max_events_per_batch: 32,
+        flush_interval_ms: 1_000,
+        queue_capacity: 128,
+        max_event_age_ms: 120_000,
+      }),
+    })
+  })
+  await page.route('**/api/telemetry/events', async (route) => {
+    batches.push(route.request().postDataJSON())
+    await route.fulfill({ status: 202, contentType: 'application/json', body: '{}' })
+  })
+  await page.goto('/e2e/trader-workspace?reconciliation=1')
+
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  await eth.getByRole('button', { name: 'Edit protection' }).click({ force: true })
+  await expect(eth.getByText(/needs reconciliation before Trad can safely change/i)).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Edit Native Protection' })).toHaveCount(0)
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')))
+  await expect
+    .poll(() =>
+      batches
+        .flatMap((batch) => batch.events)
+        .some(
+          (event) =>
+            event.event_name === 'action_blocked' &&
+            (event.properties as { action_kind?: string; blocker_code?: string }).action_kind ===
+              'edit_protection' &&
+            (event.properties as { blocker_code?: string }).blocker_code ===
+              'RECONCILIATION_REQUIRED',
+        ),
+    )
+    .toBe(true)
+  const events = batches.flatMap((batch) => batch.events)
+  const blocked = events.find(
+    (event) =>
+      event.event_name === 'action_blocked' &&
+      (event.properties as { action_kind?: string }).action_kind === 'edit_protection',
+  )
+  expect(
+    events.some(
+      (event) =>
+        event.event_name === 'action_submitted' &&
+        event.action_attempt_id === blocked?.action_attempt_id,
+    ),
+  ).toBe(false)
+})
+
+function hasCorrelatedEvent(
+  batches: Array<{ events: Array<Record<string, unknown>> }>,
+  actionKind: string,
+  expectedName: string,
+): boolean {
+  const events = batches.flatMap((batch) => batch.events)
+  const confirmed = events.find(
+    (event) =>
+      event.event_name === 'action_confirmed' &&
+      (event.properties as { action_kind?: string }).action_kind === actionKind,
+  )
+  return events.some(
+    (event) =>
+      event.event_name === expectedName && event.action_attempt_id === confirmed?.action_attempt_id,
+  )
+}
+
 test('complete inline ticket previews and submits without opening the legacy form', async ({
   page,
 }) => {

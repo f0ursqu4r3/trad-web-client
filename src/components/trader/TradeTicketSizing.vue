@@ -21,6 +21,7 @@ const presets = computed(() =>
   <div class="sizing-modes">
     <button
       type="button"
+      data-telemetry-field="sizing_mode"
       :class="{ active: draft.sizingMode === 'risk_at_stop' }"
       @click="draft.sizingMode = 'risk_at_stop'"
     >
@@ -28,6 +29,7 @@ const presets = computed(() =>
     </button>
     <button
       type="button"
+      data-telemetry-field="sizing_mode"
       :class="{ active: draft.sizingMode !== 'risk_at_stop' }"
       @click="draft.sizingMode = 'quote_notional'"
     >
@@ -40,6 +42,7 @@ const presets = computed(() =>
       v-if="draft.sizingMode !== 'risk_at_stop'"
       label="Fixed size type"
       help="Enter quote-currency notional or exact base quantity."
+      telemetry-field="fixed_size_type"
       required
     >
       <select v-model="draft.sizingMode" class="input">
@@ -60,6 +63,7 @@ const presets = computed(() =>
           ? 'Maximum loss at the configured stop. Trad derives the entry quantity.'
           : 'Requested fixed entry size before exchange normalization.'
       "
+      telemetry-field="sizing_amount"
       required
     >
       <input v-model="draft.amount" class="input" inputmode="decimal" required />
@@ -72,6 +76,7 @@ const presets = computed(() =>
       <div class="preset-scale" aria-label="Preset scale">
         <button
           type="button"
+          data-telemetry-field="preset_scale"
           :class="{ active: presetScale === 'standard' }"
           @click="presetScale = 'standard'"
         >
@@ -79,6 +84,7 @@ const presets = computed(() =>
         </button>
         <button
           type="button"
+          data-telemetry-field="preset_scale"
           :class="{ active: presetScale === 'test' }"
           @click="presetScale = 'test'"
         >
@@ -91,6 +97,7 @@ const presets = computed(() =>
         v-for="preset in presets"
         :key="preset"
         type="button"
+        data-telemetry-field="size_preset"
         :class="{ active: draft.amount === preset }"
         @click="draft.amount = preset"
       >

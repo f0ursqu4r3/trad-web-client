@@ -1,5 +1,59 @@
 [
   {
+    "version": "0.10.6",
+    "status": "published",
+    "released_at": "2026-08-27",
+    "channel": "Incident telemetry",
+    "summary": "Added privacy-bounded first-party incident timelines for user intent, blockers, transport, and durable command correlation.",
+    "major": [
+      "Financial actions now carry one attempt identity across form, preview, Gateway request, durable command acceptance, and projected terminal outcome.",
+      "Reconciliation-blocked close and protection controls explain the exact stable blocker instead of silently swallowing attempted user actions.",
+      "Administrators can query an audited chronological incident timeline by user, account, trade, session, attempt, request, or command identity."
+    ],
+    "minor": [
+      "Added bounded memory-only collection for meaningful navigation, field interaction, account authority changes, connection state, projection gaps, and support references.",
+      "Added an explicit server-side cohort allowlist so internal rollout can be enforced before any broader collection decision.",
+      "Added a separate short-timeout telemetry pool, fixed event and byte budgets, account ownership checks, retention batches, and health counters."
+    ],
+    "fixes": [
+      "Telemetry failures, malformed events, rate limits, queue overflow, storage outage, and pool contention now drop observations without entering financial control flow.",
+      "Late predecessor evidence and sequence gaps remain visible without being reordered into invented certainty, while one attempt cannot link to two durable commands.",
+      "Collection and retention remain disabled by default; rollback can stop collection independently without changing trading binaries or deleting audit history."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "Correlated incident timelines",
+        "items": [
+          "Follow one user attempt from modal open or blocked control through preview, request, response, durable command, and terminal projection evidence.",
+          "Distinguish browser interaction, browser-observed transport, and browser-observed durable identifiers while keeping engine and exchange records authoritative.",
+          "Record Sync Unavailable, reconciliation banners, account selection, diagnostics, Settings navigation, agent changes, retries, and abandonment as stable typed events.",
+          "Audit every administrative timeline lookup and require a bounded incident selector."
+        ]
+      },
+      {
+        "category": "major",
+        "title": "Non-interference and privacy",
+        "items": [
+          "Use an asynchronous collector with a bounded memory-only queue, fixed retry count, maximum age, and no local storage.",
+          "Reject free text, unknown properties, secrets, raw request bodies, oversized values, invalid identities, clock skew, and accounts not owned by the authenticated user.",
+          "Keep telemetry in additive tables and a separately bounded pool with no foreign keys or transaction dependency from financial state.",
+          "Drop open on disabled collection, malformed input, storage failure, rate limiting, and pool exhaustion."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Disabled-first rollout",
+        "items": [
+          "Ship the release with collection and retention off unless explicitly configured.",
+          "Allow only an explicit internal UUID cohort before any bounded or general rollout.",
+          "Expose accepted, dropped, invalid, duplicate, throttled, storage-failure, and sequence-gap health counters.",
+          "Require retention, notice, export/deletion, access, volume, and production-clone gates before broad enablement."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.5",
     "status": "published",
     "released_at": "2026-08-27",

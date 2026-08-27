@@ -11,6 +11,7 @@ import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 import { useMarketStore } from '@/stores/market'
+import { GatewayTelemetryObserver } from '@/lib/telemetry/gatewayObservation'
 import TradingTerminal from '@/views/TradingTerminal.vue'
 import {
   ENGINE_ACCOUNT_ID,
@@ -22,6 +23,7 @@ const accounts = useAccountsStore()
 const projections = useAccountProjectionStore()
 const gateway = useGatewayStore()
 const markets = useMarketStore()
+const telemetry = new GatewayTelemetryObserver()
 
 accounts.accountsRaw = [
   {
@@ -46,11 +48,26 @@ accounts.accountsRaw = [
 ]
 accounts.selectedAccountId = ENGINE_ACCOUNT_ID
 accounts.lastFetchedAt = Date.now()
+const initialProjection = engineProjectionSnapshot()
+if (new URLSearchParams(location.search).has('reconciliation')) {
+  const position = initialProjection.positions.find((candidate) => candidate.symbol === 'ETH')
+  if (position) {
+    position.status = 'reconciliation_required'
+    position.reconciliation_required = true
+  }
+  const protection = initialProjection.native_protections.find(
+    (candidate) => candidate.symbol === 'ETH',
+  )
+  if (protection) {
+    protection.status = 'reconciliation_required'
+    protection.failure_reason = 'fixture protection quantity mismatch'
+  }
+}
 projections.install(
   ENGINE_ACCOUNT_ID,
   ENGINE_SUBSCRIPTION_ID,
   { kind: 'initial' },
-  engineProjectionSnapshot(),
+  initialProjection,
 )
 
 gateway.subscribeMarket = (accountId, symbol) => {
@@ -65,41 +82,65 @@ gateway.subscribeMarket = (accountId, symbol) => {
   })
 }
 gateway.unsubscribeMarket = () => undefined
-gateway.previewCommand = async (intent): Promise<BrowserPreviewOutcome> => ({
-  kind: 'ready',
-  preview: {
-    kind:
-      intent.kind === 'place_order'
-        ? 'order'
-        : intent.kind === 'place_chase'
-          ? 'chase'
-          : 'trailing_entry',
-    symbol: intent.parameters.symbol,
-    position_side: intent.parameters.position_side,
-    decision_price: '63842.5',
-    price_source: intent.parameters.position_side === 'long' ? 'best_ask' : 'best_bid',
-    market_observed_at_ms: Date.now(),
-    raw_base_quantity: '0.00078318',
-    normalized_base_quantity: '0.00078',
-    normalized_quote_notional: '49.79715',
-    children: [{ base_quantity: '0.00078', quote_notional: '49.79715' }],
-    instrument: {
-      price: { kind: 'hyperliquid_perpetual', size_decimals: 5 },
-      quantity_step: '0.00001',
-      minimum_order_quantity: '0.00001',
-      maximum_order_quantity: null,
-      minimum_order_notional: '10',
-      observed_at_ms: Date.now(),
+gateway.previewCommand = async (
+  intent,
+  accountId = ENGINE_ACCOUNT_ID,
+  requestId = crypto.randomUUID(),
+  actionAttemptId,
+): Promise<BrowserPreviewOutcome> => {
+  const attempt = telemetry.attempt(intent, accountId!, requestId, actionAttemptId)
+  telemetry.previewRequested(attempt)
+  telemetry.requestSent(attempt)
+  const outcome: BrowserPreviewOutcome = {
+    kind: 'ready',
+    preview: {
+      kind:
+        intent.kind === 'place_order'
+          ? 'order'
+          : intent.kind === 'place_chase'
+            ? 'chase'
+            : 'trailing_entry',
+      symbol: intent.parameters.symbol,
+      position_side: intent.parameters.position_side,
+      decision_price: '63842.5',
+      price_source: intent.parameters.position_side === 'long' ? 'best_ask' : 'best_bid',
+      market_observed_at_ms: Date.now(),
+      raw_base_quantity: '0.00078318',
+      normalized_base_quantity: '0.00078',
+      normalized_quote_notional: '49.79715',
+      children: [{ base_quantity: '0.00078', quote_notional: '49.79715' }],
+      instrument: {
+        price: { kind: 'hyperliquid_perpetual', size_decimals: 5 },
+        quantity_step: '0.00001',
+        minimum_order_quantity: '0.00001',
+        maximum_order_quantity: null,
+        minimum_order_notional: '10',
+        observed_at_ms: Date.now(),
+      },
+      warnings: [],
     },
-    warnings: [],
-  },
-})
-gateway.submitCommand = async (): Promise<BrowserCommandOutcome> => ({
-  kind: 'accepted',
-  command_id: crypto.randomUUID(),
-  account_revision: 43,
-  duplicate: false,
-})
+  }
+  telemetry.previewResult(attempt, outcome)
+  return outcome
+}
+gateway.submitCommand = async (
+  intent,
+  accountId = ENGINE_ACCOUNT_ID,
+  requestId = crypto.randomUUID(),
+  actionAttemptId,
+): Promise<BrowserCommandOutcome> => {
+  const attempt = telemetry.attempt(intent, accountId!, requestId, actionAttemptId)
+  telemetry.submitted(attempt)
+  telemetry.requestSent(attempt)
+  const outcome: BrowserCommandOutcome = {
+    kind: 'accepted',
+    command_id: crypto.randomUUID(),
+    account_revision: 43,
+    duplicate: false,
+  }
+  telemetry.commandResult(attempt, outcome)
+  return outcome
+}
 onMounted(() => {
   gateway.status = 'ready'
 })

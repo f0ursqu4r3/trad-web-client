@@ -46,6 +46,7 @@ const admin = [
   { key: 'commerce', label: 'Plans & billing', icon: Boxes },
   { key: 'execution', label: 'Fees', icon: BadgeDollarSign },
   { key: 'audit', label: 'Audit history', icon: BookOpenCheck },
+  { key: 'telemetry', label: 'Session timelines', icon: Activity },
 ]
 const product = [{ key: 'updates', label: 'Patch notes', icon: Newspaper, path: '/updates' }]
 

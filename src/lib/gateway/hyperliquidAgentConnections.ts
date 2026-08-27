@@ -1,5 +1,6 @@
 import { apiDelete, apiGet, apiPost, apiPut } from '@/lib/apiClient'
 import type { NetworkType } from '@/lib/ws/protocol'
+import { observeAccountAction } from '@/lib/telemetry/accountObservation'
 
 export interface HyperliquidRemoteAgent {
   name: string
@@ -27,31 +28,39 @@ export function listHyperliquidAgentConnections() {
 }
 
 export function refreshHyperliquidAgentConnection(credentialId: string) {
-  return apiPost<HyperliquidAgentConnection>(
-    `${root}/${encodeURIComponent(credentialId)}/refresh`,
-    undefined,
-    { throwOnHTTPError: true },
+  return observeAccountAction('refresh_agent_connection', null, () =>
+    apiPost<HyperliquidAgentConnection>(
+      `${root}/${encodeURIComponent(credentialId)}/refresh`,
+      undefined,
+      { throwOnHTTPError: true },
+    ),
   )
 }
 
 export function replaceHyperliquidAgentConnection(credentialId: string) {
-  return apiPost<HyperliquidAgentConnection>(
-    `${root}/${encodeURIComponent(credentialId)}/replacement`,
-    undefined,
-    { throwOnHTTPError: true },
+  return observeAccountAction('replace_agent_connection', null, () =>
+    apiPost<HyperliquidAgentConnection>(
+      `${root}/${encodeURIComponent(credentialId)}/replacement`,
+      undefined,
+      { throwOnHTTPError: true },
+    ),
   )
 }
 
 export function selectHyperliquidAgentSlot(credentialId: string, agentName: string) {
-  return apiPut<HyperliquidAgentConnection, { agent_name: string }>(
-    `${root}/${encodeURIComponent(credentialId)}/slot`,
-    { agent_name: agentName },
-    { throwOnHTTPError: true },
+  return observeAccountAction('select_agent_slot', null, () =>
+    apiPut<HyperliquidAgentConnection, { agent_name: string }>(
+      `${root}/${encodeURIComponent(credentialId)}/slot`,
+      { agent_name: agentName },
+      { throwOnHTTPError: true },
+    ),
   )
 }
 
 export function forgetHyperliquidAgentConnection(credentialId: string) {
-  return apiDelete<void>(`${root}/${encodeURIComponent(credentialId)}`, {
-    throwOnHTTPError: true,
-  })
+  return observeAccountAction('forget_agent_connection', null, () =>
+    apiDelete<void>(`${root}/${encodeURIComponent(credentialId)}`, {
+      throwOnHTTPError: true,
+    }),
+  )
 }

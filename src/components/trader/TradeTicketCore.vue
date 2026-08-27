@@ -23,6 +23,7 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
     label="Market"
     help="Exchange instrument. Type to filter the markets available for this account."
     :error="marketError"
+    telemetry-field="market"
     required
   >
     <template #label>
@@ -46,6 +47,7 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
   <div class="side-toggle" aria-label="Position side">
     <button
       class="side-button long"
+      data-telemetry-field="position_side"
       :class="{ active: draft.positionSide === 'long' }"
       type="button"
       @click="draft.positionSide = 'long'"
@@ -54,6 +56,7 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
     </button>
     <button
       class="side-button short"
+      data-telemetry-field="position_side"
       :class="{ active: draft.positionSide === 'short' }"
       type="button"
       @click="draft.positionSide = 'short'"
@@ -67,6 +70,7 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
       v-for="kind in entryTypes"
       :key="kind"
       class="entry-tab"
+      data-telemetry-field="entry_type"
       :class="{ active: draft.entryType === kind }"
       type="button"
       :aria-pressed="draft.entryType === kind"

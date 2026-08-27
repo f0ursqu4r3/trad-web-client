@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import MarketSymbolCombobox from '@/components/forms/MarketSymbolCombobox.vue'
 import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmission'
+import { useTelemetryAction } from '@/composables/useTelemetryAction'
 import type { PositionSideIntent } from '@/lib/gateway'
 import { type ShapeMode } from '@/lib/engineCommands/form'
 import { buildPlaceTrailingEntryIntent, previewIntent } from '@/lib/engineCommands/intents'
@@ -27,6 +28,12 @@ const gateway = useGatewayStore()
 const modals = useModalStore()
 const submission = useEngineCommandSubmission()
 const selectedAccountId = ref('')
+const telemetryAction = useTelemetryAction({
+  open: () => props.open,
+  accountId: () => selectedAccountId.value || null,
+  actionKind: () => 'place_trailing_entry',
+  source: 'trailing_entry_modal',
+})
 const symbol = ref('')
 const positionSide = ref<PositionSideIntent>('long')
 const activationPrice = ref('')
@@ -108,12 +115,21 @@ function applyAccountDefaults(): void {
 
 async function submit(): Promise<void> {
   validationError.value = null
+  const actionAttemptId = telemetryAction.confirm()
   try {
     const intent = buildIntent()
-    if (await submission.submit({ accountId: selectedAccountId.value, intent })) emit('close')
+    if (await submission.submit({ accountId: selectedAccountId.value, intent }, actionAttemptId)) {
+      emit('close')
+    }
   } catch (error) {
+    telemetryAction.validationFailed()
     validationError.value = error instanceof Error ? error.message : String(error)
   }
+}
+
+function closeModal(): void {
+  telemetryAction.cancel()
+  emit('close')
 }
 
 function buildIntent() {
@@ -134,7 +150,7 @@ function buildIntent() {
 </script>
 
 <template>
-  <BaseCommandModal title="Trailing Entry" :open="open" @close="emit('close')">
+  <BaseCommandModal title="Trailing Entry" :open="open" @close="closeModal">
     <form id="engine-trailing-entry" class="command-form" @submit.prevent="submit">
       <div class="form-grid">
         <FormField
@@ -278,6 +294,7 @@ function buildIntent() {
         :account-id="selectedAccountId"
         :intent="planningIntent"
         :active="open"
+        :action-attempt-id="telemetryAction.actionAttemptId.value"
         :quote-asset="units.quote"
         @update:ready="previewReady = $event"
       />
@@ -290,7 +307,7 @@ function buildIntent() {
     </form>
 
     <template #footer>
-      <button class="btn" type="button" @click="emit('close')">Cancel</button>
+      <button class="btn" type="button" @click="closeModal">Cancel</button>
       <button
         class="btn btn-primary"
         type="submit"
