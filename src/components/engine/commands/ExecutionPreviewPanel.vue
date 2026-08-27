@@ -4,6 +4,10 @@ import { RouterLink } from 'vue-router'
 
 import { formatExactDecimal } from '@/lib/exactDecimalMath'
 import { affordabilityAdvisory } from '@/lib/engineCommands/affordability'
+import {
+  loadHyperliquidCapacity,
+  type HyperliquidCapacity,
+} from '@/lib/engineCommands/hyperliquidCapacity'
 import type { BrowserPreviewIntent, CommandPreview } from '@/lib/gateway'
 import { previewRejectionRemediation } from '@/lib/engineCommands/previewRemediation'
 import { recordTelemetry } from '@/lib/telemetry'
@@ -31,6 +35,8 @@ const gateway = useGatewayStore()
 const accounts = useAccountsStore()
 const projections = useAccountProjectionStore()
 const preview = ref<CommandPreview | null>(null)
+const venueCapacity = ref<HyperliquidCapacity | null>(null)
+const acceptedPlanFingerprint = ref<string | null>(null)
 const error = ref<string | null>(null)
 const pending = ref(false)
 const account = computed(() => accounts.accounts.find((row) => row.id === props.accountId) ?? null)
@@ -54,9 +60,28 @@ const affordability = computed(() =>
     projectionRevision: projection.value?.view?.live.checkpoint.projection_revision ?? null,
     available: available.value,
     configuredLeverage: configuredLeverage.value,
+    venueAvailableToTrade: venueCapacity.value?.availableToTrade ?? null,
+    venueMaximumBaseQuantity: venueCapacity.value?.maximumBaseQuantity ?? null,
+    venueEffectiveLeverage: venueCapacity.value?.effectiveLeverage ?? null,
   }),
 )
-const ready = computed(() => preview.value !== null && error.value === null && !pending.value)
+const planFingerprint = computed(() => {
+  const planned = preview.value
+  if (planned === null) return null
+  return [planned.symbol, planned.position_side, planned.normalized_base_quantity].join(':')
+})
+const affordabilityConfirmationRequired = computed(
+  () =>
+    affordability.value?.state === 'insufficient_margin_likely' &&
+    acceptedPlanFingerprint.value !== planFingerprint.value,
+)
+const ready = computed(
+  () =>
+    preview.value !== null &&
+    error.value === null &&
+    !pending.value &&
+    !affordabilityConfirmationRequired.value,
+)
 const status = computed<PreviewStatus>(() => {
   if (pending.value) return 'planning'
   if (error.value !== null) return 'rejected'
@@ -68,6 +93,8 @@ const remediation = computed(() =>
 )
 let timer: number | null = null
 let generation = 0
+let capacityGeneration = 0
+let capacityAbort: AbortController | null = null
 
 const sourceLabel = computed(() => {
   switch (preview.value?.price_source) {
@@ -88,6 +115,16 @@ watch([() => props.active, () => props.accountId, () => props.intent], schedule,
   deep: true,
   immediate: true,
 })
+watch(
+  () => [
+    preview.value?.symbol,
+    preview.value?.position_side,
+    account.value?.network,
+    account.value?.exchange_metadata?.user_address,
+    account.value?.exchange_metadata?.vault_address,
+  ],
+  scheduleCapacity,
+)
 watch(ready, (value) => emit('update:ready', value), { immediate: true })
 watch(status, (value) => emit('update:status', value), { immediate: true })
 watch(
@@ -120,6 +157,60 @@ function schedule(): void {
   timer = window.setTimeout(() => void request(current), 350)
 }
 
+function scheduleCapacity(): void {
+  const current = ++capacityGeneration
+  capacityAbort?.abort()
+  capacityAbort = null
+  venueCapacity.value = null
+  const planned = preview.value
+  const selected = account.value
+  const userAddress = selected?.exchange_metadata?.user_address
+  if (
+    planned === null ||
+    selected?.exchange !== ExchangeType.Hyperliquid ||
+    !userAddress
+  ) {
+    return
+  }
+  const controller = new AbortController()
+  capacityAbort = controller
+  const timeout = window.setTimeout(() => controller.abort(), 5_000)
+  void loadHyperliquidCapacity({
+    network: selected.network,
+    userAddress,
+    vaultAddress: selected.exchange_metadata?.vault_address,
+    symbol: planned.symbol,
+    positionSide: planned.position_side,
+    signal: controller.signal,
+  })
+    .then((capacity) => {
+      if (current === capacityGeneration) venueCapacity.value = capacity
+    })
+    .catch(() => {
+      // Venue advice is fail-open; projection evidence remains available.
+    })
+    .finally(() => {
+      window.clearTimeout(timeout)
+      if (current === capacityGeneration) capacityAbort = null
+    })
+}
+
+function acceptAffordabilityRisk(): void {
+  const fingerprint = planFingerprint.value
+  if (fingerprint === null) return
+  acceptedPlanFingerprint.value = fingerprint
+  recordTelemetry({
+    eventName: 'submit_anyway_selected',
+    accountId: props.accountId,
+    projectionRevision: affordability.value?.projectionRevision,
+    actionAttemptId: props.actionAttemptId,
+    properties: {
+      blocker_code: 'INSUFFICIENT_MARGIN_LIKELY',
+      source: affordability.value?.evidenceSource ?? 'unknown',
+    },
+  })
+}
+
 async function request(current: number): Promise<void> {
   timer = null
   if (current !== generation || props.intent === null) return
@@ -145,6 +236,8 @@ async function request(current: number): Promise<void> {
 onBeforeUnmount(() => {
   generation += 1
   if (timer !== null) window.clearTimeout(timer)
+  capacityGeneration += 1
+  capacityAbort?.abort()
 })
 </script>
 
@@ -238,16 +331,34 @@ onBeforeUnmount(() => {
       >
         <strong>Likely above available margin</strong>
         <span>
-          Planned {{ formatExactDecimal(preview.normalized_quote_notional) }}
-          {{ props.quoteAsset ?? '' }}; the latest synced
-          {{ formatExactDecimal(affordability.available ?? '0') }} available at
-          {{ affordability.leverage }}x supports about
-          {{ formatExactDecimal(affordability.estimatedMaximumNotional ?? '0') }} notional.
+          <template v-if="affordability.evidenceSource === 'venue_capacity'">
+            Planned {{ formatExactDecimal(preview.normalized_base_quantity) }}
+            {{ preview.symbol }}; Hyperliquid currently reports a
+            {{ formatExactDecimal(affordability.maximumBaseQuantity ?? '0') }}
+            {{ preview.symbol }} maximum for this side and
+            {{ formatExactDecimal(affordability.available ?? '0') }} available to trade.
+          </template>
+          <template v-else>
+            Planned {{ formatExactDecimal(preview.normalized_quote_notional) }}
+            {{ props.quoteAsset ?? '' }}; the latest synced
+            {{ formatExactDecimal(affordability.available ?? '0') }} available at
+            {{ affordability.leverage }}x supports about
+            {{ formatExactDecimal(affordability.estimatedMaximumNotional ?? '0') }} notional.
+          </template>
           Hyperliquid may partially fill or reject the order.
         </span>
         <small>
-          This is advisory only. Submission remains available and the venue is the final authority.
+          This evidence is advisory and Hyperliquid remains the final authority.
         </small>
+        <button
+          v-if="affordabilityConfirmationRequired"
+          type="button"
+          class="preview-action affordability-accept"
+          @click="acceptAffordabilityRisk"
+        >
+          Submit anyway
+        </button>
+        <small v-else>Margin warning acknowledged for this exact planned size.</small>
       </div>
       <p class="preview-note">Final submission replans against current exchange evidence.</p>
     </template>
@@ -374,6 +485,9 @@ onBeforeUnmount(() => {
 .affordability-warning strong,
 .affordability-warning small {
   display: block;
+}
+.affordability-accept {
+  justify-self: start;
 }
 .affordability-warning small {
   color: var(--color-text-dim);

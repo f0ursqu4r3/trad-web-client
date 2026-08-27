@@ -2,6 +2,20 @@ import { expect, test } from '@playwright/test'
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://api.hyperliquid.xyz/info', async (route) => {
+    const request = route.request().postDataJSON() as { type?: string }
+    if (request.type === 'activeAssetData') {
+      const lowMargin = new URL(page.url()).searchParams.has('low_margin')
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          leverage: { type: 'cross', value: 1 },
+          availableToTrade: lowMargin ? ['10', '10'] : ['100000', '100000'],
+          maxTradeSzs: lowMargin ? ['0.0001', '0.0001'] : ['10', '10'],
+        }),
+      })
+      return
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -481,15 +495,19 @@ test('offers exact latest-trade distance controls for activation and take profit
   await expect(takeProfitField.getByText(/current \+5%/)).toBeVisible()
 })
 
-test('warns about likely insufficient margin without disabling submission', async ({ page }) => {
+test('requires an immediate override for fresh likely insufficient margin advice', async ({
+  page,
+}) => {
   await page.goto('/e2e/trader-workspace?low_margin=1')
   const ticket = page.getByRole('form', { name: 'New trade order ticket' })
   await ticket.getByLabel('Stop-loss price (USDC)').fill('62000')
 
   await expect(ticket.getByText('Likely above available margin')).toBeVisible()
   await expect(
-    ticket.getByText(/latest synced 10 available at 1x supports about 10 notional/i),
+    ticket.getByText(/Hyperliquid currently reports a 0.0001 BTC maximum/i),
   ).toBeVisible()
+  await expect(ticket.getByRole('button', { name: 'Buy BTC chase' })).toBeDisabled()
+  await ticket.getByRole('button', { name: 'Submit anyway' }).click()
   await expect(ticket.getByRole('button', { name: 'Buy BTC chase' })).toBeEnabled()
 })
 

@@ -53,6 +53,23 @@ test('stale or incomplete balance evidence stays unknown and never invents a blo
   )
 })
 
+test('fresh venue capacity takes precedence over configured projection estimates', () => {
+  const result = affordabilityAdvisory(preview('1000'), {
+    hyperliquid: true,
+    projectionReady: true,
+    projectionRevision: 42,
+    available: '10000',
+    configuredLeverage: 50,
+    venueAvailableToTrade: '101.644292',
+    venueMaximumBaseQuantity: '0.00127',
+    venueEffectiveLeverage: 1,
+  })
+
+  assert.equal(result?.state, 'insufficient_margin_likely')
+  assert.equal(result?.maximumBaseQuantity, '0.00127')
+  assert.equal(result?.evidenceSource, 'venue_capacity')
+})
+
 function preview(notional: string): CommandPreview {
   return {
     kind: 'order',
