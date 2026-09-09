@@ -466,11 +466,31 @@ export interface OrderRequestProjection {
   reduce_only: boolean
 }
 
+export type OrderGenerationLifecycle =
+  | 'pending_submission'
+  | 'working'
+  | 'partially_filled'
+  | 'filled'
+  | 'canceled'
+  | 'rejected'
+  | { awaiting_submission_outcome: { query: Uuid } }
+  | { awaiting_modify_outcome: { query: Uuid } }
+  | { awaiting_cancel_outcome: { query: Uuid } }
+  | { unexplained_mismatch: { reason: string } }
+
+export function orderGenerationLifecycleName(lifecycle: OrderGenerationLifecycle): string {
+  if (typeof lifecycle === 'string') return lifecycle.replace(/_/g, ' ')
+  if ('awaiting_submission_outcome' in lifecycle) return 'awaiting submission outcome'
+  if ('awaiting_modify_outcome' in lifecycle) return 'awaiting modify outcome'
+  if ('awaiting_cancel_outcome' in lifecycle) return 'awaiting cancel outcome'
+  return 'unexplained mismatch'
+}
+
 export interface OrderGenerationProjection {
   generation: number
   predecessor_generation: number | null
   successor_generation: number | null
-  lifecycle: string
+  lifecycle: OrderGenerationLifecycle
   working_request: OrderRequestProjection
   filled_quantity: ExactDecimal
   client_order_id: string

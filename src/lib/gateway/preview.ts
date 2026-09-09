@@ -47,18 +47,31 @@ export interface CommandPreview {
   warnings: string[]
 }
 
+export type PreviewPlanningRejectionCode =
+  | 'wrong_side_stop'
+  | 'wrong_side_take_profit'
+  | 'missing_stop_for_risk_sizing'
+  | 'zero_entry_stop_distance'
+  | 'below_minimum_order'
+  | 'above_maximum_order'
+  | 'invalid_price_precision'
+  | 'stale_market_evidence'
+  | 'missing_market_evidence'
+  | 'account_policy_barrier'
+  | 'unknown'
+
+export interface BrowserPreviewRejection {
+  code:
+    | 'invalid_intent'
+    | 'unauthorized'
+    | 'account_unavailable'
+    | 'routing_changed'
+    | 'planning_failed'
+  reason_code?: PreviewPlanningRejectionCode
+  reason: string
+  retryable: boolean
+}
+
 export type BrowserPreviewOutcome =
   | { kind: 'ready'; preview: CommandPreview }
-  | {
-      kind: 'rejected'
-      rejection: {
-        code:
-          | 'invalid_intent'
-          | 'unauthorized'
-          | 'account_unavailable'
-          | 'routing_changed'
-          | 'planning_failed'
-        reason: string
-        retryable: boolean
-      }
-    }
+  | { kind: 'rejected'; rejection: BrowserPreviewRejection }

@@ -1,20 +1,21 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import { formatExactDecimal } from '@/lib/exactDecimalMath'
+import { useExecutionPreview, type ExecutionPreviewStatus } from '@/composables/useExecutionPreview'
 import { affordabilityAdvisory } from '@/lib/engineCommands/affordability'
+import { AffordabilityTransitionTracker } from '@/lib/engineCommands/affordabilityTelemetry'
 import {
   loadHyperliquidCapacity,
   type HyperliquidCapacity,
 } from '@/lib/engineCommands/hyperliquidCapacity'
-import type { BrowserPreviewIntent, CommandPreview } from '@/lib/gateway'
+import type { BrowserPreviewIntent } from '@/lib/gateway'
 import { previewRejectionRemediation } from '@/lib/engineCommands/previewRemediation'
 import { recordTelemetry } from '@/lib/telemetry'
 import { ExchangeType } from '@/lib/ws/protocol'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
-import { useGatewayStore } from '@/stores/gateway'
 
 const props = defineProps<{
   accountId: string
@@ -24,21 +25,24 @@ const props = defineProps<{
   compact?: boolean
   actionAttemptId?: string | null
 }>()
-type PreviewStatus = 'idle' | 'planning' | 'ready' | 'rejected'
-
 const emit = defineEmits<{
   (event: 'update:ready', ready: boolean): void
-  (event: 'update:status', status: PreviewStatus): void
+  (event: 'update:status', status: ExecutionPreviewStatus): void
 }>()
 
-const gateway = useGatewayStore()
 const accounts = useAccountsStore()
 const projections = useAccountProjectionStore()
-const preview = ref<CommandPreview | null>(null)
+const previewRoot = ref<HTMLElement | null>(null)
+const editing = ref(false)
 const venueCapacity = ref<HyperliquidCapacity | null>(null)
 const acceptedPlanFingerprint = ref<string | null>(null)
-const error = ref<string | null>(null)
-const pending = ref(false)
+const { error, guidance, pending, preview, ready, status } = useExecutionPreview({
+  accountId: () => props.accountId,
+  intent: () => props.intent,
+  active: () => props.active,
+  actionAttemptId: () => props.actionAttemptId,
+  editing,
+})
 const account = computed(() => accounts.accounts.find((row) => row.id === props.accountId) ?? null)
 const projection = computed(() => projections.byAccount[props.accountId] ?? null)
 const available = computed(
@@ -75,26 +79,14 @@ const affordabilityConfirmationRequired = computed(
     affordability.value?.state === 'insufficient_margin_likely' &&
     acceptedPlanFingerprint.value !== planFingerprint.value,
 )
-const ready = computed(
-  () =>
-    preview.value !== null &&
-    error.value === null &&
-    !pending.value &&
-    !affordabilityConfirmationRequired.value,
-)
-const status = computed<PreviewStatus>(() => {
-  if (pending.value) return 'planning'
-  if (error.value !== null) return 'rejected'
-  if (preview.value !== null) return 'ready'
-  return 'idle'
-})
+const submitReady = computed(() => ready.value && !affordabilityConfirmationRequired.value)
 const remediation = computed(() =>
   error.value === null ? null : previewRejectionRemediation(error.value, props.accountId),
 )
-let timer: number | null = null
-let generation = 0
 let capacityGeneration = 0
 let capacityAbort: AbortController | null = null
+let ownerForm: HTMLFormElement | null = null
+const affordabilityTransitions = new AffordabilityTransitionTracker()
 
 const sourceLabel = computed(() => {
   switch (preview.value?.price_source) {
@@ -111,10 +103,6 @@ const sourceLabel = computed(() => {
   }
 })
 
-watch([() => props.active, () => props.accountId, () => props.intent], schedule, {
-  deep: true,
-  immediate: true,
-})
 watch(
   () => [
     preview.value?.symbol,
@@ -125,37 +113,27 @@ watch(
   ],
   scheduleCapacity,
 )
-watch(ready, (value) => emit('update:ready', value), { immediate: true })
+watch(submitReady, (value) => emit('update:ready', value), { immediate: true })
 watch(status, (value) => emit('update:status', value), { immediate: true })
 watch(
-  () => affordability.value?.fingerprint ?? null,
-  (fingerprint, previous) => {
+  () => [props.actionAttemptId, affordability.value?.state ?? null] as const,
+  ([actionAttemptId, state]) => {
     const advisory = affordability.value
-    if (fingerprint === null || advisory === null) return
+    const transition = affordabilityTransitions.observe(actionAttemptId, state)
+    if (transition === null || advisory === null) return
     recordTelemetry({
       eventName: 'affordability_changed',
       accountId: props.accountId,
       projectionRevision: advisory.projectionRevision,
       actionAttemptId: props.actionAttemptId,
       properties: {
-        state: advisory.state,
-        previous_state: previous?.split(':', 1)[0] ?? 'unknown',
+        state: transition.state,
+        previous_state: transition.previousState,
         source: 'execution_preview',
       },
     })
   },
 )
-
-function schedule(): void {
-  if (timer !== null) window.clearTimeout(timer)
-  const current = ++generation
-  preview.value = null
-  error.value = null
-  pending.value = false
-  if (!props.active || props.accountId === '' || props.intent === null || !gateway.isConnected)
-    return
-  timer = window.setTimeout(() => void request(current), 350)
-}
 
 function scheduleCapacity(): void {
   const current = ++capacityGeneration
@@ -211,47 +189,52 @@ function acceptAffordabilityRisk(): void {
   })
 }
 
-async function request(current: number): Promise<void> {
-  timer = null
-  if (current !== generation || props.intent === null) return
-  pending.value = true
-  try {
-    const outcome = await gateway.previewCommand(
-      props.intent,
-      props.accountId,
-      undefined,
-      props.actionAttemptId ?? undefined,
-    )
-    if (current !== generation) return
-    if (outcome.kind === 'ready') preview.value = outcome.preview
-    else error.value = outcome.rejection.reason
-  } catch (reason) {
-    if (current === generation)
-      error.value = reason instanceof Error ? reason.message : String(reason)
-  } finally {
-    if (current === generation) pending.value = false
-  }
+function refreshEditing(): void {
+  const active = document.activeElement
+  editing.value = ownerForm !== null && active !== null && ownerForm.contains(active) && isEditor(active)
 }
 
+onMounted(() => {
+  ownerForm = previewRoot.value?.closest('form') ?? null
+  ownerForm?.addEventListener('focusin', refreshEditing)
+  ownerForm?.addEventListener('focusout', deferEditingRefresh)
+  refreshEditing()
+})
+
 onBeforeUnmount(() => {
-  generation += 1
-  if (timer !== null) window.clearTimeout(timer)
+  ownerForm?.removeEventListener('focusin', refreshEditing)
+  ownerForm?.removeEventListener('focusout', deferEditingRefresh)
   capacityGeneration += 1
   capacityAbort?.abort()
+  affordabilityTransitions.clear()
 })
+
+function deferEditingRefresh(): void {
+  queueMicrotask(refreshEditing)
+}
+
+function isEditor(target: Element): boolean {
+  return target.matches('input, select, textarea, [contenteditable="true"]')
+}
 </script>
 
 <template>
-  <section class="execution-preview" :class="{ rejected: error !== null, compact: props.compact }">
+  <section
+    ref="previewRoot"
+    class="execution-preview"
+    :class="{ rejected: error !== null, compact: props.compact }"
+  >
     <div class="preview-heading">
       <span>Execution Preview</span>
       <span v-if="pending">Planning…</span>
+      <span v-else-if="guidance">Checking input…</span>
       <span v-else-if="error">Rejected</span>
       <span v-else-if="preview">Ready</span>
       <span v-else>Enter order details</span>
     </div>
 
-    <div v-if="error && remediation" class="preview-remediation">
+    <p v-if="guidance" class="preview-guidance">{{ guidance }}</p>
+    <div v-else-if="error && remediation" class="preview-remediation">
       <strong>{{ remediation.title }}</strong>
       <p>{{ remediation.description }}</p>
       <RouterLink :to="remediation.actionPath" class="preview-action">
@@ -412,6 +395,11 @@ onBeforeUnmount(() => {
 }
 .preview-error {
   color: var(--color-error);
+}
+.preview-guidance {
+  margin: 8px 0 0;
+  color: var(--color-text-dim);
+  overflow-wrap: anywhere;
 }
 .preview-remediation {
   display: grid;

@@ -121,6 +121,169 @@ test('guides a builder approval preview rejection to the affected account setup'
   ).toBeVisible()
 })
 
+test('production short stop prefixes never flash red and stale replies are superseded', async ({
+  page,
+}) => {
+  const telemetry = await captureTelemetry(page)
+  await page.goto('/e2e/engine-commands?preview_schedule=production')
+  await page.getByRole('button', { name: /Commands/ }).click()
+  await page.getByPlaceholder('Search commands').fill('chase')
+  await page.keyboard.press('Enter')
+  const modal = page.getByRole('dialog', { name: 'Chase Order' })
+  await modal.getByLabel('Position Side').selectOption('short')
+  await observePreviewRejections(page)
+
+  const stop = modal.getByLabel('SL Trigger')
+  await stop.fill('7')
+  await page.waitForTimeout(380)
+  await stop.fill('79')
+  await page.waitForTimeout(380)
+  await stop.fill('79272')
+
+  await expect(modal.getByText('Ready', { exact: true })).toBeVisible()
+  await page.waitForTimeout(750)
+  expect(await observedPreviewRejections(page)).toEqual([])
+  await expect.poll(() => previewTerminalNames(telemetry)).toEqual([
+    'preview_superseded',
+    'preview_ready',
+    'preview_superseded',
+  ])
+})
+
+test('production long take-profit prefixes cannot overwrite the final ready generation', async ({
+  page,
+}) => {
+  const telemetry = await captureTelemetry(page)
+  await page.goto('/e2e/engine-commands?preview_schedule=production')
+  await page.getByRole('button', { name: /Commands/ }).click()
+  await page.getByPlaceholder('Search commands').fill('chase')
+  await page.keyboard.press('Enter')
+  const modal = page.getByRole('dialog', { name: 'Chase Order' })
+  await modal.getByLabel('SL Trigger').fill('70000')
+  await expect(modal.getByText('Ready', { exact: true })).toBeVisible()
+  await modal.getByRole('button', { name: /Take Profit/ }).click()
+  await observePreviewRejections(page)
+
+  const takeProfit = modal.getByLabel('TP 1 Trigger')
+  await takeProfit.fill('8')
+  await page.waitForTimeout(380)
+  await takeProfit.fill('82')
+  await page.waitForTimeout(380)
+  await takeProfit.fill('82806')
+
+  await expect(modal.getByText('Ready', { exact: true })).toBeVisible()
+  await page.waitForTimeout(750)
+  expect(await observedPreviewRejections(page)).toEqual([])
+  await expect.poll(() => previewTerminalNames(telemetry)).toEqual([
+    'preview_ready',
+    'preview_superseded',
+    'preview_ready',
+    'preview_superseded',
+  ])
+})
+
+test('a current wrong-side price is guidance while editing and validation after blur', async ({
+  page,
+}) => {
+  const telemetry = await captureTelemetry(page)
+  await page.goto('/e2e/engine-commands?preview_schedule=production')
+  await page.getByRole('button', { name: /Commands/ }).click()
+  await page.getByPlaceholder('Search commands').fill('chase')
+  await page.keyboard.press('Enter')
+  const modal = page.getByRole('dialog', { name: 'Chase Order' })
+  await modal.getByLabel('Position Side').selectOption('short')
+  const stop = modal.getByLabel('SL Trigger')
+  await stop.fill('70000')
+
+  await expect(
+    modal.getByText('Finish entering a stop-loss price on the loss side of the entry.'),
+  ).toBeVisible()
+  await expect(modal.getByText('Rejected', { exact: true })).toHaveCount(0)
+  await stop.press('Tab')
+  await expect(modal.getByText('Rejected', { exact: true })).toBeVisible()
+  await expect(modal.getByRole('button', { name: 'Submit' })).toBeDisabled()
+  await expect.poll(() => previewTerminalNames(telemetry)).toEqual([
+    'preview_guidance',
+    'preview_rejected',
+  ])
+})
+
+test('editing guidance uses the tested quiet period before becoming validation', async ({ page }) => {
+  const testTime = new Date('2026-09-09T12:00:00Z')
+  await page.clock.install({ time: testTime })
+  await page.clock.pauseAt(testTime)
+  await page.goto('/e2e/engine-commands?preview_schedule=production')
+  await page.getByRole('button', { name: /Commands/ }).click()
+  await page.getByPlaceholder('Search commands').fill('chase')
+  await page.keyboard.press('Enter')
+  const modal = page.getByRole('dialog', { name: 'Chase Order' })
+  await modal.getByLabel('Position Side').selectOption('short')
+  await modal.getByLabel('SL Trigger').fill('70000')
+
+  await page.clock.runFor(1_000)
+  await expect(
+    modal.getByText('Finish entering a stop-loss price on the loss side of the entry.'),
+  ).toBeVisible()
+  await page.clock.runFor(1_199)
+  expect(await modal.getByText('Rejected', { exact: true }).count()).toBe(0)
+  await page.clock.runFor(1)
+  await expect(modal.getByText('Rejected', { exact: true })).toBeVisible()
+})
+
+test('unmounting a guided rejection records superseded instead of a visible failure', async ({
+  page,
+}) => {
+  const telemetry = await captureTelemetry(page)
+  await page.goto('/e2e/engine-commands?preview_schedule=production')
+  await page.getByRole('button', { name: /Commands/ }).click()
+  await page.getByPlaceholder('Search commands').fill('chase')
+  await page.keyboard.press('Enter')
+  const modal = page.getByRole('dialog', { name: 'Chase Order' })
+  await modal.getByLabel('Position Side').selectOption('short')
+  await modal.getByLabel('SL Trigger').fill('70000')
+  await expect(modal.getByText('Checking input…', { exact: true })).toBeVisible()
+  await modal.getByRole('button', { name: 'Cancel' }).click()
+  await expect(modal).not.toBeVisible()
+
+  await expect.poll(() => previewTerminalNames(telemetry)).toEqual([
+    'preview_guidance',
+    'preview_superseded',
+  ])
+})
+
+test('delete paste and reconnect keep only the newest preview authoritative', async ({ page }) => {
+  const telemetry = await captureTelemetry(page)
+  await page.goto('/e2e/engine-commands?preview_schedule=production')
+  await page.getByRole('button', { name: /Commands/ }).click()
+  await page.getByPlaceholder('Search commands').fill('chase')
+  await page.keyboard.press('Enter')
+  const modal = page.getByRole('dialog', { name: 'Chase Order' })
+  await modal.getByLabel('Position Side').selectOption('short')
+  await observePreviewRejections(page)
+  const stop = modal.getByLabel('SL Trigger')
+  await expect(stop).toHaveAttribute('inputmode', 'decimal')
+
+  await stop.fill('7')
+  await page.waitForTimeout(380)
+  await page
+    .getByRole('button', { name: 'Disconnect preview' })
+    .evaluate((button: HTMLButtonElement) => button.click())
+  await stop.fill('')
+  await expect(modal.getByText('Enter order details', { exact: true })).toBeVisible()
+  await stop.fill('79272')
+  await page
+    .getByRole('button', { name: 'Reconnect preview' })
+    .evaluate((button: HTMLButtonElement) => button.click())
+
+  await expect(modal.getByText('Ready', { exact: true })).toBeVisible()
+  await page.waitForTimeout(650)
+  expect(await observedPreviewRejections(page)).toEqual([])
+  await expect.poll(() => previewTerminalNames(telemetry)).toEqual([
+    'preview_ready',
+    'preview_superseded',
+  ])
+})
+
 test('opens chase and trailing-entry forms from their aliases', async ({ page }) => {
   await page.getByRole('button', { name: /Commands/ }).click()
   await page.getByPlaceholder('Search commands').fill('chase')
@@ -218,3 +381,78 @@ test('keeps an unknown-outcome command open and forbids blind resubmission', asy
   await expect(modal.getByText(/outcome is unknown/)).toBeVisible()
   await expect(modal.getByText(/Do not resubmit until/)).toBeVisible()
 })
+
+interface CapturedTelemetryEvent {
+  event_name: string
+}
+
+async function captureTelemetry(page: import('@playwright/test').Page) {
+  const events: CapturedTelemetryEvent[] = []
+  await page.route('**/api/telemetry/config', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        schema_version: 1,
+        collection_enabled: true,
+        max_batch_bytes: 64_000,
+        max_events_per_batch: 100,
+        flush_interval_ms: 1_000,
+        queue_capacity: 1_000,
+        max_event_age_ms: 60_000,
+      }),
+    })
+  })
+  await page.route('**/api/telemetry/events', async (route) => {
+    const body = route.request().postDataJSON() as { events: CapturedTelemetryEvent[] }
+    events.push(...body.events)
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        collection_enabled: true,
+        accepted: body.events.length,
+        duplicate: 0,
+        invalid: 0,
+        dropped: 0,
+        sequence_gaps: 0,
+      }),
+    })
+  })
+  return events
+}
+
+function previewTerminalNames(events: CapturedTelemetryEvent[]): string[] {
+  return events
+    .map((event) => event.event_name)
+    .filter((name) =>
+      [
+        'preview_ready',
+        'preview_rejected',
+        'preview_guidance',
+        'preview_superseded',
+        'preview_timeout',
+      ].includes(name),
+    )
+}
+
+async function observePreviewRejections(page: import('@playwright/test').Page): Promise<void> {
+  await page.evaluate(() => {
+    const observed: string[] = []
+    Object.assign(window, { __tradPreviewRejections: observed })
+    new MutationObserver(() => {
+      const rejected = document.querySelector<HTMLElement>('.execution-preview.rejected')
+      if (rejected !== null) observed.push(rejected.innerText)
+    }).observe(document.body, { attributes: true, childList: true, subtree: true })
+  })
+}
+
+async function observedPreviewRejections(
+  page: import('@playwright/test').Page,
+): Promise<string[]> {
+  return page.evaluate(
+    () =>
+      (window as typeof window & { __tradPreviewRejections?: string[] })
+        .__tradPreviewRejections ?? [],
+  )
+}

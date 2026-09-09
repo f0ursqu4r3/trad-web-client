@@ -3,7 +3,7 @@ import { computed } from 'vue'
 
 import DetailGrid from './DetailGrid.vue'
 import EvidenceDisclosure from './EvidenceDisclosure.vue'
-import type { OrderProjection } from '@/lib/gateway'
+import { orderGenerationLifecycleName, type OrderProjection } from '@/lib/gateway'
 import { formatExactDecimal } from '@/lib/exactDecimalMath'
 
 const props = defineProps<{
@@ -20,7 +20,7 @@ const row = computed(() => props.order.generations[String(props.generation)])
       title="Order Generation"
       :rows="[
         { label: 'Generation', value: String(row.generation) },
-        { label: 'Lifecycle', value: row.lifecycle.replace(/_/g, ' ') },
+        { label: 'Lifecycle', value: orderGenerationLifecycleName(row.lifecycle) },
         { label: 'Quantity', value: formatExactDecimal(row.working_request.quantity) },
         { label: 'Filled quantity', value: formatExactDecimal(row.filled_quantity) },
         { label: 'Client order ID', value: row.client_order_id },
