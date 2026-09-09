@@ -1,5 +1,9 @@
 import type { BrowserCommandIntent, Uuid } from './intent.ts'
-import type { BrowserPreviewIntent, BrowserPreviewOutcome } from './preview.ts'
+import type {
+  BrowserPreviewIntent,
+  BrowserPreviewOutcome,
+  PreviewPlanningRejectionCode,
+} from './preview.ts'
 import type { BrowserMarketError, BrowserMarketSample, BrowserMarketWindow } from './market.ts'
 import type {
   AccountRouteKey,
@@ -12,7 +16,7 @@ import type {
   ProjectionRevision,
 } from './projection.ts'
 
-export const BROWSER_PROTOCOL_VERSION = 14
+export const BROWSER_PROTOCOL_VERSION = 15
 
 export interface BrowserPositionResolutionIntent {
   resolution_id: Uuid
@@ -108,6 +112,7 @@ export type BrowserCommandOutcome =
           | 'routing_changed'
           | 'planning_failed'
           | 'engine_rejected'
+        reason_code?: PreviewPlanningRejectionCode
         reason: string
         retryable: boolean
       }

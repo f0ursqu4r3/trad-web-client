@@ -80,6 +80,12 @@ export type PreviewPlanningRejectionCode =
   | 'missing_market_evidence'
   | 'account_policy_barrier'
   | 'fee_evidence_unavailable'
+  | 'operator_halted'
+  | 'maximum_order_notional_exceeded'
+  | 'maximum_position_notional_exceeded'
+  | 'daily_loss_limit_reached'
+  | 'command_rate_limit_reached'
+  | 'admission_evidence_unavailable'
   | 'unknown'
 
 export interface BrowserPreviewRejection {
