@@ -198,7 +198,11 @@ onBeforeUnmount(() => {
           >
             <small>{{ trade.chasePriceRisk ? 'Filled' : 'Initial' }}</small
             ><b>{{
-              compactAmount(trade.chasePriceRisk?.filled_price_risk ?? trade.initialPlannedLoss)
+              compactAmount(
+                trade.chasePriceRisk?.fee_risk?.total_consumed_risk ??
+                  trade.chasePriceRisk?.filled_price_risk ??
+                  trade.initialPlannedLoss,
+              )
             }}</b>
           </strong>
           <strong
@@ -219,9 +223,27 @@ onBeforeUnmount(() => {
           </strong>
           <strong
             :class="compareExact(trade.chasePriceRisk.over_budget, '0') > 0 ? 'negative' : ''"
-            :title="`Confirmed fill price risk above budget; excludes fees and stop slippage: ${formatExactDecimal(trade.chasePriceRisk.over_budget)} USDC`"
+            :title="
+              trade.chasePriceRisk.fee_risk
+                ? `Confirmed all-in modeled risk above budget; excludes stop slippage: ${formatExactDecimal(trade.chasePriceRisk.over_budget)} USDC`
+                : `Confirmed fill price risk above budget; excludes fees and stop slippage: ${formatExactDecimal(trade.chasePriceRisk.over_budget)} USDC`
+            "
           >
             <small>Over</small><b>{{ compactAmount(trade.chasePriceRisk.over_budget) }}</b>
+          </strong>
+        </div>
+        <div v-if="trade.chasePriceRisk?.fee_risk" class="metric-inline-pair">
+          <strong
+            :title="`Entry fees consumed: ${formatExactDecimal(trade.chasePriceRisk.fee_risk.consumed_entry_fees)} USDC; model: ${formatExactDecimal(trade.chasePriceRisk.fee_risk.expected_entry_fees)} USDC; observed variance: ${formatExactDecimal(trade.chasePriceRisk.fee_risk.observed_entry_fee_variance)} USDC`"
+          >
+            <small>Entry fee</small
+            ><b>{{ compactAmount(trade.chasePriceRisk.fee_risk.consumed_entry_fees) }}</b>
+          </strong>
+          <strong
+            :title="`Expected stop-exit fee reserved for confirmed fills: ${formatExactDecimal(trade.chasePriceRisk.fee_risk.expected_filled_exit_fees)} USDC`"
+          >
+            <small>Exit fee</small
+            ><b>{{ compactAmount(trade.chasePriceRisk.fee_risk.expected_filled_exit_fees) }}</b>
           </strong>
         </div>
       </div>

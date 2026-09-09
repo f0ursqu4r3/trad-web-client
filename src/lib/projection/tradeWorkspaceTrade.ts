@@ -85,12 +85,14 @@ export function buildManagedTrade(
     (child) => child.protection_kind === 'stop_loss',
   )?.trigger_price
   const initialQuantity = sumExact(entryOrders.map((row) => row.target_quantity))
-  const initialPlannedLoss = lossAtStop(
-    side,
-    seed.primaryCommand.planning?.decision_price ?? averageEntryPrice,
-    seed.primaryCommand.planning?.initial_stop_price ?? stopPrice ?? null,
-    seed.primaryCommand.planning?.normalized_base_quantity ?? initialQuantity,
-  )
+  const initialPlannedLoss =
+    seed.primaryCommand.planning?.fee_risk?.total_planned_loss ??
+    lossAtStop(
+      side,
+      seed.primaryCommand.planning?.decision_price ?? averageEntryPrice,
+      seed.primaryCommand.planning?.initial_stop_price ?? stopPrice ?? null,
+      seed.primaryCommand.planning?.normalized_base_quantity ?? initialQuantity,
+    )
   const chasePriceRisk =
     seed.primaryCommand.root.kind === 'chase'
       ? (snapshot.chases.find((row) => row.chase_id === seed.primaryCommand.root.id)?.price_risk ??

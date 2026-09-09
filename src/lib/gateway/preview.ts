@@ -12,7 +12,12 @@ export type BrowserPreviewIntent =
   | { kind: 'place_trailing_entry'; parameters: PlaceTrailingEntryIntent }
 
 export type PreviewKind = 'order' | 'chase' | 'trailing_entry'
-export type PreviewPriceSource = 'best_bid' | 'best_ask' | 'limit' | 'trailing_entry_reference'
+export type PreviewPriceSource =
+  | 'best_bid'
+  | 'best_ask'
+  | 'limit'
+  | 'trailing_entry_reference'
+  | 'adverse_entry_execution_bound'
 
 export interface ExecutionChildPreview {
   base_quantity: ExactDecimal
@@ -42,9 +47,25 @@ export interface CommandPreview {
   raw_base_quantity: ExactDecimal
   normalized_base_quantity: ExactDecimal
   normalized_quote_notional: ExactDecimal
+  fee_risk?: FeeRiskPreview
   children: ExecutionChildPreview[]
   instrument: InstrumentRulePreview
   warnings: string[]
+}
+
+export interface FeeRiskPreview {
+  requested_risk: ExactDecimal
+  planned_price_loss: ExactDecimal
+  expected_entry_fee: ExactDecimal
+  expected_stop_exit_fee: ExactDecimal
+  total_planned_loss: ExactDecimal
+  expected_entry_fee_rate: ExactDecimal
+  expected_stop_exit_fee_rate: ExactDecimal
+  policy_source: string
+  policy_version: number
+  all_in_target_tenths_bps: number
+  evidence_observed_at_ms: number | null
+  evidence_valid_until_ms: number | null
 }
 
 export type PreviewPlanningRejectionCode =
@@ -58,6 +79,7 @@ export type PreviewPlanningRejectionCode =
   | 'stale_market_evidence'
   | 'missing_market_evidence'
   | 'account_policy_barrier'
+  | 'fee_evidence_unavailable'
   | 'unknown'
 
 export interface BrowserPreviewRejection {

@@ -98,6 +98,8 @@ const sourceLabel = computed(() => {
       return 'limit'
     case 'trailing_entry_reference':
       return 'activation jump reference'
+    case 'adverse_entry_execution_bound':
+      return 'adverse entry bound'
     default:
       return ''
   }
@@ -265,6 +267,22 @@ function isEditor(target: Element): boolean {
       <p v-if="preview.raw_base_quantity !== preview.normalized_base_quantity" class="preview-note">
         Requested calculation: {{ preview.raw_base_quantity }} base
       </p>
+      <div v-if="preview.fee_risk" class="fee-risk-panel">
+        <strong>Planned all-in risk at stop · {{ quoteAsset ?? 'USDC' }}</strong>
+        <div class="preview-grid rule-grid">
+          <span>Requested risk</span><strong>{{ preview.fee_risk.requested_risk }}</strong>
+          <span>Price loss at stop</span><strong>{{ preview.fee_risk.planned_price_loss }}</strong>
+          <span>Expected entry fee</span><strong>{{ preview.fee_risk.expected_entry_fee }}</strong>
+          <span>Expected stop-exit fee</span
+          ><strong>{{ preview.fee_risk.expected_stop_exit_fee }}</strong>
+          <span>Total planned loss</span
+          ><strong>{{ preview.fee_risk.total_planned_loss }}</strong>
+        </div>
+        <p class="preview-note">
+          Uses recorded fee policy v{{ preview.fee_risk.policy_version }}. Stop-market slippage,
+          gaps, funding, and later venue fee changes are not guaranteed by this estimate.
+        </p>
+      </div>
       <details v-if="preview.children.length > 1" class="preview-details">
         <summary>Child allocations</summary>
         <div v-for="(child, index) in preview.children" :key="index" class="child-row">
@@ -379,6 +397,12 @@ function isEditor(target: Element): boolean {
 }
 .preview-details {
   margin-top: 8px;
+}
+
+.fee-risk-panel {
+  border: 1px solid var(--border-color);
+  margin-top: 0.65rem;
+  padding: 0.65rem;
 }
 .child-row {
   padding-top: 4px;

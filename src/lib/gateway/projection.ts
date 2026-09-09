@@ -223,11 +223,26 @@ export interface CommandProjection {
     quantity_step: ExactDecimal
     minimum_order_quantity: ExactDecimal
     minimum_order_notional: ExactDecimal | null
+    fee_risk?: FeeRiskPlanningProjection | null
   }
   root: ProjectionNodeId
   operation_ids: Uuid[]
   lifecycle: CommandLifecycle
   failure_reason: string | null
+}
+
+export interface FeeRiskPlanningProjection {
+  planned_price_loss: ExactDecimal
+  expected_entry_fee: ExactDecimal
+  expected_stop_exit_fee: ExactDecimal
+  total_planned_loss: ExactDecimal
+  expected_entry_fee_rate: ExactDecimal
+  expected_stop_exit_fee_rate: ExactDecimal
+  policy_source: string
+  policy_version: number
+  all_in_target_tenths_bps: number
+  evidence_observed_at_ms: number | null
+  evidence_valid_until_ms: number | null
 }
 
 export interface ExecutionGroupProjection {
@@ -275,11 +290,22 @@ export interface ChasePriceRiskState {
   calculation_cap: ExactDecimal
   filled_quantity: ExactDecimal
   filled_price_risk: ExactDecimal
+  fee_risk?: ChaseFeeRiskState | null
   remaining_risk: ExactDecimal
   permitted_remainder: ExactDecimal
   permitted_total: ExactDecimal
   over_budget: ExactDecimal
   disposition: 'executable' | 'exhausted' | 'dust' | 'at_or_through_stop' | 'over_budget'
+}
+
+export interface ChaseFeeRiskState {
+  consumed_entry_fees: ExactDecimal
+  expected_entry_fees: ExactDecimal
+  observed_entry_fee_variance: ExactDecimal
+  expected_filled_exit_fees: ExactDecimal
+  total_consumed_risk: ExactDecimal
+  actual_entry_fee_quantity: ExactDecimal
+  modeled_entry_fee_quantity: ExactDecimal
 }
 
 export interface TrailingEntryPlanProjection {

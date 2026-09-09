@@ -131,16 +131,29 @@ test('retains requested risk separately from initial and current stop exposure',
     quantity_step: '0.00000001',
     minimum_order_quantity: '0.00000001',
     minimum_order_notional: '5',
+    fee_risk: {
+      planned_price_loss: '0.840002',
+      expected_entry_fee: '0.00462',
+      expected_stop_exit_fee: '0.004158',
+      total_planned_loss: '0.84878',
+      expected_entry_fee_rate: '0.00055',
+      expected_stop_exit_fee_rate: '0.00055',
+      policy_source: 'hyperliquid',
+      policy_version: 4,
+      all_in_target_tenths_bps: 55,
+      evidence_observed_at_ms: 1,
+      evidence_valid_until_ms: 2,
+    },
   }
 
   const trade = tradeWorkspaceProjection(snapshot).activeTrades.find((row) => row.symbol === 'ETH')
 
   assert.equal(trade?.plannedRisk, '1')
-  assert.equal(trade?.initialPlannedLoss, '0.840002')
+  assert.equal(trade?.initialPlannedLoss, '0.84878')
   assert.equal(trade?.currentStopExposure, '0.4985411862859983')
 })
 
-test('surfaces authoritative Chase price-risk accounting without fee claims', () => {
+test('surfaces authoritative Chase all-in risk accounting and fee provenance', () => {
   const snapshot = engineProjectionSnapshot()
   const chase = snapshot.chases[0]
   assert.ok(chase)
@@ -151,6 +164,15 @@ test('surfaces authoritative Chase price-risk accounting without fee claims', ()
     calculation_cap: '4.05844',
     filled_quantity: '3.3',
     filled_price_risk: '2247.8930736933396',
+    fee_risk: {
+      consumed_entry_fees: '145.2',
+      expected_entry_fees: '140.1',
+      observed_entry_fee_variance: '5.1',
+      expected_filled_exit_fees: '146.2',
+      total_consumed_risk: '2539.2930736933396',
+      actual_entry_fee_quantity: '3.2',
+      modeled_entry_fee_quantity: '0.1',
+    },
     remaining_risk: '252.1069263066604',
     permitted_remainder: '0.36641',
     permitted_total: '3.66641',
@@ -163,6 +185,7 @@ test('surfaces authoritative Chase price-risk accounting without fee claims', ()
   assert.deepEqual(trade?.chasePriceRisk, chase.price_risk)
   assert.equal(trade?.chasePriceRisk?.permitted_remainder, '0.36641')
   assert.equal(trade?.chasePriceRisk?.over_budget, '0')
+  assert.equal(trade?.chasePriceRisk?.fee_risk?.observed_entry_fee_variance, '5.1')
 })
 
 test('surfaces reconciliation attention without losing trade identity', () => {
