@@ -1,5 +1,6 @@
 import type {
   CommandProjection,
+  ChasePriceRiskState,
   ExecutionProjection,
   ExternalOrderProjection,
   NativeProtectionProjection,
@@ -36,6 +37,7 @@ export interface ManagedTradeView {
   executions: ExecutionProjection[]
   protection: NativeProtectionProjection | null
   plannedRisk: string | null
+  chasePriceRisk: ChasePriceRiskState | null
   initialPlannedLoss: string | null
   currentStopExposure: string | null
   requestedQuantity: string | null

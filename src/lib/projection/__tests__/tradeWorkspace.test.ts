@@ -140,6 +140,31 @@ test('retains requested risk separately from initial and current stop exposure',
   assert.equal(trade?.currentStopExposure, '0.4985411862859983')
 })
 
+test('surfaces authoritative Chase price-risk accounting without fee claims', () => {
+  const snapshot = engineProjectionSnapshot()
+  const chase = snapshot.chases[0]
+  assert.ok(chase)
+  chase.price_risk = {
+    revision: 8,
+    stop_price: '81350',
+    candidate_price: '80662',
+    calculation_cap: '4.05844',
+    filled_quantity: '3.3',
+    filled_price_risk: '2247.8930736933396',
+    remaining_risk: '252.1069263066604',
+    permitted_remainder: '0.36641',
+    permitted_total: '3.66641',
+    over_budget: '0',
+    disposition: 'executable',
+  }
+
+  const trade = tradeWorkspaceProjection(snapshot).activeTrades.find((row) => row.symbol === 'BTC')
+
+  assert.deepEqual(trade?.chasePriceRisk, chase.price_risk)
+  assert.equal(trade?.chasePriceRisk?.permitted_remainder, '0.36641')
+  assert.equal(trade?.chasePriceRisk?.over_budget, '0')
+})
+
 test('surfaces reconciliation attention without losing trade identity', () => {
   const snapshot = engineProjectionSnapshot()
   const eth = snapshot.positions.find((position) => position.symbol === 'ETH')

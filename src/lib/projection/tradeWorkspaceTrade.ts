@@ -91,6 +91,11 @@ export function buildManagedTrade(
     seed.primaryCommand.planning?.initial_stop_price ?? stopPrice ?? null,
     seed.primaryCommand.planning?.normalized_base_quantity ?? initialQuantity,
   )
+  const chasePriceRisk =
+    seed.primaryCommand.root.kind === 'chase'
+      ? (snapshot.chases.find((row) => row.chase_id === seed.primaryCommand.root.id)?.price_risk ??
+        null)
+      : null
 
   return {
     tradeId: `scope:${seed.scopeId}`,
@@ -117,6 +122,7 @@ export function buildManagedTrade(
     executions,
     protection,
     plannedRisk: plannedRisk(seed.primaryCommand),
+    chasePriceRisk,
     requestedQuantity:
       entryOrders.length === 0
         ? plannedQuantity(seed.primaryCommand)
@@ -287,10 +293,7 @@ function tradeAttention(
   protection: NativeProtectionProjection | null,
   position: PositionProjection | null,
 ): string | null {
-  if (
-    position?.reconciliation_required &&
-    position.status !== 'awaiting_exchange_confirmation'
-  ) {
+  if (position?.reconciliation_required && position.status !== 'awaiting_exchange_confirmation') {
     return 'Position reconciliation is required.'
   }
   const failedCommand = commands.find(

@@ -196,7 +196,10 @@ onBeforeUnmount(() => {
               (trade.initialPlannedLoss ? formatExactDecimal(trade.initialPlannedLoss) : '-')
             "
           >
-            <small>Initial</small><b>{{ compactAmount(trade.initialPlannedLoss) }}</b>
+            <small>{{ trade.chasePriceRisk ? 'Filled' : 'Initial' }}</small
+            ><b>{{
+              compactAmount(trade.chasePriceRisk?.filled_price_risk ?? trade.initialPlannedLoss)
+            }}</b>
           </strong>
           <strong
             :title="
@@ -205,6 +208,20 @@ onBeforeUnmount(() => {
             "
           >
             <small>To SL</small><b>{{ compactAmount(trade.currentStopExposure) }}</b>
+          </strong>
+        </div>
+        <div v-if="trade.chasePriceRisk" class="metric-inline-pair">
+          <strong
+            :title="`Risk-authorized unfilled Chase remainder: ${formatExactDecimal(trade.chasePriceRisk.permitted_remainder)} ${trade.symbol}`"
+          >
+            <small>Entry rem.</small
+            ><b>{{ formatExactDecimal(trade.chasePriceRisk.permitted_remainder) }}</b>
+          </strong>
+          <strong
+            :class="compareExact(trade.chasePriceRisk.over_budget, '0') > 0 ? 'negative' : ''"
+            :title="`Confirmed fill price risk above budget; excludes fees and stop slippage: ${formatExactDecimal(trade.chasePriceRisk.over_budget)} USDC`"
+          >
+            <small>Over</small><b>{{ compactAmount(trade.chasePriceRisk.over_budget) }}</b>
           </strong>
         </div>
       </div>

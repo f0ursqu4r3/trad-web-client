@@ -263,8 +263,23 @@ export interface ChaseProjection {
   reprice_ready: boolean
   consecutive_reprice_failures: number
   post_only_retry_pending: boolean
+  price_risk?: ChasePriceRiskState | null
   last_reprice_result_operation_id: Uuid | null
   last_reason: string | null
+}
+
+export interface ChasePriceRiskState {
+  revision: number
+  stop_price: ExactDecimal
+  candidate_price: ExactDecimal
+  calculation_cap: ExactDecimal
+  filled_quantity: ExactDecimal
+  filled_price_risk: ExactDecimal
+  remaining_risk: ExactDecimal
+  permitted_remainder: ExactDecimal
+  permitted_total: ExactDecimal
+  over_budget: ExactDecimal
+  disposition: 'executable' | 'exhausted' | 'dust' | 'at_or_through_stop' | 'over_budget'
 }
 
 export interface TrailingEntryPlanProjection {
