@@ -67,6 +67,11 @@ interface MarketDemand {
   limit: number
 }
 
+interface AccountSubscriptionRequest {
+  accountId: Uuid
+  preserveCurrentView: boolean
+}
+
 export class CommandOutcomeUnknownError extends Error {
   readonly requestId: Uuid
 
@@ -88,7 +93,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   const pendingCommandCount = ref(0)
   const pendingHistoryCount = ref(0)
 
-  const subscriptionRequests = new Map<Uuid, Uuid>()
+  const subscriptionRequests = new Map<Uuid, AccountSubscriptionRequest>()
   const subscriptionAccounts = new Map<Uuid, Uuid>()
   const subscriptionRetryAttempts = new Map<Uuid, number>()
   const subscriptionRetryTimers = new Map<Uuid, number>()
@@ -130,11 +135,15 @@ export const useGatewayStore = defineStore('gateway', () => {
       resetSubscriptions()
     }
   })
-  client.setReadyHandler((validForMs) => {
+  client.setReadyHandler((validForMs, cause) => {
     sessionValidUntil.value = Date.now() + validForMs
     resetSubscriptions()
-    subscribeSelectedAccount()
-    subscribeMarketDemands()
+    const preserveCurrentView = cause === 'lease_rotation'
+    subscribeSelectedAccount(!preserveCurrentView)
+    subscribeMarketDemands(!preserveCurrentView)
+  })
+  client.setLeaseRotationHandler((phase, outcomeCode) => {
+    telemetry.leaseRotation(phase, outcomeCode)
   })
   client.setMessageHandler(handleMessage)
 
@@ -295,7 +304,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     return new Promise((resolve, reject) => {
       const timer = window.setTimeout(() => {
         pendingPreviews.delete(requestId)
-        telemetry.timedOut(attempt)
+        telemetry.previewTimedOut(attempt)
         reject(new Error(`planning request ${requestId} timed out`))
       }, PREVIEW_RESULT_TIMEOUT_MS)
       pendingPreviews.set(requestId, { ...attempt, timer, resolve, reject })
@@ -306,7 +315,7 @@ export const useGatewayStore = defineStore('gateway', () => {
       } catch (error) {
         window.clearTimeout(timer)
         pendingPreviews.delete(requestId)
-        telemetry.sendFailed(attempt)
+        telemetry.previewTransportFailed(attempt, 'send_failed')
         reject(error instanceof Error ? error : new Error(String(error)))
       }
     })
@@ -486,10 +495,11 @@ export const useGatewayStore = defineStore('gateway', () => {
   function handleSnapshot(
     message: Extract<BrowserServerMessage, { kind: 'account_snapshot' }>,
   ): void {
-    const requestedAccount =
+    const request =
       message.request_id === null
-        ? message.route.account_id
+        ? null
         : subscriptionRequests.get(message.request_id)
+    const requestedAccount = request?.accountId ?? message.route.account_id
     if (message.request_id !== null) subscriptionRequests.delete(message.request_id)
     const accountId = message.snapshot.checkpoint.shard.account_id
     if (
@@ -514,7 +524,21 @@ export const useGatewayStore = defineStore('gateway', () => {
     }
     selectedSubscriptionId = message.subscription_id
     clearSubscriptionRetry(accountId)
-    projections.install(accountId, message.subscription_id, message.cause, message.snapshot)
+    if (
+      !projections.install(
+        accountId,
+        message.subscription_id,
+        message.cause,
+        message.snapshot,
+        request?.preserveCurrentView ?? false,
+      )
+    ) {
+      subscriptionAccounts.delete(message.subscription_id)
+      selectedSubscriptionId = null
+      send({ kind: 'unsubscribe_account', subscription_id: message.subscription_id })
+      scheduleSubscriptionRetry(accountId, true)
+      return
+    }
     telemetry.snapshot(accountId, message.snapshot.checkpoint.projection_revision, message.cause)
     telemetry.terminalCommands(
       message.snapshot.commands,
@@ -541,10 +565,20 @@ export const useGatewayStore = defineStore('gateway', () => {
   function handleAccountError(
     message: Extract<BrowserServerMessage, { kind: 'account_error' }>,
   ): void {
+    const request =
+      message.request_id === null ? null : (subscriptionRequests.get(message.request_id) ?? null)
     if (message.request_id !== null) subscriptionRequests.delete(message.request_id)
     if (message.subscription_id !== null) {
       subscriptionAccounts.delete(message.subscription_id)
       if (selectedSubscriptionId === message.subscription_id) selectedSubscriptionId = null
+    }
+    if (
+      request?.preserveCurrentView === true &&
+      message.error.kind !== 'unauthorized' &&
+      projections.byAccount[message.account_id]?.status === 'ready'
+    ) {
+      scheduleSubscriptionRetry(message.account_id, true)
+      return
     }
     const failure = subscriptionFailure(message.error)
     projections.fail(message.account_id, failure.reason, failure.kind)
@@ -660,11 +694,12 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (pending === undefined) return
     window.clearTimeout(pending.timer)
     pendingPreviews.delete(message.request_id)
+    telemetry.previewResponse(pending)
     if (pending.accountId !== message.account_id) {
+      telemetry.previewTransportFailed(pending, 'account_mismatch')
       pending.reject(new Error('planning result account does not match its request'))
       return
     }
-    telemetry.previewResult(pending, message.outcome)
     pending.resolve(message.outcome)
   }
 
@@ -776,7 +811,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     subscribeSelectedAccount()
   }
 
-  function subscribeSelectedAccount(): void {
+  function subscribeSelectedAccount(markSubscribing = true): void {
     const accountId = accounts.selectedAccountId
     if (status.value !== 'ready' || accountId === null) return
     if (
@@ -785,11 +820,15 @@ export const useGatewayStore = defineStore('gateway', () => {
     ) {
       return
     }
-    if (Array.from(subscriptionRequests.values()).includes(accountId)) return
+    if (Array.from(subscriptionRequests.values()).some((request) => request.accountId === accountId))
+      return
 
     const requestId = uuid()
-    subscriptionRequests.set(requestId, accountId)
-    projections.beginSubscription(accountId)
+    subscriptionRequests.set(requestId, {
+      accountId,
+      preserveCurrentView: !markSubscribing,
+    })
+    if (markSubscribing) projections.beginSubscription(accountId)
     send({ kind: 'subscribe_account', request_id: requestId, account_id: accountId })
   }
 
@@ -805,7 +844,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (accounts.selectedAccountId === accountId) subscribeSelectedAccount()
   }
 
-  function subscribeMarketDemand(demand: MarketDemand): void {
+  function subscribeMarketDemand(demand: MarketDemand, markSubscribing = true): void {
     if (status.value !== 'ready') return
     const key = marketKey(demand.accountId, demand.symbol)
     if (
@@ -820,7 +859,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     }
     const requestId = uuid()
     marketRequests.set(requestId, demand)
-    markets.begin(demand.accountId, demand.symbol, requestId)
+    markets.begin(demand.accountId, demand.symbol, requestId, !markSubscribing)
     try {
       send({
         kind: 'subscribe_market',
@@ -837,8 +876,10 @@ export const useGatewayStore = defineStore('gateway', () => {
     }
   }
 
-  function subscribeMarketDemands(): void {
-    for (const demand of marketDemands.values()) subscribeMarketDemand(demand)
+  function subscribeMarketDemands(markSubscribing = true): void {
+    for (const demand of marketDemands.values()) {
+      subscribeMarketDemand(demand, markSubscribing)
+    }
   }
 
   function resubscribeMarket(subscriptionId: Uuid, demand: MarketDemand): void {
@@ -880,7 +921,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     marketRetryAttempts.clear()
   }
 
-  function scheduleSubscriptionRetry(accountId: Uuid): void {
+  function scheduleSubscriptionRetry(accountId: Uuid, preserveCurrentView = false): void {
     if (
       status.value !== 'ready' ||
       accounts.selectedAccountId !== accountId ||
@@ -897,7 +938,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     const timer = window.setTimeout(() => {
       subscriptionRetryTimers.delete(accountId)
       if (status.value === 'ready' && accounts.selectedAccountId === accountId) {
-        subscribeSelectedAccount()
+        subscribeSelectedAccount(!preserveCurrentView)
       }
     }, delay)
     subscriptionRetryTimers.set(accountId, timer)
@@ -939,6 +980,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     pendingCommands.clear()
     for (const [requestId, pending] of pendingPreviews) {
       window.clearTimeout(pending.timer)
+      telemetry.previewTransportFailed(pending, 'transport_interrupted')
       pending.reject(new Error(`planning request ${requestId} interrupted: ${reason}`))
     }
     pendingPreviews.clear()

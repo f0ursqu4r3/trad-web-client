@@ -12,7 +12,7 @@ import type {
   ProjectionRevision,
 } from './projection.ts'
 
-export const BROWSER_PROTOCOL_VERSION = 12
+export const BROWSER_PROTOCOL_VERSION = 13
 
 export interface BrowserPositionResolutionIntent {
   resolution_id: Uuid

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import type { OrderProjection } from '@/lib/gateway'
+import { orderGenerationLifecycleName, type OrderProjection } from '@/lib/gateway'
 import DetailGrid from './DetailGrid.vue'
 import EvidenceDisclosure from './EvidenceDisclosure.vue'
 import { compactDetails, detail, recordDetail, yesNo } from './model'
@@ -36,6 +36,7 @@ const quantityRows = computed(() => [
 const generations = computed(() =>
   Object.values(props.order.generations).sort((left, right) => left.generation - right.generation),
 )
+
 </script>
 
 <template>
@@ -58,7 +59,7 @@ const generations = computed(() =>
         <article v-for="generation in generations" :key="generation.generation">
           <div>
             <span>Generation {{ generation.generation }}</span>
-            <span>{{ generation.lifecycle }}</span>
+            <span>{{ orderGenerationLifecycleName(generation.lifecycle) }}</span>
           </div>
           <div>
             <span>{{ generation.filled_quantity }} filled</span>

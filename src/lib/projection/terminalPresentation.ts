@@ -4,6 +4,7 @@ import type {
   ProjectionGraph,
   ProjectionNodeId,
 } from '../gateway/index.ts'
+import { orderGenerationLifecycleName } from '../gateway/index.ts'
 import { isExactZero } from '../exactDecimalMath.ts'
 import {
   commandProtectionScopeId,
@@ -255,13 +256,14 @@ function generationNode(
 ): TerminalTreeNode {
   const row = entity.row.generations[String(generation)]
   const key = `order_generation:${entity.id}:${generation}`
+  const lifecycle = row === undefined ? 'unknown' : orderGenerationLifecycleName(row.lifecycle)
   return {
     id: key,
     key,
     kind: 'order_generation',
     label: `Order Generation ${generation}`,
-    status: terminalStatus(row?.lifecycle ?? 'unknown'),
-    tone: lifecycleTone(row?.lifecycle ?? 'unknown'),
+    status: terminalStatus(lifecycle),
+    tone: lifecycleTone(lifecycle),
     relationship: 'order generation',
     badges: row
       ? [
@@ -331,12 +333,18 @@ function executionKind(value: Record<string, unknown>): string {
 
 function terminalStatus(status: string): string {
   const value = status.toLowerCase()
-  if (value.includes('fail') || value.includes('reject') || value.includes('reconciliation'))
+  if (
+    value.includes('fail') ||
+    value.includes('reject') ||
+    value.includes('reconciliation') ||
+    value.includes('mismatch')
+  )
     return 'Failed'
+  if (value.includes('await') || value.includes('wait') || value.includes('pending'))
+    return 'Waiting'
   if (value.includes('cancel')) return 'Canceled'
   if (['succeeded', 'filled', 'completed', 'flat'].includes(value)) return 'Completed'
-  if (value.includes('wait') || value.includes('pending') || value.includes('install'))
-    return 'Waiting'
+  if (value.includes('install')) return 'Waiting'
   return 'Running'
 }
 
@@ -430,9 +438,15 @@ function badge(label: string, tone: TerminalBadge['tone']): TerminalBadge {
 export function lifecycleTone(status: string): TerminalBadge['tone'] {
   const value = status.toLowerCase()
   if (['succeeded', 'filled', 'completed', 'flat'].includes(value)) return 'success'
-  if (value.includes('fail') || value.includes('reject') || value.includes('reconciliation')) {
+  if (
+    value.includes('fail') ||
+    value.includes('reject') ||
+    value.includes('reconciliation') ||
+    value.includes('mismatch')
+  ) {
     return 'error'
   }
+  if (value.includes('await') || value.includes('wait') || value.includes('pending')) return 'dim'
   if (value.includes('cancel') || value.includes('stale') || value.includes('paused')) {
     return 'warning'
   }

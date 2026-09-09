@@ -159,7 +159,7 @@ gateway.previewCommand = async (
       warnings: [],
     },
   }
-  telemetry.previewResult(attempt, outcome)
+  telemetry.previewResponse(attempt)
   return outcome
 }
 gateway.submitCommand = async (

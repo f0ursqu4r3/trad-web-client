@@ -4,6 +4,7 @@ import type {
   ClientCommandPage,
   CommandProjection,
   OrderGenerationProjection,
+  OrderGenerationLifecycle,
   OrderProjection,
   ProjectionCheckpoint,
 } from '@/lib/gateway'
@@ -585,7 +586,7 @@ function generationAt(
   orderId: string,
   generation: number,
   filled: string,
-  lifecycle: string,
+  lifecycle: OrderGenerationLifecycle,
   quantity: string,
   predecessorGeneration: number | null,
   successorGeneration: number | null,

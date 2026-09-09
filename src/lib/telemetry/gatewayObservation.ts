@@ -3,7 +3,6 @@ import type {
   BrowserCommandIntent,
   BrowserCommandOutcome,
   BrowserPreviewIntent,
-  BrowserPreviewOutcome,
   BrowserPositionResolutionOutcome,
   BrowserSnapshotCause,
   GatewayConnectionStatus,
@@ -55,6 +54,13 @@ export class GatewayTelemetryObserver {
 
   connection(status: GatewayConnectionStatus): void {
     setTelemetryConnectionState(connectionState(status))
+  }
+
+  leaseRotation(phase: 'started' | 'completed' | 'failed', outcomeCode: string): void {
+    recordTelemetry({
+      eventName: `websocket_lease_rotation_${phase}`,
+      properties: { outcome_code: outcomeCode, source: 'planned_lease_rotation' },
+    })
   }
 
   accountSelected(accountId: string): void {
@@ -155,13 +161,17 @@ export class GatewayTelemetryObserver {
     this.emit('request_queued', attempt)
   }
 
-  previewResult(attempt: GatewayActionAttempt, outcome: BrowserPreviewOutcome): void {
-    this.emit('response_received', attempt, { outcome_code: outcome.kind })
-    if (outcome.kind === 'ready') {
-      this.emit('preview_ready', attempt, { outcome_code: 'ready' })
-      return
-    }
-    this.emit('preview_rejected', attempt, { outcome_code: outcome.rejection.code })
+  previewResponse(attempt: GatewayActionAttempt): void {
+    this.emit('response_received', attempt)
+  }
+
+  previewTimedOut(attempt: GatewayActionAttempt): void {
+    this.emit('request_timeout', attempt, { outcome_code: 'timeout' })
+    this.emit('preview_timeout', attempt, { outcome_code: 'timeout' })
+  }
+
+  previewTransportFailed(attempt: GatewayActionAttempt, outcomeCode: string): void {
+    this.emit('preview_transport_failed', attempt, { outcome_code: outcomeCode })
   }
 
   positionResult(attempt: GatewayActionAttempt, outcome: BrowserPositionResolutionOutcome): void {
@@ -276,8 +286,8 @@ export class GatewayTelemetryObserver {
       | 'command_route_accepted'
       | 'command_route_rejected'
       | 'preview_requested'
-      | 'preview_ready'
-      | 'preview_rejected',
+      | 'preview_timeout'
+      | 'preview_transport_failed',
     attempt: GatewayActionAttempt,
     properties: {
       source?: string

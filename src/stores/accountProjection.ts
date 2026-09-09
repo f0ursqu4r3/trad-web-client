@@ -14,6 +14,7 @@ import {
   ProjectionStateError,
   applyDelta,
   combinedProjection,
+  installHandoffSnapshot,
   installSnapshot,
   mergeHistoryPage,
   mergeLegacyHistoryPage,
@@ -65,14 +66,24 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
     subscriptionId: Uuid,
     cause: BrowserSnapshotCause,
     snapshot: BrowserAccountSnapshot,
-  ): void {
+    preserveMonotonicRevision = false,
+  ): boolean {
     const entry = ensure(accountId)
-    entry.view = installSnapshot(snapshot)
+    try {
+      entry.view =
+        preserveMonotonicRevision && entry.view !== null
+          ? installHandoffSnapshot(entry.view, snapshot)
+          : installSnapshot(snapshot)
+    } catch (error) {
+      if (error instanceof ProjectionStateError && error.code === 'stale_snapshot') return false
+      throw error
+    }
     entry.subscriptionId = subscriptionId
     entry.snapshotCause = cause
     entry.status = 'ready'
     entry.error = null
     entry.failure = null
+    return true
   }
 
   function apply(accountId: Uuid, subscriptionId: Uuid, delta: BrowserAccountDelta): void {

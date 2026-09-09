@@ -6,6 +6,7 @@ import {
   terminalCommandTree,
   terminalNodeCommandId,
   terminalNodeDeviceId,
+  type TerminalTreeNode,
 } from '../terminalPresentation.ts'
 
 test('flat native protection renders filled and retired children as terminal', () => {
@@ -48,3 +49,27 @@ test('order preparation blocks are named and visible in the terminal tree', () =
   assert.equal(terminalNodeDeviceId(tree!), order.order_id)
   assert.equal(terminalNodeCommandId(tree!, snapshot), command.command_id)
 })
+
+test('typed physical reconciliation remains visible as waiting on its exact outcome', () => {
+  const snapshot = engineProjectionSnapshot()
+  const chase = snapshot.commands.find((candidate) => candidate.accepted.kind === 'place_chase')!
+  const order = snapshot.orders.find((candidate) => candidate.command_id === chase.command_id)!
+  order.generations['2']!.lifecycle = {
+    awaiting_cancel_outcome: { query: '50000000-0000-4000-8000-000000000099' },
+  }
+
+  const tree = terminalCommandTree(snapshot, snapshot, chase.command_id)!
+  const physical = find(tree, 'order_generation', 'Order Generation 2')
+
+  assert.equal(physical?.status, 'Waiting')
+  assert.equal(physical?.tone, 'dim')
+})
+
+function find(root: TerminalTreeNode, kind: string, label: string): TerminalTreeNode | null {
+  if (root.kind === kind && root.label === label) return root
+  for (const child of root.children) {
+    const match = find(child, kind, label)
+    if (match !== null) return match
+  }
+  return null
+}

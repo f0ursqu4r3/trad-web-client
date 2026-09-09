@@ -29,6 +29,7 @@ export type ProjectionStateErrorCode =
   | 'shard_mismatch'
   | 'schema_mismatch'
   | 'revision_gap'
+  | 'stale_snapshot'
   | 'history_revision_mismatch'
   | 'invalid_history_page'
   | 'invalid_legacy_history_page'
@@ -68,6 +69,25 @@ export interface AccountProjectionView {
 export function installSnapshot(snapshot: BrowserAccountSnapshot): AccountProjectionView {
   validateRevision(snapshot.checkpoint.projection_revision)
   return { live: cloneSnapshot(snapshot), history: null, legacyHistory: null }
+}
+
+export function installHandoffSnapshot(
+  current: AccountProjectionView,
+  snapshot: BrowserAccountSnapshot,
+): AccountProjectionView {
+  requireSameRoute(current.live.checkpoint.shard, snapshot.checkpoint.shard)
+  requireSameSchema(current.live.checkpoint.schema_version, snapshot.checkpoint.schema_version)
+  const currentRevision = current.live.checkpoint.projection_revision
+  const incomingRevision = snapshot.checkpoint.projection_revision
+  validateRevision(currentRevision)
+  validateRevision(incomingRevision)
+  if (incomingRevision < currentRevision) {
+    throw new ProjectionStateError(
+      'stale_snapshot',
+      `lease handoff snapshot regressed from revision ${currentRevision} to ${incomingRevision}`,
+    )
+  }
+  return installSnapshot(snapshot)
 }
 
 export function applyDelta(

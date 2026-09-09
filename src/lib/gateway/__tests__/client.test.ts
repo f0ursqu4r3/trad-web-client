@@ -68,6 +68,200 @@ test('every reconnect acquires a fresh one-time ticket', async () => {
   client.disconnect()
 })
 
+test('planned lease rotation authenticates before switching and keeps late replies', async () => {
+  const sockets: FakeSocket[] = []
+  const statuses: GatewayConnectionStatus[] = []
+  const readyCauses: string[] = []
+  const messages: string[] = []
+  const tickets = ['ticket-1', 'ticket-2']
+  let ticketRequests = 0
+  const client = clientWithSockets(sockets, async () => tickets[ticketRequests++] ?? null, {
+    leaseRenewalLeadMs: 25,
+    retiringSocketGraceMs: 20,
+  })
+  client.setStatusHandler((status) => statuses.push(status))
+  client.setReadyHandler((_validForMs, cause) => readyCauses.push(cause))
+  client.setMessageHandler((message) => messages.push(message.kind))
+  client.connect()
+  await settle()
+
+  const first = requiredSocket(sockets, 0)
+  first.open()
+  first.receive({
+    kind: 'hello',
+    protocol_version: BROWSER_PROTOCOL_VERSION,
+    session_valid_for_ms: 30,
+  })
+  await settle(10)
+
+  const replacement = requiredSocket(sockets, 1)
+  assert.equal(first.closeCode, null)
+  client.send({ kind: 'ping', nonce: 1 })
+  assert.equal(JSON.parse(first.sent.at(-1) ?? '').nonce, 1)
+
+  replacement.open()
+  assert.equal(JSON.parse(replacement.sent[0] ?? '').ticket, 'ticket-2')
+  replacement.receive({
+    kind: 'hello',
+    protocol_version: BROWSER_PROTOCOL_VERSION,
+    session_valid_for_ms: 10_000,
+  })
+
+  client.send({ kind: 'ping', nonce: 2 })
+  assert.equal(JSON.parse(replacement.sent.at(-1) ?? '').nonce, 2)
+  first.receive({ kind: 'account_delta' })
+  first.receive({ kind: 'command_result' })
+  first.receive({ kind: 'pong', nonce: 1 })
+  assert.deepEqual(messages, ['hello', 'command_result', 'pong'])
+  assert.deepEqual(readyCauses, ['initial', 'lease_rotation'])
+  assert.deepEqual(statuses, ['connecting', 'authenticating', 'ready'])
+
+  await settle(25)
+  assert.equal(first.closeCode, 1000)
+  client.disconnect()
+})
+
+test('a failed planned renewal leaves the current ready socket usable', async () => {
+  const sockets: FakeSocket[] = []
+  let ticketRequests = 0
+  let finalStatus: GatewayConnectionStatus = 'idle'
+  const client = clientWithSockets(
+    sockets,
+    async () => {
+      ticketRequests += 1
+      if (ticketRequests === 1) return 'ticket-1'
+      throw new Error('ticket service unavailable')
+    },
+    { leaseRenewalLeadMs: 10 },
+  )
+  client.setStatusHandler((status) => {
+    finalStatus = status
+  })
+  client.connect()
+  await settle()
+
+  const socket = requiredSocket(sockets, 0)
+  socket.open()
+  socket.receive({
+    kind: 'hello',
+    protocol_version: BROWSER_PROTOCOL_VERSION,
+    session_valid_for_ms: 15,
+  })
+  await settle(10)
+
+  assert.equal(finalStatus, 'ready')
+  assert.equal(sockets.length, 1)
+  client.send({ kind: 'ping', nonce: 7 })
+  assert.equal(JSON.parse(socket.sent.at(-1) ?? '').nonce, 7)
+  client.disconnect()
+})
+
+test('repeated lease rotations keep one ready transport and send every action once', async (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setInterval', 'setTimeout'], now: 0 })
+  const sockets: FakeSocket[] = []
+  const statuses: GatewayConnectionStatus[] = []
+  let ticket = 0
+  const client = clientWithSockets(sockets, async () => `ticket-${++ticket}`, {
+    pingIntervalMs: 10_000_000,
+    retiringSocketGraceMs: 35_000,
+  })
+  client.setStatusHandler((status) => statuses.push(status))
+  client.connect()
+  await flushPromises()
+
+  const first = requiredSocket(sockets, 0)
+  first.open()
+  first.receive(hello(600_000))
+  client.send(action('before-first-rotation'))
+
+  t.mock.timers.tick(540_000)
+  await flushPromises()
+  const second = requiredSocket(sockets, 1)
+  client.send(action('during-first-rotation'))
+  second.open()
+  second.receive(hello(600_000))
+  client.send(action('after-first-rotation'))
+
+  t.mock.timers.tick(540_000)
+  await flushPromises()
+  const third = requiredSocket(sockets, 2)
+  client.send(action('during-second-rotation'))
+  third.open()
+  third.receive(hello(600_000))
+  client.send(action('after-second-rotation'))
+
+  assert.deepEqual(statuses, ['connecting', 'authenticating', 'ready'])
+  assert.deepEqual(actionIds(sockets), [
+    'before-first-rotation',
+    'during-first-rotation',
+    'after-first-rotation',
+    'during-second-rotation',
+    'after-second-rotation',
+  ])
+  assert.equal(ticket, 3)
+  client.disconnect()
+})
+
+test('a delayed renewal ticket leaves the active socket usable until handoff', async () => {
+  const sockets: FakeSocket[] = []
+  let resolveRenewal: ((ticket: string) => void) | null = null
+  let ticketRequest = 0
+  const client = clientWithSockets(
+    sockets,
+    async () => {
+      ticketRequest += 1
+      if (ticketRequest === 1) return 'initial-ticket'
+      return new Promise<string>((resolve) => {
+        resolveRenewal = resolve
+      })
+    },
+    { leaseRenewalLeadMs: 10, pingIntervalMs: 60_000 },
+  )
+  client.connect()
+  await settle()
+  const first = requiredSocket(sockets, 0)
+  first.open()
+  first.receive(hello(15))
+  await settle(10)
+
+  client.send(action('while-ticket-delayed'))
+  assert.equal(sockets.length, 1)
+  resolveRenewal?.('renewal-ticket')
+  await flushPromises()
+  const replacement = requiredSocket(sockets, 1)
+  replacement.open()
+  replacement.receive(hello(60_000))
+
+  assert.deepEqual(actionIds(sockets), ['while-ticket-delayed'])
+  assert.equal(first.closeCode, null)
+  client.disconnect()
+})
+
+test('losing the active transport abandons an unfinished rotation before reconnecting', async () => {
+  const sockets: FakeSocket[] = []
+  let ticket = 0
+  const client = clientWithSockets(sockets, async () => `ticket-${++ticket}`, {
+    leaseRenewalLeadMs: 10,
+    reconnectDelayMs: 0,
+    maxReconnectDelayMs: 0,
+  })
+  client.connect()
+  await settle()
+  const first = requiredSocket(sockets, 0)
+  first.open()
+  first.receive(hello(15))
+  await settle(10)
+  const unfinishedReplacement = requiredSocket(sockets, 1)
+  unfinishedReplacement.open()
+
+  first.serverClose(1012, 'lease revoked')
+  await settle(10)
+
+  assert.equal(unfinishedReplacement.closeCode, 1000)
+  assert.equal(sockets.length, 3)
+  client.disconnect()
+})
+
 test('a protocol mismatch is fatal and does not reconnect', async () => {
   const sockets: FakeSocket[] = []
   let finalStatus: GatewayConnectionStatus = 'idle'
@@ -130,6 +324,32 @@ function clientWithSockets(
     },
     ...overrides,
   })
+}
+
+function hello(sessionValidForMs: number) {
+  return {
+    kind: 'hello' as const,
+    protocol_version: BROWSER_PROTOCOL_VERSION,
+    session_valid_for_ms: sessionValidForMs,
+  }
+}
+
+function action(requestId: string) {
+  return { kind: 'subscribe_account' as const, request_id: requestId, account_id: 'account' }
+}
+
+function actionIds(sockets: FakeSocket[]): string[] {
+  return sockets.flatMap((socket) =>
+    socket.sent
+      .map((message) => JSON.parse(message) as { kind: string; request_id?: string })
+      .filter((message) => message.kind === 'subscribe_account')
+      .map((message) => message.request_id!),
+  )
+}
+
+async function flushPromises(): Promise<void> {
+  await Promise.resolve()
+  await Promise.resolve()
 }
 
 class FakeSocket implements GatewaySocket {

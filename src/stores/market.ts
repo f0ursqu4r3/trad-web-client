@@ -22,13 +22,18 @@ export const useMarketStore = defineStore('market', () => {
   const streams = ref<Record<string, MarketStreamView>>({})
   const activeKeys = computed(() => Object.keys(streams.value))
 
-  function begin(accountId: Uuid, symbol: string, requestId: Uuid): void {
+  function begin(
+    accountId: Uuid,
+    symbol: string,
+    requestId: Uuid,
+    preserveReady = false,
+  ): void {
     const key = marketKey(accountId, symbol)
     const current = streams.value[key]
     streams.value[key] = {
       accountId,
       symbol: normalizeSymbol(symbol),
-      status: 'subscribing',
+      status: preserveReady && current?.status === 'ready' ? 'ready' : 'subscribing',
       requestId,
       subscriptionId: null,
       oldestSequence: current?.oldestSequence ?? null,

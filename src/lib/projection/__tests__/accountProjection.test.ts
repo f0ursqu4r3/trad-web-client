@@ -23,6 +23,7 @@ import {
   ProjectionStateError,
   applyDelta,
   combinedProjection,
+  installHandoffSnapshot,
   installSnapshot,
   mergeHistoryPage,
   mergeLegacyHistoryPage,
@@ -168,6 +169,30 @@ test('a replacement snapshot clears history and changes shard authority', () => 
     installed.live.commands.map((row) => row.command_id),
     ['b'],
   )
+})
+
+test('a lease handoff snapshot cannot move projection authority backward', () => {
+  const current = installSnapshot(snapshot(9, [command('current', 20, 'running')]))
+  const before = structuredClone(current)
+
+  assert.throws(
+    () => installHandoffSnapshot(current, snapshot(8, [command('old', 10, 'running')])),
+    errorWithCode('stale_snapshot'),
+  )
+  assert.deepEqual(current, before)
+})
+
+test('a lease handoff accepts an equal or newer authoritative snapshot', () => {
+  const current = installSnapshot(snapshot(9, [command('current', 20, 'running')]))
+  const equal = installHandoffSnapshot(
+    current,
+    snapshot(9, [command('current', 20, 'succeeded')]),
+  )
+  const newer = installHandoffSnapshot(equal, snapshot(11, [command('newer', 30, 'running')]))
+
+  assert.equal(equal.live.checkpoint.projection_revision, 9)
+  assert.equal(equal.live.commands[0]?.lifecycle, 'succeeded')
+  assert.equal(newer.live.checkpoint.projection_revision, 11)
 })
 
 test('terminal pruning retains running roots, newest terminals, and their descendants', () => {

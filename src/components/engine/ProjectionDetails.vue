@@ -19,7 +19,11 @@ import {
   activeProtectionAmendment,
   commandNativeProtection,
 } from '@/lib/engineCommands/protectionAmendment'
-import type { CommandProjection, ProtectionProjection } from '@/lib/gateway'
+import {
+  orderGenerationLifecycleName,
+  type CommandProjection,
+  type ProtectionProjection,
+} from '@/lib/gateway'
 import { nodeKey } from '@/lib/projection'
 import {
   commandProtectionScopeId,
@@ -136,15 +140,16 @@ const selectedId = computed(
     null,
 )
 const acceptedAt = computed(() => selectedCommand.value?.accepted_at ?? null)
-const detailStatus = computed(
-  () =>
-    directlySelectedProtection.value?.status ??
-    directlySelectedOrderGeneration.value?.order.generations[
-      String(directlySelectedOrderGeneration.value.generation)
-    ]?.lifecycle ??
-    null ??
-    (entity.value === null ? null : entityStatus(entity.value)),
-)
+const detailStatus = computed(() => {
+  if (directlySelectedProtection.value !== null) return directlySelectedProtection.value.status
+  const selectedGeneration = directlySelectedOrderGeneration.value
+  if (selectedGeneration !== null) {
+    const lifecycle =
+      selectedGeneration.order.generations[String(selectedGeneration.generation)]?.lifecycle
+    if (lifecycle !== undefined) return orderGenerationLifecycleName(lifecycle)
+  }
+  return entity.value === null ? null : entityStatus(entity.value)
+})
 const detailTone = computed(() => statusTone(detailStatus.value))
 
 function descendantKeys(root: string): Set<string> {
