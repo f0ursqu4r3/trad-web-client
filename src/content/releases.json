@@ -1,5 +1,60 @@
 [
   {
+    "version": "0.10.11",
+    "status": "draft",
+    "released_at": null,
+    "channel": "Fee-aware Chase safety",
+    "summary": "Adds fee-aware risk sizing, smoother account-session handoff, and stronger physical-order lineage checks for live Chases.",
+    "major": [
+      "Risk-sized entries now reserve expected entry and stop-exit fees inside the user's accepted risk budget, then consume exact reported fees as fills arrive.",
+      "A live Chase recalculates its permitted remainder from current price, exact fills, and remaining fee-adjusted risk without exceeding the quantity accepted at placement.",
+      "Planned connection renewal keeps the current account session usable until its replacement is authenticated and authoritative."
+    ],
+    "minor": [
+      "Trade details expose the pinned fee assumptions, actual fee consumption, remaining risk, and current permitted quantity without combining builder attribution twice.",
+      "Preview results are fenced to the exact draft revision so an older success or failure cannot change the current form.",
+      "Sanitized production-shaped event replay and deterministic lifecycle graph checks now gate the candidate locally."
+    ],
+    "fixes": [
+      "Fixed a rejected Hyperliquid native-modify successor failing to retry when its physical predecessor had partially filled.",
+      "Fixed late predecessor evidence or fee recalculation bypassing the fresh-book wait for a post-only Chase retry.",
+      "Fixed retired physical-order evidence completing work that targets a newer successor in Chase and native-protection lineages.",
+      "Fixed an editing-time preview failure briefly replacing a newer valid preview or appearing as a persistent trade error."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "Fee-aware risk authorization",
+        "items": [
+          "Pin the venue fee policy used when the command is accepted so later configuration changes cannot rewrite an active trade's contract.",
+          "Reserve maker entry and conservative stop-exit costs for every candidate quantity, then replace modeled entry cost with exact exchange evidence as fills settle.",
+          "Keep the original accepted quantity as a hard cap even when rebates, favorable fills, or lower later prices would otherwise permit growth.",
+          "Apply the same shared calculation boundary to supported opening order plans while preserving each controller's existing dispatch authority."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Physical successor lifecycle",
+        "items": [
+          "Treat logical order ownership, logical generations, physical venue children, and exact query targets as separate identities.",
+          "Retry a zero-fill rejected native successor for only the aggregate unfilled remainder, even when its predecessor contributed valid fills.",
+          "Require a fresh book before the next post-only attempt and prevent late fills, fee updates, or retired rejection evidence from reopening dispatch early.",
+          "Keep exact TP and SL successor cancellation independent from terminal evidence belonging to an older physical child."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Session and release qualification",
+        "items": [
+          "Keep an established browser transport active while a planned lease renewal obtains a fresh ticket and authoritative account snapshot.",
+          "Distinguish an exchange outcome still being confirmed from a genuine unexplained reconciliation mismatch.",
+          "Replay sanitized historical account events through the current engine and compare exact state, client projection, and operator projection digests.",
+          "Enumerate cancellation, rejection, partial-fill, delayed-evidence, and restart schedules and require every modeled state to retain a path to settlement."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.10",
     "status": "published",
     "released_at": "2026-09-10",
