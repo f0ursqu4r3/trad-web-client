@@ -1,5 +1,60 @@
 [
   {
+    "version": "0.10.10",
+    "status": "published",
+    "released_at": "2026-09-10",
+    "channel": "Chase risk and recovery",
+    "summary": "Kept risk-sized Chases aligned with their live fill prices while repairing retired-order hydration and exact protection cleanup.",
+    "major": [
+      "Risk-sized opening Chases now recalculate their permitted remainder from exact fills, the current candidate price, and the authoritative stop instead of retaining an oversized initial quantity.",
+      "A retired physical Hyperliquid order remains part of its durable logical lineage, allowing startup reconciliation to consume late fills without trapping the account in Sync Unavailable.",
+      "When a protected scope becomes flat, obsolete undispatched resizes are retired and Trad proceeds to cancel only the exact surviving TP or SL child."
+    ],
+    "minor": [
+      "Managed-trade metrics now show requested price risk, filled risk, projected stop loss, permitted remainder, and any confirmed overage.",
+      "Existing Chases created before this release retain their original fixed-size behavior; no historical risk budget is guessed during upgrade.",
+      "Fee, funding, and stop-slippage allowances remain outside this release and are identified separately from the live price-risk calculation."
+    ],
+    "fixes": [
+      "Fixed partial Chase fills failing to resize toward the configured price-risk budget as price moves.",
+      "Fixed a historical fill on a retired Hyperliquid OID repeatedly preventing one account from hydrating while other accounts remained available.",
+      "Fixed an early partial protection fill leaving an obsolete resize actionable after later fills reduced the same owned target to zero.",
+      "Fixed manually canceled obsolete protection from being recreated when terminal venue absence already proves cleanup complete."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "Live Chase price-risk authorization",
+        "items": [
+          "Consume risk from every exact fill price across the logical Chase's physical order generations.",
+          "Recalculate the permitted unfilled quantity at each fresh candidate price and authoritative stop, rounded through the instrument's executable bounds.",
+          "Never grow beyond the initially accepted quantity cap, and authorize no new exposure at or through the stop.",
+          "Retarget only writes proven not to have reached the venue; reconcile every uncertain physical generation before creating a successor."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Retired physical-order recovery",
+        "items": [
+          "Preserve every recorded Hyperliquid OID in its logical order lineage while keeping the active OID distinct for exact current-order queries.",
+          "Require an order-status response to match the exact OID requested without mistaking an older owned generation for a foreign order.",
+          "Apply late stop fills once, retire superseded undispatched resizes, and cancel only the exact remaining physical sibling.",
+          "Accept exact terminal absence after a user's manual cancel without reinstalling the obsolete TP or SL."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Lifecycle qualification",
+        "items": [
+          "Replay production-sized Chase fills, retired OIDs, restarts, duplicates, late responses, cancellations, and retry-budget exhaustion.",
+          "Verify event replay and snapshot restore reproduce the same accounting, target quantity, operation lineage, and terminal state.",
+          "Rehearse the candidate on isolated production database copies with exchange effects disabled and zero claimed actions.",
+          "Keep unrelated accounts and valid protection orders unchanged while the affected account returns to active service."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.9",
     "status": "published",
     "released_at": "2026-08-27",
