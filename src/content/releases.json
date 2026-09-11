@@ -14,7 +14,8 @@
     "minor": [
       "Trade details expose the pinned fee assumptions, actual fee consumption, remaining risk, and current permitted quantity without combining builder attribution twice.",
       "Preview results are fenced to the exact draft revision so an older success or failure cannot change the current form.",
-      "Sanitized production-shaped event replay and deterministic lifecycle graph checks now gate the candidate locally."
+      "Sanitized production-shaped event replay and deterministic lifecycle graph checks now gate the candidate locally.",
+      "Binance and Bybit account setup and engine placement are temporarily paused while their adapters, historical records, and compatibility paths remain available for future reactivation."
     ],
     "fixes": [
       "Fixed a rejected Hyperliquid native-modify successor failing to retry when its physical predecessor had partially filled.",

@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
+import {
+  ACCOUNT_CREATION_EXCHANGES,
+  DEFAULT_ACCOUNT_CREATION_EXCHANGE,
+} from '@/lib/accountAvailability'
 import { buildAccountFormPayload } from '@/lib/accountFormPayload'
 import { enumKeyName } from '@/lib/utils'
 import { NetworkType, ExchangeType } from '@/lib/ws/protocol'
@@ -29,13 +33,8 @@ const accounts = useAccountsStore()
 
 const DEFAULT_NETWORK: NetworkType = NetworkType.Mainnet
 const NETWORK_OPTIONS: NetworkType[] = [NetworkType.Mainnet, NetworkType.Testnet]
-const DEFAULT_EXCHANGE: ExchangeType = ExchangeType.Binance
-const EXCHANGE_OPTIONS: ExchangeType[] = [
-  ExchangeType.Binance,
-  ExchangeType.Bifake,
-  ExchangeType.Bybit,
-  ExchangeType.Hyperliquid,
-]
+const DEFAULT_EXCHANGE: ExchangeType = DEFAULT_ACCOUNT_CREATION_EXCHANGE
+const EXCHANGE_OPTIONS = ACCOUNT_CREATION_EXCHANGES
 
 const network = ref<NetworkType>(DEFAULT_NETWORK)
 const exchange = ref<ExchangeType>(DEFAULT_EXCHANGE)
