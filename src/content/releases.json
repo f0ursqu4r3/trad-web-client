@@ -23,6 +23,7 @@
       "Fixed delayed native-protection successor evidence leaving a recovered protection scope permanently fenced.",
       "Fixed Trailing Entry protection fills, unknown resizes, and delayed entry evidence stranding valid recovery work.",
       "Fixed Take Over waiting on exchange cleanup before releasing management control or allowing stale prepared work to dispatch.",
+      "Fixed a partially filled Chase resuming its unfilled entry after its own stop had already closed the exposure.",
       "Fixed an editing-time preview failure briefly replacing a newer valid preview or appearing as a persistent trade error."
     ],
     "details": [
@@ -63,6 +64,7 @@
           "Clear a retired-predecessor protection fence only after exact successor evidence proves complete current coverage.",
           "Allow exact terminal protection evidence to confirm an install while preserving the physical child identity needed by later work.",
           "Bind unknown native installs and resizes only to a unique matching successor instead of guessing from a predecessor.",
+          "Terminalize constructive Chase work as soon as its stop begins filling, including after restart from an older persisted state.",
           "Keep delayed zero-fill entry evidence from demoting a completed Trailing Entry while still accepting genuine late fills."
         ]
       },
