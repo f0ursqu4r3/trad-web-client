@@ -3,12 +3,13 @@
     "version": "0.10.11",
     "status": "draft",
     "released_at": null,
-    "channel": "Fee-aware Chase safety",
-    "summary": "Adds fee-aware risk sizing, smoother account-session handoff, and stronger physical-order lineage checks for live Chases.",
+    "channel": "Fee-aware lifecycle safety",
+    "summary": "Adds fee-aware risk sizing, smoother account-session handoff, safer manual takeover, and stronger physical-order recovery across managed workflows.",
     "major": [
       "Risk-sized entries now reserve expected entry and stop-exit fees inside the user's accepted risk budget, then consume exact reported fees as fills arrive.",
       "A live Chase recalculates its permitted remainder from current price, exact fills, and remaining fee-adjusted risk without exceeding the quantity accepted at placement.",
-      "Planned connection renewal keeps the current account session usable until its replacement is authenticated and authoritative."
+      "Planned connection renewal keeps the current account session usable until its replacement is authenticated and authoritative.",
+      "Take Over now transfers management control immediately while exact cancellation of known Trad-owned exchange orders continues as visible cleanup."
     ],
     "minor": [
       "Trade details expose the pinned fee assumptions, actual fee consumption, remaining risk, and current permitted quantity without combining builder attribution twice.",
@@ -19,6 +20,9 @@
       "Fixed a rejected Hyperliquid native-modify successor failing to retry when its physical predecessor had partially filled.",
       "Fixed late predecessor evidence or fee recalculation bypassing the fresh-book wait for a post-only Chase retry.",
       "Fixed retired physical-order evidence completing work that targets a newer successor in Chase and native-protection lineages.",
+      "Fixed delayed native-protection successor evidence leaving a recovered protection scope permanently fenced.",
+      "Fixed Trailing Entry protection fills, unknown resizes, and delayed entry evidence stranding valid recovery work.",
+      "Fixed Take Over waiting on exchange cleanup before releasing management control or allowing stale prepared work to dispatch.",
       "Fixed an editing-time preview failure briefly replacing a newer valid preview or appearing as a persistent trade error."
     ],
     "details": [
@@ -40,6 +44,26 @@
           "Retry a zero-fill rejected native successor for only the aggregate unfilled remainder, even when its predecessor contributed valid fills.",
           "Require a fresh book before the next post-only attempt and prevent late fills, fee updates, or retired rejection evidence from reopening dispatch early.",
           "Keep exact TP and SL successor cancellation independent from terminal evidence belonging to an older physical child."
+        ]
+      },
+      {
+        "category": "major",
+        "title": "Manual control transfer",
+        "items": [
+          "Detach Trad management as soon as Take Over is durably accepted instead of making user control wait for exchange cleanup.",
+          "Continue canceling every known Trad-owned entry, close, TP, and SL child by exact physical identity without closing the position.",
+          "Prevent books, timers, retries, restarts, and delayed evidence from preparing new risk-changing work after control transfers.",
+          "Keep ambiguous cleanup visible without silently restoring Trad ownership or adopting unrelated venue orders."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Protection and entry recovery",
+        "items": [
+          "Clear a retired-predecessor protection fence only after exact successor evidence proves complete current coverage.",
+          "Allow exact terminal protection evidence to confirm an install while preserving the physical child identity needed by later work.",
+          "Bind unknown native installs and resizes only to a unique matching successor instead of guessing from a predecessor.",
+          "Keep delayed zero-fill entry evidence from demoting a completed Trailing Entry while still accepting genuine late fills."
         ]
       },
       {

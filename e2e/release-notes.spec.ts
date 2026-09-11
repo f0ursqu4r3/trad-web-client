@@ -34,7 +34,7 @@ test('lists published releases and filters their categories', async ({ page }) =
   await expect(page.getByText('Account removal fencing', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Fixes', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Fixes', exact: true })).toHaveCount(11)
+  await expect(page.getByRole('heading', { name: 'Fixes', exact: true })).toHaveCount(13)
   await expect(page.getByRole('heading', { name: 'Major', exact: true })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Minor', exact: true })).toHaveCount(0)
   await expect(page.getByText('Account removal fencing', { exact: true })).toBeVisible()
