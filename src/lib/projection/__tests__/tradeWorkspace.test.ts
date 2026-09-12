@@ -372,6 +372,114 @@ test('closed scope with missing closing fills does not present entry fees as fin
   assert.ok(trade.totalFees.size > 0)
 })
 
+test('a protection-owned stop fill joins by protection scope, not exposure scope', () => {
+  const snapshot = engineProjectionSnapshot()
+  const position = snapshot.positions.find((row) => row.symbol === 'ETH')
+  const protection = snapshot.native_protections.find((row) => row.symbol === 'ETH')
+  const entry = snapshot.executions.find((row) => row.fill.symbol === 'ETH')
+  assert.ok(position && protection && entry)
+  const exposure = position.owned_exposure['scope-filled']
+  assert.ok(exposure)
+  exposure.reduced_quantity = exposure.opened_quantity
+  exposure.remaining_quantity = '0'
+  position.exchange_quantity.long = '0'
+  position.owned_quantity.long = '0'
+
+  const stopped = structuredClone(entry)
+  stopped.event_id = 'stop-exit-event'
+  stopped.fill.event_id = stopped.event_id
+  stopped.fill.execution_id = 'stop-exit-execution'
+  stopped.fill.side = 'sell'
+  stopped.fill.price = '1800.125'
+  stopped.fill.quantity = exposure.opened_quantity
+  stopped.fill.fee = { asset: 'USDC', amount: '0.11' }
+  stopped.fill.builder_fee = { asset: 'USDC', amount: '0.03' }
+  stopped.fill.realized_pnl = { asset: 'USDC', amount: '999' }
+  stopped.order = null
+  stopped.protection_owner = {
+    scope_id: protection.scope_id,
+    scope_revision: protection.scope_revision,
+    controller: { kind: 'native', id: protection.protection_id },
+    child_id: protection.plan.children.find((child) => child.protection_kind === 'stop_loss')!
+      .child_id,
+  }
+  snapshot.executions.push(stopped)
+
+  const unrelated = structuredClone(stopped)
+  unrelated.event_id = 'other-scope-stop'
+  unrelated.fill.event_id = unrelated.event_id
+  unrelated.fill.execution_id = 'other-scope-stop-execution'
+  unrelated.protection_owner!.scope_id = 'different-protection-scope'
+  snapshot.executions.push(unrelated)
+
+  const trade = tradeWorkspaceProjection(snapshot).closedTrades.find((row) => row.symbol === 'ETH')
+  assert.ok(trade)
+  assert.equal(trade.pnlEvidenceComplete, true)
+  assert.equal(
+    trade.executions.some((row) => row.event_id === stopped.event_id),
+    true,
+  )
+  assert.equal(
+    trade.executions.some((row) => row.event_id === unrelated.event_id),
+    false,
+  )
+  assert.equal(trade.realizedPnl.get('USDC')?.startsWith('-'), true)
+  assert.notEqual(trade.netAfterFees.get('USDC'), trade.totalFees.get('USDC'))
+  assert.equal(trade.venueRealizedPnl.get('USDC'), '999')
+})
+
+test('copied mainnet-shaped stopped long retains exact final net after scope join', () => {
+  const snapshot = engineProjectionSnapshot()
+  const position = snapshot.positions.find((row) => row.symbol === 'ETH')
+  const protection = snapshot.native_protections.find((row) => row.symbol === 'ETH')
+  const entry = snapshot.executions.find((row) => row.event_id === 'fill-eth-1')
+  const order = snapshot.orders.find(
+    (row) =>
+      row.command_id ===
+      snapshot.commands.find((command) => command.accepted.kind === 'place_order')?.command_id,
+  )
+  assert.ok(position && protection && entry && order)
+  snapshot.executions = snapshot.executions.filter((row) => row.fill.symbol !== 'ETH')
+  entry.fill.price = '80956'
+  entry.fill.quantity = '10.02004'
+  entry.fill.fee = { asset: 'USDC', amount: '442.256590' }
+  entry.fill.builder_fee = { asset: 'USDC', amount: '100' }
+  snapshot.executions.push(entry)
+  order.filled_quantity = '10.02004'
+  const exposure = position.owned_exposure['scope-filled']
+  assert.ok(exposure)
+  exposure.opened_quantity = '10.02004'
+  exposure.reduced_quantity = '10.02004'
+  exposure.remaining_quantity = '0'
+  position.exchange_quantity.long = '0'
+  position.owned_quantity.long = '0'
+
+  const stop = structuredClone(entry)
+  stop.event_id = 'stopped-long-exit'
+  stop.fill.event_id = stop.event_id
+  stop.fill.execution_id = 'stopped-long-exit'
+  stop.fill.side = 'sell'
+  stop.fill.price = '80282'
+  stop.fill.fee = { asset: 'USDC', amount: '429.565005' }
+  stop.fill.builder_fee = { asset: 'USDC', amount: '80' }
+  stop.order = null
+  stop.protection_owner = {
+    scope_id: protection.scope_id,
+    scope_revision: protection.scope_revision,
+    controller: { kind: 'native', id: protection.protection_id },
+    child_id: protection.plan.children.find((child) => child.protection_kind === 'stop_loss')!
+      .child_id,
+  }
+  snapshot.executions.push(stop)
+
+  const trade = tradeWorkspaceProjection(snapshot).closedTrades.find((row) => row.symbol === 'ETH')
+  assert.ok(trade)
+  assert.equal(trade.pnlEvidenceComplete, true)
+  assert.equal(trade.realizedPnl.get('USDC'), '-6753.50696')
+  assert.equal(trade.totalFees.get('USDC'), '871.821595')
+  assert.equal(trade.netAfterFees.get('USDC'), '-7625.328555')
+})
+
 test('a missing owned-exposure row cannot turn entry fees into final closed-trade P&L', () => {
   const snapshot = engineProjectionSnapshot()
   const position = snapshot.positions.find((row) => row.symbol === 'ETH')

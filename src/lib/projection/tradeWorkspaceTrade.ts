@@ -46,6 +46,8 @@ export function buildManagedTrade(
     (row) => orderIds.has(row.order_id) || commandIds.has(row.command_id),
   )
   const selectedOrderIds = new Set(orders.map((row) => row.order_id))
+  const protection = commandNativeProtection(seed.primaryCommand, snapshot.native_protections)
+  const protectionScopeId = protection?.scope_id ?? null
   const closeOrderIds = new Set(
     snapshot.close_workflows
       .filter((workflow) =>
@@ -71,7 +73,7 @@ export function buildManagedTrade(
     (row) =>
       (row.order !== null && selectedOrderIds.has(row.order.order_id)) ||
       (row.order !== null && closeOrderIds.has(row.order.order_id)) ||
-      row.protection_owner?.scope_id === seed.scopeId,
+      (protectionScopeId !== null && row.protection_owner?.scope_id === protectionScopeId),
   )
   const entryOrderIds = new Set(entryOrders.map((row) => row.order_id))
   const entryExecutions = executions.filter(
@@ -79,11 +81,10 @@ export function buildManagedTrade(
   )
   const closeExecutions = executions.filter(
     (row) =>
-      row.protection_owner?.scope_id === seed.scopeId ||
+      (protectionScopeId !== null && row.protection_owner?.scope_id === protectionScopeId) ||
       (row.order !== null && closeOrderIds.has(row.order.order_id)),
   )
   const located = positionsByScope.get(seed.scopeId) ?? null
-  const protection = commandNativeProtection(seed.primaryCommand, snapshot.native_protections)
   const attentionReason = tradeAttention(commands, orders, protection, located?.position ?? null)
   const economics = summarizeProjectionExecutions(executions)
   const pnlAsset = economicAsset(economics.realizedPnl, economics.totalFees)
