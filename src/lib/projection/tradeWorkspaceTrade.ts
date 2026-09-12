@@ -95,6 +95,9 @@ export function buildManagedTrade(
     feeAsset(economics.totalFees),
   )
   const reducedQuantity = located?.exposure.reduced_quantity ?? '0'
+  const entryFillQuantity = sumExact(entryExecutions.map((row) => row.fill.quantity))
+  const expectedEntryQuantity =
+    located?.exposure.opened_quantity ?? sumExact(entryOrders.map((row) => row.filled_quantity))
   const closeFillQuantity = sumExact(closeExecutions.map((row) => row.fill.quantity))
   const mixedClose = snapshot.close_workflows.some(
     (workflow) =>
@@ -104,6 +107,10 @@ export function buildManagedTrade(
   )
   const pnlEvidenceComplete =
     !mixedClose &&
+    economics.totalFees.size <= 1 &&
+    (snapshot.checkpoint.shard.exchange !== 'hyperliquid' ||
+      executions.every((row) => row.fill.fee !== null)) &&
+    compareExact(entryFillQuantity, expectedEntryQuantity) === 0 &&
     compareExact(closeFillQuantity, reducedQuantity) === 0 &&
     (isExactZero(reducedQuantity) || averageEntryPrice !== null)
   const stopPrice = protection?.plan.children.find(

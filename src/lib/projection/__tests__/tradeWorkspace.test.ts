@@ -372,6 +372,36 @@ test('closed scope with missing closing fills does not present entry fees as fin
   assert.ok(trade.totalFees.size > 0)
 })
 
+test('scope P&L stays incomplete when entry fills or fee assets are inconsistent', () => {
+  const missing = engineProjectionSnapshot()
+  missing.executions = missing.executions.filter((row) => row.fill.symbol !== 'ETH')
+  const missingTrade = tradeWorkspaceProjection(missing).activeTrades.find(
+    (row) => row.symbol === 'ETH',
+  )
+  assert.ok(missingTrade)
+  assert.equal(missingTrade.pnlEvidenceComplete, false)
+
+  const mixed = engineProjectionSnapshot()
+  const ethFill = mixed.executions.find((row) => row.fill.symbol === 'ETH')
+  assert.ok(ethFill)
+  ethFill.fill.fee = { asset: 'BTC', amount: '0.00001' }
+  const mixedTrade = tradeWorkspaceProjection(mixed).activeTrades.find(
+    (row) => row.symbol === 'ETH',
+  )
+  assert.ok(mixedTrade)
+  assert.equal(mixedTrade.pnlEvidenceComplete, false)
+
+  const unknownFee = engineProjectionSnapshot()
+  const unpriced = unknownFee.executions.find((row) => row.fill.symbol === 'ETH')
+  assert.ok(unpriced)
+  unpriced.fill.fee = null
+  const unknownTrade = tradeWorkspaceProjection(unknownFee).activeTrades.find(
+    (row) => row.symbol === 'ETH',
+  )
+  assert.ok(unknownTrade)
+  assert.equal(unknownTrade.pnlEvidenceComplete, false)
+})
+
 test('closes a zero-fill failed entry despite inert protection placeholders', () => {
   const snapshot = engineProjectionSnapshot()
   const command = snapshot.commands.find((row) => row.accepted.kind === 'place_order')
