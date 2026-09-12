@@ -6,7 +6,14 @@ import { useAuth } from '@/lib/auth'
 import { useGatewayStore } from '@/stores/gateway'
 import { useUserStore } from '@/stores/user'
 import { useAccountsStore } from '@/stores/accounts'
-import { browserErrorSource, browserRejectionSource } from '@/lib/browserErrorSource'
+import {
+  browserErrorKind,
+  browserErrorSource,
+  browserRejectionSource,
+  browserStackProvenance,
+  type BrowserErrorSource,
+} from '@/lib/browserErrorSource'
+import { recordTelemetry } from '@/lib/telemetry'
 
 import AuthenticatedLayout from '@/layouts/Authenticated.vue'
 import ControlPlaneLayout from '@/layouts/ControlPlane.vue'
@@ -24,6 +31,19 @@ function describeFailure(value: unknown): string {
   return typeof value === 'string' ? value : 'An unexpected interface error occurred.'
 }
 
+function showFailure(value: unknown, surface: string, source: BrowserErrorSource): void {
+  frontendFailure.value = describeFailure(value)
+  recordTelemetry({
+    eventName: 'error_boundary_shown',
+    properties: {
+      source,
+      control_id: surface,
+      reason_code: browserErrorKind(value),
+      state: browserStackProvenance(value, window.location.origin),
+    },
+  })
+}
+
 function captureWindowError(event: ErrorEvent): void {
   const source = browserErrorSource(event.filename, window.location.origin)
   if (source === 'extension') return
@@ -32,16 +52,17 @@ function captureWindowError(event: ErrorEvent): void {
     browserRejectionSource(event.error, window.location.origin) === 'extension'
   )
     return
-  frontendFailure.value = describeFailure(event.error ?? event.message)
+  showFailure(event.error ?? event.message, 'window_error', source)
 }
 
 function captureRejectedPromise(event: PromiseRejectionEvent): void {
-  if (browserRejectionSource(event.reason, window.location.origin) === 'extension') return
-  frontendFailure.value = describeFailure(event.reason)
+  const source = browserRejectionSource(event.reason, window.location.origin)
+  if (source === 'extension') return
+  showFailure(event.reason, 'unhandled_rejection', source)
 }
 
 onErrorCaptured((error) => {
-  frontendFailure.value = describeFailure(error)
+  showFailure(error, 'vue_capture', 'application')
 })
 
 // Simple Nuxt-like layout selection using route meta
