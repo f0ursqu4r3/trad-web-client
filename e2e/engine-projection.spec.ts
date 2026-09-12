@@ -611,7 +611,9 @@ test('edits logical native protection without exposing exchange order identity',
   await expect(evidence).not.toContainText('native-take-profit-remote')
 })
 
-test('native protection editor fits a phone viewport and retains its submit control', async ({ page }) => {
+test('native protection editor fits a phone viewport and retains its submit control', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const fixture = page.getByTestId('engine-projection-fixture')
   await fixture.getByTestId('projection-command-list').getByText('Market Order').click()
@@ -633,6 +635,30 @@ test('native protection editor fits a phone viewport and retains its submit cont
   await expect(modal.getByRole('button', { name: 'Apply Protection' })).toBeVisible()
   await modal.getByLabel('TP 1 Trigger').fill('2110.5')
   await expect(modal.getByRole('button', { name: 'Apply Protection' })).toBeEnabled()
+})
+
+test('extension exceptions do not masquerade as Trad interface errors', async ({ page }) => {
+  await page.evaluate(() => {
+    window.dispatchEvent(
+      new ErrorEvent('error', {
+        message: 'Cannot redefine property: ethereum',
+        filename: 'chrome-extension://wallet/provider.js',
+      }),
+    )
+  })
+  await expect(page.getByRole('alert').filter({ hasText: 'Interface error' })).toHaveCount(0)
+
+  await page.evaluate(() => {
+    window.dispatchEvent(
+      new ErrorEvent('error', {
+        message: 'Trad render failure',
+        filename: `${window.location.origin}/assets/index.js`,
+      }),
+    )
+  })
+  await expect(page.getByRole('alert').filter({ hasText: 'Interface error' })).toContainText(
+    'Trad render failure',
+  )
 })
 
 test('opens protection from its owning execution relationship', async ({ page }) => {
