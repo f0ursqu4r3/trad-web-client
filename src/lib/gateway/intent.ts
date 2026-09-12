@@ -58,6 +58,7 @@ export interface ProtectionStopLossAmendmentIntent extends StopLossIntent {
 export interface AmendProtectionIntent {
   protection_id: Uuid
   expected_plan_revision: number
+  focused_child_id?: Uuid
   take_profits: ProtectionTakeProfitAmendmentIntent[]
   stop_loss?: ProtectionStopLossAmendmentIntent
 }

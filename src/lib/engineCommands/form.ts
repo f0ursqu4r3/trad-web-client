@@ -146,6 +146,7 @@ export function protectionAmendmentIntent(
   protectionId: Uuid,
   expectedPlanRevision: number,
   state: ProtectionFormState,
+  focusedChildId: Uuid | null = null,
 ): BrowserCommandIntent {
   if (!Number.isInteger(expectedPlanRevision) || expectedPlanRevision < 1) {
     throw new Error('protection plan revision is invalid')
@@ -155,6 +156,7 @@ export function protectionAmendmentIntent(
   const parameters: AmendProtectionIntent = {
     protection_id: protectionId,
     expected_plan_revision: expectedPlanRevision,
+    ...(focusedChildId === null ? {} : { focused_child_id: focusedChildId }),
     take_profits: protection.take_profits.map((takeProfit, index) => ({
       ...(state.takeProfits[index]?.childId === undefined
         ? {}

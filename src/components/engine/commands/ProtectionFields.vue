@@ -22,7 +22,12 @@ const props = defineProps<{
   symbol: string
   positionSide: PositionSideIntent
   entryPrice?: string | null
+  focusChildId?: string | null
 }>()
+
+function priceEditable(childId: string | undefined): boolean {
+  return !props.focusChildId || props.focusChildId === childId
+}
 
 function addTakeProfit(): void {
   if (model.value.takeProfits.length >= 20) return
@@ -65,6 +70,7 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
         class="btn btn-sm btn-ghost icon-label"
         type="button"
         :disabled="model.takeProfits.length >= 20"
+        v-if="!focusChildId"
         @click="addTakeProfit"
       >
         <Plus :size="12" /> Take Profit
@@ -92,6 +98,7 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
             type="text"
             inputmode="decimal"
             placeholder="Price"
+            :disabled="!priceEditable(takeProfit.childId)"
           />
         </FormField>
         <FormField
@@ -99,7 +106,11 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
           help="How much of the remaining position this take-profit leg should close."
           required
         >
-          <select v-model="takeProfit.allocationKind" class="input">
+          <select
+            v-model="takeProfit.allocationKind"
+            class="input"
+            :disabled="Boolean(focusChildId)"
+          >
             <option value="full_remaining">Full Remaining</option>
             <option value="fraction">Percent</option>
             <option value="exact_base">Base Quantity</option>
@@ -126,6 +137,7 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
             :aria-label="takeProfit.allocationKind === 'fraction' ? 'Percent' : 'Base Quantity'"
             type="text"
             inputmode="decimal"
+            :disabled="Boolean(focusChildId)"
           />
         </FormField>
         <FormField
@@ -134,7 +146,12 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
           required
         >
           <span v-if="markPriceOnly" class="readonly-value">Mark Price</span>
-          <select v-else v-model="takeProfit.triggerSource" class="input">
+          <select
+            v-else
+            v-model="takeProfit.triggerSource"
+            class="input"
+            :disabled="Boolean(focusChildId)"
+          >
             <option value="mark_price">Mark Price</option>
             <option value="last_price">Last Price</option>
             <option value="index_price">Index Price</option>
@@ -154,6 +171,7 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
         </FormField>
       </div>
       <button
+        v-if="!focusChildId"
         class="btn icon-btn remove-button"
         type="button"
         title="Remove take profit"
@@ -164,7 +182,7 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
     </div>
 
     <label class="stop-toggle">
-      <input v-model="model.stopLoss.enabled" type="checkbox" />
+      <input v-model="model.stopLoss.enabled" type="checkbox" :disabled="Boolean(focusChildId)" />
       Protective stop <span class="recommended">recommended</span>
     </label>
     <p class="stop-guidance">
@@ -189,8 +207,10 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
           type="text"
           inputmode="decimal"
           placeholder="Price"
+          :disabled="!priceEditable(model.stopLoss.childId)"
         />
         <StopPricePresets
+          v-if="priceEditable(model.stopLoss.childId)"
           v-model="model.stopLoss.triggerPrice"
           :account-id="props.accountId"
           :symbol="props.symbol"
@@ -204,7 +224,12 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
         required
       >
         <span v-if="markPriceOnly" class="readonly-value">Mark Price</span>
-        <select v-else v-model="model.stopLoss.triggerSource" class="input">
+        <select
+          v-else
+          v-model="model.stopLoss.triggerSource"
+          class="input"
+          :disabled="Boolean(focusChildId)"
+        >
           <option value="mark_price">Mark Price</option>
           <option value="last_price">Last Price</option>
           <option value="index_price">Index Price</option>

@@ -198,8 +198,9 @@ test('moving one stop retains a two-take-profit ladder and the original stop ide
     ],
   })
   form.stopLoss.triggerPrice = '77500'
-  const intent = protectionAmendmentIntent(protectionId, 4, form)
+  const intent = protectionAmendmentIntent(protectionId, 4, form, stopId)
   assert.equal(intent.kind, 'amend_protection')
+  assert.equal(intent.parameters.focused_child_id, stopId)
   assert.deepEqual(
     intent.parameters.take_profits.map((row) => row.child_id),
     takeProfitIds,

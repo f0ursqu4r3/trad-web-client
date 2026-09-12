@@ -100,6 +100,7 @@ async function submit(): Promise<void> {
       props.protection.protection_id,
       props.protection.plan_revision,
       form.value,
+      props.focusChildId ?? null,
     )
     if (await submission.submit({ accountId: props.accountId, intent }, actionAttemptId)) {
       emit('close')
@@ -137,6 +138,7 @@ function closeModal(): void {
         :base-asset="units.base"
         :quote-asset="units.quote"
         :entry-price="entryPrice"
+        :focus-child-id="focusChildId"
       />
 
       <p class="help-text">

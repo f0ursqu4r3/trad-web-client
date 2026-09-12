@@ -231,6 +231,18 @@ test('close presets remain ordinary audited close commands', async ({ page }) =>
   await expect(dialog.getByLabel('Execution')).toHaveValue('chase')
 })
 
+test('a focused stop move keeps unrelated take-profit controls read-only', async ({ page }) => {
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  await eth.getByRole('button', { name: 'move', exact: true }).last().click()
+  const modal = page.getByRole('dialog', { name: 'Edit Native Protection' })
+  await expect(modal.getByLabel('SL Trigger')).toBeFocused()
+  await expect(modal.getByLabel('TP 1 Trigger')).toBeDisabled()
+  await expect(modal.getByText('Take Profit', { exact: true })).toHaveCount(0)
+  await expect(modal.getByLabel('SL Trigger')).toBeEnabled()
+  await modal.getByLabel('SL Trigger').fill('1700')
+  await expect(modal.getByRole('button', { name: 'Apply Protection' })).toBeEnabled()
+})
+
 test('an active close explains ownership and exposes its durable support reference', async ({
   page,
 }) => {
