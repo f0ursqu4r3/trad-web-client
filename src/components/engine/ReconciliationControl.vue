@@ -20,7 +20,7 @@ const phase = computed(() => {
 const label = computed(() => {
   switch (phase.value) {
     case 'reconciling':
-      return 'reconciling'
+      return 'checking exchange'
     case 'ready':
       return 'reconciled'
     case 'blocked':
@@ -60,6 +60,9 @@ const title = computed(() => {
     return reasons.length === 0
       ? 'Account reconciliation is not ready for new exposure'
       : `Account reconciliation is blocked: ${reasons.join('; ')}`
+  }
+  if (phase.value === 'reconciling') {
+    return 'Checking authoritative exchange state. This is not itself a position reconciliation failure.'
   }
   const cycle = summary.value?.reconciliation_cycle_id
   if ((summary.value?.system_external_orders ?? 0) > 0) {

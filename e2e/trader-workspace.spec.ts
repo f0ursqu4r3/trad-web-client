@@ -467,6 +467,26 @@ test('complete inline ticket previews and submits without opening the legacy for
   await expect(page.getByRole('dialog', { name: 'Chase Order' })).toHaveCount(0)
 })
 
+test('a rejected preview is not presented as a rejected command', async ({ page }) => {
+  await page.goto('/e2e/trader-workspace?preview_rejected=1')
+  const ticket = page.getByRole('form', { name: 'New trade order ticket' })
+  await ticket.getByLabel('Stop-loss price (USDC)').fill('62000')
+
+  await expect(ticket.getByText('Preview rejected', { exact: true })).toBeVisible()
+  await expect(ticket.getByText(/This preview placed no order/)).toBeVisible()
+  const submit = ticket.getByRole('button', { name: 'Buy BTC chase' })
+  await expect(submit).toBeEnabled()
+  await submit.click()
+  await expect(ticket.getByText('Buy BTC chase accepted by Trad.')).toBeVisible()
+})
+
+test('checking the exchange is not labeled as a reconciliation failure', async ({ page }) => {
+  await page.goto('/e2e/trader-workspace?sync_checking=1')
+  const state = page.getByTestId('reconciliation-control')
+  await expect(state).toContainText('checking exchange')
+  await expect(state.locator('.reconciliation-state')).toHaveAttribute('data-phase', 'reconciling')
+})
+
 test('market combobox filters the account catalog and completes with the keyboard', async ({
   page,
 }) => {

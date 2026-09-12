@@ -49,6 +49,10 @@ accounts.accountsRaw = [
 accounts.selectedAccountId = ENGINE_ACCOUNT_ID
 accounts.lastFetchedAt = Date.now()
 const initialProjection = engineProjectionSnapshot()
+if (new URLSearchParams(location.search).has('sync_checking')) {
+  initialProjection.checkpoint.summary.reconciliation_status = 'reconciling'
+  initialProjection.checkpoint.summary.reconciliation_ready = false
+}
 if (new URLSearchParams(location.search).has('low_margin')) {
   const settlement = initialProjection.balances.find((balance) => balance.asset === 'USDC')
   if (settlement) settlement.available = '10'
@@ -130,6 +134,18 @@ gateway.previewCommand = async (
   const attempt = telemetry.attempt(intent, accountId!, requestId, actionAttemptId)
   telemetry.previewRequested(attempt)
   telemetry.requestSent(attempt)
+  if (new URLSearchParams(location.search).has('preview_rejected')) {
+    const outcome: BrowserPreviewOutcome = {
+      kind: 'rejected',
+      rejection: {
+        code: 'planning_failed',
+        reason: 'fixture exchange evidence was temporarily unavailable',
+        retryable: true,
+      },
+    }
+    telemetry.previewResponse(attempt)
+    return outcome
+  }
   const outcome: BrowserPreviewOutcome = {
     kind: 'ready',
     preview: {

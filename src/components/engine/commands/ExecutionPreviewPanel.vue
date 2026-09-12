@@ -145,11 +145,7 @@ function scheduleCapacity(): void {
   const planned = preview.value
   const selected = account.value
   const userAddress = selected?.exchange_metadata?.user_address
-  if (
-    planned === null ||
-    selected?.exchange !== ExchangeType.Hyperliquid ||
-    !userAddress
-  ) {
+  if (planned === null || selected?.exchange !== ExchangeType.Hyperliquid || !userAddress) {
     return
   }
   const controller = new AbortController()
@@ -193,7 +189,8 @@ function acceptAffordabilityRisk(): void {
 
 function refreshEditing(): void {
   const active = document.activeElement
-  editing.value = ownerForm !== null && active !== null && ownerForm.contains(active) && isEditor(active)
+  editing.value =
+    ownerForm !== null && active !== null && ownerForm.contains(active) && isEditor(active)
 }
 
 onMounted(() => {
@@ -230,7 +227,7 @@ function isEditor(target: Element): boolean {
       <span>Execution Preview</span>
       <span v-if="pending">Planning…</span>
       <span v-else-if="guidance">Checking input…</span>
-      <span v-else-if="error">Rejected</span>
+      <span v-else-if="error">Preview rejected</span>
       <span v-else-if="preview">Ready</span>
       <span v-else>Enter order details</span>
     </div>
@@ -248,6 +245,10 @@ function isEditor(target: Element): boolean {
       </details>
     </div>
     <p v-else-if="error" class="preview-error">{{ error }}</p>
+    <p v-if="error" class="preview-note">
+      This preview placed no order. Submit requests a fresh authoritative plan and may have a
+      different result; only an accepted command starts a trade.
+    </p>
     <template v-else-if="preview">
       <div class="preview-grid">
         <span>{{
@@ -275,8 +276,7 @@ function isEditor(target: Element): boolean {
           <span>Expected entry fee</span><strong>{{ preview.fee_risk.expected_entry_fee }}</strong>
           <span>Expected stop-exit fee</span
           ><strong>{{ preview.fee_risk.expected_stop_exit_fee }}</strong>
-          <span>Total planned loss</span
-          ><strong>{{ preview.fee_risk.total_planned_loss }}</strong>
+          <span>Total planned loss</span><strong>{{ preview.fee_risk.total_planned_loss }}</strong>
         </div>
         <p class="preview-note">
           Uses recorded fee policy v{{ preview.fee_risk.policy_version }}. Stop-market slippage,
@@ -333,8 +333,8 @@ function isEditor(target: Element): boolean {
         <strong>Likely above available margin</strong>
         <span>
           <template v-if="affordability.evidenceSource === 'venue_capacity'">
-            Planned {{ formatExactDecimal(preview.normalized_base_quantity) }}
-            {{ preview.symbol }}; Hyperliquid currently reports a
+            Planned {{ formatExactDecimal(preview.normalized_base_quantity) }} {{ preview.symbol }};
+            Hyperliquid currently reports a
             {{ formatExactDecimal(affordability.maximumBaseQuantity ?? '0') }}
             {{ preview.symbol }} maximum for this side and
             {{ formatExactDecimal(affordability.available ?? '0') }} available to trade.
@@ -348,9 +348,7 @@ function isEditor(target: Element): boolean {
           </template>
           Hyperliquid may partially fill or reject the order.
         </span>
-        <small>
-          This evidence is advisory and Hyperliquid remains the final authority.
-        </small>
+        <small> This evidence is advisory and Hyperliquid remains the final authority. </small>
         <button
           v-if="affordabilityConfirmationRequired"
           type="button"
