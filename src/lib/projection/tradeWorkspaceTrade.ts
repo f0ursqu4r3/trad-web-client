@@ -109,6 +109,7 @@ export function buildManagedTrade(
   const pnlEvidenceComplete =
     !mixedClose &&
     pnlAsset !== null &&
+    (located !== null || isExactZero(entryFillQuantity)) &&
     (snapshot.checkpoint.shard.exchange !== 'hyperliquid' ||
       executions.every((row) => row.fill.fee !== null)) &&
     compareExact(entryFillQuantity, expectedEntryQuantity) === 0 &&

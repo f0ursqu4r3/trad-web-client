@@ -372,6 +372,24 @@ test('closed scope with missing closing fills does not present entry fees as fin
   assert.ok(trade.totalFees.size > 0)
 })
 
+test('a missing owned-exposure row cannot turn entry fees into final closed-trade P&L', () => {
+  const snapshot = engineProjectionSnapshot()
+  const position = snapshot.positions.find((row) => row.symbol === 'ETH')
+  assert.ok(position)
+  delete position.owned_exposure['scope-filled']
+  position.exchange_quantity.long = '0'
+  position.owned_quantity.long = '0'
+
+  const workspace = tradeWorkspaceProjection(snapshot)
+  const trade = [...workspace.activeTrades, ...workspace.closedTrades].find(
+    (row) => row.symbol === 'ETH',
+  )
+  assert.ok(trade)
+  assert.ok(trade.totalFees.size > 0)
+  assert.equal(trade.pnlEvidenceComplete, false)
+  assert.equal(trade.netAfterFees.size, 0)
+})
+
 test('scope P&L stays incomplete when entry fills or fee assets are inconsistent', () => {
   const missing = engineProjectionSnapshot()
   missing.executions = missing.executions.filter((row) => row.fill.symbol !== 'ETH')
