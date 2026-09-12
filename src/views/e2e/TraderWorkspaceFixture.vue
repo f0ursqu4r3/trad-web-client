@@ -49,6 +49,26 @@ accounts.accountsRaw = [
 accounts.selectedAccountId = ENGINE_ACCOUNT_ID
 accounts.lastFetchedAt = Date.now()
 const initialProjection = engineProjectionSnapshot()
+if (new URLSearchParams(location.search).has('two_tps')) {
+  const protection = initialProjection.native_protections.find((row) => row.symbol === 'ETH')
+  const first = protection?.plan.children.find((row) => row.protection_kind === 'take_profit')
+  const firstState = first === undefined ? undefined : protection?.children[first.child_id]
+  if (protection && first && firstState) {
+    const secondId = '30000000-0000-4000-8000-000000000006'
+    protection.plan.children.splice(1, 0, {
+      ...structuredClone(first),
+      child_id: secondId,
+      client_order_id: 'trad-native-take-profit-second',
+      trigger_price: '2200.125',
+      execution: { kind: 'bounded_market', worst_price: '2190.125' },
+    })
+    protection.children[secondId] = {
+      ...structuredClone(firstState),
+      child_id: secondId,
+      remote_order_ids: ['native-take-profit-second-remote'],
+    }
+  }
+}
 if (new URLSearchParams(location.search).has('sync_checking')) {
   initialProjection.checkpoint.summary.reconciliation_status = 'reconciling'
   initialProjection.checkpoint.summary.reconciliation_ready = false

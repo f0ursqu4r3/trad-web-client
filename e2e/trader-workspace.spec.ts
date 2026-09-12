@@ -614,6 +614,37 @@ test('mobile splits ticket and trades, preserves each scroll position, and stays
   ).toBe(true)
 })
 
+test('a 320px phone can reach all protection legs and the focused edit footer', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 568 })
+  await page.goto('/e2e/trader-workspace?two_tps=1')
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  await expect(eth.locator('.protection-legs > div')).toHaveCount(3)
+  for (const name of ['Close ½', 'Close ⅓', 'Close ¼', 'Edit protection']) {
+    const action = eth.getByRole('button', { name, exact: true })
+    await expect(action).toBeVisible()
+    const box = await action.boundingBox()
+    expect(box).not.toBeNull()
+    expect(box!.x).toBeGreaterThanOrEqual(0)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(321)
+  }
+  await eth.getByRole('button', { name: 'move', exact: true }).last().click()
+
+  const modal = page.getByRole('dialog', { name: 'Edit Native Protection' })
+  const bounds = await modal.boundingBox()
+  expect(bounds).not.toBeNull()
+  expect(bounds!.x).toBeGreaterThanOrEqual(0)
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(321)
+  await expect(modal.getByLabel('SL Trigger')).toBeFocused()
+  await expect(modal.getByLabel('TP 1 Trigger')).toBeDisabled()
+  await expect(modal.getByLabel('TP 2 Trigger')).toBeDisabled()
+  await expect(modal.getByRole('button', { name: 'Apply Protection' })).toBeVisible()
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
+  ).toBe(true)
+})
+
 test('tablet workspace consumes the full content width without a ghost desktop column', async ({
   page,
 }) => {
