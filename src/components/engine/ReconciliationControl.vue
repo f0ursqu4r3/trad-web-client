@@ -9,16 +9,31 @@ const summary = computed(() => projections.selectedLive?.checkpoint.summary ?? n
 const phase = computed(() => {
   const projection = projections.selected
   if (projection?.status !== 'ready') {
+    if (
+      projection?.status === 'idle' ||
+      projection?.status === 'subscribing' ||
+      projection === null
+    ) {
+      return 'loading'
+    }
+    if (projection.status === 'stale') return 'resyncing'
     if (projection?.failure === 'authorization') return 'authorization_failed'
     if (projection?.failure === 'resync') return 'resync_failed'
     return 'unavailable'
   }
   const status = summary.value?.reconciliation_status ?? 'unknown'
+  if (summary.value?.reconciliation_required && summary.value.reconciliation_ready === false) {
+    return 'blocked'
+  }
   if (status === 'ready' && summary.value?.reconciliation_ready === false) return 'blocked'
   return status
 })
 const label = computed(() => {
   switch (phase.value) {
+    case 'loading':
+      return 'loading account'
+    case 'resyncing':
+      return 'resyncing account'
     case 'reconciling':
       return 'checking exchange'
     case 'ready':
@@ -38,6 +53,10 @@ const label = computed(() => {
   }
 })
 const title = computed(() => {
+  if (phase.value === 'loading') return 'Waiting for the authoritative account projection.'
+  if (phase.value === 'resyncing') {
+    return 'Reconnecting to the authoritative account projection. Previously shown values may be stale.'
+  }
   if (projections.selected?.status !== 'ready' && projections.selected?.error !== null) {
     return projections.selected?.error ?? 'Account projection is unavailable'
   }
@@ -113,7 +132,8 @@ const title = computed(() => {
 }
 
 .reconciliation-state[data-phase='blocked'],
-.reconciliation-state[data-phase='reconciling'] {
+.reconciliation-state[data-phase='reconciling'],
+.reconciliation-state[data-phase='resyncing'] {
   color: var(--status-warning, #f1b84b);
 }
 </style>

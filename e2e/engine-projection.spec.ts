@@ -87,6 +87,41 @@ test('distinguishes account recovery from authorization failure', async ({ page 
   await expect(control).toHaveAttribute('data-failure', 'authorization')
 })
 
+test('account badge separates loading and stale resync from an actual failure', async ({
+  page,
+}) => {
+  const control = page.getByTestId('reconciliation-control')
+  await expect(control).toContainText('reconciled')
+  await page.evaluate(() => window.__tradEngineProjectionFixture?.beginSubscription())
+  await expect(control).toContainText('loading account')
+  await expect(control).toHaveAttribute(
+    'title',
+    'Waiting for the authoritative account projection.',
+  )
+  await page.evaluate(() => window.__tradEngineProjectionFixture?.staleProjection())
+  await expect(control).toContainText('resyncing account')
+  await expect(control).toHaveAttribute(
+    'title',
+    'Reconnecting to the authoritative account projection. Previously shown values may be stale.',
+  )
+})
+
+test('a real reconciliation requirement stays blocked even during a checking cycle', async ({
+  page,
+}) => {
+  const control = page.getByTestId('reconciliation-control')
+  await expect(control).toContainText('reconciled')
+  await page.evaluate(() =>
+    window.__tradEngineProjectionFixture?.applyDelta({
+      positionDeficit: true,
+      reconciliationReady: false,
+      reconciliationStatus: 'reconciling',
+    }),
+  )
+  await expect(control).toContainText('sync blocked')
+  await expect(control.locator('.reconciliation-state')).toHaveAttribute('data-phase', 'blocked')
+})
+
 test('presents scoped and unscoped external order reconciliation', async ({ page }) => {
   const control = page.getByTestId('reconciliation-control')
   await expect(control).toContainText('reconciled')
@@ -555,7 +590,7 @@ test('native dropdowns retain a visible chevron affordance', async ({ page }) =>
   await page.getByRole('menuitem', { name: 'Close Exposure' }).click()
 
   const selects = page.getByRole('dialog', { name: 'Close Exposure' }).locator('select')
-  await expect(selects).toHaveCount(2)
+  await expect(selects).toHaveCount(3)
   for (const select of await selects.all()) {
     const affordance = await select.evaluate((element) => {
       const style = getComputedStyle(element)

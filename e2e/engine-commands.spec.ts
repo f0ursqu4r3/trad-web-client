@@ -143,11 +143,9 @@ test('production short stop prefixes never flash red and stale replies are super
   await expect(modal.getByText('Ready', { exact: true })).toBeVisible()
   await page.waitForTimeout(750)
   expect(await observedPreviewRejections(page)).toEqual([])
-  await expect.poll(() => previewTerminalNames(telemetry)).toEqual([
-    'preview_superseded',
-    'preview_ready',
-    'preview_superseded',
-  ])
+  await expect
+    .poll(() => previewTerminalNames(telemetry))
+    .toEqual(['preview_superseded', 'preview_ready', 'preview_superseded'])
 })
 
 test('production long take-profit prefixes cannot overwrite the final ready generation', async ({
@@ -174,12 +172,9 @@ test('production long take-profit prefixes cannot overwrite the final ready gene
   await expect(modal.getByText('Ready', { exact: true })).toBeVisible()
   await page.waitForTimeout(750)
   expect(await observedPreviewRejections(page)).toEqual([])
-  await expect.poll(() => previewTerminalNames(telemetry)).toEqual([
-    'preview_ready',
-    'preview_superseded',
-    'preview_ready',
-    'preview_superseded',
-  ])
+  await expect
+    .poll(() => previewTerminalNames(telemetry))
+    .toEqual(['preview_ready', 'preview_superseded', 'preview_ready', 'preview_superseded'])
 })
 
 test('a current wrong-side price is guidance while editing and validation after blur', async ({
@@ -198,17 +193,18 @@ test('a current wrong-side price is guidance while editing and validation after 
   await expect(
     modal.getByText('Finish entering a stop-loss price on the loss side of the entry.'),
   ).toBeVisible()
-  await expect(modal.getByText('Rejected', { exact: true })).toHaveCount(0)
+  await expect(modal.getByText('Preview rejected', { exact: true })).toHaveCount(0)
   await stop.press('Tab')
-  await expect(modal.getByText('Rejected', { exact: true })).toBeVisible()
+  await expect(modal.getByText('Preview rejected', { exact: true })).toBeVisible()
   await expect(modal.getByRole('button', { name: 'Submit' })).toBeDisabled()
-  await expect.poll(() => previewTerminalNames(telemetry)).toEqual([
-    'preview_guidance',
-    'preview_rejected',
-  ])
+  await expect
+    .poll(() => previewTerminalNames(telemetry))
+    .toEqual(['preview_guidance', 'preview_rejected'])
 })
 
-test('editing guidance uses the tested quiet period before becoming validation', async ({ page }) => {
+test('editing guidance uses the tested quiet period before becoming validation', async ({
+  page,
+}) => {
   const testTime = new Date('2026-09-09T12:00:00Z')
   await page.clock.install({ time: testTime })
   await page.clock.pauseAt(testTime)
@@ -225,9 +221,9 @@ test('editing guidance uses the tested quiet period before becoming validation',
     modal.getByText('Finish entering a stop-loss price on the loss side of the entry.'),
   ).toBeVisible()
   await page.clock.runFor(1_199)
-  expect(await modal.getByText('Rejected', { exact: true }).count()).toBe(0)
+  expect(await modal.getByText('Preview rejected', { exact: true }).count()).toBe(0)
   await page.clock.runFor(1)
-  await expect(modal.getByText('Rejected', { exact: true })).toBeVisible()
+  await expect(modal.getByText('Preview rejected', { exact: true })).toBeVisible()
 })
 
 test('unmounting a guided rejection records superseded instead of a visible failure', async ({
@@ -245,10 +241,9 @@ test('unmounting a guided rejection records superseded instead of a visible fail
   await modal.getByRole('button', { name: 'Cancel' }).click()
   await expect(modal).not.toBeVisible()
 
-  await expect.poll(() => previewTerminalNames(telemetry)).toEqual([
-    'preview_guidance',
-    'preview_superseded',
-  ])
+  await expect
+    .poll(() => previewTerminalNames(telemetry))
+    .toEqual(['preview_guidance', 'preview_superseded'])
 })
 
 test('delete paste and reconnect keep only the newest preview authoritative', async ({ page }) => {
@@ -278,10 +273,9 @@ test('delete paste and reconnect keep only the newest preview authoritative', as
   await expect(modal.getByText('Ready', { exact: true })).toBeVisible()
   await page.waitForTimeout(650)
   expect(await observedPreviewRejections(page)).toEqual([])
-  await expect.poll(() => previewTerminalNames(telemetry)).toEqual([
-    'preview_ready',
-    'preview_superseded',
-  ])
+  await expect
+    .poll(() => previewTerminalNames(telemetry))
+    .toEqual(['preview_ready', 'preview_superseded'])
 })
 
 test('opens chase and trailing-entry forms from their aliases', async ({ page }) => {
@@ -447,12 +441,10 @@ async function observePreviewRejections(page: import('@playwright/test').Page): 
   })
 }
 
-async function observedPreviewRejections(
-  page: import('@playwright/test').Page,
-): Promise<string[]> {
+async function observedPreviewRejections(page: import('@playwright/test').Page): Promise<string[]> {
   return page.evaluate(
     () =>
-      (window as typeof window & { __tradPreviewRejections?: string[] })
-        .__tradPreviewRejections ?? [],
+      (window as typeof window & { __tradPreviewRejections?: string[] }).__tradPreviewRejections ??
+      [],
   )
 }

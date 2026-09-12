@@ -108,6 +108,7 @@ function applyFixtureDelta(options: {
   lifecycle?: CommandLifecycle
   trailingEntryLifecycle?: string
   reconciliationReady?: boolean
+  reconciliationStatus?: string
   systemExternalOrders?: number
   unscopedExternalOrders?: number
   positionDeficit?: boolean
@@ -201,6 +202,8 @@ function applyFixtureDelta(options: {
         ...live.checkpoint.summary,
         reconciliation_ready:
           options.reconciliationReady ?? live.checkpoint.summary.reconciliation_ready,
+        reconciliation_status:
+          options.reconciliationStatus ?? live.checkpoint.summary.reconciliation_status,
         system_external_orders:
           options.systemExternalOrders ?? live.checkpoint.summary.system_external_orders,
         unscoped_external_orders:
@@ -236,11 +239,21 @@ function failProjection(failure: AccountProjectionFailure, reason: string): void
   projections.fail(ENGINE_ACCOUNT_ID, reason, failure)
 }
 
+function beginSubscription(): void {
+  projections.beginSubscription(ENGINE_ACCOUNT_ID)
+}
+
+function staleProjection(): void {
+  projections.stale(ENGINE_ACCOUNT_ID, 'fixture transport resnapshot')
+}
+
 declare global {
   interface Window {
     __tradEngineProjectionFixture?: {
       applyDelta: typeof applyFixtureDelta
       failProjection: typeof failProjection
+      beginSubscription: typeof beginSubscription
+      staleProjection: typeof staleProjection
     }
   }
 }
@@ -248,6 +261,8 @@ declare global {
 window.__tradEngineProjectionFixture = {
   applyDelta: applyFixtureDelta,
   failProjection,
+  beginSubscription,
+  staleProjection,
 }
 
 onMounted(() => {
