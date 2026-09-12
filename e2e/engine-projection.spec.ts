@@ -611,6 +611,30 @@ test('edits logical native protection without exposing exchange order identity',
   await expect(evidence).not.toContainText('native-take-profit-remote')
 })
 
+test('native protection editor fits a phone viewport and retains its submit control', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await fixture.getByTestId('projection-command-list').getByText('Market Order').click()
+  await fixture
+    .getByTestId('projection-entity-tree')
+    .locator('[data-node-kind="native_protection"]')
+    .click()
+  await fixture
+    .getByTestId('projection-details')
+    .getByRole('button', { name: 'Edit Protection' })
+    .click()
+
+  const modal = page.getByRole('dialog', { name: 'Edit Native Protection' })
+  const box = await modal.boundingBox()
+  expect(box).not.toBeNull()
+  expect(box!.x).toBeGreaterThanOrEqual(0)
+  expect(box!.x + box!.width).toBeLessThanOrEqual(390)
+  expect(box!.y + box!.height).toBeLessThanOrEqual(844)
+  await expect(modal.getByRole('button', { name: 'Apply Protection' })).toBeVisible()
+  await modal.getByLabel('TP 1 Trigger').fill('2110.5')
+  await expect(modal.getByRole('button', { name: 'Apply Protection' })).toBeEnabled()
+})
+
 test('opens protection from its owning execution relationship', async ({ page }) => {
   const fixture = page.getByTestId('engine-projection-fixture')
   await fixture.getByTestId('projection-command-list').getByText('Market Order').click()

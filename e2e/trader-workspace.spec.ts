@@ -221,12 +221,14 @@ test('mirrors the client workflow with practical presets and redundant trade act
 
 test('close presets remain ordinary audited close commands', async ({ page }) => {
   const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  await expect(eth.getByLabel('Close as')).toHaveValue('chase')
   await eth.getByRole('button', { name: 'Close ½' }).click()
 
   const dialog = page.getByRole('dialog', { name: 'Close Exposure' })
   await expect(dialog).toBeVisible()
   await expect(dialog.getByLabel('Close Amount')).toHaveValue('percent')
   await expect(dialog.getByLabel('Close Percentage (%)')).toHaveValue('50')
+  await expect(dialog.getByLabel('Execution')).toHaveValue('chase')
 })
 
 test('an active close explains ownership and exposes its durable support reference', async ({
