@@ -86,13 +86,14 @@ export function buildManagedTrade(
   const protection = commandNativeProtection(seed.primaryCommand, snapshot.native_protections)
   const attentionReason = tradeAttention(commands, orders, protection, located?.position ?? null)
   const economics = summarizeProjectionExecutions(executions)
+  const pnlAsset = economicAsset(economics.realizedPnl, economics.totalFees)
   const averageEntryPrice = weightedAverage(entryExecutions)
   const side = tradeSide(snapshot, seed.primaryCommand, orders, located?.exposure ?? null)
   const scopedRealized = realizedForScope(
     side,
     averageEntryPrice,
     closeExecutions,
-    feeAsset(economics.totalFees),
+    pnlAsset ?? 'USDC',
   )
   const reducedQuantity = located?.exposure.reduced_quantity ?? '0'
   const entryFillQuantity = sumExact(entryExecutions.map((row) => row.fill.quantity))
@@ -107,7 +108,7 @@ export function buildManagedTrade(
   )
   const pnlEvidenceComplete =
     !mixedClose &&
-    economics.totalFees.size <= 1 &&
+    pnlAsset !== null &&
     (snapshot.checkpoint.shard.exchange !== 'hyperliquid' ||
       executions.every((row) => row.fill.fee !== null)) &&
     compareExact(entryFillQuantity, expectedEntryQuantity) === 0 &&
@@ -164,6 +165,7 @@ export function buildManagedTrade(
     filledQuantity: sumExact(entryOrders.map((row) => row.filled_quantity)),
     remainingQuantity: located?.exposure.remaining_quantity ?? '0',
     averageEntryPrice,
+    pnlAsset,
     pnlEvidenceComplete,
     realizedPnl: pnlEvidenceComplete ? scopedRealized : new Map(),
     venueRealizedPnl: economics.realizedPnl,
@@ -205,8 +207,9 @@ function realizedForScope(
   return new Map([[asset, amount]])
 }
 
-function feeAsset(values: Map<string, string>): string {
-  return values.keys().next().value ?? 'USDC'
+function economicAsset(realized: Map<string, string>, fees: Map<string, string>): string | null {
+  const assets = new Set([...realized.keys(), ...fees.keys()])
+  return assets.size > 1 ? null : (assets.values().next().value ?? 'USDC')
 }
 
 function subtractAssetTotals(

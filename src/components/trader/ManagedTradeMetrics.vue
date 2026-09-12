@@ -44,10 +44,11 @@ const unrealized = computed(() => {
   return multiplyExact(change, props.trade.remainingQuantity)
 })
 const liveTradePnl = computed(() => {
-  if (!props.trade.pnlEvidenceComplete) return null
-  if (props.trade.lifecycle === 'closed') return props.trade.netAfterFees.get('USDC') ?? null
-  const realized = props.trade.realizedPnl.get('USDC') ?? '0'
-  const fees = props.trade.totalFees.get('USDC') ?? '0'
+  const asset = props.trade.pnlAsset
+  if (!props.trade.pnlEvidenceComplete || asset === null) return null
+  if (props.trade.lifecycle === 'closed') return props.trade.netAfterFees.get(asset) ?? null
+  const realized = props.trade.realizedPnl.get(asset) ?? '0'
+  const fees = props.trade.totalFees.get(asset) ?? '0'
   return unrealized.value === null
     ? null
     : subtractExact(addExact(realized, unrealized.value), fees)
@@ -160,13 +161,13 @@ onBeforeUnmount(() => {
     <div class="metric-group metric-pnl">
       <span
         title="Trad scope: entry-to-exit realized P&L less attributed fees; live price uses the latest Trad sample"
-        >P&amp;L · USDC</span
+        >P&amp;L{{ trade.pnlAsset ? ` · ${trade.pnlAsset}` : ' · mixed assets' }}</span
       >
       <div class="metric-values metric-values-stacked">
         <strong
-          v-if="unrealized !== null && trade.lifecycle !== 'closed'"
-          :class="totalTone(new Map([['USDC', unrealized]]))"
-          :title="`Gross open P&L before fees: ${formatExactDecimal(unrealized)} USDC`"
+          v-if="unrealized !== null && trade.pnlAsset !== null && trade.lifecycle !== 'closed'"
+          :class="totalTone(new Map([[trade.pnlAsset, unrealized]]))"
+          :title="`Gross open P&L before fees: ${formatExactDecimal(unrealized)} ${trade.pnlAsset}`"
         >
           <small>Gross open</small><b>{{ formatExactDecimal(unrealized) }}</b>
         </strong>
@@ -180,16 +181,16 @@ onBeforeUnmount(() => {
         >
           <small>{{ trade.lifecycle === 'closed' ? 'Final net' : 'Realized net' }}</small
           ><b>{{
-            trade.pnlEvidenceComplete ? amount(trade.netAfterFees, 'USDC') : 'incomplete'
+            trade.pnlEvidenceComplete ? amount(trade.netAfterFees, trade.pnlAsset) : 'incomplete'
           }}</b>
         </strong>
         <strong
           v-if="liveTradePnl !== null"
-          :class="totalTone(new Map([['USDC', liveTradePnl]]))"
+          :class="totalTone(new Map([[trade.pnlAsset ?? 'USDC', liveTradePnl]]))"
           :title="
             trade.lifecycle === 'closed'
-              ? `Final net: ${formatExactDecimal(liveTradePnl)} USDC`
-              : `Realized plus gross open P&L less attributed fees: ${formatExactDecimal(liveTradePnl)} USDC`
+              ? `Final net: ${formatExactDecimal(liveTradePnl)} ${trade.pnlAsset}`
+              : `Realized plus gross open P&L less attributed fees: ${formatExactDecimal(liveTradePnl)} ${trade.pnlAsset}`
           "
         >
           <small>{{ trade.lifecycle === 'closed' ? 'Final' : 'Live net' }}</small

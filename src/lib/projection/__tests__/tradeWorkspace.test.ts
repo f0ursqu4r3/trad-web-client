@@ -390,6 +390,7 @@ test('scope P&L stays incomplete when entry fills or fee assets are inconsistent
   )
   assert.ok(mixedTrade)
   assert.equal(mixedTrade.pnlEvidenceComplete, false)
+  assert.equal(mixedTrade.pnlAsset, null)
 
   const unknownFee = engineProjectionSnapshot()
   const unpriced = unknownFee.executions.find((row) => row.fill.symbol === 'ETH')
@@ -400,6 +401,21 @@ test('scope P&L stays incomplete when entry fills or fee assets are inconsistent
   )
   assert.ok(unknownTrade)
   assert.equal(unknownTrade.pnlEvidenceComplete, false)
+})
+
+test('scoped P&L follows a single observed settlement asset instead of assuming USDC', () => {
+  const snapshot = engineProjectionSnapshot()
+  for (const row of snapshot.executions.filter((execution) => execution.fill.symbol === 'ETH')) {
+    if (row.fill.fee !== null) row.fill.fee.asset = 'USDT'
+    if (row.fill.builder_fee !== null) row.fill.builder_fee.asset = 'USDT'
+    if (row.fill.realized_pnl !== null) row.fill.realized_pnl.asset = 'USDT'
+  }
+  const trade = tradeWorkspaceProjection(snapshot).activeTrades.find((row) => row.symbol === 'ETH')
+  assert.ok(trade)
+  assert.equal(trade.pnlAsset, 'USDT')
+  assert.equal(trade.pnlEvidenceComplete, true)
+  assert.equal(trade.netAfterFees.has('USDT'), true)
+  assert.equal(trade.netAfterFees.has('USDC'), false)
 })
 
 test('closes a zero-fill failed entry despite inert protection placeholders', () => {
