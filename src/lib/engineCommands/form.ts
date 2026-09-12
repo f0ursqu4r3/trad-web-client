@@ -147,16 +147,26 @@ export function protectionAmendmentIntent(
   expectedPlanRevision: number,
   state: ProtectionFormState,
   focusedChildId: Uuid | null = null,
+  focusedPriceTarget: 'breakeven' | null = null,
 ): BrowserCommandIntent {
   if (!Number.isInteger(expectedPlanRevision) || expectedPlanRevision < 1) {
     throw new Error('protection plan revision is invalid')
   }
   const protection = protectionIntent(state)
   if (protection === undefined) throw new Error('at least one protection leg is required')
+  if (
+    focusedPriceTarget !== null &&
+    (focusedChildId === null ||
+      !state.stopLoss.enabled ||
+      state.stopLoss.childId !== focusedChildId)
+  ) {
+    throw new Error('breakeven requires the selected existing stop')
+  }
   const parameters: AmendProtectionIntent = {
     protection_id: protectionId,
     expected_plan_revision: expectedPlanRevision,
     ...(focusedChildId === null ? {} : { focused_child_id: focusedChildId }),
+    ...(focusedPriceTarget === null ? {} : { focused_price_target: focusedPriceTarget }),
     take_profits: protection.take_profits.map((takeProfit, index) => ({
       ...(state.takeProfits[index]?.childId === undefined
         ? {}

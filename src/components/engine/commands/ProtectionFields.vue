@@ -23,6 +23,7 @@ const props = defineProps<{
   positionSide: PositionSideIntent
   entryPrice?: string | null
   focusChildId?: string | null
+  serverBreakeven?: boolean
 }>()
 
 function priceEditable(childId: string | undefined): boolean {
@@ -207,10 +208,10 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
           type="text"
           inputmode="decimal"
           placeholder="Price"
-          :disabled="!priceEditable(model.stopLoss.childId)"
+          :disabled="!priceEditable(model.stopLoss.childId) || serverBreakeven"
         />
         <StopPricePresets
-          v-if="priceEditable(model.stopLoss.childId)"
+          v-if="priceEditable(model.stopLoss.childId) && !serverBreakeven"
           v-model="model.stopLoss.triggerPrice"
           :account-id="props.accountId"
           :symbol="props.symbol"

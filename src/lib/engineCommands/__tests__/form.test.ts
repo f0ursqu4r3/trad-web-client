@@ -211,6 +211,15 @@ test('moving one stop retains a two-take-profit ladder and the original stop ide
   )
   assert.equal(intent.parameters.stop_loss?.child_id, stopId)
   assert.equal(intent.parameters.stop_loss?.trigger_price, '77500')
+
+  const breakeven = protectionAmendmentIntent(protectionId, 4, form, stopId, 'breakeven')
+  assert.equal(breakeven.kind, 'amend_protection')
+  assert.equal(breakeven.parameters.focused_price_target, 'breakeven')
+  assert.equal(breakeven.parameters.focused_child_id, stopId)
+  assert.throws(
+    () => protectionAmendmentIntent(protectionId, 4, form, takeProfitIds[0]!, 'breakeven'),
+    /selected existing stop/,
+  )
 })
 
 test('symbols are normalized but never exchange-guessed', () => {

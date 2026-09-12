@@ -763,6 +763,8 @@ export interface NativeProtectionProjection {
   symbol: string
   position_side: PositionSide
   scope_revision: number
+  entry_orders?: OrderGenerationRef[]
+  exposure_scope_ids?: Uuid[]
   plan_revision: number
   plan: NativeProtectionPlan
   target_quantity: ExactDecimal

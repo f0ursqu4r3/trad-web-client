@@ -37,6 +37,14 @@ const telemetryAction = useTelemetryAction({
 const form = ref<ProtectionFormState>(newProtectionState())
 const baseline = ref('')
 const validationError = ref<string | null>(null)
+const serverBreakeven = ref(false)
+const focusedStop = computed(() =>
+  Boolean(
+    props.focusChildId &&
+      form.value.stopLoss.enabled &&
+      form.value.stopLoss.childId === props.focusChildId,
+  ),
+)
 const units = computed(() =>
   marketUnits(
     accounts.accounts.find((account) => account.id === props.accountId),
@@ -44,7 +52,9 @@ const units = computed(() =>
   ),
 )
 
-const changed = computed(() => JSON.stringify(form.value) !== baseline.value)
+const changed = computed(
+  () => serverBreakeven.value || JSON.stringify(form.value) !== baseline.value,
+)
 const canSubmit = computed(
   () =>
     gateway.isConnected &&
@@ -66,6 +76,7 @@ watch(
 
 function reset(): void {
   validationError.value = null
+  serverBreakeven.value = false
   submission.clearSubmissionError()
   try {
     form.value =
@@ -101,6 +112,7 @@ async function submit(): Promise<void> {
       props.protection.plan_revision,
       form.value,
       props.focusChildId ?? null,
+      serverBreakeven.value ? 'breakeven' : null,
     )
     if (await submission.submit({ accountId: props.accountId, intent }, actionAttemptId)) {
       emit('close')
@@ -139,7 +151,24 @@ function closeModal(): void {
         :quote-asset="units.quote"
         :entry-price="entryPrice"
         :focus-child-id="focusChildId"
+        :server-breakeven="serverBreakeven"
       />
+
+      <div v-if="focusedStop" class="breakeven-choice">
+        <button
+          class="btn btn-sm"
+          type="button"
+          :aria-pressed="serverBreakeven"
+          @click="serverBreakeven = !serverBreakeven"
+        >
+          {{ serverBreakeven ? 'Use explicit stop price' : 'SL → fee-aware breakeven' }}
+        </button>
+        <p v-if="serverBreakeven" class="help-text">
+          The server calculates the stop from attributed entry and exit fills, paid fees, current
+          expected exit fee, and the remaining Trad-owned position. It rejects incomplete evidence.
+          The result is a fee estimate, not a guarantee against slippage or future fee changes.
+        </p>
+      </div>
 
       <p class="help-text">
         Hyperliquid edits are applied one verified exchange operation at a time. Stop changes run
@@ -189,6 +218,12 @@ function closeModal(): void {
 .help-text,
 .submission-error {
   margin: 0;
+}
+.breakeven-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }
 .help-text {
   color: var(--color-text-dim);

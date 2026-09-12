@@ -59,6 +59,7 @@ export interface AmendProtectionIntent {
   protection_id: Uuid
   expected_plan_revision: number
   focused_child_id?: Uuid
+  focused_price_target?: 'breakeven'
   take_profits: ProtectionTakeProfitAmendmentIntent[]
   stop_loss?: ProtectionStopLossAmendmentIntent
 }
