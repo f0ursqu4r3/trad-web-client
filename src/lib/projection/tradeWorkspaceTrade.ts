@@ -53,11 +53,24 @@ export function buildManagedTrade(
       )
       .map((workflow) => workflow.close_order_id),
   )
+  for (const order of orders) {
+    if (
+      commands.some(
+        (command) =>
+          command.command_id === order.command_id &&
+          command.accepted.kind === 'close_exposure' &&
+          command.accepted.parameters.source_command_id === seed.primaryCommand.command_id,
+      )
+    ) {
+      closeOrderIds.add(order.order_id)
+    }
+  }
   const closeOrders = orders.filter((row) => closeOrderIds.has(row.order_id))
   const entryOrders = orders.filter((row) => !closeOrderIds.has(row.order_id))
   const executions = snapshot.executions.filter(
     (row) =>
       (row.order !== null && selectedOrderIds.has(row.order.order_id)) ||
+      (row.order !== null && closeOrderIds.has(row.order.order_id)) ||
       row.protection_owner?.scope_id === seed.scopeId,
   )
   const entryOrderIds = new Set(entryOrders.map((row) => row.order_id))
@@ -81,6 +94,18 @@ export function buildManagedTrade(
     closeExecutions,
     feeAsset(economics.totalFees),
   )
+  const reducedQuantity = located?.exposure.reduced_quantity ?? '0'
+  const closeFillQuantity = sumExact(closeExecutions.map((row) => row.fill.quantity))
+  const mixedClose = snapshot.close_workflows.some(
+    (workflow) =>
+      workflow.requested_reductions.some((row) => row.scope_id === seed.scopeId) &&
+      (workflow.requested_reductions.some((row) => row.scope_id !== seed.scopeId) ||
+        !isExactZero(workflow.requested_external_quantity)),
+  )
+  const pnlEvidenceComplete =
+    !mixedClose &&
+    compareExact(closeFillQuantity, reducedQuantity) === 0 &&
+    (isExactZero(reducedQuantity) || averageEntryPrice !== null)
   const stopPrice = protection?.plan.children.find(
     (child) => child.protection_kind === 'stop_loss',
   )?.trigger_price
@@ -132,9 +157,12 @@ export function buildManagedTrade(
     filledQuantity: sumExact(entryOrders.map((row) => row.filled_quantity)),
     remainingQuantity: located?.exposure.remaining_quantity ?? '0',
     averageEntryPrice,
-    realizedPnl: scopedRealized,
+    pnlEvidenceComplete,
+    realizedPnl: pnlEvidenceComplete ? scopedRealized : new Map(),
     venueRealizedPnl: economics.realizedPnl,
-    netAfterFees: subtractAssetTotals(scopedRealized, economics.totalFees),
+    netAfterFees: pnlEvidenceComplete
+      ? subtractAssetTotals(scopedRealized, economics.totalFees)
+      : new Map(),
     totalFees: economics.totalFees,
     builderFees: economics.builderFees,
     pinnedAllInTargetTenthsBps:

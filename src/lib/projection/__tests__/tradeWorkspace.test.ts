@@ -277,7 +277,7 @@ test('classifies one-way managed closes by workflow identity instead of reduce-o
     accepted: {
       ...primary.accepted,
       kind: 'close_exposure',
-      parameters: {},
+      parameters: { source_command_id: primary.command_id },
     },
     lifecycle: 'failed',
     failure_reason: 'an earlier close attempt expired',
@@ -318,7 +318,7 @@ test('classifies one-way managed closes by workflow identity instead of reduce-o
       remote_order_id: 'managed-close-remote',
       side: 'sell',
       price: '2000',
-      quantity: '0.002',
+      quantity: '0.00420001',
       fee: { asset: 'USDC', amount: '0.1' },
       builder_fee: { asset: 'USDC', amount: '0.04' },
       realized_pnl: { asset: 'USDC', amount: '999' },
@@ -341,8 +341,35 @@ test('classifies one-way managed closes by workflow identity instead of reduce-o
   assert.equal(trade.requestedQuantity, '0.00420001')
   assert.equal(trade.filledQuantity, '0.00420001')
   assert.equal(trade.attentionReason, 'an earlier close attempt expired')
-  assert.equal(trade.realizedPnl.get('USDC'), '0.16235000034')
+  assert.equal(trade.pnlEvidenceComplete, true)
+  assert.equal(trade.realizedPnl.get('USDC'), '0.3409358124640017')
   assert.equal(trade.venueRealizedPnl.get('USDC'), '999')
+
+  snapshot.close_workflows = []
+  const pruned = tradeWorkspaceProjection(snapshot).closedTrades.find((row) => row.symbol === 'ETH')
+  assert.ok(pruned)
+  assert.equal(pruned.closeOrders.length, 1)
+  assert.equal(pruned.pnlEvidenceComplete, true)
+  assert.equal(pruned.realizedPnl.get('USDC'), '0.3409358124640017')
+})
+
+test('closed scope with missing closing fills does not present entry fees as final P&L', () => {
+  const snapshot = engineProjectionSnapshot()
+  const position = snapshot.positions.find((row) => row.symbol === 'ETH')
+  assert.ok(position)
+  const exposure = position.owned_exposure['scope-filled']
+  assert.ok(exposure)
+  exposure.reduced_quantity = exposure.opened_quantity
+  exposure.remaining_quantity = '0'
+  position.exchange_quantity.long = '0'
+  position.owned_quantity.long = '0'
+
+  const trade = tradeWorkspaceProjection(snapshot).closedTrades.find((row) => row.symbol === 'ETH')
+  assert.ok(trade)
+  assert.equal(trade.pnlEvidenceComplete, false)
+  assert.equal(trade.realizedPnl.size, 0)
+  assert.equal(trade.netAfterFees.size, 0)
+  assert.ok(trade.totalFees.size > 0)
 })
 
 test('closes a zero-fill failed entry despite inert protection placeholders', () => {

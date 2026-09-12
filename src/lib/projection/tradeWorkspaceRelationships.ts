@@ -30,6 +30,12 @@ export function relatedCommandIds(snapshot: BrowserAccountSnapshot, seed: TradeS
   const ids = new Set([seed.primaryCommand.command_id])
   for (const command of snapshot.commands) {
     if (commandOwnershipScopeIds(command).has(seed.scopeId)) ids.add(command.command_id)
+    if (
+      command.accepted.kind === 'close_exposure' &&
+      command.accepted.parameters.source_command_id === seed.primaryCommand.command_id
+    ) {
+      ids.add(command.command_id)
+    }
   }
   for (const workflow of snapshot.close_workflows) {
     if (workflow.requested_reductions.some((reduction) => reduction.scope_id === seed.scopeId)) {

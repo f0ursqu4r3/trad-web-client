@@ -28,7 +28,7 @@ const props = defineProps<{
 const accounts = useAccountsStore()
 const selectedAction = ref<LifecycleAction | null>(null)
 const closePercent = ref<string | null>(null)
-const closeExecution = ref<'market' | 'limit' | 'chase'>('market')
+const closeExecution = ref<'market' | 'limit' | 'chase'>('chase')
 const editProtectionOpen = ref(false)
 const blockedMessage = ref<string | null>(null)
 
@@ -327,6 +327,15 @@ defineExpose({ openClose, openTakeover })
 .close-reference:focus-visible {
   border-color: var(--border-strong);
   color: var(--fg);
+}
+@media (max-width: 480px) {
+  .trade-actions {
+    padding: 0.45rem;
+  }
+  .trade-actions > .btn,
+  .close-mode select {
+    min-height: 40px;
+  }
 }
 @media (max-width: 760px) {
   .trade-actions {

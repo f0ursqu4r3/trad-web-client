@@ -149,6 +149,24 @@ test('projected protection plans round-trip exact values and retained child iden
   })
 })
 
+test('malformed historical allocation fails with a typed edit block rather than a split exception', () => {
+  const plan = {
+    protection_id: '00000000-0000-0000-0000-000000000100',
+    children: [
+      {
+        child_id: '00000000-0000-0000-0000-000000000101',
+        client_order_id: 'existing-take-profit',
+        protection_kind: 'take_profit' as const,
+        trigger_price: '81000',
+        trigger_source: 'mark_price' as const,
+        execution: { kind: 'limit' as const, price: '81000' },
+        allocation: { kind: 'fraction' as const, value: undefined as unknown as string },
+      },
+    ],
+  }
+  assert.throws(() => protectionForm(plan), /invalid allocation/)
+})
+
 test('symbols are normalized but never exchange-guessed', () => {
   assert.equal(normalizedSymbol(' btc-usdc '), 'BTC-USDC')
   assert.throws(() => normalizedSymbol('BTC/USDC'), /unsupported characters/)

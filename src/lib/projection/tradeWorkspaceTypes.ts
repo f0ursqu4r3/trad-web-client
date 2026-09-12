@@ -44,6 +44,7 @@ export interface ManagedTradeView {
   filledQuantity: string
   remainingQuantity: string
   averageEntryPrice: string | null
+  pnlEvidenceComplete: boolean
   realizedPnl: Map<string, string>
   venueRealizedPnl: Map<string, string>
   netAfterFees: Map<string, string>

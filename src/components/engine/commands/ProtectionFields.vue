@@ -326,5 +326,13 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
   .stop-row {
     grid-template-columns: 1fr;
   }
+  .tp-row {
+    grid-template-columns: minmax(0, 1fr) 40px;
+  }
+  .remove-button {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+  }
 }
 </style>

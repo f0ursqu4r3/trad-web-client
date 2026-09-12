@@ -44,6 +44,8 @@ const unrealized = computed(() => {
   return multiplyExact(change, props.trade.remainingQuantity)
 })
 const liveTradePnl = computed(() => {
+  if (!props.trade.pnlEvidenceComplete) return null
+  if (props.trade.lifecycle === 'closed') return props.trade.netAfterFees.get('USDC') ?? null
   const realized = props.trade.realizedPnl.get('USDC') ?? '0'
   const fees = props.trade.totalFees.get('USDC') ?? '0'
   return unrealized.value === null
@@ -156,30 +158,57 @@ onBeforeUnmount(() => {
       <strong>{{ formatExactDecimal(trade.remainingQuantity) }}</strong>
     </div>
     <div class="metric-group metric-pnl">
-      <span>P&amp;L · USDC</span>
+      <span
+        title="Trad scope: entry-to-exit realized P&L less attributed fees; live price uses the latest Trad sample"
+        >P&amp;L · USDC</span
+      >
       <div class="metric-values metric-values-stacked">
         <strong
-          :class="totalTone(trade.netAfterFees)"
-          :title="`Realized net: ${totals(trade.netAfterFees)}`"
+          v-if="unrealized !== null && trade.lifecycle !== 'closed'"
+          :class="totalTone(new Map([['USDC', unrealized]]))"
+          :title="`Gross open P&L before fees: ${formatExactDecimal(unrealized)} USDC`"
         >
-          <small>Net</small><b>{{ amount(trade.netAfterFees, 'USDC') }}</b>
+          <small>Gross open</small><b>{{ formatExactDecimal(unrealized) }}</b>
+        </strong>
+        <strong
+          :class="totalTone(trade.netAfterFees)"
+          :title="
+            trade.pnlEvidenceComplete
+              ? `Realized P&L less attributed fees: ${totals(trade.netAfterFees)}`
+              : 'Closing-fill evidence is incomplete'
+          "
+        >
+          <small>{{ trade.lifecycle === 'closed' ? 'Final net' : 'Realized net' }}</small
+          ><b>{{
+            trade.pnlEvidenceComplete ? amount(trade.netAfterFees, 'USDC') : 'incomplete'
+          }}</b>
         </strong>
         <strong
           v-if="liveTradePnl !== null"
           :class="totalTone(new Map([['USDC', liveTradePnl]]))"
-          :title="`Live estimate: ${formatExactDecimal(liveTradePnl)} USDC`"
+          :title="
+            trade.lifecycle === 'closed'
+              ? `Final net: ${formatExactDecimal(liveTradePnl)} USDC`
+              : `Realized plus gross open P&L less attributed fees: ${formatExactDecimal(liveTradePnl)} USDC`
+          "
         >
-          <small>Live</small><b>{{ formatExactDecimal(liveTradePnl) }}</b>
+          <small>{{ trade.lifecycle === 'closed' ? 'Final' : 'Live net' }}</small
+          ><b>{{ formatExactDecimal(liveTradePnl) }}</b>
         </strong>
         <strong
           v-else
           :title="
-            marketStale
-              ? 'The latest Trad market sample is stale'
-              : 'No current Trad market sample is available'
+            !trade.pnlEvidenceComplete
+              ? 'Closing-fill evidence is incomplete; P&L is not estimated from fees alone'
+              : marketStale
+                ? 'The latest Trad market sample is stale'
+                : 'No current Trad market sample is available'
           "
         >
-          <small>Live</small><b>{{ marketStale ? 'stale' : 'unavailable' }}</b>
+          <small>{{ trade.lifecycle === 'closed' ? 'Final' : 'Live net' }}</small
+          ><b>{{
+            !trade.pnlEvidenceComplete ? 'incomplete' : marketStale ? 'stale' : 'unavailable'
+          }}</b>
         </strong>
       </div>
     </div>

@@ -50,7 +50,7 @@ const telemetryAction = useTelemetryAction({
 const closeMode = ref<'full' | 'percent' | 'base'>('full')
 const closePercent = ref('25')
 const closeQuantity = ref('')
-const closeExecutionMode = ref<'market' | 'limit' | 'chase'>('market')
+const closeExecutionMode = ref<'market' | 'limit' | 'chase'>('chase')
 const closeLimitPrice = ref('')
 const closeLimitTimeInForce = ref<'good_til_canceled' | 'post_only'>('post_only')
 const closeChaseBoundaryEnabled = ref(true)
@@ -182,7 +182,7 @@ function reset(): void {
   closeMode.value = props.initialClosePercent == null ? 'full' : 'percent'
   closePercent.value = props.initialClosePercent ?? '25'
   closeQuantity.value = ''
-  closeExecutionMode.value = props.initialCloseExecution ?? 'market'
+  closeExecutionMode.value = props.initialCloseExecution ?? 'chase'
   closeLimitPrice.value = ''
   closeLimitTimeInForce.value = 'post_only'
   closeChaseBoundaryEnabled.value = true

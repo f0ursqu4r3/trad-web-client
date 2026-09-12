@@ -17,13 +17,19 @@ import {
 } from './form.ts'
 
 export function protectionForm(plan: NativeProtectionPlan): ProtectionFormState {
+  const stops = plan.children.filter(
+    (child) => child.protection_kind === 'stop_loss' || child.protection_kind === 'trailing_stop',
+  )
+  if (stops.length > 1) {
+    throw new Error(
+      'Current protection has multiple stop children; editing is blocked until it is reconciled.',
+    )
+  }
   const state = newProtectionState()
   state.takeProfits = plan.children
     .filter((child) => child.protection_kind === 'take_profit')
     .map(takeProfitForm)
-  const stop = plan.children.find(
-    (child) => child.protection_kind === 'stop_loss' || child.protection_kind === 'trailing_stop',
-  )
+  const stop = stops[0]
   if (stop !== undefined) state.stopLoss = stopLossForm(stop)
   return state
 }
@@ -116,7 +122,12 @@ function applyAllocation(form: TakeProfitFormState, allocation: ProtectionAlloca
   }
 }
 
-function decimalShift(value: string, places: number): string {
+function decimalShift(value: unknown, places: number): string {
+  if (typeof value !== 'string' || !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value)) {
+    throw new Error(
+      'Current protection has an invalid allocation; editing is blocked until it is reconciled.',
+    )
+  }
   const [whole = '0', fraction = ''] = value.split('.')
   const digits = `${whole}${fraction}`.replace(/^0+(?=\d)/, '') || '0'
   const scale = fraction.length - places

@@ -50,6 +50,7 @@ const canSubmit = computed(
     props.accountId !== '' &&
     props.protection?.status === 'tracking' &&
     props.activeAmendment === null &&
+    validationError.value === null &&
     changed.value &&
     !submission.submitting.value,
 )
@@ -63,12 +64,19 @@ watch(
 )
 
 function reset(): void {
-  form.value =
-    props.protection === null ? newProtectionState() : protectionForm(props.protection.plan)
-  baseline.value = JSON.stringify(form.value)
   validationError.value = null
   submission.clearSubmissionError()
-  void focusRequestedChild()
+  try {
+    form.value =
+      props.protection === null ? newProtectionState() : protectionForm(props.protection.plan)
+    baseline.value = JSON.stringify(form.value)
+    void focusRequestedChild()
+  } catch (error) {
+    form.value = newProtectionState()
+    baseline.value = JSON.stringify(form.value)
+    validationError.value =
+      error instanceof Error ? error.message : 'Unable to read the current protection plan.'
+  }
 }
 
 async function focusRequestedChild(): Promise<void> {

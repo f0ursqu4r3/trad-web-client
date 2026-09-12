@@ -20,12 +20,12 @@ function close() {
   <Teleport to="body">
     <div
       v-if="open"
-      class="fixed inset-0 bg-black/25 flex items-start justify-center p-16 z-500"
+      class="fixed inset-0 bg-black/25 flex items-start justify-center p-3 sm:p-8 lg:p-16 z-500"
       :class="blurBackdrop ? 'backdrop-blur-xs' : ''"
       @click.self="close"
     >
       <div
-        class="command-modal bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-[10px] w-full max-h-[80vh] flex flex-col text-[var(--color-text)] shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+        class="command-modal bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-[10px] w-full max-h-[calc(100dvh-1.5rem)] sm:max-h-[80vh] flex flex-col text-[var(--color-text)] shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
         :class="`command-modal-${size}`"
         role="dialog"
         aria-modal="true"
@@ -46,7 +46,9 @@ function close() {
           <slot />
         </div>
 
-        <footer class="flex gap-2 justify-end px-4 pt-2 pb-3 border-t border-[var(--border-color)]">
+        <footer
+          class="flex flex-wrap gap-2 justify-end px-4 pt-2 pb-3 border-t border-[var(--border-color)]"
+        >
           <slot name="footer" />
         </footer>
       </div>

@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth'
 import { useGatewayStore } from '@/stores/gateway'
 import { useUserStore } from '@/stores/user'
 import { useAccountsStore } from '@/stores/accounts'
+import { browserErrorSource, browserRejectionSource } from '@/lib/browserErrorSource'
 
 import AuthenticatedLayout from '@/layouts/Authenticated.vue'
 import ControlPlaneLayout from '@/layouts/ControlPlane.vue'
@@ -24,10 +25,18 @@ function describeFailure(value: unknown): string {
 }
 
 function captureWindowError(event: ErrorEvent): void {
+  const source = browserErrorSource(event.filename, window.location.origin)
+  if (source === 'extension') return
+  if (
+    source === 'unknown' &&
+    browserRejectionSource(event.error, window.location.origin) === 'extension'
+  )
+    return
   frontendFailure.value = describeFailure(event.error ?? event.message)
 }
 
 function captureRejectedPromise(event: PromiseRejectionEvent): void {
+  if (browserRejectionSource(event.reason, window.location.origin) === 'extension') return
   frontendFailure.value = describeFailure(event.reason)
 }
 
