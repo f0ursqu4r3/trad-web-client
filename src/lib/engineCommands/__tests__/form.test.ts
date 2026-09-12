@@ -167,6 +167,51 @@ test('malformed historical allocation fails with a typed edit block rather than 
   assert.throws(() => protectionForm(plan), /invalid allocation/)
 })
 
+test('moving one stop retains a two-take-profit ladder and the original stop identity', () => {
+  const protectionId = '00000000-0000-0000-0000-000000000200'
+  const takeProfitIds = [
+    '00000000-0000-0000-0000-000000000201',
+    '00000000-0000-0000-0000-000000000202',
+  ]
+  const stopId = '00000000-0000-0000-0000-000000000203'
+  const form = protectionForm({
+    protection_id: protectionId,
+    children: [
+      ...takeProfitIds.map((childId, index) => ({
+        child_id: childId,
+        client_order_id: `tp-${index}`,
+        protection_kind: 'take_profit' as const,
+        trigger_price: index === 0 ? '82000' : '83000',
+        trigger_source: 'mark_price' as const,
+        execution: { kind: 'limit' as const, price: index === 0 ? '82000' : '83000' },
+        allocation: { kind: 'fraction' as const, value: '0.5' },
+      })),
+      {
+        child_id: stopId,
+        client_order_id: 'stop-existing',
+        protection_kind: 'stop_loss',
+        trigger_price: '77000',
+        trigger_source: 'mark_price',
+        execution: { kind: 'bounded_market', worst_price: '76500' },
+        allocation: { kind: 'full_remaining' },
+      },
+    ],
+  })
+  form.stopLoss.triggerPrice = '77500'
+  const intent = protectionAmendmentIntent(protectionId, 4, form)
+  assert.equal(intent.kind, 'amend_protection')
+  assert.deepEqual(
+    intent.parameters.take_profits.map((row) => row.child_id),
+    takeProfitIds,
+  )
+  assert.deepEqual(
+    intent.parameters.take_profits.map((row) => row.trigger_price),
+    ['82000', '83000'],
+  )
+  assert.equal(intent.parameters.stop_loss?.child_id, stopId)
+  assert.equal(intent.parameters.stop_loss?.trigger_price, '77500')
+})
+
 test('symbols are normalized but never exchange-guessed', () => {
   assert.equal(normalizedSymbol(' btc-usdc '), 'BTC-USDC')
   assert.throws(() => normalizedSymbol('BTC/USDC'), /unsupported characters/)
