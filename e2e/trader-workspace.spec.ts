@@ -76,8 +76,10 @@ test('presents managed trades instead of a primary command list', async ({ page 
     'Fees · USDC',
     'Pinned all-in',
   ])
-  await expect(cards.filter({ hasText: 'ETH' }).locator('.metric-pnl')).toContainText('Net')
-  await expect(cards.filter({ hasText: 'ETH' }).locator('.metric-pnl')).toContainText('Live')
+  await expect(cards.filter({ hasText: 'ETH' }).locator('.metric-pnl')).toContainText(
+    'Realized net',
+  )
+  await expect(cards.filter({ hasText: 'ETH' }).locator('.metric-pnl')).toContainText('Live net')
 })
 
 test('expands trades into price charts, devices, sequence, and history', async ({ page }) => {
@@ -208,6 +210,7 @@ test('mirrors the client workflow with practical presets and redundant trade act
   await eth.getByRole('button', { name: 'execution', exact: true }).click()
   await expect(eth.getByTestId('projection-details')).toBeVisible()
 
+  await eth.getByLabel('Close as').selectOption('market')
   await eth.getByRole('button', { name: 'close all', exact: true }).first().click()
   const closeDialog = page.getByRole('dialog', { name: 'Close Exposure' })
   await expect(closeDialog).toBeVisible()
@@ -219,16 +222,78 @@ test('mirrors the client workflow with practical presets and redundant trade act
   await expect(modal.getByLabel('TP 1 Trigger')).toBeFocused()
 })
 
-test('close presets remain ordinary audited close commands', async ({ page }) => {
+test('visible Chase close preset submits once without a review dialog', async ({ page }) => {
   const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
   await expect(eth.getByLabel('Close as')).toHaveValue('chase')
+  await expect(eth.getByText(/20 bps adverse boundary · 5 min expiry/)).toBeVisible()
   await eth.getByRole('button', { name: 'Close ½' }).click()
+  await expect(page.getByRole('dialog', { name: 'Close Exposure' })).toHaveCount(0)
+  await expect(eth.getByRole('status').filter({ hasText: 'Chase close accepted' })).toBeVisible()
+  await expect(eth.getByRole('button', { name: 'Close ½' })).toBeDisabled()
+  const evidence = JSON.parse((await page.getByTestId('submitted-command-evidence').textContent())!)
+  expect(evidence.count).toBe(1)
+  expect(evidence.intent.kind).toBe('close_exposure')
+  expect(evidence.intent.parameters.quantity).toEqual({ kind: 'percent', percent: '50' })
+  expect(evidence.intent.parameters.execution).toEqual({
+    kind: 'chase',
+    adverse_boundary: { kind: 'basis_points', value: '20' },
+    expires_after_ms: 300000,
+  })
+})
 
+test('Market and Limit close actions retain the review form', async ({ page }) => {
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  await eth.getByLabel('Close as').selectOption('market')
+  await eth.getByRole('button', { name: 'Close ½' }).click()
   const dialog = page.getByRole('dialog', { name: 'Close Exposure' })
   await expect(dialog).toBeVisible()
   await expect(dialog.getByLabel('Close Amount')).toHaveValue('percent')
   await expect(dialog.getByLabel('Close Percentage (%)')).toHaveValue('50')
-  await expect(dialog.getByLabel('Execution')).toHaveValue('chase')
+  await expect(dialog.getByLabel('Execution')).toHaveValue('market')
+  await dialog.getByRole('button', { name: 'Back' }).click()
+  await eth.getByLabel('Close as').selectOption('limit')
+  await eth.getByRole('button', { name: 'Close ¼' }).click()
+  await expect(dialog.getByLabel('Execution')).toHaveValue('limit')
+  await expect(dialog.getByLabel('Limit Price')).toBeVisible()
+})
+
+test('duplicate Chase taps share one request while submission is pending', async ({ page }) => {
+  await page.goto('/e2e/trader-workspace?delay_close=1')
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  const button = eth.getByRole('button', { name: 'Close ½' })
+  await button.click()
+  await expect(button).toBeDisabled()
+  await expect(eth.getByRole('status').filter({ hasText: 'Submitting the Chase' })).toBeVisible()
+  const evidence = JSON.parse((await page.getByTestId('submitted-command-evidence').textContent())!)
+  expect(evidence.count).toBe(1)
+  await expect(eth.getByRole('status').filter({ hasText: 'Chase close accepted' })).toBeVisible()
+})
+
+test('unknown Chase shortcut outcome remains locked and gives its request reference', async ({
+  page,
+}) => {
+  await page.goto('/e2e/trader-workspace?close_timeout=1')
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  await eth.getByRole('button', { name: 'Close ½' }).click()
+  await expect(eth.getByRole('status').filter({ hasText: 'Close outcome unknown' })).toBeVisible()
+  await expect(eth.getByRole('button', { name: 'Close ½' })).toBeDisabled()
+  const evidence = JSON.parse((await page.getByTestId('submitted-command-evidence').textContent())!)
+  expect(evidence.count).toBe(1)
+  await expect(eth.getByText(evidence.request_id.slice(0, 8))).toBeVisible()
+})
+
+test('Chase shortcut unlocks only after its exact command is terminal in projection', async ({
+  page,
+}) => {
+  await page.goto('/e2e/trader-workspace?close_terminal=1')
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  const button = eth.getByRole('button', { name: 'Close ½' })
+  await button.click()
+  await expect(button).toBeDisabled()
+  await expect(eth.getByRole('status').filter({ hasText: 'Close command succeeded' })).toBeVisible()
+  await expect(button).toBeEnabled()
+  const evidence = JSON.parse((await page.getByTestId('submitted-command-evidence').textContent())!)
+  expect(evidence.count).toBe(1)
 })
 
 test('a focused stop move keeps unrelated take-profit controls read-only', async ({ page }) => {
@@ -241,6 +306,23 @@ test('a focused stop move keeps unrelated take-profit controls read-only', async
   await expect(modal.getByLabel('SL Trigger')).toBeEnabled()
   await modal.getByLabel('SL Trigger').fill('1700')
   await expect(modal.getByRole('button', { name: 'Apply Protection' })).toBeEnabled()
+})
+
+test('focused stop can request server-calculated fee-aware breakeven without guessing a browser price', async ({
+  page,
+}) => {
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  await eth.getByRole('button', { name: 'move', exact: true }).last().click()
+  const modal = page.getByRole('dialog', { name: 'Edit Native Protection' })
+  const currentStop = await modal.getByLabel('SL Trigger').inputValue()
+  await modal.getByRole('button', { name: 'SL → fee-aware breakeven' }).click()
+  await expect(modal.getByLabel('SL Trigger')).toBeDisabled()
+  await expect(modal.getByLabel('SL Trigger')).toHaveValue(currentStop)
+  await expect(modal.getByText(/server calculates the stop from attributed/i)).toBeVisible()
+  await expect(modal.getByRole('button', { name: 'Apply Protection' })).toBeEnabled()
+  await modal.getByRole('button', { name: 'Use explicit stop price' }).click()
+  await expect(modal.getByLabel('SL Trigger')).toBeEnabled()
+  await expect(modal.getByRole('button', { name: 'Apply Protection' })).toBeDisabled()
 })
 
 test('an active close explains ownership and exposes its durable support reference', async ({
@@ -301,6 +383,7 @@ test('telemetry correlates modal abandonment and accepted command flow without r
   await page.reload()
 
   const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  await eth.getByLabel('Close as').selectOption('market')
   await eth.getByRole('button', { name: 'Close ½' }).click()
   await page
     .getByRole('dialog', { name: 'Close Exposure' })

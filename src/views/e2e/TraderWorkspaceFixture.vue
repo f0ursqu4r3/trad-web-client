@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import type {
   BrowserCommandOutcome,
+  BrowserCommandIntent,
   BrowserMarketSample,
   BrowserPreviewOutcome,
 } from '@/lib/gateway'
 import { ExchangeType, NetworkType } from '@/lib/ws/protocol'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
-import { useGatewayStore } from '@/stores/gateway'
+import { CommandOutcomeUnknownError, useGatewayStore } from '@/stores/gateway'
 import { useMarketStore } from '@/stores/market'
 import { GatewayTelemetryObserver } from '@/lib/telemetry/gatewayObservation'
 import TradingTerminal from '@/views/TradingTerminal.vue'
@@ -24,6 +25,16 @@ const projections = useAccountProjectionStore()
 const gateway = useGatewayStore()
 const markets = useMarketStore()
 const telemetry = new GatewayTelemetryObserver()
+const submittedIntent = ref<BrowserCommandIntent | null>(null)
+const submittedRequestId = ref<string | null>(null)
+const submissionCount = ref(0)
+const submissionEvidence = computed(() =>
+  JSON.stringify({
+    count: submissionCount.value,
+    request_id: submittedRequestId.value,
+    intent: submittedIntent.value,
+  }),
+)
 
 accounts.accountsRaw = [
   {
@@ -204,16 +215,49 @@ gateway.submitCommand = async (
   requestId = crypto.randomUUID(),
   actionAttemptId,
 ): Promise<BrowserCommandOutcome> => {
+  submittedIntent.value = intent
+  submittedRequestId.value = requestId
+  submissionCount.value += 1
   const attempt = telemetry.attempt(intent, accountId!, requestId, actionAttemptId)
   telemetry.submitted(attempt)
   telemetry.requestSent(attempt)
+  if (new URLSearchParams(location.search).has('delay_close')) {
+    await new Promise((resolve) => window.setTimeout(resolve, 350))
+  }
+  if (new URLSearchParams(location.search).has('close_timeout')) {
+    throw new CommandOutcomeUnknownError(requestId, 'fixture response timed out')
+  }
   const outcome: BrowserCommandOutcome = {
     kind: 'accepted',
-    command_id: crypto.randomUUID(),
+    command_id: requestId,
     account_revision: 43,
     duplicate: false,
   }
   telemetry.commandResult(attempt, outcome)
+  if (
+    intent.kind === 'close_exposure' &&
+    new URLSearchParams(location.search).has('close_terminal')
+  ) {
+    window.setTimeout(() => {
+      const next = structuredClone(initialProjection)
+      const primary = next.commands.find(
+        (command) => command.command_id === intent.parameters.source_command_id,
+      )
+      if (primary === undefined) return
+      next.commands.push({
+        ...structuredClone(primary),
+        command_id: requestId,
+        accepted_at: Date.now(),
+        accepted: { kind: 'close_exposure', parameters: { source_command_id: primary.command_id } },
+        root: { kind: 'close_workflow', id: requestId },
+        lifecycle: 'succeeded',
+        failure_reason: null,
+      })
+      next.checkpoint.account_revision += 1
+      next.checkpoint.projection_revision += 1
+      projections.install(ENGINE_ACCOUNT_ID, ENGINE_SUBSCRIPTION_ID, { kind: 'initial' }, next)
+    }, 150)
+  }
   return outcome
 }
 onMounted(() => {
@@ -261,4 +305,5 @@ function btcPrice(index: number): string {
 
 <template>
   <TradingTerminal />
+  <pre data-testid="submitted-command-evidence" hidden>{{ submissionEvidence }}</pre>
 </template>

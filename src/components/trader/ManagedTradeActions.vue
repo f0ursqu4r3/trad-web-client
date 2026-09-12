@@ -4,6 +4,12 @@ import { computed, ref, watch } from 'vue'
 import LifecycleActionModal from '@/components/engine/actions/LifecycleActionModal.vue'
 import ProtectionAmendmentModal from '@/components/engine/actions/ProtectionAmendmentModal.vue'
 import type { LifecycleAction } from '@/lib/engineCommands/lifecycle'
+import { lifecycleIntent } from '@/lib/engineCommands/lifecycle'
+import {
+  CLOSE_CHASE_BOUNDARY_BPS,
+  CLOSE_CHASE_EXPIRY_MINUTES,
+  CLOSE_CHASE_PRESET_LABEL,
+} from '@/lib/engineCommands/closeChasePreset'
 import { activeProtectionAmendment } from '@/lib/engineCommands/protectionAmendment'
 import type { BrowserAccountSnapshot } from '@/lib/gateway'
 import {
@@ -13,6 +19,7 @@ import {
 import { managedTradeActions } from '@/lib/projection/tradeWorkspaceActions'
 import { useAccountsStore } from '@/stores/accounts'
 import { isExactZero } from '@/lib/exactDecimalMath'
+import { CommandOutcomeUnknownError, useGatewayStore } from '@/stores/gateway'
 import {
   newActionAttemptId,
   recordTelemetry,
@@ -26,11 +33,16 @@ const props = defineProps<{
 }>()
 
 const accounts = useAccountsStore()
+const gateway = useGatewayStore()
 const selectedAction = ref<LifecycleAction | null>(null)
 const closePercent = ref<string | null>(null)
 const closeExecution = ref<'market' | 'limit' | 'chase'>('chase')
 const editProtectionOpen = ref(false)
 const blockedMessage = ref<string | null>(null)
+const shortcutState = ref<'idle' | 'submitting' | 'accepted' | 'unknown'>('idle')
+const shortcutMessage = ref<string | null>(null)
+const shortcutRequestId = ref<string | null>(null)
+const shortcutCommandId = ref<string | null>(null)
 
 const actions = computed(() => managedTradeActions(props.trade, props.snapshot))
 const closeAction = computed(() => actions.value.close)
@@ -75,6 +87,36 @@ const activeCloseMessage = computed(() =>
     : null,
 )
 const actionMessage = computed(() => blockedMessage.value ?? activeCloseMessage.value)
+const observedShortcut = computed(
+  () =>
+    props.snapshot.commands.find(
+      (command) =>
+        command.command_id === shortcutCommandId.value ||
+        command.command_id === shortcutRequestId.value,
+    ) ?? null,
+)
+
+watch(
+  () => observedShortcut.value?.lifecycle ?? null,
+  (lifecycle) => {
+    if (lifecycle === null || shortcutState.value === 'idle') return
+    if (
+      [
+        'succeeded',
+        'partially_succeeded',
+        'failed',
+        'canceled',
+        'reconciliation_required',
+      ].includes(lifecycle)
+    ) {
+      shortcutState.value = 'idle'
+      shortcutMessage.value = `Close command ${lifecycle.replace(/_/g, ' ')}. Review the updated position before another close.`
+    } else {
+      shortcutState.value = 'accepted'
+      shortcutMessage.value = `Close command accepted and ${lifecycle}. Await its authoritative outcome.`
+    }
+  },
+)
 
 watch(
   [closeBlocker, protectionBlocker],
@@ -90,12 +132,61 @@ watch(
 )
 
 function openClose(percent: string | null): void {
+  if (shortcutState.value !== 'idle') return
   if (closeAction.value === null) {
     if (closeBlocker.value !== null) blockAction('partial_close', closeBlocker.value)
     return
   }
+  if (closeExecution.value === 'chase') {
+    void submitChaseShortcut(percent)
+    return
+  }
   closePercent.value = percent
   selectedAction.value = closeAction.value
+}
+
+async function submitChaseShortcut(percent: string | null): Promise<void> {
+  if (shortcutState.value !== 'idle' || closeAction.value === null) return
+  const requestId = crypto.randomUUID()
+  const actionAttemptId = newActionAttemptId()
+  shortcutState.value = 'submitting'
+  shortcutRequestId.value = requestId
+  shortcutCommandId.value = null
+  shortcutMessage.value = 'Submitting the Chase close preset…'
+  try {
+    const intent = lifecycleIntent(closeAction.value, {
+      closeMode: percent === null ? 'full' : 'percent',
+      closePercent: percent ?? undefined,
+      closeExecutionMode: 'chase',
+      closeChaseBoundaryEnabled: true,
+      closeChaseBoundaryMode: 'basis_points',
+      closeChaseBoundaryValue: CLOSE_CHASE_BOUNDARY_BPS,
+      closeChaseUntilCanceled: false,
+      closeChaseExpiryMinutes: CLOSE_CHASE_EXPIRY_MINUTES,
+    })
+    const outcome = await gateway.submitCommand(
+      intent,
+      accounts.selectedAccountId,
+      requestId,
+      actionAttemptId,
+    )
+    if (outcome.kind === 'rejected') {
+      shortcutState.value = 'idle'
+      shortcutMessage.value = `Close rejected: ${outcome.rejection.reason}`
+      return
+    }
+    shortcutCommandId.value = outcome.command_id
+    shortcutState.value = 'accepted'
+    shortcutMessage.value = `Chase close accepted (#${outcome.command_id.slice(0, 8)}). Await its authoritative outcome; the unfilled remainder may stay open.`
+  } catch (error) {
+    if (error instanceof CommandOutcomeUnknownError) {
+      shortcutState.value = 'unknown'
+      shortcutMessage.value = `Close outcome unknown (#${requestId.slice(0, 8)}). Do not repeat this shortcut until the account projection proves its result.`
+    } else {
+      shortcutState.value = 'idle'
+      shortcutMessage.value = error instanceof Error ? error.message : String(error)
+    }
+  }
 }
 
 function openProtection(): void {
@@ -184,11 +275,15 @@ defineExpose({ openClose, openTakeover })
         <option value="limit">Limit</option>
       </select>
     </label>
+    <span v-if="closeAction && closeExecution === 'chase'" class="shortcut-terms">
+      One tap · {{ CLOSE_CHASE_PRESET_LABEL }} · any unfilled remainder stays open
+    </span>
     <button
       v-if="closeAction || closeBlocker"
       class="btn btn-sm btn-outline-danger"
       :class="{ 'action-unavailable': !closeAction }"
       type="button"
+      :disabled="shortcutState !== 'idle'"
       @click="openClose(null)"
     >
       Close all
@@ -198,6 +293,7 @@ defineExpose({ openClose, openTakeover })
       class="btn btn-sm"
       :class="{ 'action-unavailable': !closeAction }"
       type="button"
+      :disabled="shortcutState !== 'idle'"
       @click="openClose('50')"
     >
       Close ½
@@ -207,6 +303,7 @@ defineExpose({ openClose, openTakeover })
       class="btn btn-sm"
       :class="{ 'action-unavailable': !closeAction }"
       type="button"
+      :disabled="shortcutState !== 'idle'"
       @click="openClose('33.33333333')"
     >
       Close ⅓
@@ -216,10 +313,12 @@ defineExpose({ openClose, openTakeover })
       class="btn btn-sm"
       :class="{ 'action-unavailable': !closeAction }"
       type="button"
+      :disabled="shortcutState !== 'idle'"
       @click="openClose('25')"
     >
       Close ¼
     </button>
+    <p v-if="shortcutMessage" class="action-blocker" role="status">{{ shortcutMessage }}</p>
     <button
       v-if="trade.protection"
       class="btn btn-sm"
@@ -297,6 +396,12 @@ defineExpose({ openClose, openTakeover })
   align-items: center;
   gap: 0.4rem;
   color: var(--fg-muted);
+}
+.shortcut-terms {
+  flex-basis: 100%;
+  color: var(--fg-muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
 }
 .input-compact {
   width: 92px;

@@ -24,6 +24,10 @@ import { useGatewayStore } from '@/stores/gateway'
 import { useMarketStore } from '@/stores/market'
 import { useTelemetryAction } from '@/composables/useTelemetryAction'
 import { lifecycleTelemetryKind } from '@/lib/telemetry/lifecycleObservation'
+import {
+  CLOSE_CHASE_BOUNDARY_BPS,
+  CLOSE_CHASE_EXPIRY_MINUTES,
+} from '@/lib/engineCommands/closeChasePreset'
 
 const props = defineProps<{
   open: boolean
@@ -55,9 +59,9 @@ const closeLimitPrice = ref('')
 const closeLimitTimeInForce = ref<'good_til_canceled' | 'post_only'>('post_only')
 const closeChaseBoundaryEnabled = ref(true)
 const closeChaseBoundaryMode = ref<'basis_points' | 'price'>('basis_points')
-const closeChaseBoundaryValue = ref('20')
+const closeChaseBoundaryValue = ref(CLOSE_CHASE_BOUNDARY_BPS)
 const closeChaseUntilCanceled = ref(false)
-const closeChaseExpiryMinutes = ref('5')
+const closeChaseExpiryMinutes = ref(CLOSE_CHASE_EXPIRY_MINUTES)
 const targetPrice = ref('')
 const targetQuantity = ref('')
 const amendment = ref<TrailingEntryAmendmentDraft>(emptyAmendment())
@@ -187,9 +191,9 @@ function reset(): void {
   closeLimitTimeInForce.value = 'post_only'
   closeChaseBoundaryEnabled.value = true
   closeChaseBoundaryMode.value = 'basis_points'
-  closeChaseBoundaryValue.value = '20'
+  closeChaseBoundaryValue.value = CLOSE_CHASE_BOUNDARY_BPS
   closeChaseUntilCanceled.value = false
-  closeChaseExpiryMinutes.value = '5'
+  closeChaseExpiryMinutes.value = CLOSE_CHASE_EXPIRY_MINUTES
   targetPrice.value = orderValue('price')
   targetQuantity.value =
     props.action?.target.kind === 'order' ? props.action.target.row.target_quantity : ''

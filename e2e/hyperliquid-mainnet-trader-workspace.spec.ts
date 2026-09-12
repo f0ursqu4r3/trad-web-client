@@ -84,7 +84,7 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
 
     const card = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' }).first()
     await expect(card).toBeVisible()
-    await card.getByRole('button', { name: 'close all', exact: true }).first().click()
+    await openReviewedMarketClose(card, 'close all')
     await confirmLifecycle(page, 'Close Exposure')
     await waitForPosition(request, 'ETH', (size) => size === 0)
     await waitForOrders(request, (orders) => orders.every((order) => order.coin !== 'ETH'))
@@ -216,7 +216,9 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
     await expect(rail).toBeVisible()
     expect((await rail.boundingBox())?.height).toBe(20)
 
-    expect(nonzeroPositions(await clearinghouseState(request))).toEqual(nonzeroPositions(stateBefore))
+    expect(nonzeroPositions(await clearinghouseState(request))).toEqual(
+      nonzeroPositions(stateBefore),
+    )
     expect(await openOrders(request)).toEqual(ordersBefore)
     evidence.workspace = {
       livePriceVisible: true,
@@ -383,7 +385,7 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
     ).toEqual(ethProtection.map((order) => order.oid).sort())
     await expect(card.getByRole('button', { name: 'Close ½', exact: true })).toBeVisible()
 
-    await card.getByRole('button', { name: 'Close ½', exact: true }).click()
+    await openReviewedMarketClose(card, 'Close ½')
     await confirmLifecycle(page, 'Close Exposure')
     const partial = await waitForPosition(request, 'ETH', (size) => size > 0 && size < opened)
     const resized = await waitForOrders(request, (orders) => {
@@ -394,7 +396,7 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
       )
     })
 
-    await card.getByRole('button', { name: 'close all', exact: true }).first().click()
+    await openReviewedMarketClose(card, 'close all')
     await confirmLifecycle(page, 'Close Exposure')
     await waitForPosition(request, 'ETH', (size) => size === 0)
     await waitForOrders(request, (orders) => orders.every((order) => order.coin !== 'ETH'))
@@ -448,7 +450,10 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
 
     const card = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' }).first()
     const opened = await waitForPosition(request, 'ETH', (size) => size > 0)
-    await waitForOrders(request, (orders) => orders.filter((order) => order.coin === 'ETH').length === 2)
+    await waitForOrders(
+      request,
+      (orders) => orders.filter((order) => order.coin === 'ETH').length === 2,
+    )
     await card.getByRole('button', { name: 'Edit protection', exact: true }).click()
     let edit = page.getByRole('dialog', { name: 'Edit Native Protection' })
     await edit.getByRole('button', { name: /Take Profit/ }).click()
@@ -480,7 +485,7 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
       )
     })
 
-    await card.getByRole('button', { name: 'close all', exact: true }).first().click()
+    await openReviewedMarketClose(card, 'close all')
     await confirmLifecycle(page, 'Close Exposure')
     await waitForPosition(request, 'ETH', (size) => size === 0)
     await waitForOrders(request, (orders) => orders.every((order) => order.coin !== 'ETH'))
@@ -535,7 +540,7 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
       )
     })
 
-    await card.getByRole('button', { name: 'Close ½', exact: true }).click()
+    await openReviewedMarketClose(card, 'Close ½')
     await confirmLifecycle(page, 'Close Exposure')
     const partialNet = await waitForPosition(
       request,
@@ -551,7 +556,7 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
       )
     })
 
-    await card.getByRole('button', { name: 'close all', exact: true }).first().click()
+    await openReviewedMarketClose(card, 'close all')
     await confirmLifecycle(page, 'Close Exposure')
     const finalNet = await waitForPosition(
       request,
@@ -568,7 +573,9 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
       managedBase: managed,
       partialNet,
       remainingManaged,
-      initialProtectionOrders: protection.filter((order) => order.coin === 'BTC').map(orderEvidence),
+      initialProtectionOrders: protection
+        .filter((order) => order.coin === 'BTC')
+        .map(orderEvidence),
       finalNet,
       finalWorkingOrders: 0,
       externalResidualPreserved: true,
@@ -610,7 +617,7 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
 
     const filled = positionSize(await clearinghouseState(request), 'ETH') !== 0
     if (filled) {
-      await card.getByRole('button', { name: 'close all', exact: true }).first().click()
+      await openReviewedMarketClose(card, 'close all')
       await confirmLifecycle(page, 'Close Exposure')
       await waitForPosition(request, 'ETH', (size) => size === 0)
     } else {
@@ -663,7 +670,10 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
       const row = form.locator('.tp-row').nth(index)
       await row.locator('input').first().fill(takeProfits[index]!)
       await row.locator('select').selectOption('fraction')
-      await row.locator('input').last().fill(index === 2 ? '40' : '30')
+      await row
+        .locator('input')
+        .last()
+        .fill(index === 2 ? '40' : '30')
     }
     await form.getByRole('textbox', { name: /Timeout \(seconds\)/ }).fill('60')
     await expect(form.getByText('Ready', { exact: true })).toBeVisible({ timeout: 20_000 })
@@ -678,7 +688,8 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
     while (Date.now() < observationDeadline) {
       const size = positionSize(await clearinghouseState(request), 'ETH')
       observedPositions.add(size)
-      for (const text of await card.locator('.leg-size').allInnerTexts()) observedLegStates.add(text)
+      for (const text of await card.locator('.leg-size').allInnerTexts())
+        observedLegStates.add(text)
       if (size > 0) {
         await new Promise((resolve) => setTimeout(resolve, 3_000))
         break
@@ -692,12 +703,13 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
       await confirmLifecycle(page, 'Cancel Chase')
     }
     const established = positionSize(await clearinghouseState(request), 'ETH')
-    const protection = established > 0
-      ? await waitForOrders(request, (orders) => {
-          const current = orders.filter((order) => order.coin === 'ETH')
-          return current.some((order) => order.isTrigger)
-        })
-      : await openOrders(request)
+    const protection =
+      established > 0
+        ? await waitForOrders(request, (orders) => {
+            const current = orders.filter((order) => order.coin === 'ETH')
+            return current.some((order) => order.isTrigger)
+          })
+        : await openOrders(request)
 
     await card.getByRole('button', { name: 'Trade actions' }).click()
     await page.getByRole('menuitem', { name: 'Duplicate trade' }).click()
@@ -721,7 +733,7 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
       const livePnl = card.locator('.metric-pnl')
       await expect(livePnl).toContainText('P&L · USDC', { timeout: 20_000 })
       await expect(livePnl).not.toContainText('unavailable', { timeout: 20_000 })
-      await card.getByRole('button', { name: 'close all', exact: true }).first().click()
+      await openReviewedMarketClose(card, 'close all')
       await confirmLifecycle(page, 'Close Exposure')
       await waitForPosition(request, 'ETH', (size) => size === 0)
     }
@@ -746,7 +758,10 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
     }
   })
 
-  test('Take Over detaches management without closing venue exposure', async ({ page, request }) => {
+  test('Take Over detaches management without closing venue exposure', async ({
+    page,
+    request,
+  }) => {
     test.setTimeout(180_000)
     await login(page)
     expect(positionSize(await clearinghouseState(request), 'ETH')).toBe(0)
@@ -788,7 +803,9 @@ test.describe.serial('Hyperliquid Mainnet trader workspace qualification', () =>
     }
   })
 
-  test('fee administration exposes hierarchy, durable fills, revenue, and audit', async ({ page }) => {
+  test('fee administration exposes hierarchy, durable fills, revenue, and audit', async ({
+    page,
+  }) => {
     test.setTimeout(90_000)
     await login(page)
     await page.getByRole('link', { name: 'Admin', exact: true }).click()
@@ -1134,6 +1151,14 @@ async function waitForPosition(
   throw new Error(`${symbol} position did not reach the expected state within 30 seconds`)
 }
 
+async function openReviewedMarketClose(
+  card: Locator,
+  button: 'close all' | 'Close ½',
+): Promise<void> {
+  await card.getByLabel('Close as').selectOption('market')
+  await card.getByRole('button', { name: button, exact: true }).first().click()
+}
+
 async function confirmLifecycle(page: Page, title: string): Promise<void> {
   const modal = page.getByRole('dialog', { name: title })
   await expect(modal).toBeVisible()
@@ -1188,7 +1213,10 @@ async function bestEffortSettleManaged(
   const active = page.getByRole('button', { name: /^Active \d+$/ })
   if (await active.isVisible()) await active.click()
   const cards = page.getByTestId('managed-trade-card').filter({ hasText: symbol })
-  await cards.first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => undefined)
+  await cards
+    .first()
+    .waitFor({ state: 'visible', timeout: 30_000 })
+    .catch(() => undefined)
   for (let index = 0; index < (await cards.count()); index += 1) {
     const card = cards.nth(index)
     const choices = [
@@ -1200,8 +1228,14 @@ async function bestEffortSettleManaged(
         button: card.getByRole('button', { name: 'Close Position', exact: true }),
         title: 'Close Position',
       },
-      { button: card.getByRole('button', { name: 'Cancel Chase', exact: true }), title: 'Cancel Chase' },
-      { button: card.getByRole('button', { name: 'Cancel Entry', exact: true }), title: 'Cancel Entry' },
+      {
+        button: card.getByRole('button', { name: 'Cancel Chase', exact: true }),
+        title: 'Cancel Chase',
+      },
+      {
+        button: card.getByRole('button', { name: 'Cancel Entry', exact: true }),
+        title: 'Cancel Entry',
+      },
     ]
     let selected: (typeof choices)[number] | undefined
     for (const candidate of choices) {
@@ -1211,6 +1245,9 @@ async function bestEffortSettleManaged(
       }
     }
     if (selected === undefined) continue
+    if (selected.title === 'Close Exposure') {
+      await card.getByLabel('Close as').selectOption('market')
+    }
     await selected.button.click()
     await confirmLifecycle(page, selected.title)
     await waitForPosition(request, symbol, (size) => Math.abs(size - target) < 0.000000001)
