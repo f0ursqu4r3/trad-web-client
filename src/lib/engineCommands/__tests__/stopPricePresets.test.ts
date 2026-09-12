@@ -2,10 +2,18 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  alignedPrice,
   priceDistanceFromReference,
   priceFromReference,
   stopPriceFromReference,
 } from '../stopPricePresets.ts'
+
+test('entry stop prefill rounds toward the safer directional tick', () => {
+  const tick = { kind: 'fixed_tick', tick: '0.1' } as const
+  assert.equal(alignedPrice('80956.07', 'decrease', tick), '80956')
+  assert.equal(alignedPrice('80956.07', 'increase', tick), '80956.1')
+  assert.throws(() => alignedPrice('0', 'decrease', tick), /positive/)
+})
 
 test('places long stops below and short stops above the exact reference', () => {
   assert.equal(stopPriceFromReference('77000', 'long', '5'), '73150')

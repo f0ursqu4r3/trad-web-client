@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
-import { formatExactDecimal } from '@/lib/exactDecimalMath'
+import { compareExact, formatExactDecimal } from '@/lib/exactDecimalMath'
 import type { PositionSideIntent } from '@/lib/gateway'
 import {
   priceDistanceFromReference,
   priceFromReference,
+  alignedPrice,
   STOP_PRICE_DISTANCES,
   type PriceDirection,
   type StopPriceDistance,
@@ -19,6 +20,7 @@ const props = defineProps<{
   symbol: string
   positionSide: PositionSideIntent
   purpose: 'stop' | 'take_profit' | 'activation'
+  entryPrice?: string | null
 }>()
 const model = defineModel<string>({ required: true })
 const accounts = useAccountsStore()
@@ -47,15 +49,26 @@ const reference = computed(() => {
 const directions = computed<PriceDirection[]>(() => {
   if (props.purpose === 'activation') return ['decrease', 'increase']
   const increase =
-    props.purpose === 'take_profit'
-      ? props.positionSide === 'long'
-      : props.positionSide === 'short'
+    props.purpose === 'take_profit' ? props.positionSide === 'long' : props.positionSide === 'short'
   return [increase ? 'increase' : 'decrease']
 })
 const currentDistance = computed(() =>
   reference.value === null ? null : priceDistanceFromReference(model.value, reference.value),
 )
 const available = computed(() => reference.value !== null && priceRule.value !== null)
+const entryStop = computed(() => {
+  if (props.purpose !== 'stop' || !props.entryPrice || !reference.value || !priceRule.value)
+    return null
+  try {
+    const direction = props.positionSide === 'long' ? 'decrease' : 'increase'
+    const price = alignedPrice(props.entryPrice, direction, priceRule.value)
+    const compared = compareExact(price, reference.value)
+    if (props.positionSide === 'long' ? compared >= 0 : compared <= 0) return null
+    return price
+  } catch {
+    return null
+  }
+})
 
 watch(
   () =>
@@ -120,6 +133,20 @@ onBeforeUnmount(() => window.clearInterval(clock))
         </button>
       </template>
     </div>
+    <button
+      v-if="purpose === 'stop' && entryPrice"
+      type="button"
+      class="preset-button entry-button"
+      :disabled="entryStop === null"
+      :title="
+        entryStop === null
+          ? 'Entry price is not a valid stop from the latest market reference, or price rules are unavailable'
+          : `Prefill stop near entry at ${entryStop}; review before applying`
+      "
+      @click="model = entryStop ?? model"
+    >
+      SL → entry (prefill)
+    </button>
   </div>
 </template>
 
@@ -167,5 +194,9 @@ onBeforeUnmount(() => window.clearInterval(clock))
 .preset-button:disabled {
   cursor: not-allowed;
   opacity: 0.38;
+}
+.entry-button {
+  justify-self: start;
+  min-height: 40px;
 }
 </style>

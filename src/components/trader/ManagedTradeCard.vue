@@ -295,6 +295,7 @@ async function copyTradeId(): Promise<void> {
     :protection="trade.protection"
     :active-amendment="activeAmendment"
     :focus-child-id="moveChildId"
+    :entry-price="trade.averageEntryPrice"
     @close="moveProtectionOpen = false"
   />
 </template>

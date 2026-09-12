@@ -6,6 +6,7 @@ defineProps<{
   accountId: string
   symbol: string
   positionSide: PositionSideIntent
+  entryPrice?: string | null
 }>()
 const model = defineModel<string>({ required: true })
 </script>
@@ -16,6 +17,7 @@ const model = defineModel<string>({ required: true })
     :account-id="accountId"
     :symbol="symbol"
     :position-side="positionSide"
+    :entry-price="entryPrice"
     purpose="stop"
   />
 </template>

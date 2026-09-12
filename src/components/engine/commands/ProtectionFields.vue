@@ -21,6 +21,7 @@ const props = defineProps<{
   accountId: string
   symbol: string
   positionSide: PositionSideIntent
+  entryPrice?: string | null
 }>()
 
 function addTakeProfit(): void {
@@ -194,6 +195,7 @@ function allocationError(row: TakeProfitFormState, index: number): string | null
           :account-id="props.accountId"
           :symbol="props.symbol"
           :position-side="props.positionSide"
+          :entry-price="props.entryPrice"
         />
       </FormField>
       <FormField

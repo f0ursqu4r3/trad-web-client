@@ -279,6 +279,7 @@ defineExpose({ openClose, openTakeover })
     :account-id="accounts.selectedAccountId ?? ''"
     :protection="trade.protection"
     :active-amendment="activeAmendment"
+    :entry-price="trade.averageEntryPrice"
     @close="editProtectionOpen = false"
   />
 </template>

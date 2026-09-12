@@ -22,6 +22,7 @@ const props = defineProps<{
   protection: NativeProtectionProjection | null
   activeAmendment: ProtectionAmendmentProjection | null
   focusChildId?: string | null
+  entryPrice?: string | null
 }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
 const gateway = useGatewayStore()
@@ -135,6 +136,7 @@ function closeModal(): void {
         :position-side="protection?.position_side ?? 'long'"
         :base-asset="units.base"
         :quote-asset="units.quote"
+        :entry-price="entryPrice"
       />
 
       <p class="help-text">

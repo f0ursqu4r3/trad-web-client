@@ -50,6 +50,16 @@ export function priceFromReference(
   return decimal(rounded, outputScale)
 }
 
+export function alignedPrice(
+  value: ExactDecimal,
+  direction: PriceDirection,
+  priceRule: MarketPriceRule,
+): ExactDecimal {
+  const parsed = parseDecimal(value, 'entry price')
+  if (parsed.coefficient <= 0n) throw new Error('entry price must be positive')
+  return normalizePrice(parsed.coefficient, parsed.scale, direction, priceRule)
+}
+
 export function priceDistanceFromReference(
   value: ExactDecimal,
   reference: ExactDecimal,
@@ -86,12 +96,7 @@ function normalizePrice(
       ? Math.max(0, 5 - integerDigits)
       : (fraction.match(/^0*/)?.[0].length ?? 0) + 5
   const maximumDecimals = Math.max(0, 6 - rule.sizeDecimals)
-  return roundScale(
-    coefficient,
-    scale,
-    Math.min(maximumDecimals, significantDecimals),
-    direction,
-  )
+  return roundScale(coefficient, scale, Math.min(maximumDecimals, significantDecimals), direction)
 }
 
 function alignToTick(
