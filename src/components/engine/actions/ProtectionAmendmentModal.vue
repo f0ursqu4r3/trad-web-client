@@ -13,6 +13,7 @@ import {
 import { marketUnits } from '@/lib/engineCommands/marketUnits'
 import { protectionForm } from '@/lib/engineCommands/protectionAmendment'
 import { useAccountsStore } from '@/stores/accounts'
+import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useGatewayStore } from '@/stores/gateway'
 import { useTelemetryAction } from '@/composables/useTelemetryAction'
 
@@ -26,6 +27,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
 const gateway = useGatewayStore()
+const projections = useAccountProjectionStore()
 const accounts = useAccountsStore()
 const submission = useEngineCommandSubmission()
 const telemetryAction = useTelemetryAction({
@@ -37,7 +39,15 @@ const telemetryAction = useTelemetryAction({
 const form = ref<ProtectionFormState>(newProtectionState())
 const baseline = ref('')
 const validationError = ref<string | null>(null)
+const unknownResolution = ref<string | null>(null)
 const serverBreakeven = ref(false)
+const unknownRequestId = computed(() => submission.unknownRequests.value[props.accountId] ?? null)
+const unknownCommandLifecycle = computed(
+  () =>
+    projections.byAccount[props.accountId]?.view?.live.commands.find(
+      (command) => command.command_id === unknownRequestId.value,
+    )?.lifecycle ?? null,
+)
 const focusedStop = computed(() =>
   Boolean(
     props.focusChildId &&
@@ -63,7 +73,20 @@ const canSubmit = computed(
     props.activeAmendment === null &&
     validationError.value === null &&
     changed.value &&
+    unknownRequestId.value === null &&
     !submission.submitting.value,
+)
+
+watch(
+  [unknownRequestId, unknownCommandLifecycle, () => props.activeAmendment],
+  ([id, lifecycle, active]) => {
+    if (id === null || active !== null) return
+    if (!['succeeded', 'partially_succeeded', 'failed', 'canceled'].includes(lifecycle ?? ''))
+      return
+    submission.clearUnknownOutcome(props.accountId, id)
+    submission.clearSubmissionError()
+    unknownResolution.value = `Command #${id.slice(0, 8)} is ${lifecycle!.replace(/_/g, ' ')} in the account projection. Review the current protection before another edit.`
+  },
 )
 
 watch(
@@ -105,6 +128,7 @@ async function focusRequestedChild(): Promise<void> {
 async function submit(): Promise<void> {
   if (props.protection === null) return
   validationError.value = null
+  unknownResolution.value = null
   const actionAttemptId = telemetryAction.confirm()
   try {
     const intent = protectionAmendmentIntent(
@@ -185,6 +209,11 @@ function closeModal(): void {
       <p v-if="validationError || submission.submissionError.value" class="submission-error">
         {{ validationError || submission.submissionError.value }}
       </p>
+      <p v-if="unknownRequestId" class="submission-error" role="status">
+        Command #{{ unknownRequestId.slice(0, 8) }} has an unknown outcome. Further protection edits
+        are locked until that exact command is terminal in the account projection. Do not repeat it.
+      </p>
+      <p v-if="unknownResolution" class="help-text" role="status">{{ unknownResolution }}</p>
     </form>
 
     <template #footer>

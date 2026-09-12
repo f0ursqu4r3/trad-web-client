@@ -80,6 +80,49 @@ if (new URLSearchParams(location.search).has('two_tps')) {
     }
   }
 }
+if (new URLSearchParams(location.search).has('closed_stop_pnl')) {
+  const position = initialProjection.positions.find((row) => row.symbol === 'ETH')
+  const protection = initialProjection.native_protections.find((row) => row.symbol === 'ETH')
+  const entry = initialProjection.executions.find((row) => row.event_id === 'fill-eth-1')
+  const entryOrder = initialProjection.orders.find((row) => row.order_id === entry?.order?.order_id)
+  if (position && protection && entry && entryOrder) {
+    initialProjection.executions = initialProjection.executions.filter(
+      (row) => row.fill.symbol !== 'ETH',
+    )
+    entry.fill.price = '80956'
+    entry.fill.quantity = '10.02004'
+    entry.fill.fee = { asset: 'USDC', amount: '442.256590' }
+    entry.fill.builder_fee = { asset: 'USDC', amount: '100' }
+    initialProjection.executions.push(entry)
+    entryOrder.filled_quantity = '10.02004'
+    const exposure = position.owned_exposure['scope-filled']
+    if (exposure) {
+      exposure.opened_quantity = '10.02004'
+      exposure.reduced_quantity = '10.02004'
+      exposure.remaining_quantity = '0'
+      position.exchange_quantity.long = '0'
+      position.owned_quantity.long = '0'
+    }
+    const stop = structuredClone(entry)
+    stop.event_id = 'copied-stopped-long-exit'
+    stop.fill.event_id = stop.event_id
+    stop.fill.execution_id = stop.event_id
+    stop.fill.side = 'sell'
+    stop.fill.price = '80282'
+    stop.fill.fee = { asset: 'USDC', amount: '429.565005' }
+    stop.fill.builder_fee = { asset: 'USDC', amount: '80' }
+    stop.order = null
+    stop.protection_owner = {
+      scope_id: protection.scope_id,
+      scope_revision: protection.scope_revision,
+      controller: { kind: 'native', id: protection.protection_id },
+      child_id: protection.plan.children.find((child) => child.protection_kind === 'stop_loss')!
+        .child_id,
+    }
+    initialProjection.executions.push(stop)
+    initialProjection.checkpoint.summary.executions = initialProjection.executions.length
+  }
+}
 if (new URLSearchParams(location.search).has('sync_checking')) {
   initialProjection.checkpoint.summary.reconciliation_status = 'reconciling'
   initialProjection.checkpoint.summary.reconciliation_ready = false
@@ -224,7 +267,38 @@ gateway.submitCommand = async (
   if (new URLSearchParams(location.search).has('delay_close')) {
     await new Promise((resolve) => window.setTimeout(resolve, 350))
   }
-  if (new URLSearchParams(location.search).has('close_timeout')) {
+  const fixtureOptions = new URLSearchParams(location.search)
+  if (fixtureOptions.has('close_timeout') || fixtureOptions.has('command_timeout')) {
+    if (intent.kind === 'amend_protection' && fixtureOptions.has('protection_terminal')) {
+      window.setTimeout(() => {
+        const next = structuredClone(initialProjection)
+        const primary = next.commands.find((command) => command.accepted.kind === 'place_order')
+        if (primary === undefined) return
+        next.commands.push({
+          ...structuredClone(primary),
+          command_id: requestId,
+          accepted_at: Date.now(),
+          accepted: {
+            kind: 'amend_protection',
+            parameters: { protection_id: intent.parameters.protection_id },
+          },
+          root: { kind: 'protection_amendment', id: requestId },
+          lifecycle: 'succeeded',
+          failure_reason: null,
+        })
+        const amended = next.native_protections.find(
+          (protection) => protection.protection_id === intent.parameters.protection_id,
+        )
+        if (amended) {
+          amended.plan_revision += 1
+          const stop = amended.plan.children.find((child) => child.protection_kind === 'stop_loss')
+          if (stop) stop.trigger_price = '1801.125'
+        }
+        next.checkpoint.account_revision += 1
+        next.checkpoint.projection_revision += 1
+        projections.install(ENGINE_ACCOUNT_ID, ENGINE_SUBSCRIPTION_ID, { kind: 'initial' }, next)
+      }, 750)
+    }
     throw new CommandOutcomeUnknownError(requestId, 'fixture response timed out')
   }
   const outcome: BrowserCommandOutcome = {
