@@ -1,8 +1,8 @@
 [
   {
     "version": "0.10.11",
-    "status": "draft",
-    "released_at": null,
+    "status": "published",
+    "released_at": "2026-09-18",
     "channel": "Fee-aware lifecycle safety",
     "summary": "Adds fee-aware risk sizing, smoother account-session handoff, safer manual takeover, and stronger physical-order recovery across managed workflows.",
     "major": [
