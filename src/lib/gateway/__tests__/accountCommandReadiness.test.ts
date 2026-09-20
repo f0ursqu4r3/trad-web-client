@@ -5,7 +5,9 @@ import {
   ACCOUNT_ENGINE_INITIALIZING_MESSAGE,
   GATEWAY_RECONNECTING_MESSAGE,
   HYPERLIQUID_AGENT_APPROVAL_REQUIRED_MESSAGE,
+  ACCOUNT_RECONCILING_MESSAGE,
   accountCommandReadiness,
+  newExposureReadiness,
 } from '../accountCommandReadiness.ts'
 
 test('account commands require the gateway connection', () => {
@@ -36,4 +38,18 @@ test('Hyperliquid commands remain blocked until the agent wallet is approved', (
     ready: false,
     reason: HYPERLIQUID_AGENT_APPROVAL_REQUIRED_MESSAGE,
   })
+})
+
+test('new exposure waits for server reconciliation without blocking exits', () => {
+  const command = accountCommandReadiness(true, 'ready')
+  assert.deepEqual(newExposureReadiness(command, false), {
+    ready: false,
+    reason: ACCOUNT_RECONCILING_MESSAGE,
+  })
+  assert.deepEqual(newExposureReadiness(command, undefined), {
+    ready: false,
+    reason: ACCOUNT_RECONCILING_MESSAGE,
+  })
+  assert.deepEqual(newExposureReadiness(command, true), { ready: true, reason: null })
+  assert.deepEqual(command, { ready: true, reason: null })
 })
