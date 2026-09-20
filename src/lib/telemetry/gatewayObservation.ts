@@ -153,7 +153,9 @@ export class GatewayTelemetryObserver {
       blocker_code: rejectionBlocker(outcome.rejection.code),
       outcome_code: outcome.rejection.code,
     })
-    this.emit('command_route_rejected', attempt, { reason_code: outcome.rejection.code })
+    this.emit('command_route_rejected', attempt, {
+      reason_code: outcome.rejection.reason_code ?? outcome.rejection.code,
+    })
   }
 
   previewRequested(attempt: GatewayActionAttempt): void {
