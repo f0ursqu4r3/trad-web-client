@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ShieldCheck } from 'lucide-vue-next'
+import { recordTelemetry } from '@/lib/telemetry'
+import { marketStreamEvent } from '@/lib/telemetry/marketObservation'
 
 import {
   addExact,
@@ -27,14 +29,16 @@ const latestSample = computed(() => {
   const samples = market.value?.samples ?? []
   return samples[samples.length - 1] ?? null
 })
+const now = ref(Date.now())
+let freshnessClock: number | null = null
 const marketStale = computed(
-  () => latestSample.value !== null && Date.now() - latestSample.value.received_at_ms > 15_000,
+  () => latestSample.value !== null && now.value - latestSample.value.received_at_ms > 15_000,
 )
 const latestPrice = computed(() => {
   if (market.value?.status !== 'ready' || marketStale.value) return null
   return latestSample.value?.price ?? null
 })
-let subscribedAccountId: string | null = null
+let subscribed: { accountId: string; symbol: string } | null = null
 const unrealized = computed(() => {
   if (latestPrice.value === null || props.trade.averageEntryPrice === null) return null
   const change =
@@ -52,6 +56,35 @@ const liveTradePnl = computed(() => {
   return unrealized.value === null
     ? null
     : subtractExact(addExact(realized, unrealized.value), fees)
+})
+const liveMissing = computed(() => {
+  if (!props.trade.pnlEvidenceComplete) {
+    return {
+      label: 'incomplete',
+      title: 'Closing-fill evidence is incomplete; P&L is not estimated from fees alone',
+    }
+  }
+  if (market.value?.status === 'error') {
+    return {
+      label: 'feed unavailable',
+      title: 'The Trad market subscription failed or disconnected',
+    }
+  }
+  if (marketStale.value) {
+    return { label: 'stale', title: 'The latest Trad market sample is more than 15 seconds old' }
+  }
+  if (
+    market.value === null ||
+    market.value.status === 'idle' ||
+    market.value.status === 'subscribing' ||
+    latestSample.value === null
+  ) {
+    return { label: 'waiting for price', title: 'Waiting for the first Trad market sample' }
+  }
+  return {
+    label: 'unavailable',
+    title: 'The current trade cannot be valued from available evidence',
+  }
 })
 const exchangeFees = computed(() => {
   const values = new Map(props.trade.totalFees)
@@ -123,12 +156,45 @@ function childState(child: NativeProtectionChildProjection | undefined): string 
   return 'installing'
 }
 
+function syncMarketSubscription(): void {
+  const nextAccountId = props.trade.lifecycle === 'closed' ? null : accountId.value
+  const nextSymbol = props.trade.symbol
+  if (subscribed?.accountId === nextAccountId && subscribed.symbol === nextSymbol) return
+  if (subscribed) gateway.unsubscribeMarket(subscribed.accountId, subscribed.symbol)
+  subscribed = nextAccountId ? { accountId: nextAccountId, symbol: nextSymbol } : null
+  if (subscribed) gateway.subscribeMarket(subscribed.accountId, subscribed.symbol, 64)
+}
+
 onMounted(() => {
-  subscribedAccountId = accountId.value
-  if (subscribedAccountId) gateway.subscribeMarket(subscribedAccountId, props.trade.symbol, 64)
+  freshnessClock = window.setInterval(() => (now.value = Date.now()), 1_000)
+  syncMarketSubscription()
 })
+watch([accountId, () => props.trade.symbol, () => props.trade.lifecycle], () => {
+  if (freshnessClock !== null) syncMarketSubscription()
+})
+watch(
+  marketStale,
+  (stale, wasStale) => {
+    if (
+      props.trade.lifecycle === 'closed' ||
+      !accountId.value ||
+      !latestSample.value ||
+      market.value?.status !== 'ready'
+    )
+      return
+    if (!stale && wasStale !== true) return
+    recordTelemetry(
+      marketStreamEvent(accountId.value, props.trade.symbol, stale ? 'stale' : 'ready', {
+        source: 'card',
+        lastSampleReceivedAtMs: latestSample.value.received_at_ms,
+      }),
+    )
+  },
+  { immediate: true },
+)
 onBeforeUnmount(() => {
-  if (subscribedAccountId) gateway.unsubscribeMarket(subscribedAccountId, props.trade.symbol)
+  if (freshnessClock !== null) window.clearInterval(freshnessClock)
+  if (subscribed) gateway.unsubscribeMarket(subscribed.accountId, subscribed.symbol)
 })
 </script>
 
@@ -196,20 +262,9 @@ onBeforeUnmount(() => {
           <small>{{ trade.lifecycle === 'closed' ? 'Final' : 'Live net' }}</small
           ><b>{{ formatExactDecimal(liveTradePnl) }}</b>
         </strong>
-        <strong
-          v-else
-          :title="
-            !trade.pnlEvidenceComplete
-              ? 'Closing-fill evidence is incomplete; P&L is not estimated from fees alone'
-              : marketStale
-                ? 'The latest Trad market sample is stale'
-                : 'No current Trad market sample is available'
-          "
-        >
+        <strong v-else :title="liveMissing.title">
           <small>{{ trade.lifecycle === 'closed' ? 'Final' : 'Live net' }}</small
-          ><b>{{
-            !trade.pnlEvidenceComplete ? 'incomplete' : marketStale ? 'stale' : 'unavailable'
-          }}</b>
+          ><b>{{ liveMissing.label }}</b>
         </strong>
       </div>
     </div>

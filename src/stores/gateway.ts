@@ -19,12 +19,14 @@ import { getWebSocketToken } from '@/lib/auth'
 import { createLogger } from '@/lib/utils'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
-import { accountCommandReadiness } from '@/lib/gateway/accountCommandReadiness'
+import { accountCommandReadiness, isNewExposureIntent, newExposureReadiness } from '@/lib/gateway/accountCommandReadiness'
 import { marketKey, useMarketStore } from '@/stores/market'
 import {
   GatewayTelemetryObserver,
   type GatewayActionAttempt,
 } from '@/lib/telemetry/gatewayObservation'
+import { marketStreamEvent } from '@/lib/telemetry/marketObservation'
+import { recordTelemetry } from '@/lib/telemetry'
 
 const logger = createLogger('gateway')
 const COMMAND_RESULT_TIMEOUT_MS = 30_000
@@ -204,6 +206,16 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (!readiness.ready) {
       telemetry.readinessBlocked(attempt, readiness.reason)
       return Promise.reject(new Error(readiness.reason!))
+    }
+    if (isNewExposureIntent(intent)) {
+      const newRisk = newExposureReadiness(
+        readiness,
+        projections.byAccount[accountId]?.view?.live.checkpoint.summary.reconciliation_ready,
+      )
+      if (!newRisk.ready) {
+        telemetry.readinessBlocked(attempt, newRisk.reason)
+        return Promise.reject(new Error(newRisk.reason!))
+      }
     }
     if (pendingCommands.has(requestId)) {
       telemetry.blocked(attempt.actionAttemptId, attempt.actionKind, accountId, 'COMMAND_REJECTED')
@@ -607,6 +619,15 @@ export const useGatewayStore = defineStore('gateway', () => {
       demand.accountId !== message.account_id ||
       demand.symbol !== message.window.symbol.toUpperCase()
     ) {
+      if (demand !== undefined) {
+        recordTelemetry(
+          marketStreamEvent(demand.accountId, demand.symbol, 'error', {
+            requestId: message.request_id,
+            source: 'client_validation',
+            reasonCode: 'invalid_window',
+          }),
+        )
+      }
       send({ kind: 'unsubscribe_market', subscription_id: message.subscription_id })
       return
     }
@@ -623,9 +644,36 @@ export const useGatewayStore = defineStore('gateway', () => {
         message.subscription_id,
         message.window,
       )
+      const installed = markets.stream(demand.accountId, demand.symbol)
+      if (installed?.subscriptionId !== message.subscription_id) {
+        recordTelemetry(
+          marketStreamEvent(demand.accountId, demand.symbol, 'error', {
+            requestId: message.request_id,
+            source: 'client_validation',
+            reasonCode: 'window_not_installed',
+          }),
+        )
+      } else {
+        const latest = installed.samples[installed.samples.length - 1]
+        recordTelemetry(
+          marketStreamEvent(demand.accountId, demand.symbol, latest ? 'ready' : 'waiting_for_sample', {
+            requestId: message.request_id,
+            source: 'window',
+            sampleCount: installed.samples.length,
+            lastSampleReceivedAtMs: latest?.received_at_ms ?? null,
+          }),
+        )
+      }
       clearMarketRetry(key)
     } catch (error) {
       logger.warn('Market window rejected; requesting a fresh window', error)
+      recordTelemetry(
+        marketStreamEvent(demand.accountId, demand.symbol, 'error', {
+          requestId: message.request_id,
+          source: 'client_validation',
+          reasonCode: 'invalid_window',
+        }),
+      )
       resubscribeMarket(message.subscription_id, demand)
     }
   }
@@ -641,10 +689,30 @@ export const useGatewayStore = defineStore('gateway', () => {
     ) {
       return
     }
+    const hadSample = (markets.stream(demand.accountId, demand.symbol)?.samples.length ?? 0) > 0
     try {
       markets.append(message.account_id, message.subscription_id, message.symbol, message.samples)
+      if (!hadSample) {
+        const samples = markets.stream(demand.accountId, demand.symbol)?.samples ?? []
+        const latest = samples[samples.length - 1]
+        if (latest) {
+          recordTelemetry(
+            marketStreamEvent(demand.accountId, demand.symbol, 'ready', {
+              source: 'samples',
+              sampleCount: message.samples.length,
+              lastSampleReceivedAtMs: latest.received_at_ms,
+            }),
+          )
+        }
+      }
     } catch (error) {
       logger.warn('Market samples rejected; requesting a fresh window', error)
+      recordTelemetry(
+        marketStreamEvent(demand.accountId, demand.symbol, 'error', {
+          source: 'client_validation',
+          reasonCode: 'invalid_samples',
+        }),
+      )
       resubscribeMarket(message.subscription_id, demand)
     }
   }
@@ -663,6 +731,13 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (demand === undefined) return
     const reason = marketError(message.error)
     markets.fail(demand.accountId, demand.symbol, reason)
+    recordTelemetry(
+      marketStreamEvent(demand.accountId, demand.symbol, 'error', {
+        requestId: message.request_id,
+        source: 'market_error',
+        reasonCode: message.error.kind,
+      }),
+    )
     if (message.error.kind === 'unavailable' && message.error.retryable) {
       scheduleMarketRetry(demand)
     }
@@ -868,9 +943,23 @@ export const useGatewayStore = defineStore('gateway', () => {
         symbol: demand.symbol,
         limit: demand.limit,
       })
+      recordTelemetry(
+        marketStreamEvent(demand.accountId, demand.symbol, 'subscribing', {
+          requestId,
+          source: 'request',
+          retryCount: marketRetryAttempts.get(key) ?? 0,
+        }),
+      )
     } catch (error) {
       marketRequests.delete(requestId)
       markets.fail(demand.accountId, demand.symbol, 'gateway disconnected before subscription')
+      recordTelemetry(
+        marketStreamEvent(demand.accountId, demand.symbol, 'error', {
+          requestId,
+          source: 'request',
+          reasonCode: 'send_failed',
+        }),
+      )
       logger.debug('Market subscribe raced a gateway disconnect', error)
       scheduleMarketRetry(demand)
     }
@@ -1002,6 +1091,19 @@ export const useGatewayStore = defineStore('gateway', () => {
     pendingHistoryCount.value = pendingHistories.size
   }
 
+  function newRiskReadiness(accountId: Uuid) {
+    const account = accounts.accounts.find((candidate) => candidate.id === accountId)
+    const command = accountCommandReadiness(
+      status.value === 'ready',
+      projections.byAccount[accountId]?.status,
+      account?.exchange !== 'hyperliquid' || account.exchange_metadata?.agent_approved === true,
+    )
+    return newExposureReadiness(
+      command,
+      projections.byAccount[accountId]?.view?.live.checkpoint.summary.reconciliation_ready,
+    )
+  }
+
   return {
     status,
     lastError,
@@ -1013,6 +1115,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     connect,
     disconnect,
     submitCommand,
+    newRiskReadiness,
     previewCommand,
     resolvePositionDeficit,
     requestOlderHistory,

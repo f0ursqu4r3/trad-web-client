@@ -197,6 +197,9 @@ gateway.subscribeMarket = (accountId, symbol) => {
     next_sequence: samples.length + 1,
     samples,
   })
+  if (new URLSearchParams(location.search).has('market_error') && symbol === 'ETH') {
+    markets.fail(accountId, symbol, 'fixture market stream unavailable')
+  }
 }
 gateway.unsubscribeMarket = () => undefined
 gateway.previewCommand = async (
@@ -340,6 +343,7 @@ onMounted(() => {
 
 function marketSamples(symbol: string): BrowserMarketSample[] {
   const now = Date.now()
+  const staleOffset = new URLSearchParams(location.search).has('stale_market') ? 20_000 : 0
   return Array.from({ length: 80 }, (_, index) => {
     const sequence = index + 1
     const price =
@@ -348,8 +352,8 @@ function marketSamples(symbol: string): BrowserMarketSample[] {
       sequence,
       update_id: `workspace-${symbol.toLowerCase()}-${sequence}`,
       generation: sequence,
-      received_at_ms: now - (80 - index) * 1_000,
-      exchange_time_ms: now - (80 - index) * 1_000,
+      received_at_ms: now - staleOffset - (80 - index) * 1_000,
+      exchange_time_ms: now - staleOffset - (80 - index) * 1_000,
       price,
       trade_id: `workspace-${symbol.toLowerCase()}-trade-${sequence}`,
     }

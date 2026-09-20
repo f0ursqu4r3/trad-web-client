@@ -19,6 +19,9 @@ const propertyNames = new Set<keyof TelemetryProperties>([
   'reason_code',
   'response_code',
   'duration_bucket',
+  'market_symbol',
+  'market_sample_age_bucket',
+  'sample_count',
   'source',
   'visibility_state',
   'command_lifecycle',
@@ -46,6 +49,7 @@ export function safeTelemetryProperties(
     }
     if (typeof value === 'number') {
       if (!Number.isSafeInteger(value)) return null
+      if (key === 'sample_count' && value < 0) return null
       safe[key] = value
       continue
     }

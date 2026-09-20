@@ -47,6 +47,7 @@ export const telemetryEventNames = [
   'affordability_changed',
   'submit_anyway_selected',
   'websocket_state_changed',
+  'market_stream_state_changed',
   'websocket_lease_rotation_started',
   'websocket_lease_rotation_completed',
   'websocket_lease_rotation_failed',
@@ -140,6 +141,9 @@ export interface TelemetryProperties {
   reason_code?: string
   response_code?: string
   duration_bucket?: string
+  market_symbol?: string
+  market_sample_age_bucket?: string
+  sample_count?: number
   source?: string
   visibility_state?: string
   command_lifecycle?: string

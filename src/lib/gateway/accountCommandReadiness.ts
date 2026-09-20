@@ -1,3 +1,5 @@
+import type { BrowserCommandIntent } from './intent.ts'
+
 export type AccountCommandProjectionStatus =
   | 'idle'
   | 'subscribing'
@@ -21,6 +23,9 @@ export const GATEWAY_RECONNECTING_MESSAGE =
 export const HYPERLIQUID_AGENT_APPROVAL_REQUIRED_MESSAGE =
   'Approve the Hyperliquid agent wallet before using exchange controls.'
 
+export const ACCOUNT_RECONCILING_MESSAGE =
+  'Account setup or exchange reconciliation is still running. New trades will unlock automatically when the server reports ready; closing and canceling remain available.'
+
 export function accountCommandReadiness(
   gatewayReady: boolean,
   projectionStatus: AccountCommandProjectionStatus,
@@ -36,4 +41,30 @@ export function accountCommandReadiness(
     return { ready: false, reason: HYPERLIQUID_AGENT_APPROVAL_REQUIRED_MESSAGE }
   }
   return { ready: true, reason: null }
+}
+
+export function newExposureReadiness(
+  commandReadiness: AccountCommandReadiness,
+  reconciliationReady: boolean | null | undefined,
+): AccountCommandReadiness {
+  if (!commandReadiness.ready) return commandReadiness
+  if (reconciliationReady !== true) {
+    return { ready: false, reason: ACCOUNT_RECONCILING_MESSAGE }
+  }
+  return { ready: true, reason: null }
+}
+
+export function isNewExposureIntent(intent: BrowserCommandIntent): boolean {
+  switch (intent.kind) {
+    case 'place_order':
+    case 'place_chase':
+    case 'place_trailing_entry':
+    case 'amend_trailing_entry':
+    case 'activate_trailing_entry':
+    case 'enter_trailing_entry':
+    case 'continue_trailing_entry':
+      return true
+    default:
+      return false
+  }
 }

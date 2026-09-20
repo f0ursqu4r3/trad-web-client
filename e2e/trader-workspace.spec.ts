@@ -94,6 +94,16 @@ test('a copied-production-shaped stopped trade shows its final net instead of en
   await expect(eth.locator('.metric-pnl')).not.toContainText('-442.25659')
 })
 
+test('live P&L distinguishes stale prices from a failed market feed', async ({ page }) => {
+  await page.goto('/e2e/trader-workspace?stale_market=1')
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  await expect(eth.locator('.metric-pnl')).toContainText('stale')
+
+  await page.goto('/e2e/trader-workspace?market_error=1')
+  const failedEth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  await expect(failedEth.locator('.metric-pnl')).toContainText('feed unavailable')
+})
+
 test('expands trades into price charts, devices, sequence, and history', async ({ page }) => {
   const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
   await eth.locator('.trade-expand').click()
