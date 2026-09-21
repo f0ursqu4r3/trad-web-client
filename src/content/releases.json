@@ -1,5 +1,58 @@
 [
   {
+    "version": "0.10.12",
+    "status": "draft",
+    "released_at": null,
+    "channel": "Physical lineage and trader controls",
+    "summary": "Tracks exact physical order replacements, improves existing protection edits and closed-trade accounting, and makes Chase closes quicker to use.",
+    "major": [
+      "Physical order lineage now distinguishes a logical order from each venue order it has replaced, so cancel, modify, and outcome checks remain tied to the intended physical child.",
+      "Existing stops and take-profits can be amended as focused child moves while retaining the rest of the accepted protection plan.",
+      "Chase is the default managed-trade close mode, with its adverse boundary and expiry visible before a guarded one-tap close."
+    ],
+    "minor": [
+      "Stop controls offer move-to-entry, server-calculated fee-aware breakeven, and an explicit price target.",
+      "Trade cards distinguish live gross and net results from final realized P&L and keep missing accounting evidence explicit.",
+      "Narrow-screen action dialogs, protection legs, and submit controls are easier to reach.",
+      "Preview rejection is separated from an accepted command, and account badges distinguish loading, resync, exchange checks, and a genuine sync block."
+    ],
+    "fixes": [
+      "Closed managed-trade P&L now links native stop exits through the owning protection scope instead of treating the exit as absent.",
+      "A retained stop move no longer appends a second stop or silently replaces unrelated take-profit children.",
+      "Known browser-extension exceptions are no longer presented as Trad interface failures without app-origin evidence.",
+      "Legacy cancel-outcome queries recover their parent's exact physical target during old snapshot and event replay."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "Exact physical order identity",
+        "items": [
+          "Retain predecessor and successor venue identities across replacements without confusing either with the logical order.",
+          "Bind modifications and cancellation checks to one physical target and reject evidence from a retired sibling as proof for a newer child.",
+          "Upgrade old cancel-query records from their parent's immutable target when restoring pre-0.10.12 data."
+        ]
+      },
+      {
+        "category": "major",
+        "title": "Focused protection and closing actions",
+        "items": [
+          "Prefill the accepted protection ladder, preserve retained child identities, and change only the selected stop or take-profit.",
+          "Calculate fee-aware breakeven on the server from attributed fills instead of estimating it in the browser.",
+          "Keep a Chase close pending after an uncertain response until its exact command reaches a terminal projected outcome."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Trade presentation and recovery",
+        "items": [
+          "Join native stop fills to their protection owner before computing final scoped P&L; show incomplete when essential fills or fee assets disagree.",
+          "Show temporary preview and account-recovery states without implying that a rejected preview placed an order.",
+          "Classify known injected-provider errors separately from verified app-origin failures."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.11",
     "status": "published",
     "released_at": "2026-09-18",
