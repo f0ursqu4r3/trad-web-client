@@ -20,7 +20,8 @@
       "Closed managed-trade P&L now links native stop exits through the owning protection scope instead of treating the exit as absent.",
       "A retained stop move no longer appends a second stop or silently replaces unrelated take-profit children.",
       "Known browser-extension exceptions are no longer presented as Trad interface failures without app-origin evidence.",
-      "Legacy cancel-outcome queries recover their parent's exact physical target during old snapshot and event replay."
+      "Legacy cancel-outcome queries recover their parent's exact physical target during old snapshot and event replay.",
+      "Historical event-only recovery understands the bounded reconciliation and protection-pointer shapes written by older builds without relaxing current-state validation."
     ],
     "details": [
       {
@@ -47,7 +48,8 @@
         "items": [
           "Join native stop fills to their protection owner before computing final scoped P&L; show incomplete when essential fills or fee assets disagree.",
           "Show temporary preview and account-recovery states without implying that a rejected preview placed an order.",
-          "Classify known injected-provider errors separately from verified app-origin failures."
+          "Classify known injected-provider errors separately from verified app-origin failures.",
+          "Normalize only the exact legacy reconciliation waits and terminal protection pointers required to reconstruct older event streams; keep current payloads strict."
         ]
       }
     ]
