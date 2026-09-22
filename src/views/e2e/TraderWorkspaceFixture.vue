@@ -25,6 +25,14 @@ const projections = useAccountProjectionStore()
 const gateway = useGatewayStore()
 const markets = useMarketStore()
 const telemetry = new GatewayTelemetryObserver()
+const requestedAccountId = new URLSearchParams(location.search).get('account_id')
+const fixtureAccountId =
+  requestedAccountId &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    requestedAccountId,
+  )
+    ? requestedAccountId
+    : ENGINE_ACCOUNT_ID
 const submittedIntent = ref<BrowserCommandIntent | null>(null)
 const submittedRequestId = ref<string | null>(null)
 const submissionCount = ref(0)
@@ -38,7 +46,7 @@ const submissionEvidence = computed(() =>
 
 accounts.accountsRaw = [
   {
-    id: ENGINE_ACCOUNT_ID,
+    id: fixtureAccountId,
     label: 'Krio demo',
     key: 'fixture',
     network: NetworkType.Mainnet,
@@ -57,7 +65,7 @@ accounts.accountsRaw = [
     },
   },
 ]
-accounts.selectedAccountId = ENGINE_ACCOUNT_ID
+accounts.selectedAccountId = fixtureAccountId
 accounts.lastFetchedAt = Date.now()
 const initialProjection = engineProjectionSnapshot()
 if (new URLSearchParams(location.search).has('two_tps')) {
@@ -181,7 +189,7 @@ if (new URLSearchParams(location.search).has('active_close')) {
   }
 }
 projections.install(
-  ENGINE_ACCOUNT_ID,
+  fixtureAccountId,
   ENGINE_SUBSCRIPTION_ID,
   { kind: 'initial' },
   initialProjection,
@@ -204,7 +212,7 @@ gateway.subscribeMarket = (accountId, symbol) => {
 gateway.unsubscribeMarket = () => undefined
 gateway.previewCommand = async (
   intent,
-  accountId = ENGINE_ACCOUNT_ID,
+  accountId = fixtureAccountId,
   requestId = crypto.randomUUID(),
   actionAttemptId,
 ): Promise<BrowserPreviewOutcome> => {
@@ -257,7 +265,7 @@ gateway.previewCommand = async (
 }
 gateway.submitCommand = async (
   intent,
-  accountId = ENGINE_ACCOUNT_ID,
+  accountId = fixtureAccountId,
   requestId = crypto.randomUUID(),
   actionAttemptId,
 ): Promise<BrowserCommandOutcome> => {
@@ -299,7 +307,7 @@ gateway.submitCommand = async (
         }
         next.checkpoint.account_revision += 1
         next.checkpoint.projection_revision += 1
-        projections.install(ENGINE_ACCOUNT_ID, ENGINE_SUBSCRIPTION_ID, { kind: 'initial' }, next)
+        projections.install(fixtureAccountId, ENGINE_SUBSCRIPTION_ID, { kind: 'initial' }, next)
       }, 750)
     }
     throw new CommandOutcomeUnknownError(requestId, 'fixture response timed out')
@@ -332,7 +340,7 @@ gateway.submitCommand = async (
       })
       next.checkpoint.account_revision += 1
       next.checkpoint.projection_revision += 1
-      projections.install(ENGINE_ACCOUNT_ID, ENGINE_SUBSCRIPTION_ID, { kind: 'initial' }, next)
+      projections.install(fixtureAccountId, ENGINE_SUBSCRIPTION_ID, { kind: 'initial' }, next)
     }, 150)
   }
   return outcome

@@ -173,18 +173,30 @@ watch([accountId, () => props.trade.symbol, () => props.trade.lifecycle], () => 
   if (freshnessClock !== null) syncMarketSubscription()
 })
 watch(
-  marketStale,
-  (stale, wasStale) => {
+  [
+    marketStale,
+    accountId,
+    () => market.value?.status,
+    () => props.trade.lifecycle,
+    () => props.trade.symbol,
+  ],
+  ([stale, currentAccountId, status, lifecycle, symbol], previous) => {
+    if (lifecycle === 'closed' || !currentAccountId || !latestSample.value || status !== 'ready')
+      return
+
+    const [wasStale, previousAccountId, previousStatus, previousLifecycle, previousSymbol] =
+      previous
+    if (!stale && wasStale !== true) return
     if (
-      props.trade.lifecycle === 'closed' ||
-      !accountId.value ||
-      !latestSample.value ||
-      market.value?.status !== 'ready'
+      stale === wasStale &&
+      currentAccountId === previousAccountId &&
+      status === previousStatus &&
+      lifecycle === previousLifecycle &&
+      symbol === previousSymbol
     )
       return
-    if (!stale && wasStale !== true) return
     recordTelemetry(
-      marketStreamEvent(accountId.value, props.trade.symbol, stale ? 'stale' : 'ready', {
+      marketStreamEvent(currentAccountId, symbol, stale ? 'stale' : 'ready', {
         source: 'card',
         lastSampleReceivedAtMs: latestSample.value.received_at_ms,
       }),

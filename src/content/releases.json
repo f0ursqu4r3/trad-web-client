@@ -1,5 +1,48 @@
 [
   {
+    "version": "0.10.13",
+    "status": "draft",
+    "released_at": null,
+    "channel": "Account capacity and market visibility",
+    "summary": "Reduces idle Hyperliquid traffic, coordinates one outbound-IP request budget, makes account readiness explicit, and diagnoses missing live P&L inputs.",
+    "major": [
+      "Gateway and node now reserve Hyperliquid REST weight through one durable per-egress-IP budget, including shared cooldown after a rate-limit response.",
+      "Idle account preflight runs less often while retaining bounded freshness before new exposure and preserving risk-reducing actions.",
+      "The single-node deployment visibly refuses Hyperliquid accounts beyond its monitored private-stream capacity instead of starting an unmonitored owner."
+    ],
+    "minor": [
+      "Account controls explain setup and reconciliation readiness before opening actions become available; close and cancel paths remain available.",
+      "Live P&L distinguishes an initial price wait, stale market evidence, market-feed failure, and incomplete financial evidence.",
+      "Bounded market-stream telemetry records state transitions and freshness categories without recording prices, P&L, wallet data, or raw exchange messages."
+    ],
+    "fixes": [
+      "Timestamp-only agent and builder approval observations no longer restart an otherwise unchanged account owner.",
+      "Hyperliquid information endpoints use their documented request weights, and setup, reload, validation, approval, scheduled reads, and venue actions share the same budget.",
+      "P&L freshness now advances on a reactive clock, and closed trades no longer retain an unnecessary live-market subscription."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "Shared Hyperliquid capacity",
+        "items": [
+          "Coordinate Gateway and node request reservations through PostgreSQL using the deployment's stable egress key.",
+          "Keep maintenance, new-risk, and risk-reduction ceilings separate so background work cannot consume the final exit headroom.",
+          "Retain the five-minute evidence expiry while moving ordinary idle refresh to three minutes and failed refresh retry to 30 seconds.",
+          "Permit eight private accounts with one public market network, or seven total private accounts when two public networks are active."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Readiness and market diagnostics",
+        "items": [
+          "Keep opening actions unavailable until both the browser projection and server reconciliation state are ready without blocking risk reduction.",
+          "Report subscribing, waiting, ready, stale, and typed error transitions at bounded cardinality.",
+          "Show whether live P&L lacks a first price, has an old price, lost its feed, or lacks complete fill and fee evidence."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.12",
     "status": "published",
     "released_at": "2026-09-21",
