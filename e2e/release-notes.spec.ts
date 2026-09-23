@@ -20,7 +20,7 @@ test('lists published releases and filters their categories', async ({ page }) =
   )
   await expect(page.getByRole('heading', { name: 'Trad 0.10.9' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Trad 0.10.13' })).toBeVisible()
-  await expect(page.getByText('draft preview', { exact: true })).toBeVisible()
+  await expect(page.getByText('Account capacity and market visibility', { exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Trad 0.10.5' })).toHaveAttribute(
     'href',
     '/updates/0.10.5/',

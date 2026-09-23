@@ -1,8 +1,8 @@
 [
   {
     "version": "0.10.13",
-    "status": "draft",
-    "released_at": null,
+    "status": "published",
+    "released_at": "2026-09-23",
     "channel": "Account capacity and market visibility",
     "summary": "Reduces idle Hyperliquid traffic, coordinates one outbound-IP request budget, makes account readiness explicit, and diagnoses missing live P&L inputs.",
     "major": [
