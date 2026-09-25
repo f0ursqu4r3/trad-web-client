@@ -373,6 +373,24 @@ test('a focused stop move keeps unrelated take-profit controls read-only', async
   await expect(modal.getByRole('button', { name: 'Apply Protection' })).toBeEnabled()
 })
 
+test('full editor loads a Chase pro-rata take profit and submits a stop-only price move', async ({
+  page,
+}) => {
+  await page.goto('/e2e/trader-workspace?pro_rata_protection=1')
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  await eth.getByRole('button', { name: 'Edit protection' }).click()
+  const modal = page.getByRole('dialog', { name: 'Edit Native Protection' })
+  await expect(modal.getByLabel('TP 1 Trigger')).toHaveValue('2100.125')
+  await expect(modal.getByRole('textbox', { name: 'Percent' })).toHaveValue('100')
+  await expect(modal.getByLabel('Protective stop')).toBeChecked()
+  await expect(modal.getByText(/invalid allocation/)).toHaveCount(0)
+  await modal.getByLabel('SL Trigger').fill('1700')
+  await modal.getByRole('button', { name: 'Apply Protection' }).click()
+  const evidence = JSON.parse((await page.getByTestId('submitted-command-evidence').textContent())!)
+  expect(evidence.count).toBe(1)
+  expect(evidence.intent.parameters.focused_child_id).toBe('30000000-0000-4000-8000-000000000005')
+})
+
 test('focused stop can request server-calculated fee-aware breakeven without guessing a browser price', async ({
   page,
 }) => {

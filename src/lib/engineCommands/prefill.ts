@@ -348,7 +348,13 @@ function protectionAllocation(
     case 'pro_rata':
       return {
         allocationKind: 'fraction',
-        allocationValue: multiplyExact(exactString(allocation.fraction, 'allocation'), '100'),
+        allocationValue: multiplyExact(
+          exactString(
+            requiredRecord(allocation.value, 'pro-rata allocation').fraction,
+            'allocation',
+          ),
+          '100',
+        ),
       }
     case 'exact':
       return {

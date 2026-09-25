@@ -68,6 +68,22 @@ accounts.accountsRaw = [
 accounts.selectedAccountId = fixtureAccountId
 accounts.lastFetchedAt = Date.now()
 const initialProjection = engineProjectionSnapshot()
+if (new URLSearchParams(location.search).has('pro_rata_protection')) {
+  const takeProfit = initialProjection.native_protections
+    .find((row) => row.symbol === 'ETH')
+    ?.plan.children.find((row) => row.protection_kind === 'take_profit')
+  if (takeProfit) {
+    takeProfit.allocation = {
+      kind: 'pro_rata',
+      value: {
+        fraction: '1',
+        terminal: '0.0045',
+        terminal_basis: '0.0045',
+        quantity_step: '0.0001',
+      },
+    }
+  }
+}
 if (new URLSearchParams(location.search).has('taken_over_pnl')) {
   const exposure = initialProjection.positions.find((row) => row.symbol === 'ETH')?.owned_exposure[
     'scope-filled'

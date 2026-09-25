@@ -14,7 +14,7 @@ import {
   sizingModePreference,
   sizingIntent,
 } from '../form.ts'
-import { protectionForm } from '../protectionAmendment.ts'
+import { protectionForm, singleProtectionPriceChange } from '../protectionAmendment.ts'
 import {
   buildCancelEntryWorkIntent,
   buildFlattenIntent,
@@ -165,6 +165,90 @@ test('malformed historical allocation fails with a typed edit block rather than 
     ],
   }
   assert.throws(() => protectionForm(plan), /invalid allocation/)
+})
+
+test('existing Chase pro-rata protection loads from the engine wire shape and moves one price only', () => {
+  const takeProfitId = '00000000-0000-0000-0000-000000000301'
+  const stopId = '00000000-0000-0000-0000-000000000302'
+  const original = protectionForm({
+    protection_id: '00000000-0000-0000-0000-000000000300',
+    children: [
+      {
+        child_id: takeProfitId,
+        client_order_id: 'existing-take-profit',
+        protection_kind: 'take_profit',
+        trigger_price: '0.168',
+        trigger_source: 'mark_price',
+        execution: { kind: 'limit', price: '0.168' },
+        allocation: {
+          kind: 'pro_rata',
+          value: {
+            fraction: '1',
+            terminal: '689069',
+            terminal_basis: '689069',
+            quantity_step: '1',
+          },
+        },
+      },
+      {
+        child_id: stopId,
+        client_order_id: 'existing-stop',
+        protection_kind: 'stop_loss',
+        trigger_price: '0.07159',
+        trigger_source: 'mark_price',
+        execution: { kind: 'bounded_market', worst_price: '0.064431' },
+        allocation: { kind: 'full_remaining' },
+      },
+    ],
+  })
+
+  assert.equal(original.takeProfits[0]?.allocationValue, '100')
+  assert.equal(original.stopLoss.enabled, true)
+  assert.equal(original.stopLoss.triggerPrice, '0.07159')
+
+  const stopEdit = structuredClone(original)
+  stopEdit.stopLoss.triggerPrice = '0.075'
+  const focusedStop = singleProtectionPriceChange(original, stopEdit)
+  assert.equal(focusedStop, stopId)
+  const stopIntent = protectionAmendmentIntent(
+    '00000000-0000-0000-0000-000000000300',
+    1,
+    stopEdit,
+    focusedStop,
+  )
+  assert.equal(stopIntent.kind, 'amend_protection')
+  assert.equal(stopIntent.parameters.focused_child_id, stopId)
+  assert.equal(stopIntent.parameters.take_profits[0]?.child_id, takeProfitId)
+
+  const takeProfitEdit = structuredClone(original)
+  takeProfitEdit.takeProfits[0]!.triggerPrice = '0.17'
+  assert.equal(singleProtectionPriceChange(original, takeProfitEdit), takeProfitId)
+
+  stopEdit.takeProfits[0]!.allocationValue = '75'
+  assert.equal(singleProtectionPriceChange(original, stopEdit), null)
+  takeProfitEdit.stopLoss.triggerPrice = '0.075'
+  assert.equal(singleProtectionPriceChange(original, takeProfitEdit), null)
+})
+
+test('malformed pro-rata wire allocation remains blocked', () => {
+  assert.throws(
+    () =>
+      protectionForm({
+        protection_id: '00000000-0000-0000-0000-000000000300',
+        children: [
+          {
+            child_id: '00000000-0000-0000-0000-000000000301',
+            client_order_id: 'existing-take-profit',
+            protection_kind: 'take_profit',
+            trigger_price: '0.168',
+            trigger_source: 'mark_price',
+            execution: { kind: 'limit', price: '0.168' },
+            allocation: { kind: 'pro_rata', value: {} as never },
+          },
+        ],
+      }),
+    /invalid allocation/,
+  )
 })
 
 test('moving one stop retains a two-take-profit ladder and the original stop identity', () => {

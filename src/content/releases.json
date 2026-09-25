@@ -1,5 +1,29 @@
 [
   {
+    "version": "0.10.15",
+    "status": "published",
+    "released_at": "2026-09-25",
+    "channel": "Protection editor reliability",
+    "summary": "Restores editing of Chase stops and take profits whose existing allocations were stored in the engine's pro-rata format.",
+    "major": [],
+    "minor": [],
+    "fixes": [
+      "Existing Chase protection now loads into the editor instead of being incorrectly reported as an invalid allocation.",
+      "A single stop or take-profit price edit retains the other live protection legs and their exact existing allocations."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Edit existing Chase protection",
+        "items": [
+          "Read the engine's nested pro-rata take-profit allocation without changing the saved plan or current exchange orders when opening the editor.",
+          "Route a one-price edit through the focused protection amendment, preserving unchanged stop and take-profit terms.",
+          "No backend or database change is required; opening the editor does not submit an order change."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.14",
     "status": "published",
     "released_at": "2026-09-25",

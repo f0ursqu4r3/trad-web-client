@@ -34,6 +34,49 @@ export function protectionForm(plan: NativeProtectionPlan): ProtectionFormState 
   return state
 }
 
+// A single-price amendment can preserve the server's exact existing child plans,
+// including Chase pro-rata terminal quantities, instead of rebuilding the ladder.
+export function singleProtectionPriceChange(
+  previous: ProtectionFormState,
+  next: ProtectionFormState,
+): string | null {
+  if (previous.takeProfits.length !== next.takeProfits.length) return null
+  let changedChildId: string | null = null
+  for (const [index, before] of previous.takeProfits.entries()) {
+    const after = next.takeProfits[index]!
+    if (
+      before.id !== after.id ||
+      before.childId !== after.childId ||
+      before.triggerSource !== after.triggerSource ||
+      before.executionKind !== after.executionKind ||
+      before.executionPrice !== after.executionPrice ||
+      before.allocationKind !== after.allocationKind ||
+      before.allocationValue !== after.allocationValue
+    )
+      return null
+    if (before.triggerPrice === after.triggerPrice) continue
+    if (changedChildId !== null || before.childId === undefined) return null
+    changedChildId = before.childId
+  }
+
+  const beforeStop = previous.stopLoss
+  const afterStop = next.stopLoss
+  if (
+    beforeStop.childId !== afterStop.childId ||
+    beforeStop.enabled !== afterStop.enabled ||
+    beforeStop.triggerSource !== afterStop.triggerSource ||
+    beforeStop.executionKind !== afterStop.executionKind ||
+    beforeStop.executionPrice !== afterStop.executionPrice
+  )
+    return null
+  if (beforeStop.triggerPrice !== afterStop.triggerPrice) {
+    if (changedChildId !== null || !beforeStop.enabled || beforeStop.childId === undefined)
+      return null
+    changedChildId = beforeStop.childId
+  }
+  return changedChildId
+}
+
 export function commandNativeProtection(
   command: CommandProjection,
   protections: NativeProtectionProjection[],
@@ -114,7 +157,7 @@ function applyAllocation(form: TakeProfitFormState, allocation: ProtectionAlloca
       return
     case 'pro_rata':
       form.allocationKind = 'fraction'
-      form.allocationValue = decimalShift(allocation.fraction, 2)
+      form.allocationValue = decimalShift(allocation.value?.fraction, 2)
       return
     case 'exact':
       form.allocationKind = 'exact_base'

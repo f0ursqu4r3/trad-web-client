@@ -6,12 +6,16 @@ import ProtectionFields from '@/components/engine/commands/ProtectionFields.vue'
 import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmission'
 import type { NativeProtectionProjection, ProtectionAmendmentProjection } from '@/lib/gateway'
 import {
+  copyProtectionState,
   newProtectionState,
   protectionAmendmentIntent,
   type ProtectionFormState,
 } from '@/lib/engineCommands/form'
 import { marketUnits } from '@/lib/engineCommands/marketUnits'
-import { protectionForm } from '@/lib/engineCommands/protectionAmendment'
+import {
+  protectionForm,
+  singleProtectionPriceChange,
+} from '@/lib/engineCommands/protectionAmendment'
 import { useAccountsStore } from '@/stores/accounts'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useGatewayStore } from '@/stores/gateway'
@@ -37,6 +41,7 @@ const telemetryAction = useTelemetryAction({
   source: 'protection_modal',
 })
 const form = ref<ProtectionFormState>(newProtectionState())
+const initialForm = ref<ProtectionFormState>(newProtectionState())
 const baseline = ref('')
 const validationError = ref<string | null>(null)
 const unknownResolution = ref<string | null>(null)
@@ -104,10 +109,12 @@ function reset(): void {
   try {
     form.value =
       props.protection === null ? newProtectionState() : protectionForm(props.protection.plan)
+    initialForm.value = copyProtectionState(form.value)
     baseline.value = JSON.stringify(form.value)
     void focusRequestedChild()
   } catch (error) {
     form.value = newProtectionState()
+    initialForm.value = copyProtectionState(form.value)
     baseline.value = JSON.stringify(form.value)
     validationError.value =
       error instanceof Error ? error.message : 'Unable to read the current protection plan.'
@@ -135,7 +142,7 @@ async function submit(): Promise<void> {
       props.protection.protection_id,
       props.protection.plan_revision,
       form.value,
-      props.focusChildId ?? null,
+      props.focusChildId ?? singleProtectionPriceChange(initialForm.value, form.value),
       serverBreakeven.value ? 'breakeven' : null,
     )
     if (await submission.submit({ accountId: props.accountId, intent }, actionAttemptId)) {

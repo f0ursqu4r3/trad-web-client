@@ -725,10 +725,12 @@ export type ProtectionAllocation =
   | { kind: 'exact'; value: ExactDecimal }
   | {
       kind: 'pro_rata'
-      fraction: ExactDecimal
-      terminal: ExactDecimal
-      terminal_basis: ExactDecimal
-      quantity_step: ExactDecimal
+      value: {
+        fraction: ExactDecimal
+        terminal: ExactDecimal
+        terminal_basis: ExactDecimal
+        quantity_step: ExactDecimal
+      }
     }
 
 export interface NativeProtectionChildPlan {

@@ -45,6 +45,45 @@ test('duplicates an accepted split limit as exact planned base quantity and prot
   assert.equal(prefill.values.protection.stopLoss.executionKind, 'market')
 })
 
+test('duplicates a planned Chase whose take-profit has a pro-rata allocation', () => {
+  const prefill = duplicateCommandPrefill(
+    command('place_chase', {
+      plan: {
+        symbol: 'XPL',
+        position_side: 'long',
+        quantity: '689069',
+        protection: {
+          controller: {
+            kind: 'native',
+            children: [
+              {
+                protection_kind: 'take_profit',
+                trigger_price: '0.168',
+                trigger_source: 'mark_price',
+                execution: { kind: 'limit', price: '0.168' },
+                allocation: {
+                  kind: 'pro_rata',
+                  value: {
+                    fraction: '1',
+                    terminal: '689069',
+                    terminal_basis: '689069',
+                    quantity_step: '1',
+                  },
+                },
+              },
+            ],
+          },
+        },
+        remainder_policy: 'cancel',
+      },
+    }),
+    'account',
+  )
+  assert.equal(prefill?.modal, 'EngineChaseOrder')
+  if (prefill?.modal !== 'EngineChaseOrder') return
+  assert.equal(prefill.values.protection.takeProfits[0]?.allocationValue, '100')
+})
+
 test('duplicates Chase duration and Trailing Entry semantics without floating point', () => {
   const chase = duplicateCommandPrefill(
     command(
