@@ -68,6 +68,16 @@ accounts.accountsRaw = [
 accounts.selectedAccountId = fixtureAccountId
 accounts.lastFetchedAt = Date.now()
 const initialProjection = engineProjectionSnapshot()
+if (new URLSearchParams(location.search).has('taken_over_pnl')) {
+  const exposure = initialProjection.positions.find((row) => row.symbol === 'ETH')?.owned_exposure[
+    'scope-filled'
+  ]
+  if (exposure) {
+    exposure.detached = true
+    exposure.reduced_quantity = exposure.opened_quantity
+    exposure.remaining_quantity = '0'
+  }
+}
 if (new URLSearchParams(location.search).has('two_tps')) {
   const protection = initialProjection.native_protections.find((row) => row.symbol === 'ETH')
   const first = protection?.plan.children.find((row) => row.protection_kind === 'take_profit')

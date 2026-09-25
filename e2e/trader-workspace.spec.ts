@@ -94,6 +94,19 @@ test('a copied-production-shaped stopped trade shows its final net instead of en
   await expect(eth.locator('.metric-pnl')).not.toContainText('-442.25659')
 })
 
+test('taken-over trade explains why final P&L is unknown', async ({ page }) => {
+  await page.goto('/e2e/trader-workspace?taken_over_pnl=1')
+  const workspace = page.getByTestId('trader-workspace')
+  await workspace.getByRole('button', { name: 'Closed 1' }).click()
+  const eth = workspace.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  const pnl = eth.locator('.metric-pnl')
+  await expect(pnl).toContainText('Final net')
+  await expect(pnl).toContainText('unknown after takeover')
+  await expect(pnl).toContainText('Without complete attributed exit fills')
+  await expect(pnl).not.toContainText('Live net')
+  await expect(pnl).not.toContainText('Gross open')
+})
+
 test('live P&L distinguishes stale prices from a failed market feed', async ({ page }) => {
   await page.goto('/e2e/trader-workspace?stale_market=1')
   const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })

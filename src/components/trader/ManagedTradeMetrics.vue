@@ -25,6 +25,9 @@ const gateway = useGatewayStore()
 const markets = useMarketStore()
 const accountId = computed(() => accounts.selectedAccountId)
 const market = computed(() => markets.stream(accountId.value, props.trade.symbol))
+const historical = computed(
+  () => props.trade.lifecycle === 'closed' || props.trade.lifecycle === 'taken_over',
+)
 const latestSample = computed(() => {
   const samples = market.value?.samples ?? []
   return samples[samples.length - 1] ?? null
@@ -50,7 +53,7 @@ const unrealized = computed(() => {
 const liveTradePnl = computed(() => {
   const asset = props.trade.pnlAsset
   if (!props.trade.pnlEvidenceComplete || asset === null) return null
-  if (props.trade.lifecycle === 'closed') return props.trade.netAfterFees.get(asset) ?? null
+  if (historical.value) return props.trade.netAfterFees.get(asset) ?? null
   const realized = props.trade.realizedPnl.get(asset) ?? '0'
   const fees = props.trade.totalFees.get(asset) ?? '0'
   return unrealized.value === null
@@ -58,6 +61,13 @@ const liveTradePnl = computed(() => {
     : subtractExact(addExact(realized, unrealized.value), fees)
 })
 const liveMissing = computed(() => {
+  if (props.trade.lifecycle === 'taken_over' && !props.trade.pnlEvidenceComplete) {
+    return {
+      label: 'unknown after takeover',
+      title:
+        'Trad stopped managing this trade at Take Over; complete attributed exit fills are needed for final P&L',
+    }
+  }
   if (!props.trade.pnlEvidenceComplete) {
     return {
       label: 'incomplete',
@@ -157,7 +167,7 @@ function childState(child: NativeProtectionChildProjection | undefined): string 
 }
 
 function syncMarketSubscription(): void {
-  const nextAccountId = props.trade.lifecycle === 'closed' ? null : accountId.value
+  const nextAccountId = historical.value ? null : accountId.value
   const nextSymbol = props.trade.symbol
   if (subscribed?.accountId === nextAccountId && subscribed.symbol === nextSymbol) return
   if (subscribed) gateway.unsubscribeMarket(subscribed.accountId, subscribed.symbol)
@@ -181,7 +191,13 @@ watch(
     () => props.trade.symbol,
   ],
   ([stale, currentAccountId, status, lifecycle, symbol], previous) => {
-    if (lifecycle === 'closed' || !currentAccountId || !latestSample.value || status !== 'ready')
+    if (
+      lifecycle === 'closed' ||
+      lifecycle === 'taken_over' ||
+      !currentAccountId ||
+      !latestSample.value ||
+      status !== 'ready'
+    )
       return
 
     const [wasStale, previousAccountId, previousStatus, previousLifecycle, previousSymbol] =
@@ -243,7 +259,7 @@ onBeforeUnmount(() => {
       >
       <div class="metric-values metric-values-stacked">
         <strong
-          v-if="unrealized !== null && trade.pnlAsset !== null && trade.lifecycle !== 'closed'"
+          v-if="unrealized !== null && trade.pnlAsset !== null && !historical"
           :class="totalTone(new Map([[trade.pnlAsset, unrealized]]))"
           :title="`Gross open P&L before fees: ${formatExactDecimal(unrealized)} ${trade.pnlAsset}`"
         >
@@ -254,10 +270,10 @@ onBeforeUnmount(() => {
           :title="
             trade.pnlEvidenceComplete
               ? `Realized P&L less attributed fees: ${totals(trade.netAfterFees)}`
-              : 'Closing-fill evidence is incomplete'
+              : liveMissing.title
           "
         >
-          <small>{{ trade.lifecycle === 'closed' ? 'Final net' : 'Realized net' }}</small
+          <small>{{ historical ? 'Final net' : 'Realized net' }}</small
           ><b>{{
             trade.pnlEvidenceComplete ? amount(trade.netAfterFees, trade.pnlAsset) : 'incomplete'
           }}</b>
@@ -266,18 +282,22 @@ onBeforeUnmount(() => {
           v-if="liveTradePnl !== null"
           :class="totalTone(new Map([[trade.pnlAsset ?? 'USDC', liveTradePnl]]))"
           :title="
-            trade.lifecycle === 'closed'
+            historical
               ? `Final net: ${formatExactDecimal(liveTradePnl)} ${trade.pnlAsset}`
               : `Realized plus gross open P&L less attributed fees: ${formatExactDecimal(liveTradePnl)} ${trade.pnlAsset}`
           "
         >
-          <small>{{ trade.lifecycle === 'closed' ? 'Final' : 'Live net' }}</small
+          <small>{{ historical ? 'Final' : 'Live net' }}</small
           ><b>{{ formatExactDecimal(liveTradePnl) }}</b>
         </strong>
         <strong v-else :title="liveMissing.title">
-          <small>{{ trade.lifecycle === 'closed' ? 'Final' : 'Live net' }}</small
+          <small>{{ historical ? 'Final' : 'Live net' }}</small
           ><b>{{ liveMissing.label }}</b>
         </strong>
+        <p v-if="trade.lifecycle === 'taken_over' && !trade.pnlEvidenceComplete" class="pnl-note">
+          Trad stopped managing this trade at Take Over. Without complete attributed exit fills, its
+          final P&amp;L cannot be calculated here.
+        </p>
       </div>
     </div>
     <div class="metric-group metric-risk">
@@ -500,6 +520,12 @@ onBeforeUnmount(() => {
   font: inherit;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.pnl-note {
+  margin: 0.25rem 0 0;
+  color: var(--fg-muted);
+  font-size: 10px;
+  line-height: 1.35;
 }
 .metric-inline-pair {
   display: grid;
