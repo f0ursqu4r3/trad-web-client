@@ -1,5 +1,38 @@
 [
   {
+    "version": "0.10.14",
+    "status": "draft",
+    "released_at": null,
+    "channel": "Market P&L reliability",
+    "summary": "Restores live prices for non-default markets and explains why a taken-over trade can lack final P&L.",
+    "major": [],
+    "minor": [
+      "Taken-over trade cards explain when final P&L cannot be calculated because complete attributed exit fills are absent."
+    ],
+    "fixes": [
+      "Bounded market windows now report the first returned sequence, restoring live-price subscriptions for markets with more than one window of retained trades.",
+      "Taken-over historical trades no longer maintain unnecessary live-price subscriptions or show a misleading Live net label."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Live-price window continuity",
+        "items": [
+          "Align the window's oldest sequence with its first returned sample when the requested limit truncates retained history.",
+          "Keep last-trade price as Trad's selected live P&L source; this release does not change exchange-native stop triggers or trade accounting."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Historical takeover clarity",
+        "items": [
+          "Explain that Trad cannot show final net P&L without complete fills attributed to the trade after Take Over.",
+          "Stop subscribing taken-over cards to the live market feed and label their result as historical rather than live."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.13",
     "status": "published",
     "released_at": "2026-09-23",
