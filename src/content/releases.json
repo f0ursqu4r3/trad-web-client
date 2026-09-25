@@ -1,8 +1,8 @@
 [
   {
     "version": "0.10.14",
-    "status": "draft",
-    "released_at": null,
+    "status": "published",
+    "released_at": "2026-09-25",
     "channel": "Market P&L reliability",
     "summary": "Restores live prices for non-default markets and explains why a taken-over trade can lack final P&L.",
     "major": [],
