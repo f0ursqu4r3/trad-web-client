@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.10.16",
+    "status": "published",
+    "released_at": "2026-09-27",
+    "channel": "Take-profit allocation reliability",
+    "summary": "Take-profit fills now spend their original allocation instead of replenishing from the remaining position.",
+    "major": [],
+    "minor": [],
+    "fixes": [
+      "A filled take-profit no longer refills itself or shrinks a surviving take-profit simply because the position became smaller.",
+      "New entry fills earn only their own take-profit allocation while the stop continues to cover the remaining position.",
+      "Protection edits and restarts retain spent allocations and account for late fills from replaced orders."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Take-profit allocations follow acquired units",
+        "items": [
+          "Each acquired entry unit earns its configured take-profit distribution once. A take-profit execution spends only that level's allocation.",
+          "Chase and trailing entry continue under their existing entry instructions; only additional entry fills can earn new take-profit allocation.",
+          "Manual reductions proportionally reduce outstanding take-profit allocations, and price-only edits preserve allocation history.",
+          "Existing trades retain their surviving take-profit targets when upgraded. Reconciliation warnings remain visible when exchange evidence is incomplete."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.15",
     "status": "published",
     "released_at": "2026-09-25",
