@@ -34,11 +34,13 @@ const latestSample = computed(() => {
 })
 const now = ref(Date.now())
 let freshnessClock: number | null = null
-const marketStale = computed(
-  () => latestSample.value !== null && now.value - latestSample.value.received_at_ms > 15_000,
+const priceAgeSeconds = computed(() =>
+  latestSample.value === null
+    ? null
+    : Math.max(0, Math.floor((now.value - latestSample.value.exchange_time_ms) / 1_000)),
 )
 const latestPrice = computed(() => {
-  if (market.value?.status !== 'ready' || marketStale.value) return null
+  if (market.value?.status !== 'ready') return null
   return latestSample.value?.price ?? null
 })
 let subscribed: { accountId: string; symbol: string } | null = null
@@ -79,9 +81,6 @@ const liveMissing = computed(() => {
       label: 'feed unavailable',
       title: 'The Trad market subscription failed or disconnected',
     }
-  }
-  if (marketStale.value) {
-    return { label: 'stale', title: 'The latest Trad market sample is more than 15 seconds old' }
   }
   if (
     market.value === null ||
@@ -183,39 +182,24 @@ watch([accountId, () => props.trade.symbol, () => props.trade.lifecycle], () => 
   if (freshnessClock !== null) syncMarketSubscription()
 })
 watch(
-  [
-    marketStale,
-    accountId,
-    () => market.value?.status,
-    () => props.trade.lifecycle,
-    () => props.trade.symbol,
-  ],
-  ([stale, currentAccountId, status, lifecycle, symbol], previous) => {
-    if (
-      lifecycle === 'closed' ||
-      lifecycle === 'taken_over' ||
-      !currentAccountId ||
-      !latestSample.value ||
-      status !== 'ready'
-    )
-      return
+  [accountId, () => market.value?.status, () => props.trade.lifecycle, () => props.trade.symbol],
+  ([currentAccountId, status, lifecycle, symbol]) => {
+    if (lifecycle === 'closed' || lifecycle === 'taken_over' || !currentAccountId || !status) return
 
-    const [wasStale, previousAccountId, previousStatus, previousLifecycle, previousSymbol] =
-      previous
-    if (!stale && wasStale !== true) return
-    if (
-      stale === wasStale &&
-      currentAccountId === previousAccountId &&
-      status === previousStatus &&
-      lifecycle === previousLifecycle &&
-      symbol === previousSymbol
-    )
-      return
     recordTelemetry(
-      marketStreamEvent(currentAccountId, symbol, stale ? 'stale' : 'ready', {
-        source: 'card',
-        lastSampleReceivedAtMs: latestSample.value.received_at_ms,
-      }),
+      marketStreamEvent(
+        currentAccountId,
+        symbol,
+        status === 'error'
+          ? 'error'
+          : status === 'ready' && latestSample.value
+            ? 'ready'
+            : 'waiting_for_sample',
+        {
+          source: 'card',
+          lastSampleReceivedAtMs: latestSample.value?.received_at_ms ?? null,
+        },
+      ),
     )
   },
   { immediate: true },
@@ -297,6 +281,18 @@ onBeforeUnmount(() => {
         <p v-if="trade.lifecycle === 'taken_over' && !trade.pnlEvidenceComplete" class="pnl-note">
           Trad stopped managing this trade at Take Over. Without complete attributed exit fills, its
           final P&amp;L cannot be calculated here.
+        </p>
+        <p
+          v-if="
+            !historical &&
+            liveTradePnl !== null &&
+            priceAgeSeconds !== null &&
+            priceAgeSeconds >= 15
+          "
+          class="pnl-note"
+          title="P&L uses the last traded price. The feed is connected; no newer trade has arrived."
+        >
+          Last trade {{ priceAgeSeconds }}s ago
         </p>
       </div>
     </div>

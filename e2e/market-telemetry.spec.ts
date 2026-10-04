@@ -6,9 +6,7 @@ interface TelemetryEvent {
   properties: Record<string, unknown>
 }
 
-test('browser sends a bounded stale-market observation through the telemetry transport', async ({
-  page,
-}) => {
+test('browser reports a quiet connected market as ready with its sample age', async ({ page }) => {
   const events: TelemetryEvent[] = []
   await page.route('**/api/telemetry/config', async (route) => {
     await route.fulfill({
@@ -58,12 +56,13 @@ test('browser sends a bounded stale-market observation through the telemetry tra
 
   await page.goto('/e2e/trader-workspace?stale_market=1')
   const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
-  await expect(eth.locator('.metric-pnl')).toContainText('stale')
+  await expect(eth.locator('.metric-pnl')).toContainText('Last trade')
+  await expect(eth.locator('.metric-pnl')).toContainText('Gross open')
   await expect
     .poll(() =>
       events.find(
         (event) =>
-          event.event_name === 'market_stream_state_changed' && event.properties.state === 'stale',
+          event.event_name === 'market_stream_state_changed' && event.properties.state === 'ready',
       ),
     )
     .toBeTruthy()
@@ -71,7 +70,7 @@ test('browser sends a bounded stale-market observation through the telemetry tra
   const event = events.find(
     (candidate) =>
       candidate.event_name === 'market_stream_state_changed' &&
-      candidate.properties.state === 'stale',
+      candidate.properties.state === 'ready',
   )!
   expect(event.account_id).toBeTruthy()
   expect(['BTC', 'ETH', 'SOL']).toContain(event.properties.market_symbol)
@@ -131,7 +130,7 @@ test('authenticated browser telemetry reaches the real Gateway collector', async
     return Boolean(
       batch.events?.some(
         (event) =>
-          event.event_name === 'market_stream_state_changed' && event.properties.state === 'stale',
+          event.event_name === 'market_stream_state_changed' && event.properties.state === 'ready',
       ),
     )
   })
@@ -140,7 +139,7 @@ test('authenticated browser telemetry reaches the real Gateway collector', async
     `/e2e/trader-workspace?stale_market=1&account_id=${encodeURIComponent(accountId)}`,
   )
   const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
-  await expect(eth.locator('.metric-pnl')).toContainText('stale')
+  await expect(eth.locator('.metric-pnl')).toContainText('Last trade')
 
   const response = await acceptedMarketBatch
   const result = (await response.json()) as {

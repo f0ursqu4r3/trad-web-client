@@ -1,5 +1,56 @@
 [
   {
+    "version": "0.10.17",
+    "status": "published",
+    "released_at": "2026-10-04",
+    "channel": "Protection recovery and live P&L",
+    "summary": "Prevents unnecessary protection and Chase reconciliation failures, and keeps last-trade P&L visible when a connected market is quiet.",
+    "major": [],
+    "minor": [
+      "Live P&L shows the age of the last trade when no new trade has arrived for 15 seconds."
+    ],
+    "fixes": [
+      "Protection waiting for the exchange minimum size no longer fails reconciliation when an unchanged position is checked again.",
+      "Chase quantity changes already covered by an in-flight modification no longer trigger an unnecessary reconciliation warning.",
+      "A missing order during an audit without a recovery operation is retried against current order history instead of being treated as a fatal query failure.",
+      "Quiet markets retain last-trade P&L, while exchange-feed interruptions are reported to the browser as unavailable."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Protection resumes when its target changes",
+        "items": [
+          "Repeated checks of an unchanged position no longer reuse a finished protection operation as pending work.",
+          "Additional entry fills that change the protection target can prepare new work, while protection below the exchange minimum remains deferred."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Chase modification and recovery handling",
+        "items": [
+          "Recognize when an unresolved modification already represents the desired quantity and continue waiting for its outcome.",
+          "Retry an audit that cannot find its captured order identity using the latest recorded order history. Uncertain exchange outcomes still require confirmation."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Market-feed failures reach the trade card",
+        "items": [
+          "Preserve exchange-feed interruption signals through the market stream so the browser can distinguish a disconnected feed from a market with no new trades.",
+          "Keep recovered price windows consistent after connection-status events and associate ongoing feed errors with the active subscription."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Last-trade age stays visible",
+        "items": [
+          "Keep live P&L based on the last traded price during quiet periods and display the trade's age after 15 seconds.",
+          "An explicit feed failure still makes live P&L unavailable. Final realized P&L and exchange stop-trigger settings are unchanged."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.16",
     "status": "published",
     "released_at": "2026-09-27",
