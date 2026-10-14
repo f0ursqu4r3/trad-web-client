@@ -9,6 +9,9 @@ export interface MarketSampleWindow {
 }
 
 export function installMarketWindow(window: BrowserMarketWindow): MarketSampleWindow {
+  if (window.unavailable_reason != null && typeof window.unavailable_reason !== 'string') {
+    throw new Error('market window has invalid feed health')
+  }
   validateSamples(window.samples, null)
   const first = window.samples[0]
   const last = window.samples[window.samples.length - 1]

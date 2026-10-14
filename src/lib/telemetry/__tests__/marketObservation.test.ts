@@ -7,6 +7,20 @@ import { safeTelemetryProperties } from '../validation.ts'
 const accountId = '1bd8d827-7e0b-52aa-a214-420a92c5fda0'
 const requestId = 'f305b7fa-3d65-4ced-b5e1-564c8001f41c'
 
+test('recoverable health is distinct from a terminal subscription error', () => {
+  const record = marketStreamEvent(accountId, 'BTC', 'reconnecting', {
+    source: 'feed_health',
+    reasonCode: 'unavailable',
+  })
+  assert.deepEqual(record.properties, {
+    market_symbol: 'BTC',
+    state: 'reconnecting',
+    source: 'feed_health',
+    reason_code: 'unavailable',
+  })
+  assert.deepEqual(safeTelemetryProperties(record.properties ?? {}), record.properties)
+})
+
 test('records a bounded market window without price or raw error text', () => {
   const event = marketStreamEvent(
     accountId,

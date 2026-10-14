@@ -1,6 +1,12 @@
 import type { TelemetryRecord } from './contract.ts'
 
-export type MarketStreamState = 'subscribing' | 'waiting_for_sample' | 'ready' | 'stale' | 'error'
+export type MarketStreamState =
+  | 'subscribing'
+  | 'waiting_for_sample'
+  | 'ready'
+  | 'reconnecting'
+  | 'stale'
+  | 'error'
 
 export type MarketStreamReason =
   | 'unauthorized'
@@ -13,7 +19,14 @@ export type MarketStreamReason =
 
 interface MarketObservation {
   requestId?: string | null
-  source?: 'request' | 'window' | 'samples' | 'market_error' | 'client_validation' | 'card'
+  source?:
+    | 'request'
+    | 'window'
+    | 'samples'
+    | 'market_error'
+    | 'feed_health'
+    | 'client_validation'
+    | 'card'
   reasonCode?: MarketStreamReason
   retryCount?: number
   sampleCount?: number

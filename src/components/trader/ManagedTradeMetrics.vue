@@ -76,6 +76,13 @@ const liveMissing = computed(() => {
       title: 'Closing-fill evidence is incomplete; P&L is not estimated from fees alone',
     }
   }
+  if (market.value?.status === 'reconnecting') {
+    return {
+      label: latestSample.value === null ? 'waiting for price' : 'feed reconnecting',
+      title:
+        'Waiting for the exchange price feed to recover; cached prices are not used as live P&L',
+    }
+  }
   if (market.value?.status === 'error') {
     return {
       label: 'feed unavailable',
@@ -182,7 +189,13 @@ watch([accountId, () => props.trade.symbol, () => props.trade.lifecycle], () => 
   if (freshnessClock !== null) syncMarketSubscription()
 })
 watch(
-  [accountId, () => market.value?.status, () => props.trade.lifecycle, () => props.trade.symbol],
+  [
+    accountId,
+    () => market.value?.status,
+    () => props.trade.lifecycle,
+    () => props.trade.symbol,
+    () => latestSample.value !== null,
+  ],
   ([currentAccountId, status, lifecycle, symbol]) => {
     if (lifecycle === 'closed' || lifecycle === 'taken_over' || !currentAccountId || !status) return
 
@@ -190,11 +203,13 @@ watch(
       marketStreamEvent(
         currentAccountId,
         symbol,
-        status === 'error'
-          ? 'error'
-          : status === 'ready' && latestSample.value
-            ? 'ready'
-            : 'waiting_for_sample',
+        status === 'reconnecting'
+          ? 'reconnecting'
+          : status === 'error'
+            ? 'error'
+            : status === 'ready' && latestSample.value
+              ? 'ready'
+              : 'waiting_for_sample',
         {
           source: 'card',
           lastSampleReceivedAtMs: latestSample.value?.received_at_ms ?? null,

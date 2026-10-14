@@ -12,6 +12,7 @@ export interface BrowserMarketSample {
 
 export interface BrowserMarketWindow {
   symbol: string
+  unavailable_reason?: string | null
   oldest_sequence: number | null
   next_sequence: number
   samples: BrowserMarketSample[]

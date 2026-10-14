@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useAuth } from '@/lib/auth'
 
 import type {
   BrowserCommandOutcome,
@@ -24,6 +25,7 @@ const accounts = useAccountsStore()
 const projections = useAccountProjectionStore()
 const gateway = useGatewayStore()
 const markets = useMarketStore()
+const marketWire = new URLSearchParams(location.search).has('market_wire')
 const telemetry = new GatewayTelemetryObserver()
 const requestedAccountId = new URLSearchParams(location.search).get('account_id')
 const fixtureAccountId =
@@ -214,28 +216,31 @@ if (new URLSearchParams(location.search).has('active_close')) {
     })
   }
 }
-projections.install(
-  fixtureAccountId,
-  ENGINE_SUBSCRIPTION_ID,
-  { kind: 'initial' },
-  initialProjection,
-)
+if (!marketWire)
+  projections.install(
+    fixtureAccountId,
+    ENGINE_SUBSCRIPTION_ID,
+    { kind: 'initial' },
+    initialProjection,
+  )
 
-gateway.subscribeMarket = (accountId, symbol) => {
-  const requestId = crypto.randomUUID()
-  const samples = marketSamples(symbol)
-  markets.begin(accountId, symbol, requestId)
-  markets.install(accountId, requestId, crypto.randomUUID(), {
-    symbol,
-    oldest_sequence: 1,
-    next_sequence: samples.length + 1,
-    samples,
-  })
-  if (new URLSearchParams(location.search).has('market_error') && symbol === 'ETH') {
-    markets.fail(accountId, symbol, 'fixture market stream unavailable')
+if (!marketWire) {
+  gateway.subscribeMarket = (accountId, symbol) => {
+    const requestId = crypto.randomUUID()
+    const samples = marketSamples(symbol)
+    markets.begin(accountId, symbol, requestId)
+    markets.install(accountId, requestId, crypto.randomUUID(), {
+      symbol,
+      oldest_sequence: 1,
+      next_sequence: samples.length + 1,
+      samples,
+    })
+    if (new URLSearchParams(location.search).has('market_error') && symbol === 'ETH') {
+      markets.fail(accountId, symbol, 'fixture market stream unavailable')
+    }
   }
+  gateway.unsubscribeMarket = () => undefined
 }
-gateway.unsubscribeMarket = () => undefined
 gateway.previewCommand = async (
   intent,
   accountId = fixtureAccountId,
@@ -372,7 +377,17 @@ gateway.submitCommand = async (
   return outcome
 }
 onMounted(() => {
-  gateway.status = 'ready'
+  if (marketWire) {
+    void useAuth()
+      .waitUntilReady()
+      .then(async () => {
+        await nextTick()
+        gateway.connect()
+      })
+  } else gateway.status = 'ready'
+})
+onBeforeUnmount(() => {
+  if (marketWire) gateway.disconnect()
 })
 
 function marketSamples(symbol: string): BrowserMarketSample[] {

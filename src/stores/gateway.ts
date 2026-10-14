@@ -19,7 +19,11 @@ import { getWebSocketToken } from '@/lib/auth'
 import { createLogger } from '@/lib/utils'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
-import { accountCommandReadiness, isNewExposureIntent, newExposureReadiness } from '@/lib/gateway/accountCommandReadiness'
+import {
+  accountCommandReadiness,
+  isNewExposureIntent,
+  newExposureReadiness,
+} from '@/lib/gateway/accountCommandReadiness'
 import { marketKey, useMarketStore } from '@/stores/market'
 import {
   GatewayTelemetryObserver,
@@ -474,6 +478,9 @@ export const useGatewayStore = defineStore('gateway', () => {
       case 'market_error':
         handleMarketError(message)
         return
+      case 'market_feed_unavailable':
+        handleMarketFeedUnavailable(message)
+        return
       case 'market_unsubscribed':
         marketSubscriptions.delete(message.subscription_id)
         return
@@ -508,9 +515,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     message: Extract<BrowserServerMessage, { kind: 'account_snapshot' }>,
   ): void {
     const request =
-      message.request_id === null
-        ? null
-        : subscriptionRequests.get(message.request_id)
+      message.request_id === null ? null : subscriptionRequests.get(message.request_id)
     const requestedAccount = request?.accountId ?? message.route.account_id
     if (message.request_id !== null) subscriptionRequests.delete(message.request_id)
     const accountId = message.snapshot.checkpoint.shard.account_id
@@ -656,12 +661,21 @@ export const useGatewayStore = defineStore('gateway', () => {
       } else {
         const latest = installed.samples[installed.samples.length - 1]
         recordTelemetry(
-          marketStreamEvent(demand.accountId, demand.symbol, latest ? 'ready' : 'waiting_for_sample', {
-            requestId: message.request_id,
-            source: 'window',
-            sampleCount: installed.samples.length,
-            lastSampleReceivedAtMs: latest?.received_at_ms ?? null,
-          }),
+          marketStreamEvent(
+            demand.accountId,
+            demand.symbol,
+            installed.status === 'reconnecting'
+              ? 'reconnecting'
+              : latest
+                ? 'ready'
+                : 'waiting_for_sample',
+            {
+              requestId: message.request_id,
+              source: 'window',
+              sampleCount: installed.samples.length,
+              lastSampleReceivedAtMs: latest?.received_at_ms ?? null,
+            },
+          ),
         )
       }
       clearMarketRetry(key)
@@ -689,10 +703,11 @@ export const useGatewayStore = defineStore('gateway', () => {
     ) {
       return
     }
-    const hadSample = (markets.stream(demand.accountId, demand.symbol)?.samples.length ?? 0) > 0
+    const previous = markets.stream(demand.accountId, demand.symbol)
+    const wasReady = previous?.status === 'ready' && previous.samples.length > 0
     try {
       markets.append(message.account_id, message.subscription_id, message.symbol, message.samples)
-      if (!hadSample) {
+      if (!wasReady && message.samples.length > 0) {
         const samples = markets.stream(demand.accountId, demand.symbol)?.samples ?? []
         const latest = samples[samples.length - 1]
         if (latest) {
@@ -715,6 +730,27 @@ export const useGatewayStore = defineStore('gateway', () => {
       )
       resubscribeMarket(message.subscription_id, demand)
     }
+  }
+
+  function handleMarketFeedUnavailable(
+    message: Extract<BrowserServerMessage, { kind: 'market_feed_unavailable' }>,
+  ): void {
+    const demand = marketSubscriptions.get(message.subscription_id)
+    if (
+      demand === undefined ||
+      demand.accountId !== message.account_id ||
+      demand.symbol !== message.symbol.toUpperCase()
+    )
+      return
+    // This is a recoverable health change, not failed subscription admission.
+    // Keep the same subscription so its next real price can restore valuation.
+    markets.unavailable(message.account_id, message.subscription_id, demand.symbol, message.reason)
+    recordTelemetry(
+      marketStreamEvent(demand.accountId, demand.symbol, 'reconnecting', {
+        source: 'feed_health',
+        reasonCode: 'unavailable',
+      }),
+    )
   }
 
   function handleMarketError(
@@ -895,7 +931,9 @@ export const useGatewayStore = defineStore('gateway', () => {
     ) {
       return
     }
-    if (Array.from(subscriptionRequests.values()).some((request) => request.accountId === accountId))
+    if (
+      Array.from(subscriptionRequests.values()).some((request) => request.accountId === accountId)
+    )
       return
 
     const requestId = uuid()

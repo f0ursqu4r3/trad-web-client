@@ -4,7 +4,7 @@ import { defineStore } from 'pinia'
 import type { BrowserMarketSample, BrowserMarketWindow, Uuid } from '@/lib/gateway'
 import { appendMarketSamples, installMarketWindow } from '@/lib/gateway/marketWindow'
 
-export type MarketStreamStatus = 'idle' | 'subscribing' | 'ready' | 'error'
+export type MarketStreamStatus = 'idle' | 'subscribing' | 'ready' | 'reconnecting' | 'error'
 
 export interface MarketStreamView {
   accountId: Uuid
@@ -22,12 +22,7 @@ export const useMarketStore = defineStore('market', () => {
   const streams = ref<Record<string, MarketStreamView>>({})
   const activeKeys = computed(() => Object.keys(streams.value))
 
-  function begin(
-    accountId: Uuid,
-    symbol: string,
-    requestId: Uuid,
-    preserveReady = false,
-  ): void {
+  function begin(accountId: Uuid, symbol: string, requestId: Uuid, preserveReady = false): void {
     const key = marketKey(accountId, symbol)
     const current = streams.value[key]
     streams.value[key] = {
@@ -54,16 +49,17 @@ export const useMarketStore = defineStore('market', () => {
     const current = streams.value[key]
     if (requestId !== null && current?.requestId !== requestId) return
     const installed = installMarketWindow(window)
+    const unavailableReason = window.unavailable_reason ?? null
     streams.value[key] = {
       accountId,
       symbol,
-      status: 'ready',
+      status: unavailableReason === null ? 'ready' : 'reconnecting',
       requestId: null,
       subscriptionId,
       oldestSequence: installed.oldestSequence,
       nextSequence: installed.nextSequence,
       samples: installed.samples,
-      error: null,
+      error: unavailableReason,
     }
   }
 
@@ -86,10 +82,24 @@ export const useMarketStore = defineStore('market', () => {
     )
     streams.value[key] = {
       ...current,
+      status: samples.length > 0 ? 'ready' : current.status,
+      error: samples.length > 0 ? null : current.error,
       samples: appended.samples,
       oldestSequence: appended.oldestSequence,
       nextSequence: appended.nextSequence,
     }
+  }
+
+  function unavailable(
+    accountId: Uuid,
+    subscriptionId: Uuid,
+    symbol: string,
+    reason: string,
+  ): void {
+    const key = marketKey(accountId, symbol)
+    const current = streams.value[key]
+    if (current?.subscriptionId !== subscriptionId) return
+    streams.value[key] = { ...current, status: 'reconnecting', error: reason }
   }
 
   function fail(accountId: Uuid, symbol: string, reason: string): void {
@@ -129,7 +139,18 @@ export const useMarketStore = defineStore('market', () => {
     return streams.value[marketKey(accountId, symbol)] ?? null
   }
 
-  return { streams, activeKeys, begin, install, append, fail, disconnected, remove, stream }
+  return {
+    streams,
+    activeKeys,
+    begin,
+    install,
+    append,
+    unavailable,
+    fail,
+    disconnected,
+    remove,
+    stream,
+  }
 })
 
 export function marketKey(accountId: Uuid, symbol: string): string {

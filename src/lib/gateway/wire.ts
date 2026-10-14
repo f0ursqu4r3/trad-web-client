@@ -12,7 +12,7 @@ import type {
   ProjectionRevision,
 } from './projection.ts'
 
-export const BROWSER_PROTOCOL_VERSION = 14
+export const BROWSER_PROTOCOL_VERSION = 15
 
 export interface BrowserPositionResolutionIntent {
   resolution_id: Uuid
@@ -178,6 +178,13 @@ export type BrowserServerMessage =
       subscription_id: Uuid | null
       account_id: Uuid
       error: BrowserMarketError
+    }
+  | {
+      kind: 'market_feed_unavailable'
+      subscription_id: Uuid
+      account_id: Uuid
+      symbol: string
+      reason: string
     }
   | { kind: 'market_unsubscribed'; subscription_id: Uuid }
   | {

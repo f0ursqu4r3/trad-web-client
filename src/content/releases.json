@@ -1,5 +1,58 @@
 [
   {
+    "version": "0.10.18",
+    "status": "published",
+    "released_at": "2026-10-14",
+    "channel": "Account recovery and protection accuracy",
+    "summary": "Fast partial closes and slow exchange replies no longer lock the whole account, protection edits only count as done once the exchange shows them, and live prices recover after a feed restart.",
+    "major": [],
+    "minor": [],
+    "fixes": [
+      "A problem with one trade's protection no longer stops every other trade on the account.",
+      "Moving a stop or take-profit is only marked done once the exchange shows the new price; an edit that did not reach the exchange is sent again.",
+      "Edits you make to Trad's orders directly on the exchange are kept rather than undone.",
+      "When a remainder is too small for the exchange minimum, the larger stop or take-profit is cancelled instead of being left on the position.",
+      "Take-profit levels now cover the whole filled size, without leaving a tiny leftover.",
+      "Live prices and P&L return on their own after the market feed restarts."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Fewer account lockups",
+        "items": [
+          "Exchange replies that arrive out of order during fast partial closes no longer put the account into recovery.",
+          "Exchange lookups always finish, and a lookup that cannot be completed is retried instead of waiting for a restart.",
+          "If one protection cannot be confirmed, only that trade waits for the exchange; other trades continue."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Protection matches the exchange",
+        "items": [
+          "Trad reads the real trigger and limit prices from the exchange instead of assuming its request was applied.",
+          "A stop or take-profit edit that never reached the exchange is sent again automatically.",
+          "Price edits made directly on the exchange to a Trad order become the plan, so later size changes keep them."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Small remainders",
+        "items": [
+          "Take-profit levels round together so the last level takes the remainder of the fill.",
+          "A stop or take-profit that would be larger than a sub-minimum remainder is cancelled; the small remainder stays visible on the trade."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Market feed recovery",
+        "items": [
+          "A temporary market-feed interruption keeps the price subscription open, and the next real price restores live P&L.",
+          "Open browser tabs need a reload after this update."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.17",
     "status": "published",
     "released_at": "2026-10-04",
@@ -1109,7 +1162,9 @@
     "minor": [
       "Included account selection, command entry, device inspection, charts, and durable execution history."
     ],
-    "fixes": ["Established a tagged frontend baseline for reproducible upgrades and rollback."],
+    "fixes": [
+      "Established a tagged frontend baseline for reproducible upgrades and rollback."
+    ],
     "details": [
       {
         "category": "major",

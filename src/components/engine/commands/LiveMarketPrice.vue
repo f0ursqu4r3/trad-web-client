@@ -31,6 +31,7 @@ const ageSeconds = computed(() => {
   return Math.max(0, Math.floor((now.value - latest.value.received_at_ms) / 1_000))
 })
 const formattedPrice = computed(() => {
+  if (stream.value?.status !== 'ready') return null
   const exactPrice = latest.value?.price
   const price = Number(exactPrice)
   if (!Number.isFinite(price) || price <= 0) return null
@@ -90,6 +91,7 @@ onBeforeUnmount(() => {
       <span v-if="freshness" class="freshness">· {{ freshness }}</span>
     </template>
     <template v-else-if="status === 'error'"> Price unavailable </template>
+    <template v-else-if="status === 'reconnecting'"> Price feed reconnecting… </template>
     <template v-else> Loading live price… </template>
   </span>
 </template>

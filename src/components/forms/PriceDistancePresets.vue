@@ -42,6 +42,7 @@ const sample = computed(() => {
   return samples.length === 0 ? null : samples[samples.length - 1]!
 })
 const reference = computed(() => {
+  if (stream.value?.status !== 'ready') return null
   const latest = sample.value
   if (latest === null || now.value - latest.received_at_ms >= 10_000) return null
   return latest.price
