@@ -1,5 +1,37 @@
 [
   {
+    "version": "0.10.19",
+    "status": "published",
+    "released_at": "2026-10-14",
+    "channel": "Automatic dust close",
+    "summary": "A tiny leftover below the exchange minimum is now closed automatically, and a close no longer waits forever on a leftover too small to protect.",
+    "major": [],
+    "minor": [],
+    "fixes": [
+      "When a trade is left with a remainder below Hyperliquid's $10 minimum, Trad closes it with a reduce-only order for exactly that amount.",
+      "A close that leaves such a remainder now completes instead of waiting for protection that cannot be placed.",
+      "Only stop or take-profit orders larger than the whole position are cancelled when they cannot be resized."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Dust is closed automatically",
+        "items": [
+          "Happens only when the leftover is the entire exchange position on that side, so the close cannot touch other exposure.",
+          "Sent once per trade; if the exchange refuses it, the small remainder stays visible on the trade."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Closes finish with sub-minimum remainders",
+        "items": [
+          "A close no longer stays in 'settling protection' when the remaining protection is too small for the exchange.",
+          "A stop or take-profit that still fits inside the position is left alone when it cannot be resized."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.18",
     "status": "published",
     "released_at": "2026-10-14",
