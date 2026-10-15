@@ -41,8 +41,20 @@ export function compareCommands(left: CommandProjection, right: CommandProjectio
   return left.accepted_at - right.accepted_at || left.command_id.localeCompare(right.command_id)
 }
 
+// A partial outcome is still finished: a close that stopped at its price limit
+// leaves nothing working, and the remaining position may be closed again
+// (2026-10-15: a SUI close ended partially_completed and blocked every close).
 export function terminalLifecycle(value: string): boolean {
-  return ['succeeded', 'failed', 'canceled', 'completed', 'flat', 'rejected'].includes(value)
+  return [
+    'succeeded',
+    'partially_succeeded',
+    'failed',
+    'canceled',
+    'completed',
+    'partially_completed',
+    'flat',
+    'rejected',
+  ].includes(value)
 }
 
 function decimalParts(value: string): { coefficient: bigint; scale: number } {

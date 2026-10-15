@@ -55,6 +55,8 @@ test('reports only the exact active close lineage as the support reference', () 
   }
   snapshot.close_workflows.push(
     { ...base, command_id: 'old-terminal', lifecycle: 'failed', created_at: 10 },
+    // Stopped at its price limit: finished, must not block the next close.
+    { ...base, command_id: 'stopped-at-limit', lifecycle: 'partially_completed', created_at: 20 },
     {
       ...base,
       command_id: 'other-scope',
