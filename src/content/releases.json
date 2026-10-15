@@ -1,5 +1,40 @@
 [
   {
+    "version": "0.10.20",
+    "status": "published",
+    "released_at": "2026-10-15",
+    "channel": "Exact fills on Hyperliquid",
+    "summary": "Chase and take-profit changes on Hyperliquid can no longer add unseen fills on top, every fill is counted, and a finished partial close no longer blocks the next one.",
+    "major": [],
+    "minor": [],
+    "fixes": [
+      "On Hyperliquid, Chase reprices, your order edits and take-profit changes now cancel first and place only the remainder, so a fill that lands during the change can no longer overfill or over-close.",
+      "Fills on a repriced order are counted by their exchange trade IDs, so a trade's size always matches what actually filled.",
+      "A fill above a Chase's maximum is recorded instead of pausing the account, and the trade stays closable.",
+      "After a stop starts filling, Trad no longer re-places the take profit for the apparent remainder.",
+      "A close that stopped at its price limit no longer blocks the close buttons."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Hyperliquid order changes",
+        "items": [
+          "Hyperliquid replaces an order at the requested size when it is changed, adding any fill the old order took just before. Trad now cancels, waits for the final fill, then places the rest.",
+          "Stops are unchanged: a stop cannot be partly filled while it waits, so it is still moved in one step.",
+          "A take profit is off the book for a moment while it is replaced."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Every fill counted",
+        "items": [
+          "A missed fill is fetched again on the next account check instead of being skipped once newer fills arrive.",
+          "A re-sent stop or take-profit change that times out again is checked again."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.19",
     "status": "published",
     "released_at": "2026-10-14",
