@@ -2,7 +2,7 @@
   {
     "version": "0.10.26",
     "status": "published",
-    "released_at": "2026-10-19",
+    "released_at": "2026-10-20",
     "channel": "Long and short on one coin",
     "summary": "On Hyperliquid you can now hold a Trad long and a Trad short on the same coin as separate trades, each with its own stop, take profit and close.",
     "major": [],
