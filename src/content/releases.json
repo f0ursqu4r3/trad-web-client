@@ -1,5 +1,44 @@
 [
   {
+    "version": "0.10.26",
+    "status": "published",
+    "released_at": "2026-10-19",
+    "channel": "Long and short on one coin",
+    "summary": "On Hyperliquid you can now hold a Trad long and a Trad short on the same coin as separate trades, each with its own stop, take profit and close.",
+    "major": [],
+    "minor": [
+      "Opening a trade against an existing Trad trade on the same coin now starts a new trade instead of being refused.",
+      "A Trailing Entry in the other direction opens its own trade and leaves the existing Trad trade open."
+    ],
+    "fixes": [
+      "The trade ticket no longer says Hyperliquid stops and take profits are reduce-only. They are plain orders sized to their own trade.",
+      "A working close on Hyperliquid is now labelled Close instead of Entry in the order lists.",
+      "A Chase that cannot start now shows its reason instead of waiting forever."
+    ],
+    "details": [
+      {
+        "category": "minor",
+        "title": "Long and short trades on one coin",
+        "items": [
+          "Hyperliquid holds one net position per coin. Trad keeps each trade's size, stop, take profit and P&L separately.",
+          "Each trade closes only its own size. Closing the long leaves the short open, and the reverse.",
+          "Stops and take profits are not reduce-only, so each one stays sized to its own trade.",
+          "A leftover below Hyperliquid's $10 minimum is not closed automatically while an opposite Trad trade is open. It stays visible and closes once a reduce-only close is possible again.",
+          "Flatten still closes the whole coin on the exchange, including exposure outside Trad."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Clearer order wording",
+        "items": [
+          "Stop and take-profit help text now matches each exchange: reduce-only on Binance and Bybit, plain orders on Hyperliquid.",
+          "The Trailing Entry form no longer says an opposite position is reduced first.",
+          "Old screens that previewed an order as reducing or reversing another trade were removed."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.20",
     "status": "published",
     "released_at": "2026-10-15",
