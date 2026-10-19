@@ -283,10 +283,6 @@ export type SystemMessagePayload =
   | { kind: 'GetMarketCapabilities'; data: GetMarketCapabilitiesRequest }
   | { kind: 'GetOrderThrottleSnapshot'; data: GetOrderThrottleSnapshotRequest }
   | { kind: 'GetSymbolLeverage'; data: GetSymbolLeverageRequest }
-  | {
-      kind: 'GetHyperliquidPositionEffectPreview'
-      data: HyperliquidPositionEffectPreviewRequest
-    }
   | { kind: 'GetHyperliquidPositionOwnership'; data: HyperliquidPositionOwnershipRequest }
   | { kind: 'E2ePublishBybitPublicTrades'; data: E2ePublishBybitPublicTradesRequest }
   | { kind: 'E2ePublishHyperliquidPublicTrades'; data: E2ePublishHyperliquidPublicTradesRequest }
@@ -332,20 +328,6 @@ export type GetOrderThrottleSnapshotRequest = {
 export type GetSymbolLeverageRequest = {
   market_context: MarketContext
   symbols: string[]
-}
-
-export type HyperliquidPositionEffectPreviewRequest = {
-  market_context: MarketContext
-  symbol: string
-  action: MarketAction
-  position_side: PositionSide
-  quantity: number
-  quantity_mode: OrderQuantityMode
-  reference_price?: number | null
-  risk_stop_loss?: number | null
-  risk_entry_is_maker?: boolean
-  risk_entry_slippage_fraction?: number
-  one_way_open_semantics?: OneWayOpenSemantics
 }
 
 export type HyperliquidPositionOwnershipRequest = {
@@ -500,7 +482,6 @@ export type TrailingEntryOrderCommand = {
   risk_amount: number
   market_context: MarketContext
   split_settings?: SplitSettings | null
-  one_way_open_semantics?: OneWayOpenSemantics
   builder_target_total_tenths_bps?: number | null
 }
 export type AmendTrailingEntryCommand = {
@@ -675,7 +656,6 @@ export type ServerToClientPayload =
   | { kind: 'InspectReady'; data: InspectReadyData }
   | { kind: 'Message'; data: MessageData }
   | { kind: 'MarketCapabilities'; data: MarketCapabilitiesData }
-  | { kind: 'HyperliquidPositionEffectPreview'; data: HyperliquidPositionEffectPreviewData }
   | { kind: 'HyperliquidPositionOwnership'; data: HyperliquidPositionOwnershipData }
   | { kind: 'OrderThrottleSnapshot'; data: OrderThrottleSnapshotData }
   | { kind: 'Pong'; data: PongData }
@@ -720,25 +700,6 @@ export type MarketCapabilitiesData = {
   protection_strategy: ProtectionStrategyCapability
   product?: MarketProduct | null
   notes: string[]
-}
-export type HyperliquidPositionEffectKind = 'add' | 'reduce' | 'flatten' | 'reverse' | 'noop'
-export type HyperliquidPositionEffectPreviewData = {
-  request_uuid: Uuid
-  market_context: MarketContext
-  symbol: string
-  action: MarketAction
-  position_side: PositionSide
-  requested_base_quantity: number
-  current_signed_quantity: number
-  expected_signed_quantity: number
-  effect: HyperliquidPositionEffectKind
-  owned_same_side_quantity: number
-  external_same_side_quantity: number
-  unresolved_deficit_quantity: number
-  affected_owner_count: number
-  requires_new_confirmation: boolean
-  blocked_reason?: string | null
-  observed_at: string
 }
 export type HyperliquidPositionOwnershipStatus =
   | 'flat'
@@ -1073,7 +1034,6 @@ export type TrailingEntrySnapshot = {
   take_profit?: number | null
   risk_amount: number
   split_settings?: SplitSettings | null
-  one_way_open_semantics?: OneWayOpenSemantics
   builder_target_total_tenths_bps?: number | null
   // state
   phase: TrailingEntryPhase
@@ -1191,34 +1151,6 @@ export type TrailingEntryStats = {
   dust_threshold: number
 }
 
-export type OneWayPositionEffect = {
-  baseline_signed_quantity: number
-  reduced_quantity: number
-  opened_quantity: number
-}
-
-export type OneWayTransitionPhase =
-  | 'reducing'
-  | 'opening_residual'
-  | 'residual_working'
-  | 'complete'
-  | 'canceled'
-  | 'rejected'
-  | 'reconciliation_required'
-
-export type OneWayOrderTransition = {
-  baseline_signed_quantity: number
-  reduce_quantity: number
-  residual_open_quantity: number
-  reduced_filled_quantity: number
-  opened_filled_quantity: number
-  flatten_client_order_id: string
-  working_client_order_id: string
-  phase: OneWayTransitionPhase
-}
-
-export type OneWayOpenSemantics = 'delta' | 'target_side_exposure'
-
 export type OrderSnapshot = {
   market_context: MarketContext
   market_action: MarketAction
@@ -1229,9 +1161,6 @@ export type OrderSnapshot = {
   price: number
   execution?: OrderExecution
   throttle?: boolean | null
-  one_way_open_semantics?: OneWayOpenSemantics
-  one_way_position_effect?: OneWayPositionEffect | null
-  one_way_transition?: OneWayOrderTransition | null
   execution_guards?: HyperliquidExecutionGuards | null
   builder_target_total_tenths_bps?: number | null
   status: OrderStatus
@@ -1345,7 +1274,6 @@ export type DeviceTeDelta =
         take_profit_ladder?: TakeProfitLadder | null
         risk_amount: number
         split_settings?: SplitSettings | null
-        one_way_open_semantics?: OneWayOpenSemantics
         builder_target_total_tenths_bps?: number | null
         phase: TrailingEntryPhase
         peak: number
@@ -1429,9 +1357,6 @@ export type DeviceOrderDelta =
         price: number
         execution?: OrderExecution
         throttle?: boolean | null
-        one_way_open_semantics?: OneWayOpenSemantics
-        one_way_position_effect?: OneWayPositionEffect | null
-        one_way_transition?: OneWayOrderTransition | null
         execution_guards?: HyperliquidExecutionGuards | null
         builder_target_total_tenths_bps?: number | null
         status: OrderStatus
@@ -1466,8 +1391,6 @@ export type DeviceOrderDelta =
         sent_at?: string | null
       }
     }
-  | { kind: 'OneWayPositionEffect'; data: { effect: OneWayPositionEffect } }
-  | { kind: 'OneWayTransition'; data: { transition: OneWayOrderTransition } }
   | {
       kind: 'PartiallyFilled'
       data: { cum_qty?: number | null; last_qty?: number | null; price?: number | null }

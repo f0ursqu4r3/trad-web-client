@@ -123,30 +123,6 @@ const throttleDelayLabel = computed(() => {
   return `Queued ${formatDuration(diffMs)}`
 })
 
-const oneWayEffectLabel = computed(() => {
-  const effect = props.device.one_way_position_effect
-  if (!effect) return null
-  return effect.opened_quantity > 1e-12 ? 'Reversal' : 'Reduction only'
-})
-const openSemanticsLabel = computed(() =>
-  props.device.one_way_open_semantics === 'target_side_exposure'
-    ? 'Target side exposure'
-    : 'Buy/sell delta',
-)
-
-const baselineSideLabel = computed(() => {
-  const quantity = props.device.one_way_position_effect?.baseline_signed_quantity ?? 0
-  if (quantity > 0) return 'Long'
-  if (quantity < 0) return 'Short'
-  return 'Flat'
-})
-
-const transitionPhaseLabel = computed(() => {
-  const phase = props.device.one_way_transition?.phase
-  if (!phase) return null
-  return phase.replace(/_/g, ' ')
-})
-
 function cancelLimitOrder() {
   if (!canCancelLimitOrder.value || !props.deviceId || cancelRequested.value) return
   cancelRequested.value = true
@@ -180,12 +156,6 @@ onUnmounted(() => {
         <h3 class="text-sm font-mono text-primary m-0">{{ deviceTitle }}</h3>
         <div class="flex items-center gap-2">
           <span class="pill pill-xs">{{ actionLabel }}</span>
-          <span
-            v-if="device.one_way_open_semantics === 'target_side_exposure'"
-            class="pill pill-xs pill-info"
-          >
-            TE exposure target
-          </span>
           <span v-if="device.throttle" class="pill pill-xs pill-warn">Throttled</span>
           <span :class="getStatusClass(device.status)" class="text-[10px] px-2 py-1">
             {{ device.status }}
@@ -265,51 +235,6 @@ onUnmounted(() => {
     </div>
 
     <ExecutionFillsPanel :fills="device.execution_fills ?? []" />
-
-    <div v-if="device.one_way_position_effect" class="space-y-3">
-      <h4 class="section-title">One-Way Net Effect</h4>
-      <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
-        <div>
-          <dt class="dt-label">Outcome</dt>
-          <dd class="m-0 font-mono text-primary">{{ oneWayEffectLabel }}</dd>
-        </div>
-        <div>
-          <dt class="dt-label">Open Semantics</dt>
-          <dd class="m-0 font-mono text-primary">{{ openSemanticsLabel }}</dd>
-        </div>
-        <div>
-          <dt class="dt-label">Baseline</dt>
-          <dd class="m-0 font-mono text-primary">
-            {{ baselineSideLabel }}
-            {{ formatQty(Math.abs(device.one_way_position_effect.baseline_signed_quantity)) }}
-          </dd>
-        </div>
-        <div>
-          <dt class="dt-label">Reduced</dt>
-          <dd class="m-0 font-mono text-primary">
-            {{ formatQty(device.one_way_position_effect.reduced_quantity) }}
-          </dd>
-        </div>
-        <div>
-          <dt class="dt-label">Opened Residual</dt>
-          <dd class="m-0 font-mono text-primary">
-            {{ formatQty(device.one_way_position_effect.opened_quantity) }}
-          </dd>
-        </div>
-      </div>
-      <div v-if="device.one_way_transition" class="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
-        <div>
-          <dt class="dt-label">Transition Phase</dt>
-          <dd class="m-0 font-mono text-primary capitalize">{{ transitionPhaseLabel }}</dd>
-        </div>
-        <div>
-          <dt class="dt-label">Working Client ID</dt>
-          <dd class="m-0 font-mono text-primary text-[10px] break-all">
-            {{ device.one_way_transition.working_client_order_id }}
-          </dd>
-        </div>
-      </div>
-    </div>
 
     <!-- Identifiers & Timing -->
     <div class="space-y-3">

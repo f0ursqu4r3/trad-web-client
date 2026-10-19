@@ -304,7 +304,6 @@ function handleDuplicate(command: UserCommandPayload): void {
         stop_loss: command.data.stop_loss,
         take_profit: command.data.take_profit ?? null,
         symbol: command.data.symbol,
-        one_way_open_semantics: command.data.one_way_open_semantics,
         builder_target_total_tenths_bps: command.data.builder_target_total_tenths_bps ?? null,
       } as TrailingEntryPrefill)
       break

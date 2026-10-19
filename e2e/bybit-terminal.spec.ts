@@ -261,27 +261,6 @@ test('command palette exposes concise trading aliases and hides legacy terminal 
     .toBe(1)
 })
 
-test('Hyperliquid opposite-side order preview requires fresh economic confirmation', async ({
-  page,
-}) => {
-  await page.goto('/e2e/bybit-terminal')
-  await page.getByTestId('open-hyperliquid-mo').click()
-
-  const dialog = page.getByRole('dialog', { name: 'Market Order' })
-  await dialog.getByLabel('Symbol', { exact: true }).fill('REV')
-  await expect(dialog.getByText('Reverse', { exact: true })).toBeVisible()
-  await expect(dialog.getByText('Current signed position')).toBeVisible()
-  const submit = dialog.getByRole('button', { name: 'Submit' })
-  await expect(submit).toBeDisabled()
-  await dialog.getByLabel(/Confirm reverse from/).check()
-  await expect(submit).toBeEnabled()
-
-  await dialog.getByLabel('USDC Amount').fill('60')
-  await expect(submit).toBeDisabled()
-  await dialog.getByLabel(/Confirm reverse from/).check()
-  await expect(submit).toBeEnabled()
-})
-
 test('partially filled Hyperliquid command offers cancel-remaining-and-close, not cancel', async ({
   page,
 }) => {
@@ -850,26 +829,6 @@ test('Hyperliquid TE is capability-gated, previewed, and submitted with native s
   await expect(dialog.getByText('Unavailable', { exact: true })).toBeHidden()
   await expect(dialog.getByLabel('Take Profit')).toBeVisible()
   await expect(dialog.getByText(/Hyperliquid public mid \$50,000\.00/)).toBeVisible()
-  await dialog.getByRole('button', { name: 'One-way position behavior' }).click()
-  const positionInfo = dialog.getByTestId('hyperliquid-te-position-info')
-  const sizingMode = dialog.getByRole('combobox', { name: 'One-way entry sizing' })
-  await expect(sizingMode).toHaveValue('delta')
-  await expect(
-    positionInfo.getByText('Hyperliquid maintains one net position per account and symbol.'),
-  ).toBeVisible()
-  await expect(
-    positionInfo.getByText(
-      'Delta mode treats the requested quantity as an order quantity. Existing exposure remains unowned; this TE protects and closes only newly established target-side fills.',
-    ),
-  ).toBeVisible()
-  await sizingMode.selectOption('target_side_exposure')
-  await expect(positionInfo.getByText(/including exposure created outside Trad/)).toBeVisible()
-  await sizingMode.selectOption('delta')
-  await expect(
-    positionInfo.getByText(
-      'Long and short exposure cannot remain open simultaneously on the same symbol.',
-    ),
-  ).toBeVisible()
   await expect(
     dialog.getByText(
       "Defaults to one child. Trad adds children only when Hyperliquid's order maximum requires them.",
@@ -909,7 +868,6 @@ test('Hyperliquid TE is capability-gated, previewed, and submitted with native s
       stop_loss: 49000,
       take_profit: 51000,
       risk_amount: 10,
-      one_way_open_semantics: 'delta',
       builder_target_total_tenths_bps: 52,
       split_settings: {
         target_child_notional: 50,
@@ -970,13 +928,12 @@ test('Hyperliquid short TE serializes side-correct exits and native symbols', as
       stop_loss: 3100,
       take_profit: 2800,
       risk_amount: 12,
-      one_way_open_semantics: 'delta',
       builder_target_total_tenths_bps: 52,
     },
   })
 })
 
-test('Hyperliquid TE tree exposes owned exposure, reversal, mixed children, and reconciliation', async ({
+test('Hyperliquid TE tree exposes owned exposure, mixed children, and reconciliation', async ({
   page,
 }) => {
   await page.route('**/auth/session', async (route) => {
@@ -1027,12 +984,6 @@ test('Hyperliquid TE tree exposes owned exposure, reversal, mixed children, and 
       { exact: true },
     ),
   ).toBeVisible()
-  await expect(
-    economics.getByText(
-      'This command reversed an existing one-way position. These totals include the pre-entry flatten; inspect the child fills to separate its economics from the new TE exposure.',
-      { exact: true },
-    ),
-  ).toBeVisible()
   await page.evaluate(() => window.__tradBybitTerminalFixture?.setHyperliquidTeTriggerStartZero())
   await expect(
     details
@@ -1042,11 +993,7 @@ test('Hyperliquid TE tree exposes owned exposure, reversal, mixed children, and 
   ).toBeVisible()
 
   await deviceRows.filter({ hasText: 'Market Order' }).filter({ hasText: 'Completed' }).click()
-  await expect(details.getByText('TE exposure target', { exact: true })).toBeVisible()
-  await expect(details.getByText('One-Way Net Effect', { exact: true })).toBeVisible()
-  await expect(details.getByText('Reversal', { exact: true })).toBeVisible()
-  await expect(details.getByText('Target side exposure', { exact: true })).toBeVisible()
-  await expect(details.getByText('Short 0.25', { exact: true })).toBeVisible()
+  await expect(details.getByText('One-Way Net Effect', { exact: true })).toHaveCount(0)
   await expect(details.getByText('0.75', { exact: true }).first()).toBeVisible()
 
   await deviceRows.filter({ hasText: 'Market Order' }).filter({ hasText: 'Failed' }).click()

@@ -280,7 +280,6 @@ export const useDeviceStore = defineStore('device', () => {
         te.take_profit = s.take_profit ?? null
         te.risk_amount = s.risk_amount
         te.split_settings = s.split_settings ?? te.split_settings ?? null
-        te.one_way_open_semantics = s.one_way_open_semantics ?? 'delta'
         te.builder_target_total_tenths_bps = s.builder_target_total_tenths_bps ?? null
         te.phase = s.phase
         te.peak = s.peak
@@ -316,9 +315,6 @@ export const useDeviceStore = defineStore('device', () => {
         order.price = s.price
         order.execution = s.execution ?? { kind: 'market' }
         order.throttle = s.throttle ?? false
-        order.one_way_open_semantics = s.one_way_open_semantics ?? 'delta'
-        order.one_way_position_effect = s.one_way_position_effect ?? null
-        order.one_way_transition = s.one_way_transition ?? null
         order.execution_guards = s.execution_guards ?? null
         order.builder_target_total_tenths_bps = s.builder_target_total_tenths_bps ?? null
         order.status = normalizeOrderStatus(s.status)
@@ -513,7 +509,6 @@ export const useDeviceStore = defineStore('device', () => {
             take_profit,
             risk_amount,
             split_settings,
-            one_way_open_semantics,
             builder_target_total_tenths_bps,
             phase,
             peak,
@@ -533,7 +528,6 @@ export const useDeviceStore = defineStore('device', () => {
           te.take_profit = take_profit ?? null
           te.risk_amount = risk_amount
           te.split_settings = split_settings ?? te.split_settings ?? null
-          te.one_way_open_semantics = one_way_open_semantics ?? 'delta'
           te.builder_target_total_tenths_bps = builder_target_total_tenths_bps ?? null
           te.phase = phase
           te.peak = peak
@@ -683,9 +677,6 @@ export const useDeviceStore = defineStore('device', () => {
             price,
             execution,
             throttle,
-            one_way_open_semantics,
-            one_way_position_effect,
-            one_way_transition,
             execution_guards,
             builder_target_total_tenths_bps,
             status,
@@ -704,9 +695,6 @@ export const useDeviceStore = defineStore('device', () => {
           order.price = price
           order.execution = execution ?? { kind: 'market' }
           order.throttle = throttle ?? false
-          order.one_way_open_semantics = one_way_open_semantics ?? 'delta'
-          order.one_way_position_effect = one_way_position_effect ?? null
-          order.one_way_transition = one_way_transition ?? null
           order.execution_guards = execution_guards ?? null
           order.builder_target_total_tenths_bps = builder_target_total_tenths_bps ?? null
           order.status = normalizeOrderStatus(status)
@@ -718,12 +706,6 @@ export const useDeviceStore = defineStore('device', () => {
             bindParent(device, parent_device)
           }
         }
-        break
-      case 'OneWayPositionEffect':
-        order.one_way_position_effect = delta.data.effect
-        break
-      case 'OneWayTransition':
-        order.one_way_transition = delta.data.transition
         break
       case 'Submitted':
         {
@@ -1298,7 +1280,6 @@ export interface TrailingEntryState {
   take_profit: number | null
   risk_amount: number
   split_settings?: SplitSettings | null
-  one_way_open_semantics: import('@/lib/ws/protocol').OneWayOpenSemantics
   builder_target_total_tenths_bps: number | null
 
   // state
@@ -1343,9 +1324,6 @@ export interface OrderState {
   price: number
   execution: OrderExecution
   throttle: boolean
-  one_way_open_semantics: import('@/lib/ws/protocol').OneWayOpenSemantics
-  one_way_position_effect: import('@/lib/ws/protocol').OneWayPositionEffect | null
-  one_way_transition: import('@/lib/ws/protocol').OneWayOrderTransition | null
   execution_guards: import('@/lib/ws/protocol').HyperliquidExecutionGuards | null
   builder_target_total_tenths_bps: number | null
 
@@ -1499,7 +1477,6 @@ function newTrailingEntryState(): TrailingEntryState {
     take_profit: null,
     risk_amount: 0,
     split_settings: null,
-    one_way_open_semantics: 'delta',
     builder_target_total_tenths_bps: null,
     phase: TrailingEntryPhase.Initial,
     peak: 0,
@@ -1590,9 +1567,6 @@ function newOrderState(): OrderState {
     price: 0,
     execution: { kind: 'market' },
     throttle: false,
-    one_way_open_semantics: 'delta',
-    one_way_position_effect: null,
-    one_way_transition: null,
     execution_guards: null,
     builder_target_total_tenths_bps: null,
     status: OrderStatus.NotYetSent,

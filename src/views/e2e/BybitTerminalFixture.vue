@@ -65,7 +65,6 @@ const commandSends = ref<unknown[]>([])
 const inspectCommandSends = ref<string[]>([])
 const actionContextRequestSends = ref<string[]>([])
 const chaseProtectionContextConsistent = ref(false)
-const positionPreviewScenario = ref<'add' | 'reverse'>('add')
 const marketOrderOpen = ref(false)
 const limitOrderOpen = ref(false)
 const chaseOrderOpen = ref(false)
@@ -238,50 +237,6 @@ wsStore.sendUserCommandPreview = ((payload: UserCommandPayload) => {
   }
   return requestId
 }) as typeof wsStore.sendUserCommandPreview
-wsStore.requestHyperliquidPositionEffectPreview = (request) => {
-  const requestId = crypto.randomUUID()
-  const referencePrice = request.reference_price || 50_000
-  const requestedBaseQuantity =
-    request.quantity_mode === 'notional'
-      ? request.quantity / referencePrice
-      : request.quantity_mode === 'risk' && request.risk_stop_loss
-        ? request.quantity / Math.abs(referencePrice - request.risk_stop_loss)
-        : request.quantity
-  const direction = request.position_side === PositionSide.Long ? 1 : -1
-  const currentSignedQuantity =
-    positionPreviewScenario.value === 'reverse' || request.symbol === 'REV' ? -0.0005 : 0
-  const expectedSignedQuantity =
-    request.one_way_open_semantics === 'target_side_exposure'
-      ? direction * requestedBaseQuantity
-      : currentSignedQuantity + direction * requestedBaseQuantity
-  const effect =
-    currentSignedQuantity !== 0 &&
-    expectedSignedQuantity !== 0 &&
-    Math.sign(currentSignedQuantity) !== Math.sign(expectedSignedQuantity)
-      ? 'reverse'
-      : 'add'
-  window.setTimeout(() => {
-    wsStore.hyperliquidPositionEffectPreviews[requestId] = {
-      request_uuid: requestId,
-      market_context: request.market_context,
-      symbol: request.symbol,
-      action: request.action,
-      position_side: request.position_side,
-      requested_base_quantity: requestedBaseQuantity,
-      current_signed_quantity: currentSignedQuantity,
-      expected_signed_quantity: expectedSignedQuantity,
-      effect,
-      owned_same_side_quantity: Math.abs(currentSignedQuantity),
-      external_same_side_quantity: 0,
-      unresolved_deficit_quantity: 0,
-      affected_owner_count: effect === 'reverse' ? 1 : 0,
-      requires_new_confirmation: effect === 'reverse',
-      blocked_reason: null,
-      observed_at: new Date().toISOString(),
-    }
-  }, 0)
-  return requestId
-}
 function publishHyperliquidOwnership(
   marketContext: MarketContext,
   requestId: string,
@@ -421,7 +376,6 @@ declare global {
       setChaseProtectionLadder: () => void
       getChaseProtectionLadderSize: () => number
       setHyperliquidTeEnabled: (enabled: boolean) => void
-      setPositionPreviewScenario: (scenario: 'add' | 'reverse') => void
     }
   }
 }
@@ -509,9 +463,6 @@ window.__tradBybitTerminalFixture = {
       supports_trailing_entry: enabled,
       supports_trailing_entry_close_command: enabled,
     }
-  },
-  setPositionPreviewScenario: (scenario) => {
-    positionPreviewScenario.value = scenario
   },
   setChaseStale: () => {
     const event: DeviceChaseDeltaEvent = {
@@ -1779,22 +1730,6 @@ const hyperliquidTeFilledOrderDevice = {
       price: 3_000,
       execution: { kind: 'market' },
       throttle: true,
-      one_way_open_semantics: 'target_side_exposure',
-      one_way_position_effect: {
-        baseline_signed_quantity: -0.25,
-        reduced_quantity: 0.25,
-        opened_quantity: 0.75,
-      },
-      one_way_transition: {
-        baseline_signed_quantity: -0.25,
-        reduce_quantity: 0.25,
-        residual_open_quantity: 0.75,
-        reduced_filled_quantity: 0.25,
-        opened_filled_quantity: 0.75,
-        flatten_client_order_id: '0x11111111111111111111111111111111',
-        working_client_order_id: '0x22222222222222222222222222222222',
-        phase: 'complete',
-      },
       status: OrderStatus.Filled,
       filled_qty: 0.75,
       execution_fills: [
@@ -1847,7 +1782,6 @@ const hyperliquidTeRejectedOrderDevice = {
       price: 3_000,
       execution: { kind: 'market' },
       throttle: true,
-      one_way_open_semantics: 'target_side_exposure',
       status: OrderStatus.Rejected,
       filled_qty: 0,
       execution_fills: [],
@@ -2029,7 +1963,6 @@ const hyperliquidMissedOrderDevice = {
       price: 150,
       execution: { kind: 'market' },
       throttle: true,
-      one_way_open_semantics: 'target_side_exposure',
       status: OrderStatus.Rejected,
       filled_qty: 0,
       execution_fills: [],

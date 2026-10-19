@@ -9,7 +9,6 @@ import {
   type MarketContext,
   type MarketOrderCommand,
   type HyperliquidExecutionGuardOverrides,
-  type HyperliquidPositionEffectPreviewRequest,
   type OrderQuantityMode,
   type TakeProfitLadder,
   type UserCommandPayload,
@@ -31,9 +30,7 @@ import {
 } from '@/lib/bybitOrderValidation'
 
 import type { MarketOrderPrefill } from './types'
-import HyperliquidPositionEffectPreview from './HyperliquidPositionEffectPreview.vue'
 import TakeProfitLadderEditor from './TakeProfitLadderEditor.vue'
-import { useHyperliquidPositionEffectPreview } from '@/composables/useHyperliquidPositionEffectPreview'
 import { createLogger } from '@/lib/utils'
 import {
   executionGuardOverridesFromPercent,
@@ -183,41 +180,6 @@ const quantityLabel = computed(() => {
   if (quantityMode.value === 'risk') return 'Risk at Stop (USDC)'
   return 'USDC Amount'
 })
-const riskEntrySlippageFraction = computed(() =>
-  overrideExecutionGuards.value
-    ? entryGuardPercent.value / 100
-    : accountExecutionGuards.value.entry_market_tenths_bps / 100_000,
-)
-const positionEffectRequest = computed<HyperliquidPositionEffectPreviewRequest | null>(() => {
-  const marketContext = selectedMarketContext.value
-  if (
-    !marketContext ||
-    !isHyperliquidAccount.value ||
-    !isValidHyperliquidPerpSymbol(symbol.value) ||
-    quantity.value === null ||
-    !Number.isFinite(quantity.value) ||
-    quantity.value <= 0 ||
-    (quantityMode.value === 'risk' && optionalPositivePrice(stop_loss.value) === null)
-  ) {
-    return null
-  }
-  return {
-    market_context: marketContext,
-    symbol: normalizeHyperliquidPerpSymbol(symbol.value),
-    action: action.value,
-    position_side: position_side.value,
-    quantity: quantity.value,
-    quantity_mode: quantityMode.value,
-    reference_price: null,
-    risk_stop_loss: optionalPositivePrice(stop_loss.value),
-    risk_entry_is_maker: false,
-    risk_entry_slippage_fraction: riskEntrySlippageFraction.value,
-  }
-})
-const positionEffect = useHyperliquidPositionEffectPreview(
-  positionEffectRequest,
-  computed(() => props.open && isHyperliquidAccount.value),
-)
 
 function resetExecutionGuards() {
   const guards = accountExecutionGuards.value
@@ -363,7 +325,7 @@ function submit() {
     return
   }
 
-  if (!validate() || !positionEffect.canSubmit.value) {
+  if (!validate()) {
     logger.error('Validation failed')
     return
   }
@@ -562,24 +524,11 @@ function normalizedSymbolForSubmit(): string {
       <div v-else-if="exitLevelError" class="text-xs text-error">
         {{ exitLevelError }}
       </div>
-      <HyperliquidPositionEffectPreview
-        v-if="isHyperliquidAccount"
-        :preview="positionEffect.preview.value"
-        :error="positionEffect.error.value"
-        :pending="positionEffect.pending.value"
-        :confirmed="positionEffect.confirmed.value"
-        @update:confirmed="positionEffect.setConfirmed"
-      />
     </form>
     <template #footer>
       <div class="flex gap-2 justify-end pt-2">
         <button type="button" class="btn btn-secondary" @click="emit('close')">Cancel</button>
-        <button
-          form="market-order"
-          type="submit"
-          class="btn btn-primary"
-          :disabled="!validate() || !positionEffect.canSubmit.value"
-        >
+        <button form="market-order" type="submit" class="btn btn-primary" :disabled="!validate()">
           Submit
         </button>
       </div>

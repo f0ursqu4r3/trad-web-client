@@ -3,7 +3,6 @@ import type {
   HyperliquidExecutionGuardOverrides,
   LimitTimeInForce,
   MarketAction,
-  OneWayOpenSemantics,
   OrderQuantityMode,
   PositionSide,
   TakeProfitLadder,
@@ -34,7 +33,6 @@ export type TrailingEntryPrefill = {
   stop_loss?: number
   take_profit?: number | null
   symbol?: string
-  one_way_open_semantics?: OneWayOpenSemantics
   builder_target_total_tenths_bps?: number | null
 }
 

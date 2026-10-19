@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { ChevronDown, Info, Settings2 } from 'lucide-vue-next'
+import { ChevronDown, Settings2 } from 'lucide-vue-next'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import {
   ExchangeType,
-  MarketAction,
   NetworkType,
-  type HyperliquidPositionEffectPreviewRequest,
   type MarketContext,
-  type OneWayOpenSemantics,
   type SplitMode,
   type TrailingEntryOrderCommand,
   type UserCommandPayload,
@@ -26,8 +23,6 @@ import { useSplitPreviewStore } from '@/stores/splitPreview'
 import { useWsStore } from '@/stores/ws'
 
 import type { TrailingEntryPrefill } from './types'
-import HyperliquidPositionEffectPreview from './HyperliquidPositionEffectPreview.vue'
-import { useHyperliquidPositionEffectPreview } from '@/composables/useHyperliquidPositionEffectPreview'
 import { createLogger } from '@/lib/utils'
 import { formatNumberShort } from '@/lib/numberFormat'
 import {
@@ -63,10 +58,8 @@ const stop_loss = ref<number | null>(null)
 const take_profit = ref<number | null | ''>(null)
 const risk_amount = ref<number | null>(null)
 const position_side = ref<PositionSide>(PositionSide.Long)
-const oneWayOpenSemantics = ref<OneWayOpenSemantics>('delta')
 const builderTargetTotalTenthsBps = ref(52)
 const presetAccountChangePending = ref(false)
-const showHyperliquidPositionInfo = ref(false)
 const showHyperliquidSplitControls = ref(false)
 const split_target_notional = ref<number | null>(null)
 const split_max_splits_cap = ref<number | null>(null)
@@ -211,32 +204,6 @@ const readinessWarning = computed(() =>
     ? 'Complete Hyperliquid wallet/agent setup and builder approval before opening live orders.'
     : 'Refresh credentials before opening live Bybit orders.',
 )
-const positionEffectRequest = computed<HyperliquidPositionEffectPreviewRequest | null>(() => {
-  const marketContext = selectedMarketContext.value
-  if (
-    !marketContext ||
-    !isHyperliquidAccount.value ||
-    !preview.value ||
-    preview.value.total_qty_adj <= 0
-  ) {
-    return null
-  }
-  return {
-    market_context: marketContext,
-    symbol: normalizeHyperliquidPerpSymbol(symbol.value),
-    action: MarketAction.Open,
-    position_side: position_side.value,
-    quantity: preview.value.total_qty_adj,
-    quantity_mode: 'base',
-    reference_price: preview.value.price_est,
-    one_way_open_semantics: oneWayOpenSemantics.value,
-  }
-})
-const positionEffect = useHyperliquidPositionEffectPreview(
-  positionEffectRequest,
-  computed(() => props.open && isHyperliquidAccount.value),
-)
-
 function requestSelectedCapabilities() {
   if (selectedMarketContext.value) {
     ws.requestMarketCapabilities(selectedMarketContext.value)
@@ -254,7 +221,6 @@ function applyInitialValues() {
   activation_price.value = preset.activation_price ?? null
   jump_frac_threshold.value = preset.jump_frac_threshold ?? null
   position_side.value = preset.position_side ?? PositionSide.Long
-  oneWayOpenSemantics.value = preset.one_way_open_semantics ?? 'delta'
   builderTargetTotalTenthsBps.value =
     preset.builder_target_total_tenths_bps ??
     hyperliquidTargetTotalTenthsBps(selectedAccount.value?.exchange_metadata)
@@ -266,7 +232,6 @@ function applyInitialValues() {
   split_max_splits_cap.value = null
   split_mode.value = ''
   split_slippage_margin.value = null
-  showHyperliquidPositionInfo.value = false
   showHyperliquidSplitControls.value = false
   lastAccountId.value = selectedAccountId.value
 }
@@ -300,7 +265,6 @@ watch(selectedAccountId, (next, prev) => {
     symbol.value = nextDefault
   }
   lastAccountId.value = next
-  oneWayOpenSemantics.value = 'delta'
   builderTargetTotalTenthsBps.value = hyperliquidTargetTotalTenthsBps(
     selectedAccount.value?.exchange_metadata,
   )
@@ -349,7 +313,7 @@ function submit() {
     logger.error('No market context found for account', selectedAccountId.value)
     return
   }
-  if (!validate() || !positionEffect.canSubmit.value) {
+  if (!validate()) {
     logger.error('Validation failed')
     return
   }
@@ -365,7 +329,6 @@ function submit() {
     stop_loss: stop_loss.value as number,
     take_profit: normalizedTakeProfit,
     symbol: normalizedSymbolForSubmit(),
-    one_way_open_semantics: isHyperliquidAccount.value ? oneWayOpenSemantics.value : 'delta',
     builder_target_total_tenths_bps: isHyperliquidAccount.value
       ? builderTargetTotalTenthsBps.value
       : null,
@@ -766,50 +729,6 @@ function formatNumber(value: number, digits: number) {
       </div>
 
       <div v-if="isHyperliquidAccount" class="space-y-2">
-        <label class="field">
-          <span>One-way entry sizing</span>
-          <select v-model="oneWayOpenSemantics">
-            <option value="delta">Order delta (default)</option>
-            <option value="target_side_exposure">Target final exposure (advanced)</option>
-          </select>
-          <small v-if="oneWayOpenSemantics === 'delta'" class="form-hint">
-            The requested quantity is submitted as the order quantity. Hyperliquid nets it against
-            any opposite position; protection owns only newly established target-side exposure.
-          </small>
-          <small v-else class="form-hint">
-            At trigger, Trad recomputes the order needed to reach the requested final
-            {{ position_side.toLowerCase() }} exposure. Opposite exposure may be flattened first.
-          </small>
-        </label>
-        <button
-          type="button"
-          class="btn btn-ghost btn-sm inline-flex items-center gap-2"
-          :aria-expanded="showHyperliquidPositionInfo"
-          aria-controls="hyperliquid-te-position-info"
-          title="Hyperliquid one-way position behavior"
-          @click="showHyperliquidPositionInfo = !showHyperliquidPositionInfo"
-        >
-          <Info :size="14" aria-hidden="true" />
-          <span>One-way position behavior</span>
-        </button>
-        <div
-          v-if="showHyperliquidPositionInfo"
-          id="hyperliquid-te-position-info"
-          data-testid="hyperliquid-te-position-info"
-          class="position-info"
-        >
-          <p>Hyperliquid maintains one net position per account and symbol.</p>
-          <p v-if="oneWayOpenSemantics === 'delta'">
-            Delta mode treats the requested quantity as an order quantity. Existing exposure
-            remains unowned; this TE protects and closes only newly established target-side fills.
-          </p>
-          <p v-else>
-            Target final exposure mode recomputes at trigger. Trad may close the entire opposite
-            position, including exposure created outside Trad, before opening the requested
-            {{ position_side.toLowerCase() }} target.
-          </p>
-          <p>Long and short exposure cannot remain open simultaneously on the same symbol.</p>
-        </div>
         <HyperliquidTargetTotalField
           v-if="selectedAccount"
           v-model="builderTargetTotalTenthsBps"
@@ -954,25 +873,12 @@ function formatNumber(value: number, digits: number) {
           </div>
           <div class="preview-note">Estimate uses current price; splits can change at trigger.</div>
         </div>
-        <HyperliquidPositionEffectPreview
-          v-if="isHyperliquidAccount"
-          :preview="positionEffect.preview.value"
-          :error="positionEffect.error.value"
-          :pending="positionEffect.pending.value"
-          :confirmed="positionEffect.confirmed.value"
-          @update:confirmed="positionEffect.setConfirmed"
-        />
       </div>
     </form>
     <template #footer>
       <div class="flex gap-2 justify-end pt-2">
         <button type="button" class="btn btn-secondary" @click="emit('close')">Cancel</button>
-        <button
-          form="trailing-entry"
-          type="submit"
-          class="btn btn-primary"
-          :disabled="!validate() || !positionEffect.canSubmit.value"
-        >
+        <button form="trailing-entry" type="submit" class="btn btn-primary" :disabled="!validate()">
           Submit
         </button>
       </div>
@@ -1025,16 +931,5 @@ function formatNumber(value: number, digits: number) {
 .preview-note {
   color: var(--color-text-dim);
   font-size: 11px;
-}
-.position-info {
-  border: 1px solid color-mix(in srgb, var(--color-warning) 60%, var(--border-color));
-  padding: 0.75rem;
-  color: var(--color-text);
-  font-size: 11px;
-  display: grid;
-  gap: 0.5rem;
-}
-.position-info p {
-  margin: 0;
 }
 </style>

@@ -84,13 +84,6 @@ const commandExecutionFills = computed<ExecutionFill[]>(() => {
 })
 const commandEconomics = computed(() => summarizeExecutionFills(commandExecutionFills.value))
 const hasCommandEconomics = computed(() => commandExecutionFills.value.length > 0)
-const includesOneWayReversal = computed(() =>
-  deviceStore.devices.some((device) => {
-    if (device.associated_command_id !== props.commandId || device.kind !== 'Order') return false
-    const transition = (device.state as OrderState).one_way_transition
-    return transition !== null && transition.reduced_filled_quantity > 0
-  }),
-)
 const closeInProgress = computed(() => {
   if (!props.commandId) return false
   return deviceStore.devices.some((device) => {
@@ -208,18 +201,6 @@ const networkLabel = computed(() => {
           </dt>
           <dd class="m-0 font-mono text-[var(--color-text)]">
             ${{ formatPrice(device.risk_amount) }}
-          </dd>
-        </div>
-        <div v-if="device.market_context.type === 'hyperliquid'">
-          <dt class="text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-dim)] mb-1">
-            One-Way Sizing
-          </dt>
-          <dd class="m-0 font-mono text-[var(--color-text)]">
-            {{
-              device.one_way_open_semantics === 'target_side_exposure'
-                ? 'Target final exposure'
-                : 'Order delta'
-            }}
           </dd>
         </div>
         <div v-if="device.builder_target_total_tenths_bps != null">
@@ -461,10 +442,6 @@ const networkLabel = computed(() => {
       <p class="m-0 text-[10px] text-[var(--color-text-dim)]">
         Realized exchange-reported PnL minus execution fees. Funding and unrealized PnL are not
         included.
-      </p>
-      <p v-if="includesOneWayReversal" class="m-0 text-[10px] text-[var(--color-warning)]">
-        This command reversed an existing one-way position. These totals include the pre-entry
-        flatten; inspect the child fills to separate its economics from the new TE exposure.
       </p>
     </div>
 
