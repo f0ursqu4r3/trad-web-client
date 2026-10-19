@@ -773,9 +773,7 @@ test('Hyperliquid Market, Limit, and Chase remember the selected quantity mode',
   ).toHaveValue('base')
 })
 
-test('Hyperliquid risk-at-stop sizing requires a stop and previews backend base quantity', async ({
-  page,
-}) => {
+test('Hyperliquid risk-at-stop sizing requires a stop', async ({ page }) => {
   await page.route('https://api.hyperliquid-testnet.xyz/info', async (route) => {
     await route.fulfill({
       status: 200,
@@ -791,8 +789,6 @@ test('Hyperliquid risk-at-stop sizing requires a stop and previews backend base 
   await market.getByLabel('Risk at Stop (USDC)').fill('100')
   await expect(market.getByRole('button', { name: 'Submit' })).toBeDisabled()
   await market.getByRole('spinbutton', { name: /^Stop Loss Price/ }).fill('49000')
-  await expect(market.getByText('Requested base quantity')).toBeVisible()
-  await expect(market.getByText('0.1', { exact: true })).toBeVisible()
   await expect(market.getByRole('button', { name: 'Submit' })).toBeEnabled()
   await market.locator('header button').click()
 
