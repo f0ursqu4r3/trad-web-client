@@ -8,7 +8,13 @@ import { newTakeProfit } from '@/lib/engineCommands/form'
 import { labelWithUnit, type MarketUnits } from '@/lib/engineCommands/marketUnits'
 import type { TradeTicketDraft } from '@/lib/trader/tradeTicketDraft'
 
-defineProps<{ units: MarketUnits; accountId: string }>()
+const props = defineProps<{
+  units: MarketUnits
+  accountId: string
+  // Hedge-mode venues close with reduce-only orders. On Hyperliquid each Trad
+  // trade keeps its own stop and TP, so they are plain orders sized to the trade.
+  reduceOnlyExits: boolean
+}>()
 const draft = defineModel<TradeTicketDraft>({ required: true })
 
 function addTakeProfit(): void {
@@ -61,7 +67,11 @@ function removeTakeProfit(id: string): void {
     <FormField
       v-if="draft.protection.stopLoss.enabled"
       :label="labelWithUnit('Stop-loss price', units.quote)"
-      help="Triggers a reduce-only market exit sized only to this Trad-managed exposure."
+      :help="
+        props.reduceOnlyExits
+          ? 'Triggers a reduce-only market exit sized to this trade.'
+          : 'Triggers a market exit sized to this trade. It is not reduce-only, so a long and a short on this coin each keep their own stop.'
+      "
       telemetry-field="stop_loss_price"
       required
     >
@@ -86,7 +96,11 @@ function removeTakeProfit(id: string): void {
     >
       <FormField
         :label="labelWithUnit(`Take-profit ${index + 1}`, units.quote)"
-        help="A plain reduce-only limit order for this managed exposure."
+        :help="
+          props.reduceOnlyExits
+            ? 'A reduce-only limit order sized to this trade.'
+            : 'A plain limit order sized to this trade. It is not reduce-only.'
+        "
         telemetry-field="take_profit_price"
         required
       >

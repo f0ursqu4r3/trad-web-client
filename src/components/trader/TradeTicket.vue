@@ -48,6 +48,9 @@ const observedFields = new Set<string>()
 
 const account = computed(() => accounts.selectedAccount)
 const accountId = computed(() => account.value?.id ?? '')
+const reduceOnlyExits = computed(
+  () => account.value != null && account.value.exchange !== 'hyperliquid',
+)
 const units = computed(() => marketUnits(account.value, draft.symbol))
 const planningIntent = computed(() => {
   try {
@@ -247,6 +250,7 @@ defineExpose({ applyPrefill })
         :model-value="draft"
         :account-id="accountId"
         :units="units"
+        :reduce-only-exits="reduceOnlyExits"
         @update:model-value="replaceDraft"
       />
 

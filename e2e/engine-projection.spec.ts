@@ -374,7 +374,7 @@ test('duplicates an accepted command into a fresh exact form without submitting 
   await expect(modal.getByLabel('Jump Threshold (bps)')).toHaveValue('10')
   await expect(modal.getByLabel('Stop Loss Price')).toHaveValue('140')
   await expect(modal.getByLabel('Take Profit Price (optional)')).toHaveValue('155')
-  await expect(modal.getByLabel('Hyperliquid One-Way Behavior')).toHaveValue('target_side_exposure')
+  await expect(modal.getByLabel('Hyperliquid Entry Sizing')).toHaveValue('target_side_exposure')
   await expect(modal.getByLabel('Execution Shape')).toHaveValue('single')
   await expect(fixture.getByTestId('latest-lifecycle-intent')).toHaveText('none')
 })

@@ -285,17 +285,21 @@ function buildIntent() {
         <FormField
           v-if="isHyperliquid"
           class="one-way-field"
-          label="Hyperliquid One-Way Behavior"
-          help="Controls how Trad handles existing exposure because Hyperliquid cannot hold long and short simultaneously."
+          label="Hyperliquid Entry Sizing"
+          help="This entry opens its own trade. Trad trades on the other side of this coin stay open with their own stop and take profit."
           required
         >
           <select v-model="oneWaySemantics" class="input">
             <option value="delta">Add Requested Quantity</option>
             <option value="target_side_exposure">Reach Target-Side Exposure</option>
           </select>
-          <small>
-            Hyperliquid cannot hold both sides. An opposite position is reduced before the requested
-            side is established.
+          <small v-if="oneWaySemantics === 'delta'">
+            Trades exactly the requested quantity. Hyperliquid nets it against any opposite
+            position.
+          </small>
+          <small v-else>
+            Also covers any opposite position opened outside Trad, so the new trade can be larger
+            than requested. Other Trad trades are not counted or closed.
           </small>
         </FormField>
         <ShapeFields
