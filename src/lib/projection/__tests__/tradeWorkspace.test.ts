@@ -98,6 +98,25 @@ test('keeps external orders explicitly outside every managed trade', () => {
   assert.equal(external?.purpose, 'External')
 })
 
+test('labels a Hyperliquid close as a close although it is not reduce-only', () => {
+  const snapshot = engineProjectionSnapshot()
+  const entry = snapshot.orders.find((order) => !order.terminal)
+  assert.ok(entry)
+  const closeSide = entry.current_request.position_side === 'long' ? 'sell' : 'buy'
+  snapshot.orders.push({
+    ...structuredClone(entry),
+    order_id: '39000000-0000-4000-8000-000000000201',
+    current_request: { ...entry.current_request, side: closeSide, reduce_only: false },
+  })
+
+  const orders = tradeWorkspaceProjection(snapshot).openOrders
+  assert.equal(orders.find((order) => order.id === entry.order_id)?.purpose, 'Entry')
+  assert.equal(
+    orders.find((order) => order.id === '39000000-0000-4000-8000-000000000201')?.purpose,
+    'Close',
+  )
+})
+
 test('does not adopt outside venue exposure into a managed trade', () => {
   const snapshot = engineProjectionSnapshot()
   const eth = snapshot.positions.find((position) => position.symbol === 'ETH')

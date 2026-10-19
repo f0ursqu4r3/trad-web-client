@@ -1,4 +1,4 @@
-import type { BrowserAccountSnapshot } from '../gateway/index.ts'
+import { orderRequestCloses, type BrowserAccountSnapshot } from '../gateway/index.ts'
 import type { WorkspaceOrderView } from './tradeWorkspaceTypes.ts'
 import { stringValue, title } from './tradeWorkspaceValues.ts'
 
@@ -14,7 +14,7 @@ export function workspaceOpenOrders(
         id: order.order_id,
         symbol: order.current_request.symbol,
         side: order.current_request.side,
-        purpose: order.current_request.reduce_only ? 'Close' : 'Entry',
+        purpose: orderRequestCloses(order.current_request) ? 'Close' : 'Entry',
         execution: title(stringValue(execution.kind) ?? 'order'),
         remainingQuantity: order.remaining_quantity,
         price: stringValue(execution.price) ?? stringValue(execution.worst_price),

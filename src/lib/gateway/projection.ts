@@ -492,6 +492,12 @@ export interface OrderRequestProjection {
   reduce_only: boolean
 }
 
+// An order closes when it trades against its position side. Trad's closes on
+// Hyperliquid are not reduce-only, so reduce_only cannot tell a close apart.
+export function orderRequestCloses(request: OrderRequestProjection): boolean {
+  return request.side === (request.position_side === 'long' ? 'sell' : 'buy')
+}
+
 export type OrderGenerationLifecycle =
   | 'pending_submission'
   | 'working'

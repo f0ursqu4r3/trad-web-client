@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatExactDecimal } from '@/lib/exactDecimalMath'
+import { orderRequestCloses } from '@/lib/gateway'
 import type { ManagedTradeView } from '@/lib/projection/tradeWorkspace'
 
 defineProps<{ trade: ManagedTradeView }>()
@@ -21,7 +22,7 @@ defineProps<{ trade: ManagedTradeView }>()
         </thead>
         <tbody>
           <tr v-for="order in trade.orders" :key="order.order_id">
-            <td>{{ order.current_request.reduce_only ? 'Close' : 'Entry' }}</td>
+            <td>{{ orderRequestCloses(order.current_request) ? 'Close' : 'Entry' }}</td>
             <td>{{ String(order.current_request.execution.kind).replace(/_/g, ' ') }}</td>
             <td>{{ formatExactDecimal(order.filled_quantity) }}</td>
             <td>{{ formatExactDecimal(order.remaining_quantity) }}</td>

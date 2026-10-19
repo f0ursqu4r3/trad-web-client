@@ -4,7 +4,7 @@ import type {
   ProjectionGraph,
   ProjectionNodeId,
 } from '../gateway/index.ts'
-import { orderGenerationLifecycleName } from '../gateway/index.ts'
+import { orderGenerationLifecycleName, orderRequestCloses } from '../gateway/index.ts'
 import { isExactZero } from '../exactDecimalMath.ts'
 import {
   commandProtectionScopeId,
@@ -314,7 +314,8 @@ function terminalEntityLabel(entity: ProjectionEntity): string {
 }
 
 function entityIntent(entity: ProjectionEntity): string | null {
-  if (entity.kind === 'order') return entity.row.current_request.reduce_only ? 'Close' : 'Open'
+  if (entity.kind === 'order')
+    return orderRequestCloses(entity.row.current_request) ? 'Close' : 'Open'
   if (entity.kind === 'execution_group') return title(entity.row.purpose)
   if (entity.kind === 'close_workflow') return 'Close'
   return null
@@ -403,7 +404,7 @@ function relationshipBadge(
     case 'command_root':
       if (entity.kind !== 'order') return null
       return badge(
-        entity.row.current_request.reduce_only ? 'Closing execution' : 'Opening execution',
+        orderRequestCloses(entity.row.current_request) ? 'Closing execution' : 'Opening execution',
         'dim',
       )
     case 'execution_child':
