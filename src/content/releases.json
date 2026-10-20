@@ -1,5 +1,46 @@
 [
   {
+    "version": "0.10.27",
+    "status": "published",
+    "released_at": "2026-10-20",
+    "channel": "Problems stay on one trade",
+    "summary": "A problem on one trade, or an order you place on Hyperliquid yourself, no longer stops your other Trad trades. A Chase can now fill its rest at market, and the one-tap Chase close keeps going until it fills.",
+    "major": [],
+    "minor": [
+      "A Chase can send its unfilled rest at market when it times out or reaches its maximum distance. Turn it on in the trade ticket, the Chase form or the Chase close form.",
+      "The one-tap Chase close on a trade card now keeps following the book until the close fills. Cancel the Chase to stop it.",
+      "An entry Chase now stops when its price reaches the trade's own stop or take profit, instead of buying into a trade that is already stopped out or past its target.",
+      "New Hyperliquid accounts start with a 0.1% entry guard and a 3% stop guard (0.5% and 10% before). Accounts you already have keep their own values."
+    ],
+    "fixes": [
+      "Orders you place on Hyperliquid yourself no longer block new Trad trades.",
+      "A problem on one trade now shows on that trade only, instead of flagging every trade on the coin or the whole account.",
+      "When Hyperliquid sends something Trad cannot process, Trad keeps running and flags the order or coin it concerns, with the reason."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Problems stay where they are",
+        "items": [
+          "Only a problem with a whole coin pauses new trades on that coin. The reason shows on that coin's trades and in the account positions.",
+          "Only a problem with the whole account pauses all new trades. The account badge then says sync blocked and shows the reason.",
+          "A flagged trade or coin shows as needs attention in the account badge. New trades elsewhere work as usual.",
+          "Closing and canceling stay available while new trades are paused."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Chase rest at market",
+        "items": [
+          "The rest goes at market only when the Chase times out or reaches its maximum distance. Canceling it, or an entry Chase stopping at its own stop or take profit, sends nothing.",
+          "A Chase with no maximum distance and no expiry follows the book until it fills, so the option is off for it.",
+          "While the rest waits to be sent, for example for Hyperliquid to confirm the position, the trade card shows that and why.",
+          "For a close, the rest is a market close of that trade only, never more than the trade still holds."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.26",
     "status": "published",
     "released_at": "2026-10-20",
