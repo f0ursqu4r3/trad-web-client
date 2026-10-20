@@ -6,6 +6,7 @@ import {
   DEFAULT_ACCOUNT_CREATION_EXCHANGE,
 } from '@/lib/accountAvailability'
 import { buildAccountFormPayload } from '@/lib/accountFormPayload'
+import { HYPERLIQUID_DEFAULT_EXECUTION_GUARDS } from '@/lib/hyperliquidExecutionGuards'
 import { enumKeyName } from '@/lib/utils'
 import { NetworkType, ExchangeType } from '@/lib/ws/protocol'
 import {
@@ -263,9 +264,11 @@ function buildExchangeMetadata() {
     agent_approved: false,
     default_leverage: defaultLeverage.value,
     margin_mode: hyperliquidMarginMode.value,
-    entry_market_guard_tenths_bps: 500,
-    take_profit_market_guard_tenths_bps: 1000,
-    stop_loss_market_guard_tenths_bps: 10000,
+    entry_market_guard_tenths_bps: HYPERLIQUID_DEFAULT_EXECUTION_GUARDS.entry_market_tenths_bps,
+    take_profit_market_guard_tenths_bps:
+      HYPERLIQUID_DEFAULT_EXECUTION_GUARDS.take_profit_market_tenths_bps,
+    stop_loss_market_guard_tenths_bps:
+      HYPERLIQUID_DEFAULT_EXECUTION_GUARDS.stop_loss_market_tenths_bps,
   }
 }
 </script>

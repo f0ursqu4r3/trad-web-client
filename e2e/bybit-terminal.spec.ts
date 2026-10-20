@@ -2711,9 +2711,9 @@ test('Hyperliquid account creation submits wallet agent and exchange metadata', 
     agent_approved: false,
     default_leverage: 3,
     margin_mode: 'isolated',
-    entry_market_guard_tenths_bps: 500,
+    entry_market_guard_tenths_bps: 100,
     take_profit_market_guard_tenths_bps: 1000,
-    stop_loss_market_guard_tenths_bps: 10000,
+    stop_loss_market_guard_tenths_bps: 3000,
   }
 
   await expect.poll(() => validationPayload?.exchange).toBe('hyperliquid')

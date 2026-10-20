@@ -68,7 +68,7 @@ const takeProfitLadderValid = ref(true)
 const stopLoss = ref<number | null | ''>(null)
 const overrideProtectionGuards = ref(false)
 const takeProfitGuardPercent = ref(1)
-const stopLossGuardPercent = ref(10)
+const stopLossGuardPercent = ref(3)
 const builderTargetTotalTenthsBps = ref(52)
 const presetAccountChangePending = ref(false)
 

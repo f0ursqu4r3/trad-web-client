@@ -3,10 +3,12 @@ import type {
   HyperliquidExecutionGuards,
 } from '@/lib/ws/protocol'
 
+// 0.1% entry and 3% stop since v0.10.27 (0.5% and 10% before). An account
+// keeps the values stored in its metadata; these fill only what is missing.
 export const HYPERLIQUID_DEFAULT_EXECUTION_GUARDS: HyperliquidExecutionGuards = {
-  entry_market_tenths_bps: 500,
+  entry_market_tenths_bps: 100,
   take_profit_market_tenths_bps: 1000,
-  stop_loss_market_tenths_bps: 10000,
+  stop_loss_market_tenths_bps: 3000,
 }
 
 export const HYPERLIQUID_MAX_EXECUTION_GUARD_TENTHS_BPS = 50000
