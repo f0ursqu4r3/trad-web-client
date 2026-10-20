@@ -65,6 +65,11 @@ export interface ProjectionCheckpoint {
   projection_revision: ProjectionRevision
   summary: AccountProjectionSummary
   legacy_migration?: LegacyMigrationProjection
+  // Why the whole account takes no new risk; absent when it does. Flags on
+  // single trades never set it (summary.reconciliation_required counts them).
+  new_risk_blocked_reason?: string | null
+  // Coins that refuse new risk, with the engine's reason.
+  new_risk_blocked_symbols?: Record<string, string>
 }
 
 export interface LegacyMigrationProjection {

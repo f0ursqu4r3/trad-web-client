@@ -67,7 +67,7 @@ const readiness = computed(() => {
     return error instanceof Error ? error.message : String(error)
   }
   if (!gateway.isConnected) return 'Waiting for the Trad gateway.'
-  const accountReadiness = gateway.newRiskReadiness(accountId.value)
+  const accountReadiness = gateway.newRiskReadiness(accountId.value, draft.symbol.trim() || null)
   if (!accountReadiness.ready) return accountReadiness.reason
   if (previewStatus.value === 'rejected') return null
   if (!previewReady.value) return 'Waiting for the authoritative execution preview.'

@@ -113,6 +113,8 @@ function applyFixtureDelta(options: {
   unscopedExternalOrders?: number
   positionDeficit?: boolean
   positionExternalFlatten?: boolean
+  newRiskBlockedReason?: string | null
+  newRiskBlockedSymbols?: Record<string, string>
 }): void {
   const live = projections.selectedLive
   if (live === null) throw new Error('fixture projection is not installed')
@@ -198,6 +200,12 @@ function applyFixtureDelta(options: {
     checkpoint: {
       ...live.checkpoint,
       projection_revision: live.checkpoint.projection_revision + 1,
+      new_risk_blocked_reason:
+        options.newRiskBlockedReason === undefined
+          ? live.checkpoint.new_risk_blocked_reason
+          : options.newRiskBlockedReason,
+      new_risk_blocked_symbols:
+        options.newRiskBlockedSymbols ?? live.checkpoint.new_risk_blocked_symbols,
       summary: {
         ...live.checkpoint.summary,
         reconciliation_ready:

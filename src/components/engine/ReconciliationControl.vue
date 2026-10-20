@@ -5,7 +5,21 @@ import { useAccountProjectionStore } from '@/stores/accountProjection'
 
 const projections = useAccountProjectionStore()
 
-const summary = computed(() => projections.selectedLive?.checkpoint.summary ?? null)
+const checkpoint = computed(() => projections.selectedLive?.checkpoint ?? null)
+const summary = computed(() => checkpoint.value?.summary ?? null)
+// The engine's own reason the whole account takes no new risk. Flags on single
+// trades and blocked coins never set it.
+const accountBlockedReason = computed(
+  () => checkpoint.value?.new_risk_blocked_reason?.trim() || null,
+)
+const blockedCoins = computed(() =>
+  Object.entries(checkpoint.value?.new_risk_blocked_symbols ?? {}).sort(([left], [right]) =>
+    left.localeCompare(right),
+  ),
+)
+// The engine's reason while a reconciliation cycle is still running; that is
+// checking, not a block.
+const RECONCILIATION_RUNNING_REASON = 'account setup or exchange reconciliation is still running'
 const phase = computed(() => {
   const projection = projections.selected
   if (projection?.status !== 'ready') {
@@ -22,10 +36,20 @@ const phase = computed(() => {
     return 'unavailable'
   }
   const status = summary.value?.reconciliation_status ?? 'unknown'
-  if (summary.value?.reconciliation_required && summary.value.reconciliation_ready === false) {
-    return 'blocked'
+  if (summary.value?.reconciliation_ready === false) {
+    const reason = accountBlockedReason.value
+    if (reason !== null && reason !== RECONCILIATION_RUNNING_REASON) return 'blocked'
+    if (status === 'ready') return 'blocked'
+    return status
   }
-  if (status === 'ready' && summary.value?.reconciliation_ready === false) return 'blocked'
+  // A flagged trade or a blocked coin needs attention; the account still
+  // takes new trades everywhere else.
+  if (
+    status === 'ready' &&
+    (summary.value?.reconciliation_required || blockedCoins.value.length > 0)
+  ) {
+    return 'attention'
+  }
   return status
 })
 const label = computed(() => {
@@ -38,6 +62,8 @@ const label = computed(() => {
       return 'checking exchange'
     case 'ready':
       return 'reconciled'
+    case 'attention':
+      return 'needs attention'
     case 'blocked':
       return 'sync blocked'
     case 'authorization_failed':
@@ -52,6 +78,7 @@ const label = computed(() => {
       return phase.value
   }
 })
+const coinReasons = computed(() => blockedCoins.value.map(([coin, reason]) => `${coin}: ${reason}`))
 const title = computed(() => {
   if (phase.value === 'loading') return 'Waiting for the authoritative account projection.'
   if (phase.value === 'resyncing') {
@@ -61,6 +88,9 @@ const title = computed(() => {
     return projections.selected?.error ?? 'Account projection is unavailable'
   }
   if (phase.value === 'blocked') {
+    if (accountBlockedReason.value !== null) {
+      return `New trades are paused: ${accountBlockedReason.value}`
+    }
     const current = summary.value
     if (current === null) return 'Account reconciliation is not ready for new exposure'
     const reasons = [
@@ -68,17 +98,19 @@ const title = computed(() => {
       current.unresolved_external_orders > 0
         ? `${current.unresolved_external_orders} external orders are unresolved`
         : null,
-      current.unscoped_external_orders > 0
-        ? `${current.unscoped_external_orders} external orders have unknown scope`
-        : null,
       current.unresolved_protection_inventory > 0
         ? `${current.unresolved_protection_inventory} protection orders are unresolved`
         : null,
-      current.reconciliation_required ? 'authoritative reconciliation is required' : null,
     ].filter((reason): reason is string => reason !== null)
     return reasons.length === 0
       ? 'Account reconciliation is not ready for new exposure'
       : `Account reconciliation is blocked: ${reasons.join('; ')}`
+  }
+  if (phase.value === 'attention') {
+    if (coinReasons.value.length > 0) {
+      return `New trades are paused on ${coinReasons.value.join('; ')}. Other coins are unaffected.`
+    }
+    return 'A trade needs attention; its card shows the reason. Other trades are unaffected.'
   }
   if (phase.value === 'reconciling') {
     return 'Checking authoritative exchange state. This is not itself a position reconciliation failure.'
@@ -132,6 +164,7 @@ const title = computed(() => {
 }
 
 .reconciliation-state[data-phase='blocked'],
+.reconciliation-state[data-phase='attention'],
 .reconciliation-state[data-phase='reconciling'],
 .reconciliation-state[data-phase='resyncing'] {
   color: var(--status-warning, #f1b84b);

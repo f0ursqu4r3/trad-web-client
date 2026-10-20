@@ -23,6 +23,7 @@ import {
   accountCommandReadiness,
   isNewExposureIntent,
   newExposureReadiness,
+  newExposureSymbol,
 } from '@/lib/gateway/accountCommandReadiness'
 import { marketKey, useMarketStore } from '@/stores/market'
 import {
@@ -214,7 +215,8 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (isNewExposureIntent(intent)) {
       const newRisk = newExposureReadiness(
         readiness,
-        projections.byAccount[accountId]?.view?.live.checkpoint.summary.reconciliation_ready,
+        projections.byAccount[accountId]?.view?.live.checkpoint,
+        newExposureSymbol(intent),
       )
       if (!newRisk.ready) {
         telemetry.readinessBlocked(attempt, newRisk.reason)
@@ -1129,7 +1131,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     pendingHistoryCount.value = pendingHistories.size
   }
 
-  function newRiskReadiness(accountId: Uuid) {
+  function newRiskReadiness(accountId: Uuid, symbol: string | null = null) {
     const account = accounts.accounts.find((candidate) => candidate.id === accountId)
     const command = accountCommandReadiness(
       status.value === 'ready',
@@ -1138,7 +1140,8 @@ export const useGatewayStore = defineStore('gateway', () => {
     )
     return newExposureReadiness(
       command,
-      projections.byAccount[accountId]?.view?.live.checkpoint.summary.reconciliation_ready,
+      projections.byAccount[accountId]?.view?.live.checkpoint,
+      symbol,
     )
   }
 

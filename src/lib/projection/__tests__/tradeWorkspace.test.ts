@@ -209,18 +209,35 @@ test('surfaces authoritative Chase all-in risk accounting and fee provenance', (
   assert.equal(trade?.chasePriceRisk?.fee_risk?.observed_entry_fee_variance, '5.1')
 })
 
-test('surfaces reconciliation attention without losing trade identity', () => {
+test('surfaces a coin block with the engine reason without losing trade identity', () => {
   const snapshot = engineProjectionSnapshot()
   const eth = snapshot.positions.find((position) => position.symbol === 'ETH')
   assert.ok(eth)
   eth.reconciliation_required = true
   eth.status = 'reconciliation_required'
+  snapshot.checkpoint.new_risk_blocked_symbols = {
+    ETH: 'the ETH position has fills Trad cannot assign to a trade',
+  }
 
   const trade = tradeWorkspaceProjection(snapshot).activeTrades.find((row) => row.symbol === 'ETH')
 
   assert.equal(trade?.tradeId, 'scope:scope-filled')
   assert.equal(trade?.lifecycle, 'attention')
-  assert.equal(trade?.attentionReason, 'Position reconciliation is required.')
+  assert.equal(trade?.attentionReason, 'the ETH position has fills Trad cannot assign to a trade')
+})
+
+test('a position flag without a coin block does not flag every trade on the coin', () => {
+  const snapshot = engineProjectionSnapshot()
+  const eth = snapshot.positions.find((position) => position.symbol === 'ETH')
+  assert.ok(eth)
+  eth.reconciliation_required = true
+  eth.status = 'reconciliation_required'
+  snapshot.checkpoint.new_risk_blocked_symbols = { BTC: 'a BTC fill matches no Trad order' }
+
+  const trade = tradeWorkspaceProjection(snapshot).activeTrades.find((row) => row.symbol === 'ETH')
+
+  assert.equal(trade?.lifecycle, 'active')
+  assert.equal(trade?.attentionReason, null)
 })
 
 test('presents exchange confirmation as progress instead of reconciliation attention', () => {

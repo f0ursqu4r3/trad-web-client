@@ -85,7 +85,13 @@ export function buildManagedTrade(
       (row.order !== null && closeOrderIds.has(row.order.order_id)),
   )
   const located = positionsByScope.get(seed.scopeId) ?? null
-  const attentionReason = tradeAttention(commands, orders, protection, located?.position ?? null)
+  const symbol = tradeSymbol(snapshot, seed.primaryCommand, orders, located?.position ?? null)
+  const attentionReason = tradeAttention(
+    commands,
+    orders,
+    protection,
+    snapshot.checkpoint.new_risk_blocked_symbols?.[symbol] ?? null,
+  )
   const economics = summarizeProjectionExecutions(executions)
   const pnlAsset = economicAsset(economics.realizedPnl, economics.totalFees)
   const averageEntryPrice = weightedAverage(entryExecutions)
@@ -137,7 +143,7 @@ export function buildManagedTrade(
   return {
     tradeId: `scope:${seed.scopeId}`,
     scopeId: seed.scopeId,
-    symbol: tradeSymbol(snapshot, seed.primaryCommand, orders, located?.position ?? null),
+    symbol,
     side,
     entryLabel: entryLabel(seed.primaryCommand),
     lifecycle: tradeLifecycle(
@@ -329,15 +335,15 @@ function entryLabel(command: CommandProjection): string {
   return commandKindLabel(command.accepted.kind).replace(/ Order$/, '')
 }
 
+// A coin-level reason flags a trade only when the engine blocks the coin
+// itself; otherwise only the trade's own commands, orders and protection do.
 function tradeAttention(
   commands: CommandProjection[],
   orders: OrderProjection[],
   protection: NativeProtectionProjection | null,
-  position: PositionProjection | null,
+  coinBlockedReason: string | null,
 ): string | null {
-  if (position?.reconciliation_required && position.status !== 'awaiting_exchange_confirmation') {
-    return 'Position reconciliation is required.'
-  }
+  if (coinBlockedReason !== null) return coinBlockedReason
   const failedCommand = commands.find(
     (row) => row.lifecycle === 'failed' || row.lifecycle === 'reconciliation_required',
   )

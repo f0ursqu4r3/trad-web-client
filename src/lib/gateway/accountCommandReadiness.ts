@@ -1,4 +1,5 @@
 import type { BrowserCommandIntent } from './intent.ts'
+import type { ProjectionCheckpoint } from './projection.ts'
 
 export type AccountCommandProjectionStatus =
   | 'idle'
@@ -43,15 +44,62 @@ export function accountCommandReadiness(
   return { ready: true, reason: null }
 }
 
+export type NewRiskCheckpoint = Pick<
+  ProjectionCheckpoint,
+  'summary' | 'new_risk_blocked_reason' | 'new_risk_blocked_symbols'
+>
+
+// New risk is refused only for the engine's own account-level or coin-level
+// blocks, with its reason. Flags on single trades never block other trades.
 export function newExposureReadiness(
   commandReadiness: AccountCommandReadiness,
-  reconciliationReady: boolean | null | undefined,
+  checkpoint: NewRiskCheckpoint | null | undefined,
+  symbol: string | null = null,
 ): AccountCommandReadiness {
   if (!commandReadiness.ready) return commandReadiness
-  if (reconciliationReady !== true) {
+  const accountReason = checkpoint?.new_risk_blocked_reason?.trim()
+  if (accountReason) {
+    return { ready: false, reason: newTradesPaused(accountReason) }
+  }
+  // A projection stored before the engine gave its reason.
+  if (checkpoint?.summary.reconciliation_ready !== true) {
     return { ready: false, reason: ACCOUNT_RECONCILING_MESSAGE }
   }
+  const coin = symbol === null ? null : coinBlock(checkpoint.new_risk_blocked_symbols, symbol)
+  if (coin !== null) {
+    return { ready: false, reason: newTradesPaused(coin.reason, coin.symbol) }
+  }
   return { ready: true, reason: null }
+}
+
+// The engine's coin names are canonical; a typed symbol may differ in case.
+function coinBlock(
+  blocked: Record<string, string> | undefined,
+  symbol: string,
+): { symbol: string; reason: string } | null {
+  if (blocked === undefined) return null
+  const wanted = symbol.trim().toUpperCase()
+  for (const [coin, reason] of Object.entries(blocked)) {
+    if (coin.toUpperCase() === wanted && reason.trim() !== '') return { symbol: coin, reason }
+  }
+  return null
+}
+
+function newTradesPaused(reason: string, symbol: string | null = null): string {
+  const scope = symbol === null ? 'New trades are paused' : `New ${symbol} trades are paused`
+  return `${scope}: ${reason}. Closing and canceling remain available.`
+}
+
+// The coin a new-risk intent opens on, when the intent names it.
+export function newExposureSymbol(intent: BrowserCommandIntent): string | null {
+  switch (intent.kind) {
+    case 'place_order':
+    case 'place_chase':
+    case 'place_trailing_entry':
+      return intent.parameters.symbol.trim() || null
+    default:
+      return null
+  }
 }
 
 export function isNewExposureIntent(intent: BrowserCommandIntent): boolean {

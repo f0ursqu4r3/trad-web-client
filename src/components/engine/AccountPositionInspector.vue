@@ -23,6 +23,16 @@ const flattenTarget = ref<{ kind: 'account' } | { kind: 'symbol'; symbol: string
 const account = computed(() => accounts.selectedAccount)
 const live = computed(() => projections.selectedLive)
 const summary = computed(() => live.value?.checkpoint.summary ?? null)
+// The engine's own reason the whole account takes no new risk. Flags on
+// single trades (summary.reconciliation_required) never block the account.
+const accountBlockedReason = computed(() => {
+  const checkpoint = live.value?.checkpoint
+  if (checkpoint === undefined) return null
+  const reason = checkpoint.new_risk_blocked_reason?.trim()
+  if (reason) return reason
+  return checkpoint.summary.reconciliation_ready ? null : 'reconciliation is not ready'
+})
+const coinBlockedReasons = computed(() => live.value?.checkpoint.new_risk_blocked_symbols ?? {})
 const visiblePositions = computed(() =>
   [...(live.value?.positions ?? [])]
     .filter((position) => showAll.value || positionRequiresAttention(position))
@@ -141,10 +151,11 @@ function inspectScope(scopeId: string): void {
           <strong>{{ summary.position_inventory_ready ? 'yes' : 'no' }}</strong>
         </div>
         <div>
-          <span>Account risk blocked</span>
-          <strong :class="{ danger: summary.reconciliation_required }">
-            {{ summary.reconciliation_required ? 'yes' : 'no' }}
+          <span>New trades</span>
+          <strong :class="{ danger: accountBlockedReason !== null }" data-testid="account-new-risk">
+            {{ accountBlockedReason === null ? 'allowed' : 'paused' }}
           </strong>
+          <span v-if="accountBlockedReason" class="summary-reason">{{ accountBlockedReason }}</span>
         </div>
       </section>
 
@@ -174,8 +185,19 @@ function inspectScope(scopeId: string): void {
           <div>
             <strong>{{ position.symbol }}</strong>
             <span class="status" :data-status="position.status">{{ position.status }}</span>
-            <span v-if="position.reconciliation_required" class="danger"
-              >reconciliation required</span
+            <span
+              v-if="coinBlockedReasons[position.symbol]"
+              class="danger"
+              data-testid="coin-new-risk-blocked"
+              >new trades paused: {{ coinBlockedReasons[position.symbol] }}</span
+            >
+            <span
+              v-else-if="
+                position.reconciliation_required &&
+                position.status !== 'awaiting_exchange_confirmation'
+              "
+              class="warning"
+              >needs attention</span
             >
           </div>
           <button
@@ -429,6 +451,14 @@ function inspectScope(scopeId: string): void {
 
 .danger {
   color: var(--color-error) !important;
+}
+
+.warning {
+  color: var(--color-warning, #d68b2c);
+}
+
+.account-summary .summary-reason {
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 720px) {

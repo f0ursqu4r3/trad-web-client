@@ -60,10 +60,9 @@ const closeBlocker = computed<TelemetryBlockerCode | null>(() => {
   if (props.trade.position?.status === 'awaiting_exchange_confirmation') {
     return 'POSITION_CONFIRMING'
   }
-  if (
-    props.trade.position?.reconciliation_required ||
-    props.trade.protection?.status === 'reconciliation_required'
-  ) {
+  // Only this trade's own state explains a missing close. A flag elsewhere on
+  // the coin never does; the engine decides whether a close goes out.
+  if (props.trade.protection?.status === 'reconciliation_required') {
     return 'RECONCILIATION_REQUIRED'
   }
   return 'POSITION_INCONSISTENT'

@@ -106,7 +106,43 @@ test('account badge separates loading and stale resync from an actual failure', 
   )
 })
 
-test('a real reconciliation requirement stays blocked even during a checking cycle', async ({
+test('an account-level engine block stays blocked even during a checking cycle', async ({
+  page,
+}) => {
+  const control = page.getByTestId('reconciliation-control')
+  await expect(control).toContainText('reconciled')
+  await page.evaluate(() =>
+    window.__tradEngineProjectionFixture?.applyDelta({
+      reconciliationReady: false,
+      reconciliationStatus: 'reconciling',
+      newRiskBlockedReason: 'legacy import entity fixture-legacy is unresolved',
+    }),
+  )
+  await expect(control).toContainText('sync blocked')
+  await expect(control.locator('.reconciliation-state')).toHaveAttribute('data-phase', 'blocked')
+  await expect(control).toHaveAttribute(
+    'title',
+    'New trades are paused: legacy import entity fixture-legacy is unresolved',
+  )
+})
+
+test('a running reconciliation cycle is checking, not blocked', async ({ page }) => {
+  const control = page.getByTestId('reconciliation-control')
+  await expect(control).toContainText('reconciled')
+  await page.evaluate(() =>
+    window.__tradEngineProjectionFixture?.applyDelta({
+      reconciliationReady: false,
+      reconciliationStatus: 'reconciling',
+      newRiskBlockedReason: 'account setup or exchange reconciliation is still running',
+    }),
+  )
+  await expect(control.locator('.reconciliation-state')).toHaveAttribute(
+    'data-phase',
+    'reconciling',
+  )
+})
+
+test('a blocked coin or flagged trade needs attention without blocking the account', async ({
   page,
 }) => {
   const control = page.getByTestId('reconciliation-control')
@@ -114,12 +150,15 @@ test('a real reconciliation requirement stays blocked even during a checking cyc
   await page.evaluate(() =>
     window.__tradEngineProjectionFixture?.applyDelta({
       positionDeficit: true,
-      reconciliationReady: false,
-      reconciliationStatus: 'reconciling',
+      newRiskBlockedSymbols: { BTC: "Trad's BTC trades own more than the venue position holds" },
     }),
   )
-  await expect(control).toContainText('sync blocked')
-  await expect(control.locator('.reconciliation-state')).toHaveAttribute('data-phase', 'blocked')
+  await expect(control).toContainText('needs attention')
+  await expect(control.locator('.reconciliation-state')).toHaveAttribute('data-phase', 'attention')
+  await expect(control).toHaveAttribute(
+    'title',
+    "New trades are paused on BTC: Trad's BTC trades own more than the venue position holds. Other coins are unaffected.",
+  )
 })
 
 test('presents scoped and unscoped external order reconciliation', async ({ page }) => {
@@ -137,12 +176,14 @@ test('presents scoped and unscoped external order reconciliation', async ({ page
       reconciliationReady: false,
       systemExternalOrders: 2,
       unscopedExternalOrders: 1,
+      newRiskBlockedReason:
+        "an order on the venue may be Trad's own and the venue did not name its coin",
     })
   })
   await expect(control).toContainText('sync blocked')
   await expect(control).toHaveAttribute(
     'title',
-    'Account reconciliation is blocked: 1 external orders have unknown scope',
+    "New trades are paused: an order on the venue may be Trad's own and the venue did not name its coin",
   )
 })
 
