@@ -103,7 +103,12 @@ export function buildPlaceChaseIntent(draft: ChaseCommandDraft): BrowserCommandI
       ...(protection === undefined ? {} : { protection }),
       ...(adverseBoundary === undefined ? {} : { adverse_boundary: adverseBoundary }),
       ...(expiry === null ? {} : { expires_after_ms: secondsToMilliseconds(expiry) }),
-      remainder: draft.remainder,
+      // Only a Chase that can end by deadline or boundary has a rest to send
+      // at market; one with neither runs until filled or canceled.
+      remainder:
+        draft.remainder === 'market_fill' && (adverseBoundary !== undefined || expiry !== null)
+          ? 'market_fill'
+          : 'cancel',
     },
   }
 }

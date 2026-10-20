@@ -62,6 +62,12 @@ const closeChaseBoundaryMode = ref<'basis_points' | 'price'>('basis_points')
 const closeChaseBoundaryValue = ref(CLOSE_CHASE_BOUNDARY_BPS)
 const closeChaseUntilCanceled = ref(false)
 const closeChaseExpiryMinutes = ref(CLOSE_CHASE_EXPIRY_MINUTES)
+const closeChaseMarketFill = ref(false)
+// A Chase with neither a boundary nor an expiry only ends filled or canceled,
+// so it never has a rest to send at market.
+const closeChaseCanEndUnfilled = computed(
+  () => closeChaseBoundaryEnabled.value || !closeChaseUntilCanceled.value,
+)
 const targetPrice = ref('')
 const targetQuantity = ref('')
 const amendment = ref<TrailingEntryAmendmentDraft>(emptyAmendment())
@@ -194,6 +200,7 @@ function reset(): void {
   closeChaseBoundaryValue.value = CLOSE_CHASE_BOUNDARY_BPS
   closeChaseUntilCanceled.value = false
   closeChaseExpiryMinutes.value = CLOSE_CHASE_EXPIRY_MINUTES
+  closeChaseMarketFill.value = false
   targetPrice.value = orderValue('price')
   targetQuantity.value =
     props.action?.target.kind === 'order' ? props.action.target.row.target_quantity : ''
@@ -219,6 +226,8 @@ async function submit(): Promise<void> {
       closeChaseBoundaryValue: closeChaseBoundaryValue.value,
       closeChaseUntilCanceled: closeChaseUntilCanceled.value,
       closeChaseExpiryMinutes: closeChaseExpiryMinutes.value,
+      closeChaseRemainder:
+        closeChaseMarketFill.value && closeChaseCanEndUnfilled.value ? 'market_fill' : 'cancel',
       targetPrice: targetPrice.value,
       targetQuantity: targetQuantity.value,
       trailingEntry: amendment.value,
@@ -387,10 +396,36 @@ function chooseClosePercent(percent: string): void {
               inputmode="decimal"
             />
           </label>
-          <p class="help-text">
-            Chase is post-only and closes exactly the selected Trad-owned quantity. Boundary,
-            expiry, or cancellation leaves any unfilled owned exposure open; it never silently falls
-            back to Market.
+          <label
+            class="check-field"
+            :class="{ disabled: !closeChaseCanEndUnfilled }"
+            :title="
+              closeChaseCanEndUnfilled
+                ? undefined
+                : 'Set a boundary or an expiry first. Without either, the Chase ends only when filled or canceled.'
+            "
+          >
+            <input
+              v-model="closeChaseMarketFill"
+              type="checkbox"
+              :disabled="!closeChaseCanEndUnfilled"
+              data-testid="close-chase-market-fill"
+            />
+            <span>Close the rest at market on expiry or boundary</span>
+          </label>
+          <p class="help-text" data-testid="close-chase-help">
+            Chase is post-only and closes exactly the selected Trad-owned quantity.
+            <template v-if="!closeChaseCanEndUnfilled">
+              With no boundary and no expiry it follows the book until the close fills or you cancel
+              it.
+            </template>
+            <template v-else-if="closeChaseMarketFill">
+              At its expiry or boundary, the unfilled rest closes at market. Canceling it leaves the
+              rest open.
+            </template>
+            <template v-else>
+              Expiry, boundary, or canceling it leaves any unfilled rest open.
+            </template>
           </p>
         </template>
       </template>

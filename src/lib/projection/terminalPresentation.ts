@@ -344,15 +344,25 @@ function terminalStatus(status: string): string {
   if (value.includes('await') || value.includes('wait') || value.includes('pending'))
     return 'Waiting'
   if (value.includes('cancel')) return 'Canceled'
+  if (value === 'expired') return 'Expired'
+  if (value === 'boundary_reached') return 'Boundary reached'
   if (['succeeded', 'filled', 'completed', 'flat'].includes(value)) return 'Completed'
   if (value.includes('install')) return 'Waiting'
   return 'Running'
 }
 
 function isTerminalStatus(status: string): boolean {
-  return ['succeeded', 'filled', 'completed', 'flat', 'failed', 'canceled', 'rejected'].includes(
-    status.toLowerCase(),
-  )
+  return [
+    'succeeded',
+    'filled',
+    'completed',
+    'flat',
+    'failed',
+    'canceled',
+    'rejected',
+    'expired',
+    'boundary_reached',
+  ].includes(status.toLowerCase())
 }
 
 function entityBadges(entity: ProjectionEntity): TerminalBadge[] {
@@ -370,6 +380,7 @@ function entityBadges(entity: ProjectionEntity): TerminalBadge[] {
     case 'chase':
       return compactBadges([
         badge('Post only', 'info'),
+        entity.row.market_fill_pending ? badge('Rest at market pending', 'warning') : null,
         entity.row.market_stale ? badge('Market stale', 'warning') : null,
         badge(`r${entity.row.reprice_sequence}`, 'dim'),
       ])
@@ -448,7 +459,13 @@ export function lifecycleTone(status: string): TerminalBadge['tone'] {
     return 'error'
   }
   if (value.includes('await') || value.includes('wait') || value.includes('pending')) return 'dim'
-  if (value.includes('cancel') || value.includes('stale') || value.includes('paused')) {
+  if (
+    value.includes('cancel') ||
+    value.includes('stale') ||
+    value.includes('paused') ||
+    value === 'expired' ||
+    value === 'boundary_reached'
+  ) {
     return 'warning'
   }
   if (['running', 'working', 'tracking', 'triggered', 'installing', 'resizing'].includes(value)) {

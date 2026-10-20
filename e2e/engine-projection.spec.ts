@@ -527,7 +527,7 @@ test('submits projected lifecycle actions with authoritative entity identity', a
   )
 })
 
-test('submits an exact reduce-only Chase policy for owned exposure', async ({ page }) => {
+test('submits an exact Chase close policy for owned exposure', async ({ page }) => {
   const fixture = page.getByTestId('engine-projection-fixture')
   await fixture.getByTestId('projection-command-list').getByText('Chase Order').click()
   await fixture
@@ -539,6 +539,10 @@ test('submits an exact reduce-only Chase policy for owned exposure', async ({ pa
   await modal.getByLabel('Execution').selectOption('chase')
   await modal.getByLabel('Maximum Distance').fill('25.5')
   await modal.getByLabel('Expiry (minutes)').fill('3')
+  await modal.getByLabel('Close the rest at market on expiry or boundary').check()
+  await expect(modal.getByTestId('close-chase-help')).toContainText(
+    'At its expiry or boundary, the unfilled rest closes at market.',
+  )
   await expect(modal.getByLabel('Confirm close exposure')).toHaveCount(0)
   await modal.getByRole('button', { name: 'Close Exposure' }).click()
 
@@ -548,7 +552,28 @@ test('submits an exact reduce-only Chase policy for owned exposure', async ({ pa
   await expect(evidence).toContainText('"kind":"chase"')
   await expect(evidence).toContainText('"kind":"basis_points","value":"25.5"')
   await expect(evidence).toContainText('"expires_after_ms":180000')
+  await expect(evidence).toContainText('"remainder":"market_fill"')
   await expect(evidence).toContainText('"quantity":{"kind":"full"}')
+})
+
+test('a Chase close with no boundary and no expiry offers no rest at market', async ({ page }) => {
+  const fixture = page.getByTestId('engine-projection-fixture')
+  await fixture.getByTestId('projection-command-list').getByText('Chase Order').click()
+  await fixture
+    .getByTestId('projection-actions')
+    .getByRole('button', { name: 'Close Exposure' })
+    .click()
+
+  const modal = page.getByRole('dialog', { name: 'Close Exposure' })
+  await modal.getByLabel('Execution').selectOption('chase')
+  const marketFill = modal.getByLabel('Close the rest at market on expiry or boundary')
+  await expect(marketFill).toBeEnabled()
+  await modal.getByLabel('Use adverse boundary').uncheck()
+  await modal.getByLabel('Run until canceled').check()
+  await expect(marketFill).toBeDisabled()
+  await expect(modal.getByTestId('close-chase-help')).toContainText(
+    'it follows the book until the close fills or you cancel it',
+  )
 })
 
 test('previews a percentage close from authoritative owned exposure inside the modal', async ({

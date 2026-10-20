@@ -296,6 +296,26 @@ test('opens chase and trailing-entry forms from their aliases', async ({ page })
   await expect(page.getByRole('dialog', { name: 'Trailing Entry' })).toBeVisible()
 })
 
+test('Chase offers the rest at market only once it can time out or reach its boundary', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: /Commands/ }).click()
+  await page.getByPlaceholder('Search commands').fill('chase')
+  await page.keyboard.press('Enter')
+  const chase = page.getByRole('dialog', { name: 'Chase Order' })
+  const marketFill = chase.getByLabel('Fill the rest at market on expiry or maximum distance')
+  const note = chase.getByTestId('chase-policy-note')
+  await expect(marketFill).toBeDisabled()
+  await expect(note).toContainText('follows the book until it fills or you cancel it')
+
+  await chase.getByLabel('Expiry Seconds').fill('30')
+  await expect(marketFill).toBeEnabled()
+  await expect(note).toContainText('Trad cancels the unfilled rest')
+  await marketFill.check()
+  await expect(note).toContainText('sends the unfilled rest at market')
+  await expect(note).toContainText("reaches the trade's own stop or take profit")
+})
+
 test('identifies required and invalid command fields beside their controls', async ({ page }) => {
   await page.getByRole('button', { name: /Commands/ }).click()
   await page.getByRole('button', { name: /Limit Order/ }).click()

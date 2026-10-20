@@ -107,6 +107,31 @@ test('duplicates Chase duration and Trailing Entry semantics without floating po
   if (chase?.modal === 'EngineChaseOrder') {
     assert.equal(chase.values.expirySeconds, '60')
     assert.equal(chase.values.boundaryValue, '25.125')
+    assert.equal(chase.values.remainder, 'cancel')
+  }
+
+  // The rest at market is its own plan flag; remainder_policy stays cancel.
+  const marketFill = duplicateCommandPrefill(
+    command(
+      'place_chase',
+      {
+        plan: {
+          symbol: 'BTC',
+          position_side: 'long',
+          quantity: '0.001',
+          protection: null,
+          expires_at: 61_000,
+          remainder_policy: 'cancel',
+          fill_remainder_at_market: true,
+        },
+      },
+      1_000,
+    ),
+    'account',
+  )
+  assert.equal(marketFill?.modal, 'EngineChaseOrder')
+  if (marketFill?.modal === 'EngineChaseOrder') {
+    assert.equal(marketFill.values.remainder, 'market_fill')
   }
 
   const trailing = duplicateCommandPrefill(

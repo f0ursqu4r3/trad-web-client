@@ -28,6 +28,10 @@
   gap: 7px;
 }
 
+.check-field.disabled {
+  opacity: 0.55;
+}
+
 .submission-error {
   overflow-wrap: anywhere;
   color: var(--color-error);

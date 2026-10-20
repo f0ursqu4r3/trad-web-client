@@ -125,6 +125,7 @@ export function lifecycleIntent(
     closeChaseBoundaryEnabled?: boolean
     closeChaseUntilCanceled?: boolean
     closeChaseExpiryMinutes?: string
+    closeChaseRemainder?: 'cancel' | 'market_fill'
   } = {},
 ): BrowserCommandIntent {
   switch (action.kind) {
@@ -227,6 +228,7 @@ function closeExecutionIntent(fields: {
   closeChaseBoundaryEnabled?: boolean
   closeChaseUntilCanceled?: boolean
   closeChaseExpiryMinutes?: string
+  closeChaseRemainder?: 'cancel' | 'market_fill'
 }): Extract<BrowserCommandIntent, { kind: 'close_exposure' }>['parameters']['execution'] {
   switch (fields.closeExecutionMode ?? 'market') {
     case 'market':
@@ -251,10 +253,16 @@ function closeExecutionIntent(fields: {
       const expiresAfterMs = fields.closeChaseUntilCanceled
         ? undefined
         : durationMillis(fields.closeChaseExpiryMinutes ?? '', 'close Chase expiry')
+      // The rest goes at market only when the Chase can end by deadline or
+      // boundary; a Chase that runs until filled or canceled never sends it.
+      const marketFill =
+        fields.closeChaseRemainder === 'market_fill' &&
+        (adverseBoundary !== undefined || expiresAfterMs !== undefined)
       return {
         kind: 'chase',
         ...(adverseBoundary === undefined ? {} : { adverse_boundary: adverseBoundary }),
         ...(expiresAfterMs === undefined ? {} : { expires_after_ms: expiresAfterMs }),
+        ...(marketFill ? { remainder: 'market_fill' as const } : {}),
       }
     }
   }

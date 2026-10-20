@@ -34,7 +34,8 @@ const commands: EngineCommandOption[] = [
   {
     modal: 'EngineChaseOrder',
     label: 'Chase Order',
-    description: 'Follow the book within a maximum distance, then cancel the remainder',
+    description:
+      'Follow the book post-only; at its expiry or maximum distance, cancel or market-fill the rest',
     aliases: ['chase'],
   },
   {

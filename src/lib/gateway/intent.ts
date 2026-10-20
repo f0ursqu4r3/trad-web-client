@@ -141,6 +141,9 @@ export type CloseExecutionIntent =
       kind: 'chase'
       adverse_boundary?: ChaseBoundaryIntent
       expires_after_ms?: number
+      // market_fill closes the rest at market once the Chase times out or
+      // reaches its boundary. Left out, the rest stays open.
+      remainder?: 'cancel' | 'market_fill'
     }
 
 export type FlattenTargetIntent = { kind: 'symbol'; symbol: string } | { kind: 'account' }

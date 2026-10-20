@@ -57,6 +57,11 @@ const createdAtTitle = computed(() => new Date(props.trade.createdAt).toLocaleSt
 const rootCommandId = computed(() => props.trade.primaryCommand.command_id)
 const shortRootCommandId = computed(() => rootCommandId.value.slice(0, 8))
 const tradeIdCopied = ref(false)
+const entryChase = computed(() => {
+  const root = props.trade.primaryCommand.root
+  if (root.kind !== 'chase') return null
+  return props.snapshot.chases.find((chase) => chase.chase_id === root.id) ?? null
+})
 const progressMessage = computed(() => {
   if (props.trade.lifecycle === 'closing' && isExactZero(props.trade.remainingQuantity)) {
     if (props.trade.protection?.status === 'reconciliation_required') {
@@ -65,6 +70,16 @@ const progressMessage = computed(() => {
     if (props.trade.protection && props.trade.protection.status !== 'canceled') {
       return 'Position closed · canceling protection'
     }
+  }
+  if (entryChase.value?.market_fill_pending) {
+    const ended =
+      entryChase.value.lifecycle === 'boundary_reached'
+        ? 'Chase reached its boundary'
+        : entryChase.value.lifecycle === 'expired'
+          ? 'Chase timed out'
+          : 'Chase is ending'
+    const reason = entryChase.value.last_reason
+    return `${ended} · sending the unfilled rest at market${reason ? ` · ${reason}` : ''}`
   }
   if (props.trade.position?.status === 'awaiting_exchange_confirmation') {
     return 'Confirming the latest position change with the exchange'

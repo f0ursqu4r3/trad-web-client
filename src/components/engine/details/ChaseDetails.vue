@@ -13,7 +13,7 @@ const planRows = computed(() =>
     recordDetail('Position Side', props.chase.plan, 'position_side'),
     recordDetail('Quantity', props.chase.plan, 'quantity'),
     recordDetail('Mode', props.chase.plan, 'mode'),
-    recordDetail('Remainder Policy', props.chase.plan, 'remainder_policy'),
+    detail('Rest at Market', yesNo(props.chase.plan.fill_remainder_at_market === true)),
     recordDetail('Expires At', props.chase.plan, 'expires_at'),
   ]),
 )
@@ -34,6 +34,7 @@ const repriceRows = computed(() => [
   detail('Reprice Ready', yesNo(props.chase.reprice_ready)),
   detail('Consecutive Failures', props.chase.consecutive_reprice_failures),
   detail('Post-only Retry', yesNo(props.chase.post_only_retry_pending)),
+  detail('Market Fill Pending', yesNo(props.chase.market_fill_pending === true)),
 ])
 </script>
 

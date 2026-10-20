@@ -251,7 +251,8 @@ function chasePrefill(command: CommandProjection, accountId: string): EngineComm
     boundaryKind,
     boundaryValue: boundary === null ? '' : exactString(boundary.value, 'boundary'),
     expirySeconds: expiry,
-    remainder: plan.remainder_policy === 'market_fill' ? 'market_fill' : 'cancel',
+    // remainder_policy stays cancel; filling the rest at market is its own flag.
+    remainder: plan.fill_remainder_at_market === true ? 'market_fill' : 'cancel',
     protection: protectionForm(plan.protection),
   }
   return { modal: 'EngineChaseOrder', values }

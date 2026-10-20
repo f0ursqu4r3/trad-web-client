@@ -75,6 +75,11 @@ const boundaryError = computed(() => {
 const expiryError = computed(() =>
   expirySeconds.value.trim() === '' ? null : integerError(expirySeconds.value, 'Expiry seconds', 1),
 )
+// Only a Chase that can end by its deadline or boundary has a rest to send at
+// market; one with neither runs until filled or canceled.
+const canEndUnfilled = computed(
+  () => boundaryKind.value !== 'none' || expirySeconds.value.trim() !== '',
+)
 const canSubmit = computed(
   () =>
     gateway.isConnected &&
@@ -256,8 +261,38 @@ function buildIntent() {
           />
         </FormField>
       </div>
-      <p class="chase-policy-note">
-        When the maximum distance or expiry is reached, Trad cancels the unfilled remainder.
+      <label
+        class="chase-remainder-toggle"
+        :class="{ disabled: !canEndUnfilled }"
+        :title="
+          canEndUnfilled
+            ? undefined
+            : 'Set a maximum distance or an expiry first. Without either, the Chase ends only when filled or canceled.'
+        "
+      >
+        <input
+          type="checkbox"
+          data-testid="chase-market-fill"
+          :checked="remainder === 'market_fill' && canEndUnfilled"
+          :disabled="!canEndUnfilled"
+          @change="remainder = remainder === 'market_fill' ? 'cancel' : 'market_fill'"
+        />
+        Fill the rest at market on expiry or maximum distance
+      </label>
+      <p class="chase-policy-note" data-testid="chase-policy-note">
+        <template v-if="!canEndUnfilled">
+          With no maximum distance and no expiry, the Chase follows the book until it fills or you
+          cancel it.
+        </template>
+        <template v-else-if="remainder === 'market_fill'">
+          When the maximum distance or expiry is reached, Trad cancels the Chase order and sends the
+          unfilled rest at market.
+        </template>
+        <template v-else>
+          When the maximum distance or expiry is reached, Trad cancels the unfilled rest.
+        </template>
+        An entry Chase also stops if its price reaches the trade's own stop or take profit; then
+        nothing is sent at market.
       </p>
       <ProtectionFields
         v-model="protection"
@@ -316,6 +351,16 @@ function buildIntent() {
 .submission-error {
   color: var(--color-error);
   overflow-wrap: anywhere;
+}
+.chase-remainder-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+.chase-remainder-toggle.disabled {
+  opacity: 0.55;
 }
 .chase-policy-note {
   margin: 0;

@@ -54,6 +54,8 @@ function rowClass(item: ExecutionTreeItem): string {
     case 'Blocked':
       return 'device-row-blocked'
     case 'Canceled':
+    case 'Expired':
+    case 'Boundary reached':
       return 'device-row-canceled'
     case 'Completed':
       return 'device-row-complete'

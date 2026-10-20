@@ -281,6 +281,9 @@ export interface ChaseProjection {
   price_risk?: ChasePriceRiskState | null
   last_reprice_result_operation_id: Uuid | null
   last_reason: string | null
+  // The Chase ended at its deadline or boundary and still has to send its
+  // unfilled rest at market; last_reason says what it waits for.
+  market_fill_pending?: boolean
 }
 
 export interface ChasePriceRiskState {
@@ -379,6 +382,7 @@ export type CloseExecutionPlan =
       adverse_boundary?: Record<string, unknown>
       expires_at?: TimestampMillis
       remainder_policy: string
+      fill_remainder_at_market?: boolean
     }
 
 export type CloseExecutionRoot =

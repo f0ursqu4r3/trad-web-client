@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 import FormField from '@/components/forms/FormField.vue'
 import PriceDistancePresets from '@/components/forms/PriceDistancePresets.vue'
 import { labelWithUnit, type MarketUnits } from '@/lib/engineCommands/marketUnits'
@@ -6,6 +8,11 @@ import type { TradeTicketDraft } from '@/lib/trader/tradeTicketDraft'
 
 defineProps<{ units: MarketUnits; accountId: string }>()
 const draft = defineModel<TradeTicketDraft>({ required: true })
+// Only a chase that can end by timeout or give-up has a rest to send at market.
+const canEndUnfilled = computed(
+  () => draft.value.boundaryKind !== 'none' || draft.value.expirySeconds.trim() !== '',
+)
+const marketFill = computed(() => draft.value.remainder === 'market_fill' && canEndUnfilled.value)
 </script>
 
 <template>
@@ -60,17 +67,30 @@ const draft = defineModel<TradeTicketDraft>({ required: true })
     <FormField
       v-if="draft.boundaryKind !== 'none'"
       :label="draft.boundaryKind === 'price' ? 'Give-up price' : 'Maximum adverse bps'"
-      help="The chase cancels once this boundary is reached."
+      :help="
+        marketFill
+          ? 'At this boundary the chase stops and sends its unfilled rest at market.'
+          : 'At this boundary the chase stops and cancels its unfilled rest.'
+      "
       telemetry-field="chase_boundary_value"
       required
     >
       <input v-model="draft.boundaryValue" class="input" inputmode="decimal" required />
     </FormField>
-    <label class="remainder-toggle">
+    <label
+      class="remainder-toggle"
+      :class="{ disabled: !canEndUnfilled }"
+      :title="
+        canEndUnfilled
+          ? undefined
+          : 'Set a timeout or a give-up boundary first. Without either, the chase ends only when filled or canceled.'
+      "
+    >
       <input
         type="checkbox"
         data-telemetry-field="chase_remainder"
-        :checked="draft.remainder === 'market_fill'"
+        :checked="marketFill"
+        :disabled="!canEndUnfilled"
         @change="draft.remainder = draft.remainder === 'cancel' ? 'market_fill' : 'cancel'"
       />
       Market-fill remainder on timeout or give-up
@@ -135,6 +155,9 @@ const draft = defineModel<TradeTicketDraft>({ required: true })
   gap: 0.5rem;
   color: var(--fg-muted);
   font-size: 11px;
+}
+.remainder-toggle.disabled {
+  opacity: 0.55;
 }
 @media (max-width: 520px) {
   .ticket-grid {

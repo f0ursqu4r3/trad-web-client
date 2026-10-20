@@ -87,6 +87,62 @@ test('projected Chase actions target authoritative identities', () => {
       },
     },
   )
+
+  // The one-tap Chase close: no boundary, no expiry, it runs until filled.
+  assert.deepEqual(
+    lifecycleIntent(actions[1]!, {
+      closeMode: 'percent',
+      closePercent: '50',
+      closeExecutionMode: 'chase',
+      closeChaseBoundaryEnabled: false,
+      closeChaseUntilCanceled: true,
+    }),
+    {
+      kind: 'close_exposure',
+      parameters: {
+        source_command_id: command.command_id,
+        quantity: { kind: 'percent', percent: '50' },
+        execution: { kind: 'chase' },
+      },
+    },
+  )
+
+  assert.deepEqual(
+    lifecycleIntent(actions[1]!, {
+      closeExecutionMode: 'chase',
+      closeChaseBoundaryEnabled: true,
+      closeChaseBoundaryMode: 'basis_points',
+      closeChaseBoundaryValue: '20',
+      closeChaseUntilCanceled: false,
+      closeChaseExpiryMinutes: '5',
+      closeChaseRemainder: 'market_fill',
+    }).parameters,
+    {
+      source_command_id: command.command_id,
+      quantity: { kind: 'full' },
+      execution: {
+        kind: 'chase',
+        adverse_boundary: { kind: 'basis_points', value: '20' },
+        expires_after_ms: 300_000,
+        remainder: 'market_fill',
+      },
+    },
+  )
+
+  // A Chase that can only end filled or canceled has no rest to send at market.
+  assert.deepEqual(
+    lifecycleIntent(actions[1]!, {
+      closeExecutionMode: 'chase',
+      closeChaseBoundaryEnabled: false,
+      closeChaseUntilCanceled: true,
+      closeChaseRemainder: 'market_fill',
+    }).parameters,
+    {
+      source_command_id: command.command_id,
+      quantity: { kind: 'full' },
+      execution: { kind: 'chase' },
+    },
+  )
 })
 
 test('selecting a Chase child still controls the owning Chase', () => {

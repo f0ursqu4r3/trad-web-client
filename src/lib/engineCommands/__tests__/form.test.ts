@@ -378,6 +378,31 @@ test('chase drafts preserve exact boundaries and convert whole-second expiry', (
   )
 })
 
+test('a chase sends its rest at market only when it can end by expiry or boundary', () => {
+  const draft = {
+    symbol: 'ETH',
+    positionSide: 'long' as const,
+    sizingMode: 'base' as const,
+    amount: '0.1',
+    boundaryKind: 'none' as const,
+    boundaryValue: '',
+    expirySeconds: '',
+    remainder: 'market_fill' as const,
+    protection: newProtectionState(),
+  }
+  const remainder = (intent: ReturnType<typeof buildPlaceChaseIntent>) =>
+    intent.kind === 'place_chase' ? intent.parameters.remainder : null
+
+  assert.equal(remainder(buildPlaceChaseIntent(draft)), 'cancel')
+  assert.equal(remainder(buildPlaceChaseIntent({ ...draft, expirySeconds: '30' })), 'market_fill')
+  assert.equal(
+    remainder(
+      buildPlaceChaseIntent({ ...draft, boundaryKind: 'basis_points', boundaryValue: '10' }),
+    ),
+    'market_fill',
+  )
+})
+
 test('trailing-entry and flatten drafts map directly to public intents', () => {
   assert.deepEqual(
     buildPlaceTrailingEntryIntent({

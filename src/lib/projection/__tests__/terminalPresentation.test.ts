@@ -73,3 +73,34 @@ function find(root: TerminalTreeNode, kind: string, label: string): TerminalTree
   }
   return null
 }
+
+test('a Chase ended by expiry or boundary is terminal and shows a pending rest at market', () => {
+  const snapshot = engineProjectionSnapshot()
+  const command = snapshot.commands.find((candidate) => candidate.accepted.kind === 'place_chase')!
+  const chase = snapshot.chases.find((candidate) => candidate.command_id === command.command_id)!
+  const chaseNode = (): TerminalTreeNode | undefined =>
+    findNode(terminalCommandTree(snapshot, snapshot, command.command_id), 'chase')
+
+  chase.lifecycle = 'expired'
+  chase.market_fill_pending = true
+  assert.equal(chaseNode()?.status, 'Expired')
+  assert.ok(chaseNode()?.badges.some((badge) => badge.label === 'Rest At Market Pending'))
+
+  chase.lifecycle = 'boundary_reached'
+  chase.market_fill_pending = false
+  assert.equal(chaseNode()?.status, 'Boundary reached')
+  assert.ok(!chaseNode()?.badges.some((badge) => badge.label === 'Rest At Market Pending'))
+})
+
+function findNode(
+  node: TerminalTreeNode | null | undefined,
+  kind: string,
+): TerminalTreeNode | undefined {
+  if (node === null || node === undefined) return undefined
+  if (node.kind === kind) return node
+  for (const child of node.children) {
+    const found = findNode(child, kind)
+    if (found !== undefined) return found
+  }
+  return undefined
+}
