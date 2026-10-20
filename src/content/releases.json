@@ -10,12 +10,14 @@
       "A Chase can send its unfilled rest at market when it times out or reaches its maximum distance. Turn it on in the trade ticket, the Chase form or the Chase close form.",
       "The one-tap Chase close on a trade card now keeps following the book until the close fills. Cancel the Chase to stop it.",
       "An entry Chase now stops when its price reaches the trade's own stop or take profit, instead of buying into a trade that is already stopped out or past its target.",
-      "New Hyperliquid accounts start with a 0.1% entry guard and a 3% stop guard (0.5% and 10% before). Accounts you already have keep their own values."
+      "New Hyperliquid accounts start with a 0.1% entry guard and a 3% stop guard (0.5% and 10% before). Accounts you already have keep their own values.",
+      "A trade whose stop or take profit was canceled on Hyperliquid now has a Re-arm protection button. It places Trad's stop and take profit again; orders you placed on Hyperliquid yourself are not touched."
     ],
     "fixes": [
       "Orders you place on Hyperliquid yourself no longer block new Trad trades.",
       "A problem on one trade now shows on that trade only, instead of flagging every trade on the coin or the whole account.",
-      "When Hyperliquid sends something Trad cannot process, Trad keeps running and flags the order or coin it concerns, with the reason."
+      "When Hyperliquid sends something Trad cannot process, Trad keeps running and flags the order or coin it concerns, with the reason.",
+      "A stop or take profit you cancel on Hyperliquid is no longer placed again automatically when the trade's size changes. The trade is flagged instead, with the reason, until you re-arm it."
     ],
     "details": [
       {
@@ -36,6 +38,15 @@
           "A Chase with no maximum distance and no expiry follows the book until it fills, so the option is off for it.",
           "While the rest waits to be sent, for example for Hyperliquid to confirm the position, the trade card shows that and why.",
           "For a close, the rest is a market close of that trade only, never more than the trade still holds."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Re-arm protection",
+        "items": [
+          "The button shows only on a flagged trade. If Trad cannot re-arm it yet, the card says why.",
+          "A stop or take profit with no live order can get a new price first. Trad refuses one that is already through the market and asks for a new price.",
+          "Sizes and levels stay as they were. Change them with Edit protection once the trade is protected again."
         ]
       }
     ]
