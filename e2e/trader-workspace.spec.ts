@@ -583,6 +583,58 @@ test('telemetry correlates modal abandonment and accepted command flow without r
   expect(JSON.stringify(events)).not.toContain('62000')
 })
 
+test('a flagged trade says why and re-arms its protection with a new stop price', async ({
+  page,
+}) => {
+  await page.goto('/e2e/trader-workspace?rearm=available&rearm_through=1')
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  await expect(eth.getByText(/was canceled at the venue outside Trad/).first()).toBeVisible()
+  await expect(
+    eth.getByText(/orders you placed on Hyperliquid are not touched/).first(),
+  ).toBeVisible()
+
+  await eth.getByRole('button', { name: 'Re-arm protection' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Re-arm Protection' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByLabel('Take profit trigger price')).toHaveCount(0)
+  await dialog.getByRole('button', { name: 'Re-arm protection' }).click()
+  await expect(dialog.getByTestId('rearm-error')).toContainText(
+    'already through the market (1795); give it a new price to re-arm',
+  )
+  await expect(dialog).toBeVisible()
+
+  await dialog.getByLabel('Stop loss trigger price').fill('1750')
+  await dialog.getByRole('button', { name: 'Re-arm protection' }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(eth.getByRole('status').filter({ hasText: 'Re-arm accepted' })).toBeVisible()
+  const evidence = JSON.parse((await page.getByTestId('submitted-command-evidence').textContent())!)
+  expect(evidence.count).toBe(2)
+  expect(evidence.intent).toEqual({
+    kind: 'rearm_protection',
+    parameters: {
+      protection_id: expect.any(String),
+      expected_plan_revision: 4,
+      price_edits: [{ child_id: expect.any(String), trigger_price: '1750' }],
+    },
+  })
+})
+
+test('a refused re-arm shows the engine reason and opens nothing', async ({ page }) => {
+  const plain = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  await expect(plain.getByRole('button', { name: 'Edit protection' })).toBeVisible()
+  await expect(plain.getByTestId('rearm-protection')).toHaveCount(0)
+
+  await page.goto('/e2e/trader-workspace?rearm=refused')
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  const button = eth.getByTestId('rearm-protection')
+  await expect(button).toHaveAttribute('aria-disabled', 'true')
+  await expect(
+    eth.getByText('Re-arm unavailable: a close of this trade is still working'),
+  ).toBeVisible()
+  await button.click({ force: true })
+  await expect(page.getByRole('dialog', { name: 'Re-arm Protection' })).toHaveCount(0)
+})
+
 test('reconciliation-blocked protection edit explains intent without sending a command', async ({
   page,
 }) => {

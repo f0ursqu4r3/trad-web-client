@@ -172,6 +172,7 @@ export function commandKindLabel(kind: string): string {
     cancel_trailing_entry: 'Cancel Trailing Entry',
     configure_account: 'Account Configuration',
     amend_protection: 'Edit Protection',
+    rearm_protection: 'Re-arm Protection',
   }
   return labels[kind] ?? title(kind)
 }

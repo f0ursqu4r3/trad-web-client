@@ -789,6 +789,14 @@ export interface NativeProtectionProjection {
   status: NativeProtectionStatus
   failure_reason: string | null
   children: Record<Uuid, NativeProtectionChildProjection>
+  // Present only while Trad has flagged the trade: whether re-arming its
+  // protection would be accepted now, and why not.
+  rearm?: ProtectionRearmProjection | null
+}
+
+export interface ProtectionRearmProjection {
+  available: boolean
+  refused_reason?: string
 }
 
 export interface BrowserProjectionWindow {

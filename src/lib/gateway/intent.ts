@@ -123,6 +123,19 @@ export interface TrailingEntryImmediateIntent {
   expected: TrailingEntryExpectedIntent
 }
 
+// Places a flagged trade's protection again. An edit gives a new trigger
+// price to a child with no live order; sizes and levels stay.
+export interface RearmProtectionIntent {
+  protection_id: Uuid
+  expected_plan_revision: number
+  price_edits?: ProtectionPriceEditIntent[]
+}
+
+export interface ProtectionPriceEditIntent {
+  child_id: Uuid
+  trigger_price: ExactDecimal
+}
+
 export interface ModifyOrderIntent {
   order_id: Uuid
   target_price: ExactDecimal
@@ -184,3 +197,4 @@ export type BrowserCommandIntent =
   | { kind: 'set_leverage'; parameters: SetLeverageIntent }
   | { kind: 'set_position_mode'; parameters: { mode: PositionModeIntent } }
   | { kind: 'amend_protection'; parameters: AmendProtectionIntent }
+  | { kind: 'rearm_protection'; parameters: RearmProtectionIntent }

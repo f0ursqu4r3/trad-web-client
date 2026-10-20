@@ -240,6 +240,21 @@ test('a position flag without a coin block does not flag every trade on the coin
   assert.equal(trade?.attentionReason, null)
 })
 
+test('a flagged protection says why on its own trade', () => {
+  const snapshot = engineProjectionSnapshot()
+  const protection = snapshot.native_protections.find((row) => row.symbol === 'ETH')!
+  protection.status = 'reconciliation_required'
+  protection.failure_reason =
+    'owned protection stop loss order trad-native-stop-loss was canceled at the venue outside Trad'
+  protection.rearm = { available: true }
+
+  const trade = tradeWorkspaceProjection(snapshot).activeTrades.find((row) => row.symbol === 'ETH')
+
+  assert.equal(trade?.lifecycle, 'attention')
+  assert.equal(trade?.attentionReason, protection.failure_reason)
+  assert.deepEqual(trade?.protection?.rearm, { available: true })
+})
+
 test('presents exchange confirmation as progress instead of reconciliation attention', () => {
   const snapshot = engineProjectionSnapshot()
   const eth = snapshot.positions.find((position) => position.symbol === 'ETH')

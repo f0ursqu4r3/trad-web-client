@@ -3,10 +3,12 @@ import { computed, ref, watch } from 'vue'
 
 import LifecycleActionModal from '@/components/engine/actions/LifecycleActionModal.vue'
 import ProtectionAmendmentModal from '@/components/engine/actions/ProtectionAmendmentModal.vue'
+import RearmProtectionModal from '@/components/engine/actions/RearmProtectionModal.vue'
 import type { LifecycleAction } from '@/lib/engineCommands/lifecycle'
 import { lifecycleIntent } from '@/lib/engineCommands/lifecycle'
 import { CLOSE_CHASE_PRESET_LABEL } from '@/lib/engineCommands/closeChasePreset'
 import { activeProtectionAmendment } from '@/lib/engineCommands/protectionAmendment'
+import { rearmAvailability } from '@/lib/engineCommands/protectionRearm'
 import type { BrowserAccountSnapshot } from '@/lib/gateway'
 import {
   activeCloseWorkflowsForTrade,
@@ -34,6 +36,8 @@ const selectedAction = ref<LifecycleAction | null>(null)
 const closePercent = ref<string | null>(null)
 const closeExecution = ref<'market' | 'limit' | 'chase'>('chase')
 const editProtectionOpen = ref(false)
+const rearmOpen = ref(false)
+const rearmMessage = ref<string | null>(null)
 const blockedMessage = ref<string | null>(null)
 const shortcutState = ref<'idle' | 'submitting' | 'accepted' | 'unknown'>('idle')
 const shortcutMessage = ref<string | null>(null)
@@ -81,7 +85,15 @@ const activeCloseMessage = computed(() =>
     ? 'A close is already active. Trad is waiting for its authoritative outcome before allowing another close.'
     : null,
 )
-const actionMessage = computed(() => blockedMessage.value ?? activeCloseMessage.value)
+// Shown only while Trad has flagged the trade; the engine says whether it
+// would be accepted now and why not.
+const rearm = computed(() => rearmAvailability(props.trade.protection))
+const rearmRefusal = computed(() =>
+  rearm.value.kind === 'refused' ? `Re-arm unavailable: ${rearm.value.reason}` : null,
+)
+const actionMessage = computed(
+  () => blockedMessage.value ?? activeCloseMessage.value ?? rearmRefusal.value,
+)
 const observedShortcut = computed(
   () =>
     props.snapshot.commands.find(
@@ -187,6 +199,12 @@ function openProtection(): void {
     return
   }
   editProtectionOpen.value = true
+}
+
+function openRearm(): void {
+  if (rearm.value.kind !== 'available') return
+  rearmMessage.value = null
+  rearmOpen.value = true
 }
 
 function blockAction(actionKind: TelemetryActionKind, blockerCode: TelemetryBlockerCode): void {
@@ -321,6 +339,22 @@ defineExpose({ openClose, openTakeover })
     >
       Edit protection
     </button>
+    <button
+      v-if="rearm.kind !== 'hidden'"
+      class="btn btn-sm btn-outline-warn"
+      type="button"
+      data-testid="rearm-protection"
+      :aria-disabled="rearm.kind !== 'available'"
+      :class="{ 'action-unavailable': rearm.kind !== 'available' }"
+      title="Places Trad's stop/TP again; orders you placed on Hyperliquid are not touched."
+      @click="openRearm"
+    >
+      Re-arm protection
+    </button>
+    <span v-if="rearm.kind !== 'hidden'" class="shortcut-terms">
+      Re-arm places Trad's stop/TP again; orders you placed on Hyperliquid are not touched.
+    </span>
+    <p v-if="rearmMessage" class="action-blocker" role="status">{{ rearmMessage }}</p>
     <p v-if="actionMessage" class="action-blocker" role="status">
       <span>{{ actionMessage }}</span>
       <button
@@ -364,6 +398,14 @@ defineExpose({ openClose, openTakeover })
     :initial-close-percent="closePercent"
     :initial-close-execution="closeExecution"
     @close="selectedAction = null"
+  />
+  <RearmProtectionModal
+    :open="rearmOpen"
+    :account-id="accounts.selectedAccountId ?? ''"
+    :protection="trade.protection"
+    :trade-id="trade.primaryCommand.command_id"
+    @accepted="rearmMessage = 'Re-arm accepted. Trad is placing the protection again.'"
+    @close="rearmOpen = false"
   />
   <ProtectionAmendmentModal
     :open="editProtectionOpen"

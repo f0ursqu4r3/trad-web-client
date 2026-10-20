@@ -87,6 +87,7 @@ export type TelemetryActionKind =
   | 'cancel'
   | 'modify'
   | 'edit_protection'
+  | 'rearm_protection'
   | 'take_over'
   | 'flatten'
   | 'set_leverage'

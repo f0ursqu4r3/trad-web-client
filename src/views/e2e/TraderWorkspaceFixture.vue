@@ -181,6 +181,25 @@ if (new URLSearchParams(location.search).has('reconciliation')) {
     protection.failure_reason = 'fixture protection quantity mismatch'
   }
 }
+// A trade whose stop Trad flagged after it was canceled on the venue.
+const rearmOption = new URLSearchParams(location.search).get('rearm')
+if (rearmOption !== null) {
+  const protection = initialProjection.native_protections.find(
+    (candidate) => candidate.symbol === 'ETH',
+  )
+  const stop = protection?.plan.children.find((child) => child.protection_kind === 'stop_loss')
+  if (protection && stop) {
+    protection.status = 'reconciliation_required'
+    protection.failure_reason =
+      'owned protection stop loss order trad-native-stop-loss was canceled at the venue outside Trad'
+    protection.children[stop.child_id]!.confirmed_quantity = '0'
+    protection.children[stop.child_id]!.remote_order_ids = []
+    protection.rearm =
+      rearmOption === 'refused'
+        ? { available: false, refused_reason: 'a close of this trade is still working' }
+        : { available: true }
+  }
+}
 if (new URLSearchParams(location.search).has('active_close')) {
   const entry = initialProjection.orders.find(
     (candidate) => candidate.current_request.symbol === 'ETH',
@@ -310,6 +329,24 @@ gateway.submitCommand = async (
     await new Promise((resolve) => window.setTimeout(resolve, 350))
   }
   const fixtureOptions = new URLSearchParams(location.search)
+  // The node refuses a re-armed stop that is already through the market.
+  if (
+    intent.kind === 'rearm_protection' &&
+    fixtureOptions.has('rearm_through') &&
+    intent.parameters.price_edits === undefined
+  ) {
+    const rejected: BrowserCommandOutcome = {
+      kind: 'rejected',
+      rejection: {
+        code: 'planning_failed',
+        reason:
+          'the stop loss at 1800.125 is already through the market (1795); give it a new price to re-arm',
+        retryable: false,
+      },
+    }
+    telemetry.commandResult(attempt, rejected)
+    return rejected
+  }
   if (fixtureOptions.has('close_timeout') || fixtureOptions.has('command_timeout')) {
     if (intent.kind === 'amend_protection' && fixtureOptions.has('protection_terminal')) {
       window.setTimeout(() => {

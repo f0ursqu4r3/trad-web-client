@@ -357,6 +357,8 @@ function commandAction(intent: BrowserCommandIntent | BrowserPreviewIntent): Tel
       return 'set_position_mode'
     case 'amend_protection':
       return 'edit_protection'
+    case 'rearm_protection':
+      return 'rearm_protection'
   }
 }
 
