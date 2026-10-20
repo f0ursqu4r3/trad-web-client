@@ -5,11 +5,7 @@ import LifecycleActionModal from '@/components/engine/actions/LifecycleActionMod
 import ProtectionAmendmentModal from '@/components/engine/actions/ProtectionAmendmentModal.vue'
 import type { LifecycleAction } from '@/lib/engineCommands/lifecycle'
 import { lifecycleIntent } from '@/lib/engineCommands/lifecycle'
-import {
-  CLOSE_CHASE_BOUNDARY_BPS,
-  CLOSE_CHASE_EXPIRY_MINUTES,
-  CLOSE_CHASE_PRESET_LABEL,
-} from '@/lib/engineCommands/closeChasePreset'
+import { CLOSE_CHASE_PRESET_LABEL } from '@/lib/engineCommands/closeChasePreset'
 import { activeProtectionAmendment } from '@/lib/engineCommands/protectionAmendment'
 import type { BrowserAccountSnapshot } from '@/lib/gateway'
 import {
@@ -158,11 +154,8 @@ async function submitChaseShortcut(percent: string | null): Promise<void> {
       closeMode: percent === null ? 'full' : 'percent',
       closePercent: percent ?? undefined,
       closeExecutionMode: 'chase',
-      closeChaseBoundaryEnabled: true,
-      closeChaseBoundaryMode: 'basis_points',
-      closeChaseBoundaryValue: CLOSE_CHASE_BOUNDARY_BPS,
-      closeChaseUntilCanceled: false,
-      closeChaseExpiryMinutes: CLOSE_CHASE_EXPIRY_MINUTES,
+      closeChaseBoundaryEnabled: false,
+      closeChaseUntilCanceled: true,
     })
     const outcome = await gateway.submitCommand(
       intent,
@@ -177,7 +170,7 @@ async function submitChaseShortcut(percent: string | null): Promise<void> {
     }
     shortcutCommandId.value = outcome.command_id
     shortcutState.value = 'accepted'
-    shortcutMessage.value = `Chase close accepted (#${outcome.command_id.slice(0, 8)}). Await its authoritative outcome; the unfilled remainder may stay open.`
+    shortcutMessage.value = `Chase close accepted (#${outcome.command_id.slice(0, 8)}). It follows the book until the close fills; cancel the Chase to stop it.`
   } catch (error) {
     if (error instanceof CommandOutcomeUnknownError) {
       shortcutState.value = 'unknown'
@@ -276,7 +269,7 @@ defineExpose({ openClose, openTakeover })
       </select>
     </label>
     <span v-if="closeAction && closeExecution === 'chase'" class="shortcut-terms">
-      One tap · {{ CLOSE_CHASE_PRESET_LABEL }} · any unfilled remainder stays open
+      One tap · {{ CLOSE_CHASE_PRESET_LABEL }} · cancel the Chase to stop it
     </span>
     <button
       v-if="closeAction || closeBlocker"

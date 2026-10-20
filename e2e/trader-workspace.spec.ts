@@ -278,7 +278,7 @@ test('mirrors the client workflow with practical presets and redundant trade act
 test('visible Chase close preset submits once without a review dialog', async ({ page }) => {
   const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
   await expect(eth.getByLabel('Close as')).toHaveValue('chase')
-  await expect(eth.getByText(/20 bps adverse boundary · 5 min expiry/)).toBeVisible()
+  await expect(eth.getByText(/Chase until filled · post-only, follows the book/)).toBeVisible()
   await eth.getByRole('button', { name: 'Close ½' }).click()
   await expect(page.getByRole('dialog', { name: 'Close Exposure' })).toHaveCount(0)
   await expect(eth.getByRole('status').filter({ hasText: 'Chase close accepted' })).toBeVisible()
@@ -287,11 +287,8 @@ test('visible Chase close preset submits once without a review dialog', async ({
   expect(evidence.count).toBe(1)
   expect(evidence.intent.kind).toBe('close_exposure')
   expect(evidence.intent.parameters.quantity).toEqual({ kind: 'percent', percent: '50' })
-  expect(evidence.intent.parameters.execution).toEqual({
-    kind: 'chase',
-    adverse_boundary: { kind: 'basis_points', value: '20' },
-    expires_after_ms: 300000,
-  })
+  // No boundary and no expiry: the one-tap close keeps going until filled.
+  expect(evidence.intent.parameters.execution).toEqual({ kind: 'chase' })
 })
 
 test('Market and Limit close actions retain the review form', async ({ page }) => {
