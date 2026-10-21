@@ -1,5 +1,40 @@
 [
   {
+    "version": "0.10.28",
+    "status": "published",
+    "released_at": "2026-10-21",
+    "channel": "Fees by order role",
+    "summary": "Take profits and resting limit orders on Hyperliquid now pay the same all-in fee as Chase entries, and each trade card shows the fees it was actually charged.",
+    "major": [],
+    "minor": [
+      "The trade card shows the fees each trade was actually charged: entry and exit, each split into the exchange fee and Trad's fee, with the total on top.",
+      "The fee figures under Risk are now marked as estimates, so they are not mistaken for the fees charged."
+    ],
+    "fixes": [
+      "Take profits and resting limit orders now pay the same all-in fee as Chase entries (5.5 bps) instead of about 2.7 bps.",
+      "Stops and market orders are unchanged."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Fees follow the order's role",
+        "items": [
+          "Take profits, Chase and resting limit orders use the maker rate.",
+          "Stops, market orders and limit orders that cross the book when sent use the taker rate.",
+          "An order already working keeps the fee it was placed with until Trad places it again."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Actual fees on the trade card",
+        "items": [
+          "Entry and exit each show the exchange fee plus Trad's fee.",
+          "The total is marked approx. when a fill arrived without a reported fee, or when a close shared with other trades had its fee split by quantity. Hover it for the reason."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.27",
     "status": "published",
     "released_at": "2026-10-20",
