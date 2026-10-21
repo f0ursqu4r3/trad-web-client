@@ -21,7 +21,8 @@
         "items": [
           "Take profits, Chase and resting limit orders use the maker rate.",
           "Stops, market orders and limit orders that cross the book when sent use the taker rate.",
-          "An order already working keeps the fee it was placed with until Trad places it again."
+          "Eligible existing Trad take profits with the old fee are re-placed once at the same price and size. Stops are not touched.",
+          "Take profits within 0.5% of the market keep their queue position and wait until the market is further away. Other existing orders keep their placement fee until replaced."
         ]
       },
       {
