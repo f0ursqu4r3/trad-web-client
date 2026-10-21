@@ -200,6 +200,41 @@ if (rearmOption !== null) {
         : { available: true }
   }
 }
+if (new URLSearchParams(location.search).has('chase_fee_risk')) {
+  const chase = initialProjection.chases[0]
+  if (chase) {
+    chase.price_risk = {
+      revision: 8,
+      stop_price: '81350',
+      candidate_price: '80662',
+      calculation_cap: '4.05844',
+      filled_quantity: '0.025',
+      filled_price_risk: '17.0',
+      fee_risk: {
+        consumed_entry_fees: '1.1',
+        expected_entry_fees: '1.05',
+        observed_entry_fee_variance: '0.05',
+        expected_filled_exit_fees: '1.12',
+        total_consumed_risk: '19.22',
+        actual_entry_fee_quantity: '0.025',
+        modeled_entry_fee_quantity: '0',
+      },
+      remaining_risk: '5.78',
+      permitted_remainder: '0.1',
+      permitted_total: '0.125',
+      over_budget: '0',
+      disposition: 'executable',
+    }
+  }
+}
+if (new URLSearchParams(location.search).has('fees_approx')) {
+  const fees = initialProjection.positions.find((candidate) => candidate.symbol === 'ETH')
+    ?.owned_exposure['scope-filled']?.fees
+  if (fees) {
+    fees.exit = [{ asset: 'USDC', exchange_fee: '0.0019', builder_fee: '0.0011' }]
+    fees.apportioned = true
+  }
+}
 if (new URLSearchParams(location.search).has('active_close')) {
   const entry = initialProjection.orders.find(
     (candidate) => candidate.current_request.symbol === 'ETH',

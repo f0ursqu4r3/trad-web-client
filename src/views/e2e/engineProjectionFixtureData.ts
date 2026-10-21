@@ -314,6 +314,18 @@ export function engineProjectionSnapshot(): BrowserAccountSnapshot {
             opened_quantity: '0.00420001',
             reduced_quantity: '0',
             remaining_quantity: '0.00420001',
+            fees: {
+              entry: [
+                {
+                  asset: 'USDC',
+                  exchange_fee: '0.003168518517',
+                  builder_fee: '0.001666666666',
+                },
+              ],
+              exit: [],
+              fills_without_fee: 0,
+              apportioned: false,
+            },
           },
         },
         unallocated_fills: {},

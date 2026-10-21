@@ -1517,7 +1517,9 @@ watch(
                   · Source: {{ builderTargetSourceLabel(account) }}.
                   <br />
                   Exchange fee + Trad builder fee targets the configured all-in amount. The builder
-                  fee is calculated from the live account fee tier for each submitted order.
+                  fee is calculated from the live account fee tier for each submitted order, at the
+                  maker rate for take profits, Chase and resting limits and at the taker rate for
+                  stops, market orders and limits that cross the book.
                 </p>
                 <p
                   v-if="builderApprovalFeedback[account.id]"

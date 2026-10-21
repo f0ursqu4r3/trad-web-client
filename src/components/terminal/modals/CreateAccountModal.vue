@@ -453,8 +453,10 @@ function buildExchangeMetadata() {
           </div>
           <p class="col-span-2 text-[11px] text-[var(--color-text-dim)]">
             Exchange fee + Trad builder fee targets the configured all-in amount. Trad calculates
-            the builder fee from the account's live exchange tier at order submission. The account
-            wallet must approve the configured Trad builder before trading.
+            the builder fee from the account's live exchange tier at order submission, at the maker
+            rate for take profits, Chase and resting limits and at the taker rate for stops, market
+            orders and limits that cross the book. The account wallet must approve the configured
+            Trad builder before trading.
           </p>
         </template>
         <p class="col-span-2 text-[11px] text-[var(--color-text-dim)] leading-relaxed">

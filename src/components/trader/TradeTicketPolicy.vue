@@ -40,13 +40,15 @@ function bps(value: number | null | undefined): string {
       <span>Current all-in target / side</span>
       <strong>{{ bps(target) }}</strong>
       <span>Venue + builder split</span>
-      <strong>Resolved from live fee tier</strong>
+      <strong>Live fee tier, by order role</strong>
       <span>Wallet approval ceiling</span>
       <strong>{{ bps(approval) }}</strong>
     </div>
     <p>
       Trad targets the configured all-in cost. The exchange fee is charged first; only the remainder
-      is sent to the Trad builder, never above the wallet-approved ceiling.
+      is sent to the Trad builder, never above the wallet-approved ceiling. Take profits, Chase and
+      resting limits use the maker rate; stops, market orders and limits that cross the book use the
+      taker rate.
     </p>
   </section>
 

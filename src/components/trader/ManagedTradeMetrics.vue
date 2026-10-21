@@ -12,8 +12,9 @@ import {
   subtractExact,
 } from '@/lib/exactDecimalMath'
 import type { ManagedTradeView } from '@/lib/projection/tradeWorkspace'
+import { tradeFeeSummary, type FeeLeg } from '@/lib/projection/tradeFees'
 import type { NativeProtectionChildProjection } from '@/lib/gateway'
-import { formatNumberShort } from '@/lib/numberFormat'
+import { formatNumberAuto, formatNumberShort } from '@/lib/numberFormat'
 import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 import { useMarketStore } from '@/stores/market'
@@ -114,7 +115,14 @@ const pinnedAllIn = computed(() =>
     ? '-'
     : `${(props.trade.pinnedAllInTargetTenthsBps / 10).toFixed(1)} bps`,
 )
-const feeAsset = computed(() => commonAsset(exchangeFees.value, props.trade.builderFees))
+// Fees the venue charged on this trade's fills (absent from older projections
+// and before the trade has a position).
+const actualFees = computed(() => tradeFeeSummary(props.trade.exposure?.fees))
+const feeAsset = computed(() =>
+  actualFees.value === null
+    ? commonAsset(exchangeFees.value, props.trade.builderFees)
+    : commonAsset(actualFees.value.total),
+)
 
 const stop = computed(() =>
   props.trade.protection?.plan.children.find((child) => child.protection_kind === 'stop_loss'),
@@ -132,6 +140,31 @@ function totals(values: Map<string, string>): string {
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([asset, value]) => `${formatExactDecimal(value)} ${asset}`)
     .join(', ')
+}
+
+function legAmount(leg: FeeLeg): string {
+  if (leg.exchange.size === 0 && leg.builder.size === 0) return '-'
+  const asset = feeAsset.value
+  if (asset === null) return `${totals(leg.exchange)} + ${totals(leg.builder)}`
+  return `${feeAmount(leg.exchange)} + ${feeAmount(leg.builder)}`
+}
+
+// Fee amounts in the quote asset, at most six decimals (USDC precision) so
+// entry and exit fit the column; the exact values are in the titles.
+function feeAmount(values: Map<string, string>): string {
+  const asset = feeAsset.value
+  if (asset === null) return totals(values)
+  const value = values.get(asset)
+  if (value === undefined) return values.size === 0 ? '0' : totals(values)
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return formatExactDecimal(value)
+  return formatNumberAuto(numeric, { maxDecimals: 6 })
+    .replace(/(\.\d*?)0+$/, '$1')
+    .replace(/\.$/, '')
+}
+
+function legTitle(name: string, leg: FeeLeg): string {
+  return `${name} fees charged: exchange ${totals(leg.exchange)} + Trad builder ${totals(leg.builder)}`
 }
 
 function commonAsset(...values: Map<string, string>[]): string | null {
@@ -360,25 +393,47 @@ onBeforeUnmount(() => {
             <small>Over</small><b>{{ compactAmount(trade.chasePriceRisk.over_budget) }}</b>
           </strong>
         </div>
-        <div v-if="trade.chasePriceRisk?.fee_risk" class="metric-inline-pair">
+        <template v-if="trade.chasePriceRisk?.fee_risk">
           <strong
-            :title="`Entry fees consumed: ${formatExactDecimal(trade.chasePriceRisk.fee_risk.consumed_entry_fees)} USDC; model: ${formatExactDecimal(trade.chasePriceRisk.fee_risk.expected_entry_fees)} USDC; observed variance: ${formatExactDecimal(trade.chasePriceRisk.fee_risk.observed_entry_fee_variance)} USDC`"
+            :title="`Risk-model estimate, not the fee charged (see Fees). Entry fees counted against the risk budget: ${formatExactDecimal(trade.chasePriceRisk.fee_risk.consumed_entry_fees)} USDC; model: ${formatExactDecimal(trade.chasePriceRisk.fee_risk.expected_entry_fees)} USDC; observed variance: ${formatExactDecimal(trade.chasePriceRisk.fee_risk.observed_entry_fee_variance)} USDC`"
           >
-            <small>Entry fee</small
+            <small>Est. entry fee</small
             ><b>{{ compactAmount(trade.chasePriceRisk.fee_risk.consumed_entry_fees) }}</b>
           </strong>
           <strong
-            :title="`Expected stop-exit fee reserved for confirmed fills: ${formatExactDecimal(trade.chasePriceRisk.fee_risk.expected_filled_exit_fees)} USDC`"
+            :title="`Risk-model estimate, not the fee charged (see Fees). Expected fee if the stop closes the filled size: ${formatExactDecimal(trade.chasePriceRisk.fee_risk.expected_filled_exit_fees)} USDC`"
           >
-            <small>Exit fee</small
+            <small>Est. exit fee at SL</small
             ><b>{{ compactAmount(trade.chasePriceRisk.fee_risk.expected_filled_exit_fees) }}</b>
           </strong>
-        </div>
+        </template>
       </div>
     </div>
     <div class="metric-group metric-fees">
-      <span>Fees{{ feeAsset ? ` · ${feeAsset}` : '' }}</span>
-      <div class="metric-values metric-values-stacked">
+      <span
+        >Fees{{ feeAsset ? ` · ${feeAsset}` : '' }}
+        <em
+          v-if="actualFees?.approximateReason"
+          class="fee-approx"
+          data-testid="trade-fees-approx"
+          :title="actualFees.approximateReason"
+          >approx.</em
+        ></span
+      >
+      <div v-if="actualFees" class="metric-values metric-values-stacked" data-testid="trade-fees">
+        <strong
+          :title="`Fees charged on this trade, entry and exit, exchange plus Trad builder: ${totals(actualFees.total)}`"
+        >
+          <small>Total</small><b>{{ feeAmount(actualFees.total) }}</b>
+        </strong>
+        <strong :title="legTitle('Entry', actualFees.entry)">
+          <small>Entry</small><b>{{ legAmount(actualFees.entry) }}</b>
+        </strong>
+        <strong :title="legTitle('Exit', actualFees.exit)">
+          <small>Exit</small><b>{{ legAmount(actualFees.exit) }}</b>
+        </strong>
+      </div>
+      <div v-else class="metric-values metric-values-stacked">
         <strong :title="`Exchange fee: ${totals(exchangeFees)}`">
           <small>Exchange</small><b>{{ amount(exchangeFees, feeAsset) }}</b>
         </strong>
@@ -472,7 +527,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .trade-metrics {
   display: grid;
-  grid-template-columns: 0.75fr 1.1fr 0.85fr 1.25fr 1.35fr 1.2fr 0.75fr;
+  grid-template-columns: 0.75fr 1.1fr 0.85fr 1.25fr 1.35fr 1.4fr 0.6fr;
   gap: 1px;
   background: var(--border-subtle);
   border-bottom: 1px solid var(--border-subtle);
@@ -537,6 +592,12 @@ onBeforeUnmount(() => {
   color: var(--fg-muted);
   font-size: 10px;
   line-height: 1.35;
+}
+.fee-approx {
+  color: var(--state-warning);
+  font-size: 9px;
+  font-style: normal;
+  cursor: help;
 }
 .metric-inline-pair {
   display: grid;

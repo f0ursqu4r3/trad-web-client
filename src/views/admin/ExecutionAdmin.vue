@@ -232,8 +232,10 @@ onMounted(refresh)
     </div>
     <p class="control-notice">
       The 10.0 bps venue capability limits only Trad’s builder component. It does not cap the all-in
-      target. Trad derives the builder component from the live maker or taker fee and never charges
-      more than the approved venue maximum.
+      target. Trad derives the builder component from the live exchange fee for the order's role:
+      the maker rate for take profits, Chase and resting limits, the taker rate for stops, market
+      orders and limits that cross the book when sent. It never charges more than the approved venue
+      maximum.
     </p>
   </ControlSection>
 

@@ -573,6 +573,23 @@ export interface OwnedExposureProjection {
   reduced_quantity: ExactDecimal
   remaining_quantity: ExactDecimal
   detached?: boolean
+  // Fees the venue actually charged on this trade's fills (v0.10.28).
+  fees?: TradeFeesProjection
+}
+
+export interface TradeFeesProjection {
+  entry: FeeTotalProjection[]
+  exit: FeeTotalProjection[]
+  // Fills of this trade the venue reported without a fee.
+  fills_without_fee: number
+  // Some exit fee was split with other trades or outside units by quantity.
+  apportioned: boolean
+}
+
+export interface FeeTotalProjection {
+  asset: string
+  exchange_fee: ExactDecimal
+  builder_fee: ExactDecimal
 }
 
 export interface PositionProjection {

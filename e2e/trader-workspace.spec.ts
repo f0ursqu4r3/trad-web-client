@@ -82,6 +82,38 @@ test('presents managed trades instead of a primary command list', async ({ page 
   await expect(cards.filter({ hasText: 'ETH' }).locator('.metric-pnl')).toContainText('Live net')
 })
 
+test('trade fees show what was charged, split by leg, apart from risk estimates', async ({
+  page,
+}) => {
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  const fees = eth.getByTestId('trade-fees')
+  await expect(fees).toContainText('Total')
+  await expect(fees).toContainText('0.004835')
+  await expect(fees).toContainText('Entry0.003169 + 0.001667')
+  await expect(fees).toContainText('Exit-')
+  await expect(eth.getByTestId('trade-fees-approx')).toHaveCount(0)
+
+  await page.goto('/e2e/trader-workspace?fees_approx=1&chase_fee_risk=1')
+  const approxEth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  await expect(approxEth.getByTestId('trade-fees')).toContainText('Exit0.0019 + 0.0011')
+  await expect(approxEth.getByTestId('trade-fees')).toContainText('0.007835')
+  await expect(approxEth.getByTestId('trade-fees-approx')).toHaveAttribute(
+    'title',
+    'A close was shared with other trades or outside units; its fee is split by quantity.',
+  )
+
+  const btcRisk = page
+    .getByTestId('managed-trade-card')
+    .filter({ hasText: 'BTC' })
+    .locator('.metric-risk')
+  await expect(btcRisk).toContainText('Est. entry fee')
+  await expect(btcRisk).toContainText('Est. exit fee at SL')
+  await expect(btcRisk.getByText('Est. entry fee').locator('..')).toHaveAttribute(
+    'title',
+    /^Risk-model estimate, not the fee charged/,
+  )
+})
+
 test('a copied-production-shaped stopped trade shows its final net instead of entry fees', async ({
   page,
 }) => {
