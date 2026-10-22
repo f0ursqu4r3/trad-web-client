@@ -22,3 +22,5 @@ export type BrowserMarketError =
   | { kind: 'invalid_request'; reason: string }
   | { kind: 'unauthorized' }
   | { kind: 'unavailable'; reason: string; retryable: boolean }
+  // The exchange does not list the symbol. Never retried.
+  | { kind: 'unknown_market'; reason?: string; retryable?: boolean }

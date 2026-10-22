@@ -1,9 +1,17 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
+import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 import { useMarketStore } from '@/stores/market'
 import { formatExactDecimal } from '@/lib/exactDecimalMath'
+import { loadMarketSymbols } from '@/lib/marketCatalog'
+import {
+  DebouncedMarketSymbol,
+  MARKET_SYMBOL_DEBOUNCE_MS,
+  marketSymbolDecision,
+  type MarketCatalogState,
+} from '@/lib/gateway/marketSubscriptionPolicy'
 
 const props = defineProps<{
   active: boolean
@@ -12,16 +20,30 @@ const props = defineProps<{
   quoteAsset?: string | null
 }>()
 
+const accounts = useAccountsStore()
 const gateway = useGatewayStore()
 const markets = useMarketStore()
 const now = ref(Date.now())
 let held: { accountId: string; symbol: string } | null = null
 let clock: number | null = null
 
-const normalizedSymbol = computed(() => props.symbol.trim().toUpperCase())
-const stream = computed(() =>
-  markets.stream(props.accountId || null, normalizedSymbol.value || null),
+// The typed symbol reaches the gateway only after it stops changing and the
+// account's catalog lists it: asking the exchange for "Z" or "ZE" drops every
+// price feed on the shared connection.
+const typedSymbol = computed(() => props.symbol.trim().toUpperCase())
+const settledSymbol = ref('')
+const debounce = new DebouncedMarketSymbol(
+  MARKET_SYMBOL_DEBOUNCE_MS,
+  (symbol) => (settledSymbol.value = symbol),
 )
+const account = computed(
+  () => accounts.accounts.find((candidate) => candidate.id === props.accountId) ?? null,
+)
+const catalog = ref<MarketCatalogState>({ status: 'loading' })
+const decision = computed(() => marketSymbolDecision(settledSymbol.value, catalog.value))
+const settled = computed(() => settledSymbol.value === typedSymbol.value)
+
+const stream = computed(() => markets.stream(props.accountId || null, settledSymbol.value || null))
 const latest = computed(() => {
   const samples = stream.value?.samples ?? []
   return samples.length === 0 ? null : samples[samples.length - 1]!
@@ -31,14 +53,16 @@ const ageSeconds = computed(() => {
   return Math.max(0, Math.floor((now.value - latest.value.received_at_ms) / 1_000))
 })
 const formattedPrice = computed(() => {
-  if (stream.value?.status !== 'ready') return null
+  if (!settled.value || stream.value?.status !== 'ready') return null
   const exactPrice = latest.value?.price
   const price = Number(exactPrice)
   if (!Number.isFinite(price) || price <= 0) return null
   return formatExactDecimal(exactPrice!)
 })
 const status = computed(() => {
-  if (!props.active || props.accountId === '' || normalizedSymbol.value === '') return 'idle'
+  if (!props.active || props.accountId === '' || typedSymbol.value === '') return 'idle'
+  if (!settled.value || decision.value === 'wait') return 'subscribing'
+  if (decision.value === 'unknown' || stream.value?.unknownMarket) return 'unknown'
   return stream.value?.status ?? 'subscribing'
 })
 const freshness = computed(() => {
@@ -48,11 +72,45 @@ const freshness = computed(() => {
   return Math.floor(age / 60) + 'm ago'
 })
 
+// Keyed by exchange and network so an accounts refresh does not drop and
+// re-request the held market.
 watch(
-  () => [props.active, props.accountId, normalizedSymbol.value] as const,
-  ([active, accountId, symbol]) => {
+  catalogDomain,
+  async (domain) => {
+    const current = account.value
+    if (domain === null || current === null) {
+      catalog.value = { status: 'unavailable' }
+      return
+    }
+    catalog.value = { status: 'loading' }
+    try {
+      const symbols = await loadMarketSymbols(current)
+      if (catalogDomain() === domain) catalog.value = { status: 'ready', symbols }
+    } catch {
+      if (catalogDomain() === domain) catalog.value = { status: 'unavailable' }
+    }
+  },
+  { immediate: true },
+)
+
+function catalogDomain(): string | null {
+  return account.value === null ? null : `${account.value.exchange}:${account.value.network}`
+}
+
+// The first symbol (and clearing the field) applies at once; typing waits.
+watch(
+  typedSymbol,
+  (symbol, previous) => debounce.update(symbol, previous === undefined || symbol === ''),
+  { immediate: true },
+)
+
+watch(
+  () => [props.active, props.accountId, settledSymbol.value, decision.value] as const,
+  ([active, accountId, symbol, current]) => {
+    const wanted = active && accountId !== '' && current === 'subscribe'
+    if (wanted && held?.accountId === accountId && held.symbol === symbol) return
     release()
-    if (!active || accountId === '' || symbol === '') return
+    if (!wanted) return
     gateway.subscribeMarket(accountId, symbol)
     held = { accountId, symbol }
   },
@@ -75,6 +133,7 @@ function release(): void {
 }
 
 onBeforeUnmount(() => {
+  debounce.cancel()
   release()
   if (clock !== null) window.clearInterval(clock)
 })
@@ -83,13 +142,17 @@ onBeforeUnmount(() => {
 <template>
   <span
     class="market-price"
-    :class="{ stale: ageSeconds !== null && ageSeconds >= 10, failed: status === 'error' }"
+    :class="{
+      stale: formattedPrice !== null && ageSeconds !== null && ageSeconds >= 10,
+      failed: status === 'error' || status === 'unknown',
+    }"
     title="Latest exchange trade from Trad's shared market stream. Execution preview uses the current executable bid or ask."
   >
     <template v-if="formattedPrice">
       <span class="price-value">{{ formattedPrice }}</span>
       <span v-if="freshness" class="freshness">· {{ freshness }}</span>
     </template>
+    <template v-else-if="status === 'unknown'"> Unknown market </template>
     <template v-else-if="status === 'error'"> Price unavailable </template>
     <template v-else-if="status === 'reconnecting'"> Price feed reconnecting… </template>
     <template v-else> Loading live price… </template>

@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, markRaw, ref } from 'vue'
 import { defineStore } from 'pinia'
 
 import type { BrowserMarketSample, BrowserMarketWindow, Uuid } from '@/lib/gateway'
@@ -16,6 +16,8 @@ export interface MarketStreamView {
   nextSequence: number | null
   samples: BrowserMarketSample[]
   error: string | null
+  // The exchange does not list this symbol; shown as "Unknown market".
+  unknownMarket: boolean
 }
 
 export const useMarketStore = defineStore('market', () => {
@@ -33,8 +35,9 @@ export const useMarketStore = defineStore('market', () => {
       subscriptionId: null,
       oldestSequence: current?.oldestSequence ?? null,
       nextSequence: current?.nextSequence ?? null,
-      samples: current?.samples ?? [],
+      samples: current?.samples ?? frozenSamples([]),
       error: null,
+      unknownMarket: false,
     }
   }
 
@@ -58,8 +61,9 @@ export const useMarketStore = defineStore('market', () => {
       subscriptionId,
       oldestSequence: installed.oldestSequence,
       nextSequence: installed.nextSequence,
-      samples: installed.samples,
+      samples: frozenSamples(installed.samples),
       error: unavailableReason,
+      unknownMarket: false,
     }
   }
 
@@ -84,7 +88,7 @@ export const useMarketStore = defineStore('market', () => {
       ...current,
       status: samples.length > 0 ? 'ready' : current.status,
       error: samples.length > 0 ? null : current.error,
-      samples: appended.samples,
+      samples: frozenSamples(appended.samples),
       oldestSequence: appended.oldestSequence,
       nextSequence: appended.nextSequence,
     }
@@ -102,7 +106,7 @@ export const useMarketStore = defineStore('market', () => {
     streams.value[key] = { ...current, status: 'reconnecting', error: reason }
   }
 
-  function fail(accountId: Uuid, symbol: string, reason: string): void {
+  function fail(accountId: Uuid, symbol: string, reason: string, unknownMarket = false): void {
     const key = marketKey(accountId, symbol)
     const current = streams.value[key]
     streams.value[key] = {
@@ -113,8 +117,9 @@ export const useMarketStore = defineStore('market', () => {
       subscriptionId: null,
       oldestSequence: current?.oldestSequence ?? null,
       nextSequence: current?.nextSequence ?? null,
-      samples: current?.samples ?? [],
+      samples: current?.samples ?? frozenSamples([]),
       error: reason,
+      unknownMarket,
     }
   }
 
@@ -155,6 +160,13 @@ export const useMarketStore = defineStore('market', () => {
 
 export function marketKey(accountId: Uuid, symbol: string): string {
   return `${accountId}:${normalizeSymbol(symbol)}`
+}
+
+// Sample windows are replaced, never edited, on every market message. Keeping
+// them out of deep reactivity saves proxying up to 1,024 samples per message;
+// readers still update because the stream object around them is replaced.
+function frozenSamples(samples: BrowserMarketSample[]): BrowserMarketSample[] {
+  return markRaw(samples)
 }
 
 function normalizeSymbol(symbol: string): string {

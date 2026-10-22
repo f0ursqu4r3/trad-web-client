@@ -31,6 +31,7 @@ import {
   type GatewayActionAttempt,
 } from '@/lib/telemetry/gatewayObservation'
 import { marketStreamEvent } from '@/lib/telemetry/marketObservation'
+import { classifyMarketError, MarketRetryScheduler } from '@/lib/gateway/marketSubscriptionPolicy'
 import { recordTelemetry } from '@/lib/telemetry'
 
 const logger = createLogger('gateway')
@@ -108,8 +109,13 @@ export const useGatewayStore = defineStore('gateway', () => {
   const marketDemandReferences = new Map<string, number>()
   const marketRequests = new Map<Uuid, MarketDemand>()
   const marketSubscriptions = new Map<Uuid, MarketDemand>()
-  const marketRetryAttempts = new Map<string, number>()
-  const marketRetryTimers = new Map<string, number>()
+  const marketRetries = new MarketRetryScheduler(
+    (key) => status.value === 'ready' && marketDemands.has(key),
+    (key) => {
+      const demand = marketDemands.get(key)
+      if (demand !== undefined) subscribeMarketDemand(demand)
+    },
+  )
   const pendingCommands = new Map<Uuid, PendingCommand>()
   const pendingPreviews = new Map<Uuid, PendingPreview>()
   const pendingHistories = new Map<Uuid, PendingHistory>()
@@ -425,6 +431,14 @@ export const useGatewayStore = defineStore('gateway', () => {
     const existing = marketDemands.get(key)
     if (existing !== undefined) {
       if (demand.limit > existing.limit) existing.limit = demand.limit
+      // A new viewer of a market whose retries ran out gets one fresh attempt.
+      if (
+        marketRetries.exhausted(key) &&
+        !markets.stream(accountId, demand.symbol)?.unknownMarket
+      ) {
+        marketRetries.cancel(key)
+        subscribeMarketDemand(existing)
+      }
       return
     }
     marketDemands.set(key, demand)
@@ -440,7 +454,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     }
     marketDemandReferences.delete(key)
     marketDemands.delete(key)
-    clearMarketRetry(key)
+    marketRetries.cancel(key)
     for (const [subscriptionId, demand] of marketSubscriptions) {
       if (marketKey(demand.accountId, demand.symbol) !== key) continue
       marketSubscriptions.delete(subscriptionId)
@@ -680,7 +694,7 @@ export const useGatewayStore = defineStore('gateway', () => {
           ),
         )
       }
-      clearMarketRetry(key)
+      marketRetries.cancel(key)
     } catch (error) {
       logger.warn('Market window rejected; requesting a fresh window', error)
       recordTelemetry(
@@ -767,17 +781,31 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (message.request_id !== null) marketRequests.delete(message.request_id)
     if (message.subscription_id !== null) marketSubscriptions.delete(message.subscription_id)
     if (demand === undefined) return
-    const reason = marketError(message.error)
-    markets.fail(demand.accountId, demand.symbol, reason)
+    const key = marketKey(demand.accountId, demand.symbol)
+    // The UI let go of this market while the request was in flight.
+    if (!marketDemands.has(key)) return
+    const errorClass = classifyMarketError(message.error)
+    markets.fail(
+      demand.accountId,
+      demand.symbol,
+      marketError(message.error),
+      errorClass === 'unknown_market',
+    )
     recordTelemetry(
       marketStreamEvent(demand.accountId, demand.symbol, 'error', {
         requestId: message.request_id,
         source: 'market_error',
-        reasonCode: message.error.kind,
+        // The collector accepts only its known reason codes; an unknown
+        // market is the request's fault.
+        reasonCode:
+          message.error.kind === 'unknown_market' ? 'invalid_request' : message.error.kind,
+        retryCount: marketRetries.attempts(key),
       }),
     )
-    if (message.error.kind === 'unavailable' && message.error.retryable) {
+    if (errorClass === 'retry') {
       scheduleMarketRetry(demand)
+    } else {
+      marketRetries.cancel(key)
     }
   }
 
@@ -987,7 +1015,7 @@ export const useGatewayStore = defineStore('gateway', () => {
         marketStreamEvent(demand.accountId, demand.symbol, 'subscribing', {
           requestId,
           source: 'request',
-          retryCount: marketRetryAttempts.get(key) ?? 0,
+          retryCount: marketRetries.attempts(key),
         }),
       )
     } catch (error) {
@@ -1007,6 +1035,8 @@ export const useGatewayStore = defineStore('gateway', () => {
 
   function subscribeMarketDemands(markSubscribing = true): void {
     for (const demand of marketDemands.values()) {
+      // A reconnect must not ask the exchange again for a market it refused.
+      if (markets.stream(demand.accountId, demand.symbol)?.unknownMarket) continue
       subscribeMarketDemand(demand, markSubscribing)
     }
   }
@@ -1023,31 +1053,21 @@ export const useGatewayStore = defineStore('gateway', () => {
 
   function scheduleMarketRetry(demand: MarketDemand, minimumDelay?: number): void {
     const key = marketKey(demand.accountId, demand.symbol)
-    if (status.value !== 'ready' || !marketDemands.has(key) || marketRetryTimers.has(key)) return
-    const attempt = marketRetryAttempts.get(key) ?? 0
-    const delay =
-      minimumDelay ??
-      Math.min(SUBSCRIPTION_RETRY_INITIAL_MS * 2 ** Math.min(attempt, 5), SUBSCRIPTION_RETRY_MAX_MS)
-    marketRetryAttempts.set(key, attempt + 1)
-    const timer = window.setTimeout(() => {
-      marketRetryTimers.delete(key)
-      const current = marketDemands.get(key)
-      if (current !== undefined) subscribeMarketDemand(current)
-    }, delay)
-    marketRetryTimers.set(key, timer)
-  }
-
-  function clearMarketRetry(key: string): void {
-    const timer = marketRetryTimers.get(key)
-    if (timer !== undefined) window.clearTimeout(timer)
-    marketRetryTimers.delete(key)
-    marketRetryAttempts.delete(key)
-  }
-
-  function clearAllMarketRetries(): void {
-    for (const timer of marketRetryTimers.values()) window.clearTimeout(timer)
-    marketRetryTimers.clear()
-    marketRetryAttempts.clear()
+    if (marketRetries.schedule(key, minimumDelay) !== 'exhausted') return
+    const attempts = marketRetries.attempts(key)
+    logger.warn(`Market ${demand.symbol} subscription gave up after ${attempts} retries`)
+    markets.fail(
+      demand.accountId,
+      demand.symbol,
+      `price feed unavailable after ${attempts} retries`,
+    )
+    recordTelemetry(
+      marketStreamEvent(demand.accountId, demand.symbol, 'error', {
+        source: 'request',
+        reasonCode: 'unavailable',
+        retryCount: attempts,
+      }),
+    )
   }
 
   function scheduleSubscriptionRetry(accountId: Uuid, preserveCurrentView = false): void {
@@ -1092,7 +1112,7 @@ export const useGatewayStore = defineStore('gateway', () => {
 
   function resetSubscriptions(): void {
     clearAllSubscriptionRetries()
-    clearAllMarketRetries()
+    marketRetries.cancelAll()
     subscriptionRequests.clear()
     subscriptionAccounts.clear()
     marketRequests.clear()
@@ -1202,10 +1222,13 @@ function marketError(
   switch (error.kind) {
     case 'unauthorized':
       return 'market subscription is unauthorized'
+    case 'unknown_market':
+      return error.reason ?? 'unknown market'
     case 'invalid_request':
     case 'unavailable':
       return error.reason
   }
+  return 'market subscription failed'
 }
 
 function normalizeMarketDemand(accountId: Uuid, symbol: string, limit: number): MarketDemand {

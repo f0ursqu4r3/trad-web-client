@@ -24,7 +24,7 @@ test('lists published releases and filters their categories', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'Trad 0.10.16' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Trad 0.10.17' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Trad 0.10.18' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Trad 0.10.28' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Trad 0.10.29' })).toBeVisible()
   await expect(page.getByText('Protection recovery and live P&L', { exact: true })).toBeVisible()
   await expect(
     page.getByText('Account capacity and market visibility', { exact: true }),
@@ -44,7 +44,7 @@ test('lists published releases and filters their categories', async ({ page }) =
   await expect(page.getByText('Account removal fencing', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Fixes', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Fixes', exact: true })).toHaveCount(25)
+  await expect(page.getByRole('heading', { name: 'Fixes', exact: true })).toHaveCount(26)
   await expect(page.getByRole('heading', { name: 'Major', exact: true })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Minor', exact: true })).toHaveCount(0)
   await expect(page.getByText('Account removal fencing', { exact: true })).toBeVisible()

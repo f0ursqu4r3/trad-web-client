@@ -1,5 +1,30 @@
 [
   {
+    "version": "0.10.29",
+    "status": "published",
+    "released_at": "2026-10-22",
+    "channel": "Steady price feeds",
+    "summary": "Typing or switching a ticker in the order ticket no longer disconnects your price feeds, and a ticker the exchange doesn't list now shows Unknown market.",
+    "major": [],
+    "minor": [],
+    "fixes": [
+      "Typing or switching a ticker no longer disconnects the price feeds on your trade cards.",
+      "A ticker the exchange doesn't list shows Unknown market instead of Price unavailable."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Ticker typing and price feeds",
+        "items": [
+          "The order ticket asks for a price only once you have finished typing a ticker the exchange lists, not for each letter.",
+          "Switching tickers leaves the prices on your trade cards running.",
+          "Trad no longer keeps retrying a ticker the exchange refused, and it stops retrying a failing price feed after a few tries instead of trying forever.",
+          "Trade cards redraw less while a price feed is reconnecting, so the page stays responsive."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.28",
     "status": "published",
     "released_at": "2026-10-21",

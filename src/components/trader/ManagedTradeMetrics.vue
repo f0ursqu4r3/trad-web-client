@@ -40,6 +40,11 @@ const priceAgeSeconds = computed(() =>
     ? null
     : Math.max(0, Math.floor((now.value - latestSample.value.exchange_time_ms) / 1_000)),
 )
+// Non-null only once the last trade is old enough to mention, so the 1 s clock
+// re-renders a card only while its price is stale.
+const stalePriceSeconds = computed(() =>
+  priceAgeSeconds.value !== null && priceAgeSeconds.value >= 15 ? priceAgeSeconds.value : null,
+)
 const latestPrice = computed(() => {
   if (market.value?.status !== 'ready') return null
   return latestSample.value?.price ?? null
@@ -82,6 +87,12 @@ const liveMissing = computed(() => {
       label: latestSample.value === null ? 'waiting for price' : 'feed reconnecting',
       title:
         'Waiting for the exchange price feed to recover; cached prices are not used as live P&L',
+    }
+  }
+  if (market.value?.status === 'error' && market.value.unknownMarket) {
+    return {
+      label: 'unknown market',
+      title: 'The exchange does not list this market, so Trad cannot price it',
     }
   }
   if (market.value?.status === 'error') {
@@ -331,16 +342,11 @@ onBeforeUnmount(() => {
           final P&amp;L cannot be calculated here.
         </p>
         <p
-          v-if="
-            !historical &&
-            liveTradePnl !== null &&
-            priceAgeSeconds !== null &&
-            priceAgeSeconds >= 15
-          "
+          v-if="!historical && liveTradePnl !== null && stalePriceSeconds !== null"
           class="pnl-note"
           title="P&L uses the last traded price. The feed is connected; no newer trade has arrived."
         >
-          Last trade {{ priceAgeSeconds }}s ago
+          Last trade {{ stalePriceSeconds }}s ago
         </p>
       </div>
     </div>
