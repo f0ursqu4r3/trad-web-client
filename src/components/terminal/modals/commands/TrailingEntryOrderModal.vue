@@ -34,6 +34,7 @@ import {
 } from '@/lib/bybitOrderValidation'
 import { hyperliquidTargetTotalTenthsBps } from '@/lib/accountMetadata'
 import HyperliquidTargetTotalField from './HyperliquidTargetTotalField.vue'
+import { fetchHyperliquidMid } from '@/lib/hyperliquidMid'
 
 const logger = createLogger('commands')
 
@@ -523,12 +524,6 @@ function stopHyperliquidTickerPoll(reset = false) {
   }
 }
 
-function hyperliquidInfoEndpoint(): string {
-  return selectedAccount.value?.network === NetworkType.Testnet
-    ? 'https://api.hyperliquid-testnet.xyz/info'
-    : 'https://api.hyperliquid.xyz/info'
-}
-
 async function fetchHyperliquidTicker(symbolToFetch: string, seq: number) {
   hyperliquidTickerAbort?.abort()
   const controller = new AbortController()
@@ -536,21 +531,11 @@ async function fetchHyperliquidTicker(symbolToFetch: string, seq: number) {
   hyperliquidTickerLoading.value = true
 
   try {
-    const response = await fetch(hyperliquidInfoEndpoint(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'allMids' }),
-      signal: controller.signal,
-    })
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
-    }
-    const body = (await response.json()) as Record<string, string | number | undefined>
-    const rawPrice = body[symbolToFetch]
-    const price = rawPrice !== undefined ? Number(rawPrice) : NaN
-    if (!Number.isFinite(price) || price <= 0) {
-      throw new Error('missing mid price')
-    }
+    const price = await fetchHyperliquidMid(
+      selectedAccount.value?.network === NetworkType.Testnet ? 'testnet' : 'mainnet',
+      symbolToFetch,
+      controller.signal,
+    )
     if (seq !== hyperliquidTickerRequestSeq) return
     hyperliquidTickerPrice.value = price
     hyperliquidTickerFetchedAt.value = Date.now()

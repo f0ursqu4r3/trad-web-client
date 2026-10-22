@@ -19,6 +19,7 @@ import ManagedTradeExpansion from './ManagedTradeExpansion.vue'
 import ManagedTradeMenu, { type ManagedTradeDetailTab } from './ManagedTradeMenu.vue'
 import ManagedTradeMetrics from './ManagedTradeMetrics.vue'
 import { recordTelemetry } from '@/lib/telemetry'
+import MarketSymbolLabel from '@/components/general/MarketSymbolLabel.vue'
 
 const props = defineProps<{
   trade: ManagedTradeView
@@ -212,7 +213,9 @@ async function copyTradeId(): Promise<void> {
         <ChevronDown v-if="expanded" :size="15" />
         <ChevronRight v-else :size="15" />
         <Pin v-if="meta.pinned" class="trade-pin" :size="12" />
-        <strong :style="{ color: meta.nicknameColor ?? undefined }">{{ trade.symbol }}</strong>
+        <strong :style="{ color: meta.nicknameColor ?? undefined }"
+          ><MarketSymbolLabel :symbol="trade.symbol"
+        /></strong>
         <span class="trade-side" :class="trade.side">{{ trade.side }}</span>
         <span class="trade-kind">{{ trade.entryLabel }}</span>
         <time

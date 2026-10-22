@@ -11,6 +11,7 @@ import type {
 import { NetworkType } from '@/lib/ws/protocol'
 import { marketContextAccountId } from '@/lib/marketContext'
 import { formatQty } from '@/components/terminal/devices/utils'
+import { loadMarketPriceRule } from '@/lib/marketCatalog'
 
 const props = defineProps<{
   open: boolean
@@ -140,27 +141,17 @@ async function loadSizeRules() {
   sizeDecimals.value = null
   rulesError.value = null
   try {
-    const endpoint =
-      account.value?.network === NetworkType.Testnet
-        ? 'https://api.hyperliquid-testnet.xyz/info'
-        : 'https://api.hyperliquid.xyz/info'
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'meta' }),
-      signal: controller.signal,
-    })
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    const body = (await response.json()) as {
-      universe?: Array<{ name?: string; szDecimals?: number }>
-    }
-    const asset = body.universe?.find(
-      (item) => item.name?.toUpperCase() === props.symbol.toUpperCase(),
+    // Trad's catalog covers the main dex and HIP-3 dexes (xyz:GOLD); it falls
+    // back to Hyperliquid's main market list when the gateway cannot answer.
+    const rule = await loadMarketPriceRule(
+      { exchange: 'hyperliquid', network: account.value?.network ?? NetworkType.Mainnet },
+      props.symbol,
     )
-    if (!asset || !Number.isInteger(asset.szDecimals) || (asset.szDecimals ?? -1) < 0) {
+    if (controller.signal.aborted) return
+    if (rule?.kind !== 'hyperliquid_perpetual') {
       throw new Error(`size rules unavailable for ${props.symbol}`)
     }
-    sizeDecimals.value = asset.szDecimals ?? null
+    sizeDecimals.value = rule.sizeDecimals
   } catch (error) {
     if (!controller.signal.aborted) {
       rulesError.value = error instanceof Error ? error.message : String(error)

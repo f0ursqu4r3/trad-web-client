@@ -133,6 +133,7 @@ function closeModal(): void {
         <MarketSymbolCombobox
           v-model="symbol"
           :account="selectedAccount"
+          :new-exposure="false"
           aria-label="Symbol"
           @validity="catalogSymbolError = $event"
         />

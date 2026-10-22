@@ -39,6 +39,7 @@ import {
 import { ExchangeType } from '@/lib/ws/protocol'
 import FormField from '@/components/forms/FormField.vue'
 import { integerError } from '@/lib/formValidation'
+import { leverageMarginMode, marketDex } from '@/lib/hyperliquidMarkets'
 import HyperliquidSetupFlow from '@/components/settings/HyperliquidSetupFlow.vue'
 
 const logger = createLogger('accounts')
@@ -748,8 +749,9 @@ async function setLeverage(account: AccountRecord) {
           parameters: {
             symbol,
             leverage,
+            // HIP-3 dex markets (XYZ:GOLD) are traded with cross margin only.
             ...(account.exchange === ExchangeType.Hyperliquid
-              ? { margin_mode: form.marginMode }
+              ? { margin_mode: leverageMarginMode(symbol, form.marginMode) }
               : {}),
           },
         },
@@ -819,6 +821,12 @@ async function saveHyperliquidLeveragePrefs(account: AccountRecord) {
   } catch (err) {
     controlError.value = err instanceof Error ? err.message : String(err)
   }
+}
+
+function isolatedSkipsHip3(account: AccountRecord): boolean {
+  const form = leverageForms[account.id]
+  if (account.exchange !== ExchangeType.Hyperliquid || form?.marginMode !== 'isolated') return false
+  return parseLeverageSymbols(account, form.symbols).some((symbol) => marketDex(symbol) !== null)
 }
 
 function summarizeSymbols(symbols: string[]): string {
@@ -1198,6 +1206,13 @@ watch(
                     <option value="cross">Cross</option>
                     <option value="isolated">Isolated</option>
                   </select>
+                  <small
+                    v-if="isolatedSkipsHip3(account)"
+                    class="field-hint"
+                    data-testid="hip3-cross-only"
+                  >
+                    xyz markets always use cross margin.
+                  </small>
                 </FormField>
                 <button
                   class="btn btn-secondary btn-xs account-settings-action"

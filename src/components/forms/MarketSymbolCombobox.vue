@@ -2,61 +2,100 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { ChevronDown, LoaderCircle } from 'lucide-vue-next'
 
-import { loadMarketSymbols } from '@/lib/marketCatalog'
+import { loadMarketInstruments, type MarketInstrument } from '@/lib/marketCatalog'
 import type { MarketCatalogState } from '@/lib/gateway/marketSubscriptionPolicy'
+import { marginModeLabel } from '@/lib/hyperliquidMarkets'
 import {
+  bestOptionIndex,
+  filterMarketOptions,
   marketPickerCommit,
   marketPickerPending,
   marketPickerValidity,
   normalizeMarketSymbol,
   type MarketPickerEvent,
+  type MarketPickerOption,
 } from '@/lib/marketPicker'
 import type { AccountRecord } from '@/stores/accounts'
 
-const props = withDefaults(defineProps<{ account: AccountRecord | null; ariaLabel?: string }>(), {
-  ariaLabel: 'Market',
-})
+const props = withDefaults(
+  defineProps<{
+    account: AccountRecord | null
+    ariaLabel?: string
+    // New trades can only pick tradable markets; closing or canceling work
+    // (Flatten, Cancel entry) can pick any listed market.
+    newExposure?: boolean
+  }>(),
+  { ariaLabel: 'Market', newExposure: true },
+)
 const emit = defineEmits<{ validity: [error: string | null]; pending: [pending: boolean] }>()
-// The ticket's market. Typing changes only `text`; the model changes when the
-// trader selects a market (see marketPickerCommit).
+// The ticket's market, as Trad's symbol (`XYZ:GOLD`). Typing changes only
+// `text`; the model changes when the trader selects a market (see
+// marketPickerCommit). The field shows the exchange's spelling (`xyz:GOLD`).
 const model = defineModel<string>({ required: true })
 
 let nextComboboxId = 0
 const listboxId = `market-symbols-${++nextComboboxId}`
 const input = ref<HTMLInputElement | null>(null)
+const instruments = ref<MarketInstrument[]>([])
 const text = ref(model.value)
 const focused = ref(false)
-const symbols = ref<string[]>([])
 const loading = ref(false)
 const loadError = ref<string | null>(null)
 const open = ref(false)
 const activeIndex = ref(0)
 
+const bySymbol = computed(
+  () => new Map(instruments.value.map((instrument) => [instrument.symbol, instrument])),
+)
 const normalized = computed(() => normalizeMarketSymbol(text.value))
-const catalog = computed<MarketCatalogState>(() => {
+const listed = computed<MarketCatalogState>(() => {
   if (loading.value) return { status: 'loading' }
-  if (loadError.value !== null || symbols.value.length === 0) return { status: 'unavailable' }
-  return { status: 'ready', symbols: symbols.value }
+  if (loadError.value !== null || instruments.value.length === 0) return { status: 'unavailable' }
+  return { status: 'ready', symbols: instruments.value.map((instrument) => instrument.symbol) }
 })
+const options = computed<MarketPickerOption[]>(() =>
+  instruments.value.map((instrument) => {
+    const selectable = !props.newExposure || instrument.tradable
+    return {
+      symbol: instrument.symbol,
+      venueSymbol: instrument.venueSymbol,
+      group: instrument.group,
+      selectable,
+      note: selectable ? marketNote(instrument) : instrument.notTradableReason,
+    }
+  }),
+)
+// What a selection may commit to: the selectable markets.
+const selectable = computed<MarketCatalogState>(() =>
+  listed.value.status !== 'ready'
+    ? listed.value
+    : {
+        status: 'ready',
+        symbols: options.value.filter((option) => option.selectable).map((option) => option.symbol),
+      },
+)
+const refusals = computed(() =>
+  Object.fromEntries(
+    options.value
+      .filter((option) => !option.selectable)
+      .map((option) => [option.symbol, option.note ?? `${option.venueSymbol} cannot be traded`]),
+  ),
+)
 const pending = computed(() => marketPickerPending(text.value, model.value))
-const filtered = computed(() => {
-  const query = normalized.value
-  const ranked = symbols.value
-    .filter((symbol) => !query || symbol.includes(query))
-    .sort((a, b) => Number(b.startsWith(query)) - Number(a.startsWith(query)) || a.localeCompare(b))
-  return ranked.slice(0, 12)
-})
-const activeSymbol = computed(() => filtered.value[activeIndex.value] ?? null)
+// A settled field lists every market; typing filters.
+const filtered = computed(() => filterMarketOptions(options.value, pending.value ? text.value : ''))
+const grouped = computed(() => new Set(filtered.value.map((option) => option.group)).size > 1)
+const activeOption = computed(() => filtered.value[activeIndex.value] ?? null)
 // Shown while the typed text has something Enter can select.
 const showHint = computed(
   () =>
     focused.value &&
     pending.value &&
     normalized.value !== '' &&
-    (filtered.value.length > 0 || catalog.value.status !== 'ready'),
+    (filtered.value.some((option) => option.selectable) || listed.value.status !== 'ready'),
 )
 const validity = computed(() =>
-  marketPickerValidity(text.value, model.value, catalog.value, focused.value),
+  marketPickerValidity(text.value, model.value, listed.value, focused.value, refusals.value),
 )
 
 // Keyed by exchange and network: an accounts refresh that brings a new copy
@@ -67,7 +106,7 @@ const catalogDomain = computed(() =>
 watch(
   catalogDomain,
   async (domain) => {
-    symbols.value = []
+    instruments.value = []
     loadError.value = null
     open.value = false
     const account = props.account
@@ -75,8 +114,10 @@ watch(
 
     loading.value = true
     try {
-      const loaded = await loadMarketSymbols(account)
-      if (catalogDomain.value === domain) symbols.value = loaded
+      const loaded = await loadMarketInstruments(account)
+      if (catalogDomain.value !== domain) return
+      instruments.value = loaded
+      if (!pending.value) text.value = display(model.value)
     } catch (error) {
       if (catalogDomain.value === domain) {
         loadError.value = error instanceof Error ? error.message : String(error)
@@ -89,22 +130,50 @@ watch(
 )
 // A market set from outside (account switch, duplicated trade) replaces
 // whatever was typed.
-watch(model, (symbol) => (text.value = symbol))
-watch(filtered, () => (activeIndex.value = 0))
+watch(model, (symbol) => (text.value = display(symbol)), { immediate: true })
+watch(filtered, (next) => (activeIndex.value = Math.max(0, bestOptionIndex(next, text.value))))
 watch(validity, (error) => emit('validity', error), { immediate: true })
 watch(pending, (value) => emit('pending', value), { immediate: true })
 
+function display(symbol: string): string {
+  return bySymbol.value.get(normalizeMarketSymbol(symbol))?.venueSymbol ?? symbol
+}
+
+function marketNote(instrument: MarketInstrument): string | null {
+  const terms = instrument.hyperliquid
+  if (terms === null || terms.dex === null) return null
+  return [marginModeLabel(terms.marginMode), terms.delisted ? 'delisted' : null]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+function groupLabel(group: string): string {
+  if (group !== 'main') return group
+  switch (props.account?.exchange) {
+    case 'hyperliquid':
+      return 'Hyperliquid'
+    case 'bybit':
+      return 'Bybit'
+    case 'binance':
+      return 'Binance'
+    default:
+      return 'Markets'
+  }
+}
+
+function startsGroup(index: number): boolean {
+  return grouped.value && filtered.value[index - 1]?.group !== filtered.value[index]?.group
+}
+
 function edit(event: Event): void {
-  text.value = (event.target as HTMLInputElement).value.toUpperCase()
+  text.value = (event.target as HTMLInputElement).value
   open.value = true
 }
 
 function showOptions(): void {
   open.value = true
-  activeIndex.value = Math.max(
-    0,
-    filtered.value.findIndex((symbol) => symbol === normalized.value),
-  )
+  const current = filtered.value.findIndex((option) => option.symbol === normalized.value)
+  activeIndex.value = Math.max(0, current >= 0 ? current : bestOptionIndex(filtered.value, ''))
 }
 
 function move(delta: number): void {
@@ -119,22 +188,23 @@ function move(delta: number): void {
 
 // Applies a selection; returns whether the ticket's market changed.
 function commit(event: MarketPickerEvent): boolean {
-  const symbol = marketPickerCommit(text.value, model.value, catalog.value, event)
+  const symbol = marketPickerCommit(text.value, model.value, selectable.value, event)
   if (symbol === null) return false
   model.value = symbol
-  text.value = symbol
+  text.value = display(symbol)
   return true
 }
 
-function pick(symbol: string): void {
-  commit({ kind: 'pick', symbol })
+function pick(option: MarketPickerOption): void {
+  if (!option.selectable) return
+  commit({ kind: 'pick', symbol: option.symbol })
   // Picking the market already selected still settles the text.
-  text.value = model.value
+  text.value = display(model.value)
   open.value = false
 }
 
 function revert(): void {
-  text.value = model.value
+  text.value = display(model.value)
 }
 
 function keydown(event: KeyboardEvent): void {
@@ -145,7 +215,7 @@ function keydown(event: KeyboardEvent): void {
     event.preventDefault()
     move(-1)
   } else if (event.key === 'Enter') {
-    const highlighted = open.value ? activeSymbol.value : null
+    const highlighted = open.value ? activeOption.value : null
     // Enter in a settled field still submits the form.
     if (!pending.value && highlighted === null) return
     event.preventDefault()
@@ -171,7 +241,7 @@ function blur(event: FocusEvent): void {
   focused.value = false
   open.value = false
   commit({ kind: 'blur' })
-  text.value = pending.value ? normalized.value : model.value
+  text.value = pending.value ? text.value.trim() : display(model.value)
 }
 
 function optionId(index: number): string {
@@ -191,7 +261,7 @@ function optionId(index: number): string {
       aria-autocomplete="list"
       :aria-controls="listboxId"
       :aria-expanded="open"
-      :aria-activedescendant="open && activeSymbol ? optionId(activeIndex) : undefined"
+      :aria-activedescendant="open && activeOption ? optionId(activeIndex) : undefined"
       autocomplete="off"
       spellcheck="false"
       required
@@ -216,23 +286,33 @@ function optionId(index: number): string {
     </button>
 
     <span v-if="open" :id="listboxId" class="market-combobox-list" role="listbox">
-      <button
-        v-for="(symbol, index) in filtered"
-        :id="optionId(index)"
-        :key="symbol"
-        class="market-combobox-option"
-        :class="{ active: index === activeIndex }"
-        type="button"
-        role="option"
-        tabindex="-1"
-        :aria-selected="symbol === normalized"
-        @mousedown.prevent
-        @mouseenter="activeIndex = index"
-        @click="pick(symbol)"
-      >
-        <strong>{{ symbol }}</strong>
-        <span>{{ account?.exchange }} · {{ account?.network }}</span>
-      </button>
+      <template v-for="(option, index) in filtered" :key="option.symbol">
+        <span v-if="startsGroup(index)" class="market-combobox-group" role="presentation">
+          {{ groupLabel(option.group) }}
+        </span>
+        <button
+          :id="optionId(index)"
+          class="market-combobox-option"
+          :class="{ active: index === activeIndex, disabled: !option.selectable }"
+          type="button"
+          role="option"
+          tabindex="-1"
+          :aria-selected="option.symbol === normalized"
+          :aria-disabled="!option.selectable"
+          :title="option.selectable ? undefined : (option.note ?? undefined)"
+          @mousedown.prevent
+          @mouseenter="activeIndex = index"
+          @click="pick(option)"
+        >
+          <strong>
+            {{ option.venueSymbol }}
+            <span v-if="option.group !== 'main'" class="market-dex-tag">{{ option.group }}</span>
+          </strong>
+          <span class="market-combobox-note">{{
+            option.note ?? `${account?.exchange} · ${account?.network}`
+          }}</span>
+        </button>
+      </template>
       <span v-if="loading" class="market-combobox-state">Loading markets…</span>
       <span v-else-if="loadError" class="market-combobox-state">
         Catalog unavailable. Manual entry still works.
@@ -322,7 +402,36 @@ function optionId(index: number): string {
   box-shadow: inset 2px 0 var(--accent-color);
 }
 .market-combobox-option strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   font-weight: 500;
+}
+.market-combobox-option.disabled {
+  color: var(--fg-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.market-combobox-note {
+  overflow: hidden;
+  max-width: 65%;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.market-combobox-group {
+  padding: 0.4rem 0.55rem 0.2rem;
+  color: var(--fg-muted);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.market-combobox-option .market-dex-tag {
+  padding: 0 0.3rem;
+  color: var(--accent-color);
+  font-size: 9px;
+  font-weight: 500;
+  border: 1px solid color-mix(in srgb, var(--accent-color) 45%, transparent);
 }
 .market-combobox-option span {
   color: var(--fg-muted);

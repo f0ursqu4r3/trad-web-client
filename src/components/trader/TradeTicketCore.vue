@@ -7,6 +7,8 @@ import LiveMarketPrice from '@/components/engine/commands/LiveMarketPrice.vue'
 import type { MarketUnits } from '@/lib/engineCommands/marketUnits'
 import type { TradeTicketDraft, TicketEntryType } from '@/lib/trader/tradeTicketDraft'
 import { useAccountsStore } from '@/stores/accounts'
+import { useMarketInstrument } from '@/composables/useMarketInstrument'
+import { marginModeLabel } from '@/lib/hyperliquidMarkets'
 
 const props = defineProps<{ accountId: string; units: MarketUnits }>()
 const draft = defineModel<TradeTicketDraft>({ required: true })
@@ -17,6 +19,19 @@ const account = computed(
   () => accounts.accounts.find((item) => item.id === props.accountId) ?? null,
 )
 const marketError = ref<string | null>(null)
+const instrument = useMarketInstrument(
+  () => account.value,
+  () => draft.value.symbol,
+)
+// HIP-3 dex markets: their dex, margin mode and listing state.
+const marketTerms = computed(() => {
+  const terms = instrument.value?.hyperliquid
+  if (!terms || terms.dex === null) return null
+  return [`${terms.dex} dex`, marginModeLabel(terms.marginMode), terms.delisted ? 'delisted' : null]
+    .filter(Boolean)
+    .join(' · ')
+})
+
 const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
 </script>
 
@@ -45,6 +60,9 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
       @validity="marketError = $event"
       @pending="marketPending = $event"
     />
+    <small v-if="marketTerms" class="market-terms" data-testid="ticket-market-terms">
+      {{ marketTerms }}
+    </small>
   </FormField>
 
   <div class="side-toggle" aria-label="Position side">
@@ -85,6 +103,12 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
 </template>
 
 <style scoped>
+.market-terms {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--fg-muted);
+  font-size: 10px;
+}
 .symbol-heading {
   display: flex;
   width: 100%;

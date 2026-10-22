@@ -8,6 +8,7 @@ import type { TakeProfitLadder } from '@/lib/ws/protocol'
 import { normalizeMarketContext } from '@/lib/marketContext'
 import { formatPrice, formatQty } from '@/components/terminal/devices/utils'
 import TakeProfitLadderEditor from '@/components/terminal/modals/commands/TakeProfitLadderEditor.vue'
+import { fetchHyperliquidMid } from '@/lib/hyperliquidMid'
 
 const props = defineProps<{
   open: boolean
@@ -100,20 +101,11 @@ async function loadMarketPrice() {
   marketPrice.value = null
   marketError.value = null
   try {
-    const endpoint =
-      account.value?.network === NetworkType.Testnet
-        ? 'https://api.hyperliquid-testnet.xyz/info'
-        : 'https://api.hyperliquid.xyz/info'
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'allMids' }),
-      signal: controller.signal,
-    })
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    const body = (await response.json()) as Record<string, string | undefined>
-    const price = Number(body[props.device.symbol.toUpperCase()])
-    if (!Number.isFinite(price) || price <= 0) throw new Error('mid price unavailable')
+    const price = await fetchHyperliquidMid(
+      account.value?.network === NetworkType.Testnet ? 'testnet' : 'mainnet',
+      props.device.symbol,
+      controller.signal,
+    )
     marketPrice.value = price
   } catch (error) {
     if (!controller.signal.aborted) {

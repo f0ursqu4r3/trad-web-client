@@ -1,5 +1,50 @@
 [
   {
+    "version": "0.10.31",
+    "status": "published",
+    "released_at": "2026-10-22",
+    "channel": "xyz markets on Trad",
+    "summary": "Trade Hyperliquid's xyz markets, such as gold, oil and the S&P 500, from the same ticket as your crypto perps, with their fees and collateral spelled out.",
+    "major": [
+      "Hyperliquid's xyz markets (xyz:GOLD, xyz:SP500 and more) can be traded from the order ticket and the Order, Chase and Trailing windows."
+    ],
+    "minor": [
+      "The ticket shows each market's own exchange fee and the builder fee Trad adds, and says plainly when the exchange fee alone is above your target."
+    ],
+    "fixes": [
+      "Market prices, size rules and order capacity are read for xyz markets too, not only for Hyperliquid's main markets."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "xyz markets in the market picker",
+        "items": [
+          "The market list is grouped into Hyperliquid and xyz. Typing \"gold\" finds xyz:GOLD.",
+          "Markets show as Hyperliquid writes them (xyz:GOLD), with an xyz tag on trade cards, positions and orders.",
+          "Markets Trad can't open trades on yet, such as isolated-margin-only or delisted xyz markets, are greyed out with the reason. You can still close or cancel what you already have there.",
+          "xyz trades use cross margin. Leverage changes for xyz markets are always sent as cross, even when the account is set to isolated."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Fees and collateral per market",
+        "items": [
+          "xyz markets charge a different exchange fee from the main markets. The ticket shows that market's taker and maker fee for your fee tier, and the builder fee Trad adds on top.",
+          "When the exchange fee alone is above your all-in target, for example xyz:GOLD's 8.0 bps taker fee against a 5.5 target, the ticket says so and Trad adds no builder fee to those fills.",
+          "In Standard account mode the xyz markets use their own USDC balance on Hyperliquid's xyz dex. Trad shows it as \"USDC · xyz dex collateral\", checks it for margin, and tells you when it is empty: move USDC to the xyz dex, or switch the account to Unified Account mode."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Hyperliquid reads that skipped xyz",
+        "items": [
+          "The market list now comes from Trad, so it matches what Trad can trade. If that list can't be loaded, Hyperliquid's main markets are still offered.",
+          "Mid prices, size rules and order capacity are asked for with Hyperliquid's own spelling (xyz:GOLD, kPEPE), so they work for xyz markets."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.30",
     "status": "published",
     "released_at": "2026-10-22",

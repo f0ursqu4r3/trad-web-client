@@ -294,6 +294,7 @@ defineExpose({ applyPrefill })
         :account="account"
         :account-id="accountId"
         :intent="planningIntent"
+        :symbol="draft.symbol"
         :quote-asset="units.quote"
         :action-attempt-id="actionAttemptId"
         @ready="previewReady = $event"

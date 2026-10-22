@@ -14,6 +14,13 @@ import type { BrowserPreviewIntent } from '@/lib/gateway'
 import { previewRejectionRemediation } from '@/lib/engineCommands/previewRemediation'
 import { recordTelemetry } from '@/lib/telemetry'
 import { ExchangeType } from '@/lib/ws/protocol'
+import {
+  aboveTargetNote,
+  collateralAsset,
+  collateralNotice,
+  rateBps,
+  venueSymbolFallback,
+} from '@/lib/hyperliquidMarkets'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
 
@@ -45,12 +52,48 @@ const { error, guidance, pending, preview, ready, status } = useExecutionPreview
 })
 const account = computed(() => accounts.accounts.find((row) => row.id === props.accountId) ?? null)
 const projection = computed(() => projections.byAccount[props.accountId] ?? null)
-const available = computed(
-  () =>
-    projection.value?.view?.live.balances.find(
-      (balance) => balance.asset === (props.quoteAsset ?? 'USDC'),
-    )?.available ?? null,
+const balances = computed(() => projection.value?.view?.live.balances ?? [])
+const marketSymbol = computed(() =>
+  (props.intent?.parameters.symbol ?? preview.value?.symbol ?? '').trim().toUpperCase(),
 )
+// HIP-3 markets in Standard account mode margin from their dex's own balance
+// (`USDC-XYZ`); without that row (Unified Account) the settlement balance
+// backs every dex.
+const available = computed(() => {
+  const settlement = props.quoteAsset ?? 'USDC'
+  const dexRow = balances.value.find(
+    (balance) => balance.asset === collateralAsset(marketSymbol.value, settlement),
+  )
+  const row = dexRow ?? balances.value.find((balance) => balance.asset === settlement)
+  return row?.available ?? null
+})
+const collateral = computed(() =>
+  account.value?.exchange === ExchangeType.Hyperliquid
+    ? collateralNotice(marketSymbol.value, balances.value)
+    : null,
+)
+// Planned all-in rates from the preview, which already uses this market's
+// exchange rates; when the stop-exit (taker) rate alone passes the target,
+// Trad adds no builder fee there.
+const plannedRates = computed(() => {
+  const risk = preview.value?.fee_risk
+  if (!risk) return null
+  const entry = rateBps(risk.expected_entry_fee_rate)
+  const exit = rateBps(risk.expected_stop_exit_fee_rate)
+  if (entry === null || exit === null) return null
+  const target = risk.all_in_target_tenths_bps
+  const note = aboveTargetNote(
+    venueSymbolFallback(preview.value!.symbol),
+    {
+      takerBps: exit,
+      makerBps: entry,
+      takerAboveTarget: target > 0 && exit * 10 > target,
+      makerAboveTarget: false,
+    },
+    target,
+  )
+  return { entry, exit, note }
+})
 const configuredLeverage = computed(() => {
   const metadata = account.value?.exchange_metadata
   const symbol = preview.value?.symbol.toUpperCase()
@@ -232,6 +275,14 @@ function isEditor(target: Element): boolean {
       <span v-else>Enter order details</span>
     </div>
 
+    <p
+      v-if="collateral && error !== collateral"
+      class="preview-warning collateral-notice"
+      role="status"
+      data-testid="collateral-notice"
+    >
+      {{ collateral }}
+    </p>
     <p v-if="guidance" class="preview-guidance">{{ guidance }}</p>
     <div v-else-if="error && remediation" class="preview-remediation">
       <strong>{{ remediation.title }}</strong>
@@ -277,7 +328,17 @@ function isEditor(target: Element): boolean {
           <span>Expected stop-exit fee</span
           ><strong>{{ preview.fee_risk.expected_stop_exit_fee }}</strong>
           <span>Total planned loss</span><strong>{{ preview.fee_risk.total_planned_loss }}</strong>
+          <template v-if="plannedRates">
+            <span>Planned fee rates</span>
+            <strong
+              >entry {{ plannedRates.entry.toFixed(1) }} · stop exit
+              {{ plannedRates.exit.toFixed(1) }} bps</strong
+            >
+          </template>
         </div>
+        <p v-if="plannedRates?.note" class="preview-warning" data-testid="preview-fee-note">
+          {{ plannedRates.note }}
+        </p>
         <p class="preview-note">
           Uses recorded fee policy v{{ preview.fee_risk.policy_version }}. Stop-market slippage,
           gaps, funding, and later venue fee changes are not guaranteed by this estimate.

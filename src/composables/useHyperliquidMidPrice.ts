@@ -1,5 +1,6 @@
 import { onBeforeUnmount, ref, watch, type Ref } from 'vue'
 import { NetworkType } from '@/lib/ws/protocol'
+import { fetchHyperliquidMid } from '@/lib/hyperliquidMid'
 
 const REFRESH_MS = 5_000
 
@@ -45,22 +46,11 @@ export function useHyperliquidMidPrice(
     controller = new AbortController()
     loading.value = true
     try {
-      const endpoint =
-        targetNetwork === NetworkType.Testnet
-          ? 'https://api.hyperliquid-testnet.xyz/info'
-          : 'https://api.hyperliquid.xyz/info'
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'allMids' }),
-        signal: controller.signal,
-      })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const body = (await response.json()) as Record<string, string | number | undefined>
-      const nextPrice = Number(body[targetSymbol])
-      if (!Number.isFinite(nextPrice) || nextPrice <= 0) {
-        throw new Error(`No midpoint available for ${targetSymbol}`)
-      }
+      const nextPrice = await fetchHyperliquidMid(
+        targetNetwork === NetworkType.Testnet ? 'testnet' : 'mainnet',
+        targetSymbol,
+        controller.signal,
+      )
       if (sequence !== requestSequence) return
       price.value = nextPrice
       fetchedAt.value = Date.now()

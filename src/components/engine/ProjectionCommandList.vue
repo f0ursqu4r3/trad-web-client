@@ -19,6 +19,7 @@ import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 import { useModalStore } from '@/stores/modals'
 import { useProjectionUiStore } from '@/stores/projectionUi'
+import MarketSymbolLabel from '@/components/general/MarketSymbolLabel.vue'
 
 const accounts = useAccountsStore()
 const projections = useAccountProjectionStore()
@@ -263,9 +264,10 @@ function clearRename(): void {
             {{ ui.meta(command.command_id).nickname || commandLabel(command) }}
           </span>
           <span class="command-facets">
-            <span v-if="symbols.has(command.command_id)">{{
-              symbols.get(command.command_id)
-            }}</span>
+            <MarketSymbolLabel
+              v-if="symbols.has(command.command_id)"
+              :symbol="symbols.get(command.command_id)"
+            />
             <span>#{{ command.command_id.slice(0, 8) }}</span>
           </span>
         </span>

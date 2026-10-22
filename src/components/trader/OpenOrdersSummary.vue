@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { formatExactDecimal } from '@/lib/exactDecimalMath'
 import type { WorkspaceOrderView } from '@/lib/projection/tradeWorkspace'
+import MarketSymbolLabel from '@/components/general/MarketSymbolLabel.vue'
 
 defineProps<{ rows: WorkspaceOrderView[]; expanded?: boolean }>()
 const emit = defineEmits<{ (event: 'select-trade', tradeId: string): void }>()
@@ -20,7 +21,7 @@ const emit = defineEmits<{ (event: 'select-trade', tradeId: string): void }>()
         <span>Coin</span><span>Purpose</span><span>Remaining</span><span>Price</span><span></span>
       </div>
       <div v-for="row in rows" :key="row.id" class="summary-row">
-        <strong>{{ row.symbol }}</strong>
+        <strong><MarketSymbolLabel :symbol="row.symbol" /></strong>
         <span :class="{ external: !row.managed }">{{ row.purpose }}</span>
         <span>{{ formatExactDecimal(row.remainingQuantity) }}</span>
         <span>{{ row.price ? formatExactDecimal(row.price) : '-' }}</span>

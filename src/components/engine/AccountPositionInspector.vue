@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MarketSymbolLabel from '@/components/general/MarketSymbolLabel.vue'
 import { computed, ref, watch } from 'vue'
 
 import FlattenCommandModal from '@/components/engine/commands/FlattenCommandModal.vue'
@@ -6,6 +7,7 @@ import PositionDeficitResolution from '@/components/engine/PositionDeficitResolu
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import { isExactZero, sumExact } from '@/lib/exactDecimalMath'
 import type { PositionProjection } from '@/lib/gateway'
+import { balanceLabel } from '@/lib/hyperliquidMarkets'
 import { commandOwnershipScopeIds } from '@/lib/projection/ownership'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
@@ -163,7 +165,7 @@ function inspectScope(scopeId: string): void {
         <h3>Balances</h3>
         <div class="balance-list">
           <div v-for="balance in live.balances" :key="balance.asset">
-            <strong>{{ balance.asset }}</strong>
+            <strong :title="balance.asset">{{ balanceLabel(balance.asset) }}</strong>
             <span>Wallet {{ balance.wallet ?? '-' }}</span>
             <span>Equity {{ balance.equity ?? '-' }}</span>
             <span>Available {{ balance.available ?? '-' }}</span>
@@ -183,7 +185,7 @@ function inspectScope(scopeId: string): void {
       >
         <header>
           <div>
-            <strong>{{ position.symbol }}</strong>
+            <strong><MarketSymbolLabel :symbol="position.symbol" /></strong>
             <span class="status" :data-status="position.status">{{ position.status }}</span>
             <span
               v-if="coinBlockedReasons[position.symbol]"

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { formatExactDecimal, isExactZero } from '@/lib/exactDecimalMath'
 import type { WorkspacePositionView } from '@/lib/projection/tradeWorkspace'
+import MarketSymbolLabel from '@/components/general/MarketSymbolLabel.vue'
 
 defineProps<{ rows: WorkspacePositionView[]; expanded?: boolean }>()
 const emit = defineEmits<{ (event: 'select-trade', tradeId: string): void }>()
@@ -28,7 +29,7 @@ function quantity(long: string, short: string): string {
         <span>Coin</span><span>Venue net</span><span>Trad</span><span>External</span>
       </div>
       <div v-for="row in rows" :key="row.position.symbol" class="summary-row">
-        <strong>{{ row.position.symbol }}</strong>
+        <strong><MarketSymbolLabel :symbol="row.position.symbol" /></strong>
         <span>{{
           quantity(row.position.exchange_quantity.long, row.position.exchange_quantity.short)
         }}</span>

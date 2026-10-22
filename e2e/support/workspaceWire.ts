@@ -12,7 +12,7 @@ export const WORKSPACE_ACCOUNT_ID = '10000000-0000-4000-8000-000000000001'
 
 // Fixture JSON edited by path; the wire types are checked by the app itself.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Json = Record<string, any>
+export type Json = Record<string, any>
 export type MarketErrorReply = Record<string, unknown> | null
 
 export interface WorkspaceWire {
@@ -33,6 +33,11 @@ export interface WorkspaceOptions {
   // Six trade cards over BTC, ETH and ZEC instead of three.
   busy?: boolean
   path?: string
+  // Rows for Trad's catalog (`GET /api/markets/hyperliquid/...`); without
+  // them that endpoint fails and the app falls back to Hyperliquid's meta.
+  catalogRows?: unknown[]
+  // Edits the account snapshot before it is sent.
+  editSnapshot?: (snapshot: Json) => void
 }
 
 const START_PRICES: Record<string, number> = { BTC: 64_000, ETH: 2_100, ZEC: 41.25, SOL: 144 }
@@ -42,7 +47,8 @@ export async function openWorkspace(
   options: WorkspaceOptions = {},
 ): Promise<WorkspaceWire> {
   const catalog = options.catalog ?? true
-  const snapshot = options.busy ? busySnapshot() : engineProjectionSnapshot()
+  const snapshot: Json = options.busy ? busySnapshot() : engineProjectionSnapshot()
+  options.editSnapshot?.(snapshot)
   let revision = snapshot.checkpoint.projection_revision
   let socket: WebSocketRoute | null = null
   let accountSubscription: string | null = null
@@ -134,8 +140,25 @@ export async function openWorkspace(
     route.fulfill({ json: { token: 'fixture-ticket', expires_in: 60 } }),
   )
   await page.route('**/api/telemetry**', (route) => route.fulfill({ status: 204, body: '' }))
+  await page.route('**/api/markets/**', (route) =>
+    options.catalogRows === undefined
+      ? route.fulfill({ status: 503, json: { error: 'no node returned the instrument catalog' } })
+      : route.fulfill({
+          json: {
+            exchange: 'hyperliquid',
+            network: 'mainnet',
+            observed_at: Date.now(),
+            instruments: options.catalogRows,
+          },
+        }),
+  )
   await page.route('https://api.hyperliquid.xyz/info', async (route) => {
     const request = route.request().postDataJSON() as { type?: string }
+    if (request.type === 'userFees') {
+      // Tier 1: taker 4.0 bps, maker 1.2 bps.
+      await route.fulfill({ json: { userCrossRate: '0.0004', userAddRate: '0.00012' } })
+      return
+    }
     if (request.type === 'activeAssetData') {
       await route.fulfill({
         json: {
