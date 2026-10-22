@@ -7,8 +7,6 @@ import { useMarketStore } from '@/stores/market'
 import { formatExactDecimal } from '@/lib/exactDecimalMath'
 import { loadMarketSymbols } from '@/lib/marketCatalog'
 import {
-  DebouncedMarketSymbol,
-  MARKET_SYMBOL_DEBOUNCE_MS,
   marketSymbolDecision,
   type MarketCatalogState,
 } from '@/lib/gateway/marketSubscriptionPolicy'
@@ -27,23 +25,18 @@ const now = ref(Date.now())
 let held: { accountId: string; symbol: string } | null = null
 let clock: number | null = null
 
-// The typed symbol reaches the gateway only after it stops changing and the
-// account's catalog lists it: asking the exchange for "Z" or "ZE" drops every
-// price feed on the shared connection.
-const typedSymbol = computed(() => props.symbol.trim().toUpperCase())
-const settledSymbol = ref('')
-const debounce = new DebouncedMarketSymbol(
-  MARKET_SYMBOL_DEBOUNCE_MS,
-  (symbol) => (settledSymbol.value = symbol),
-)
+// `symbol` is the ticket's selected market: the market picker changes it only
+// when the trader selects a market, never while typing. It reaches the gateway
+// only when the account's catalog lists it: asking the exchange for an
+// unknown coin drops every price feed on the shared connection.
+const symbol = computed(() => props.symbol.trim().toUpperCase())
 const account = computed(
   () => accounts.accounts.find((candidate) => candidate.id === props.accountId) ?? null,
 )
 const catalog = ref<MarketCatalogState>({ status: 'loading' })
-const decision = computed(() => marketSymbolDecision(settledSymbol.value, catalog.value))
-const settled = computed(() => settledSymbol.value === typedSymbol.value)
+const decision = computed(() => marketSymbolDecision(symbol.value, catalog.value))
 
-const stream = computed(() => markets.stream(props.accountId || null, settledSymbol.value || null))
+const stream = computed(() => markets.stream(props.accountId || null, symbol.value || null))
 const latest = computed(() => {
   const samples = stream.value?.samples ?? []
   return samples.length === 0 ? null : samples[samples.length - 1]!
@@ -53,15 +46,15 @@ const ageSeconds = computed(() => {
   return Math.max(0, Math.floor((now.value - latest.value.received_at_ms) / 1_000))
 })
 const formattedPrice = computed(() => {
-  if (!settled.value || stream.value?.status !== 'ready') return null
+  if (decision.value !== 'subscribe' || stream.value?.status !== 'ready') return null
   const exactPrice = latest.value?.price
   const price = Number(exactPrice)
   if (!Number.isFinite(price) || price <= 0) return null
   return formatExactDecimal(exactPrice!)
 })
 const status = computed(() => {
-  if (!props.active || props.accountId === '' || typedSymbol.value === '') return 'idle'
-  if (!settled.value || decision.value === 'wait') return 'subscribing'
+  if (!props.active || props.accountId === '' || symbol.value === '') return 'idle'
+  if (decision.value === 'wait') return 'subscribing'
   if (decision.value === 'unknown' || stream.value?.unknownMarket) return 'unknown'
   return stream.value?.status ?? 'subscribing'
 })
@@ -97,22 +90,15 @@ function catalogDomain(): string | null {
   return account.value === null ? null : `${account.value.exchange}:${account.value.network}`
 }
 
-// The first symbol (and clearing the field) applies at once; typing waits.
 watch(
-  typedSymbol,
-  (symbol, previous) => debounce.update(symbol, previous === undefined || symbol === ''),
-  { immediate: true },
-)
-
-watch(
-  () => [props.active, props.accountId, settledSymbol.value, decision.value] as const,
-  ([active, accountId, symbol, current]) => {
+  () => [props.active, props.accountId, symbol.value, decision.value] as const,
+  ([active, accountId, next, current]) => {
     const wanted = active && accountId !== '' && current === 'subscribe'
-    if (wanted && held?.accountId === accountId && held.symbol === symbol) return
+    if (wanted && held?.accountId === accountId && held.symbol === next) return
     release()
     if (!wanted) return
-    gateway.subscribeMarket(accountId, symbol)
-    held = { accountId, symbol }
+    gateway.subscribeMarket(accountId, next)
+    held = { accountId, symbol: next }
   },
   { immediate: true },
 )
@@ -133,7 +119,6 @@ function release(): void {
 }
 
 onBeforeUnmount(() => {
-  debounce.cancel()
   release()
   if (clock !== null) window.clearInterval(clock)
 })
@@ -141,6 +126,7 @@ onBeforeUnmount(() => {
 
 <template>
   <span
+    v-if="status !== 'idle'"
     class="market-price"
     :class="{
       stale: formattedPrice !== null && ageSeconds !== null && ageSeconds >= 10,

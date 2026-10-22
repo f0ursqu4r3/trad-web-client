@@ -1,5 +1,51 @@
 [
   {
+    "version": "0.10.30",
+    "status": "published",
+    "released_at": "2026-10-22",
+    "channel": "Smoother trading view",
+    "summary": "The market picker now waits for you to choose a market, coming back to the Trad tab is instant, and the trade view stays smooth while prices move fast.",
+    "major": [],
+    "minor": [
+      "The market picker changes the ticket's market only when you choose one: click it, press Enter, or leave the field on an exact match."
+    ],
+    "fixes": [
+      "Coming back to the Trad tab no longer stalls while the page catches up.",
+      "Trade cards and charts stay smooth when prices move fast."
+    ],
+    "details": [
+      {
+        "category": "minor",
+        "title": "Market picker waits for your choice",
+        "items": [
+          "Typing a ticker only filters the list. The ticket keeps its current market and price until you choose.",
+          "Choose a market by clicking it, by pressing Enter on the highlighted or exactly matching one, or by leaving the field on an exact match.",
+          "While you type, the field shows \"press Enter to select\" and the price next to it stays on the market the ticket has selected.",
+          "The Order, Chase and Trailing windows work the same way."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Coming back to the tab",
+        "items": [
+          "Trad keeps its price connection open while the tab is in the background and catches up in one step when you return, instead of replaying every price it missed.",
+          "Returning to the tab checks your accounts at most once every 30 seconds, and a check that finds nothing new changes nothing on screen.",
+          "A failed account check in the background no longer clears your accounts from the screen.",
+          "The connection renews its sign-in on time even when the browser slows down background tabs."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Smoother trade view",
+        "items": [
+          "Prices and charts update up to ten times a second instead of on every trade, which roughly halves the work the page does when markets are busy.",
+          "Trade charts keep their price scale steady instead of resizing as prices tick.",
+          "Prices are formatted much faster, and trade cards no longer redraw their dates on every update."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.29",
     "status": "published",
     "released_at": "2026-10-22",

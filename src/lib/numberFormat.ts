@@ -27,14 +27,28 @@ export function formatNumberAuto(value: number, options: FormatOptions = {}): st
   return value.toFixed(decimals)
 }
 
+// toLocaleString builds a new Intl.NumberFormat on every call; chart axes and
+// trade cards format prices many times a frame, so the formatters are reused.
+const fullFormatters = new Map<string, Intl.NumberFormat>()
+
+function fullFormatter(minDecimals: number, maxDecimals: number): Intl.NumberFormat {
+  const key = `${minDecimals}:${maxDecimals}`
+  let formatter = fullFormatters.get(key)
+  if (formatter === undefined) {
+    formatter = new Intl.NumberFormat(undefined, {
+      minimumFractionDigits: minDecimals,
+      maximumFractionDigits: maxDecimals,
+    })
+    fullFormatters.set(key, formatter)
+  }
+  return formatter
+}
+
 function formatNumberFull(value: number, options: FormatOptions = {}): string {
   if (!isValidNumber(value)) return '-'
   const { minDecimals = 0, maxDecimals = 15 } = options
   const decimals = Math.min(15, Math.max(12, minDecimals, maxDecimals))
-  return value.toLocaleString(undefined, {
-    minimumFractionDigits: minDecimals,
-    maximumFractionDigits: decimals,
-  })
+  return fullFormatter(minDecimals, decimals).format(value)
 }
 
 function shouldUseFullNumbers(): boolean {

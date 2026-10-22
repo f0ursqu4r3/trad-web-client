@@ -10,6 +10,8 @@ import { useAccountsStore } from '@/stores/accounts'
 
 const props = defineProps<{ accountId: string; units: MarketUnits }>()
 const draft = defineModel<TradeTicketDraft>({ required: true })
+// The market field holds typed text that is not the ticket's market yet.
+const marketPending = defineModel<boolean>('marketPending', { default: false })
 const accounts = useAccountsStore()
 const account = computed(
   () => accounts.accounts.find((item) => item.id === props.accountId) ?? null,
@@ -21,7 +23,7 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
 <template>
   <FormField
     label="Market"
-    help="Exchange instrument. Type to filter the markets available for this account."
+    help="Exchange instrument. Type to filter the markets available for this account, then pick one or press Enter."
     :error="marketError"
     telemetry-field="market"
     required
@@ -41,6 +43,7 @@ const entryTypes: TicketEntryType[] = ['market', 'limit', 'chase', 'trailing']
       v-model="draft.symbol"
       :account="account"
       @validity="marketError = $event"
+      @pending="marketPending = $event"
     />
   </FormField>
 

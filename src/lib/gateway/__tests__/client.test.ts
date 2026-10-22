@@ -202,6 +202,45 @@ test('repeated lease rotations keep one ready transport and send every action on
   client.disconnect()
 })
 
+test('an overdue renewal starts from the next frame when a background tab starves its timer', async (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setInterval', 'setTimeout'], now: 0 })
+  const sockets: FakeSocket[] = []
+  let ticket = 0
+  const client = clientWithSockets(sockets, async () => `ticket-${++ticket}`, {
+    pingIntervalMs: 10_000_000,
+  })
+  client.connect()
+  await flushPromises()
+  const first = requiredSocket(sockets, 0)
+  first.open()
+  first.receive(hello(600_000))
+
+  // The wall clock passes the renewal point but the throttled timer has not
+  // fired: a check before that point does nothing.
+  t.mock.timers.setTime(539_000)
+  client.checkLease()
+  await flushPromises()
+  assert.equal(sockets.length, 1)
+
+  t.mock.timers.setTime(560_000)
+  first.receive({ kind: 'pong', nonce: 1 })
+  await flushPromises()
+  const replacement = requiredSocket(sockets, 1)
+  replacement.open()
+  assert.equal(JSON.parse(replacement.sent[0] ?? '').ticket, 'ticket-2')
+  replacement.receive(hello(600_000))
+
+  // The starved timer was cancelled, so it does not start a second renewal.
+  t.mock.timers.tick(600_000)
+  await flushPromises()
+  assert.equal(ticket, 3)
+  assert.equal(sockets.length, 3)
+  client.checkLease()
+  await flushPromises()
+  assert.equal(sockets.length, 3)
+  client.disconnect()
+})
+
 test('a delayed renewal ticket leaves the active socket usable until handoff', async () => {
   const sockets: FakeSocket[] = []
   let resolveRenewal: ((ticket: string) => void) | null = null

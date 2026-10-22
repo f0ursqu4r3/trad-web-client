@@ -32,6 +32,7 @@ import {
 } from '@/lib/telemetry/gatewayObservation'
 import { marketStreamEvent } from '@/lib/telemetry/marketObservation'
 import { classifyMarketError, MarketRetryScheduler } from '@/lib/gateway/marketSubscriptionPolicy'
+import { MarketSampleBuffer } from '@/lib/gateway/marketSampleBuffer'
 import { recordTelemetry } from '@/lib/telemetry'
 
 const logger = createLogger('gateway')
@@ -42,6 +43,10 @@ const HISTORY_RESULT_TIMEOUT_MS = 30_000
 const PROJECTION_CONFIRM_TIMEOUT_MS = 3_000
 const SUBSCRIPTION_RETRY_INITIAL_MS = 1_000
 const SUBSCRIPTION_RETRY_MAX_MS = 30_000
+// Market samples reach the store at most this often while the tab is visible.
+// A quiet feed shows its next trade at once; a busy one updates prices and
+// charts ten times a second instead of on every message.
+const MARKET_SAMPLE_FLUSH_INTERVAL_MS = 100
 
 interface PendingCommand extends GatewayActionAttempt {
   timer: number
@@ -116,6 +121,9 @@ export const useGatewayStore = defineStore('gateway', () => {
       if (demand !== undefined) subscribeMarketDemand(demand)
     },
   )
+  const pendingSamples = new MarketSampleBuffer()
+  let sampleFlushTimer: number | null = null
+  let lastSampleFlushAt = 0
   const pendingCommands = new Map<Uuid, PendingCommand>()
   const pendingPreviews = new Map<Uuid, PendingPreview>()
   const pendingHistories = new Map<Uuid, PendingHistory>()
@@ -138,6 +146,7 @@ export const useGatewayStore = defineStore('gateway', () => {
 
   client.setStatusHandler((next, error) => {
     const wasReady = status.value === 'ready'
+    if (wasReady && next !== 'ready') flushMarketSamples()
     status.value = next
     lastError.value = error
     telemetry.connection(next)
@@ -159,6 +168,15 @@ export const useGatewayStore = defineStore('gateway', () => {
     telemetry.leaseRotation(phase, outcomeCode)
   })
   client.setMessageHandler(handleMessage)
+
+  // A background tab holds market samples instead of rendering each one; the
+  // tab shows them in a single update when it is visible again.
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') flushMarketSamples()
+      client.checkLease()
+    })
+  }
 
   watch(
     () => accounts.selectedAccountId,
@@ -188,6 +206,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   function disconnect(): void {
     if (!started) return
     started = false
+    flushMarketSamples()
     client.disconnect()
     projections.markAllStale('gateway disconnected')
     markets.disconnected('gateway disconnected')
@@ -458,6 +477,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     for (const [subscriptionId, demand] of marketSubscriptions) {
       if (marketKey(demand.accountId, demand.symbol) !== key) continue
       marketSubscriptions.delete(subscriptionId)
+      pendingSamples.discard(subscriptionId)
       if (status.value === 'ready') {
         try {
           send({ kind: 'unsubscribe_market', subscription_id: subscriptionId })
@@ -470,6 +490,8 @@ export const useGatewayStore = defineStore('gateway', () => {
   }
 
   function handleMessage(message: BrowserServerMessage): void {
+    // Everything else applies in arrival order after the samples before it.
+    if (message.kind !== 'market_samples') flushMarketSamples()
     switch (message.kind) {
       case 'hello':
         return
@@ -719,33 +741,80 @@ export const useGatewayStore = defineStore('gateway', () => {
     ) {
       return
     }
-    const previous = markets.stream(demand.accountId, demand.symbol)
-    const wasReady = previous?.status === 'ready' && previous.samples.length > 0
+    const applied = markets.stream(demand.accountId, demand.symbol)
     try {
-      markets.append(message.account_id, message.subscription_id, message.symbol, message.samples)
-      if (!wasReady && message.samples.length > 0) {
-        const samples = markets.stream(demand.accountId, demand.symbol)?.samples ?? []
-        const latest = samples[samples.length - 1]
-        if (latest) {
-          recordTelemetry(
-            marketStreamEvent(demand.accountId, demand.symbol, 'ready', {
-              source: 'samples',
-              sampleCount: message.samples.length,
-              lastSampleReceivedAtMs: latest.received_at_ms,
-            }),
-          )
-        }
-      }
-    } catch (error) {
-      logger.warn('Market samples rejected; requesting a fresh window', error)
-      recordTelemetry(
-        marketStreamEvent(demand.accountId, demand.symbol, 'error', {
-          source: 'client_validation',
-          reasonCode: 'invalid_samples',
-        }),
+      pendingSamples.push(
+        {
+          subscriptionId: message.subscription_id,
+          accountId: message.account_id,
+          symbol: message.symbol,
+        },
+        message.samples,
+        applied?.subscriptionId === message.subscription_id ? applied.nextSequence : null,
       )
-      resubscribeMarket(message.subscription_id, demand)
+    } catch (error) {
+      rejectMarketSamples(message.subscription_id, demand, error)
+      return
     }
+    scheduleMarketSampleFlush()
+  }
+
+  // A hidden tab holds its samples until it is shown again, or until another
+  // gateway message has to apply after them.
+  function scheduleMarketSampleFlush(): void {
+    if (pendingSamples.size === 0 || sampleFlushTimer !== null) return
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+    const wait = Math.max(0, lastSampleFlushAt + MARKET_SAMPLE_FLUSH_INTERVAL_MS - Date.now())
+    sampleFlushTimer = window.setTimeout(
+      () => {
+        sampleFlushTimer = null
+        flushMarketSamples()
+      },
+      Math.min(wait, MARKET_SAMPLE_FLUSH_INTERVAL_MS),
+    )
+  }
+
+  function flushMarketSamples(): void {
+    if (sampleFlushTimer !== null) window.clearTimeout(sampleFlushTimer)
+    sampleFlushTimer = null
+    if (pendingSamples.size === 0) return
+    lastSampleFlushAt = Date.now()
+    for (const pending of pendingSamples.drain()) {
+      const demand = marketSubscriptions.get(pending.subscriptionId)
+      if (demand === undefined) continue
+      const previous = markets.stream(demand.accountId, demand.symbol)
+      const wasReady = previous?.status === 'ready' && previous.samples.length > 0
+      try {
+        markets.append(pending.accountId, pending.subscriptionId, pending.symbol, pending.samples)
+      } catch (error) {
+        rejectMarketSamples(pending.subscriptionId, demand, error)
+        continue
+      }
+      if (wasReady) continue
+      const samples = markets.stream(demand.accountId, demand.symbol)?.samples ?? []
+      const latest = samples[samples.length - 1]
+      if (latest) {
+        recordTelemetry(
+          marketStreamEvent(demand.accountId, demand.symbol, 'ready', {
+            source: 'samples',
+            sampleCount: pending.samples.length,
+            lastSampleReceivedAtMs: latest.received_at_ms,
+          }),
+        )
+      }
+    }
+  }
+
+  function rejectMarketSamples(subscriptionId: Uuid, demand: MarketDemand, error: unknown): void {
+    logger.warn('Market samples rejected; requesting a fresh window', error)
+    pendingSamples.discard(subscriptionId)
+    recordTelemetry(
+      marketStreamEvent(demand.accountId, demand.symbol, 'error', {
+        source: 'client_validation',
+        reasonCode: 'invalid_samples',
+      }),
+    )
+    resubscribeMarket(subscriptionId, demand)
   }
 
   function handleMarketFeedUnavailable(
@@ -1111,6 +1180,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   }
 
   function resetSubscriptions(): void {
+    flushMarketSamples()
     clearAllSubscriptionRetries()
     marketRetries.cancelAll()
     subscriptionRequests.clear()

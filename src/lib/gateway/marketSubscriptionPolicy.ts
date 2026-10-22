@@ -1,13 +1,13 @@
 import type { BrowserMarketError } from './market.ts'
 
-// Rules for when a typed market symbol may become a gateway market
+// Rules for when a selected market symbol may become a gateway market
 // subscription, and how failed subscriptions are retried.
 //
 // Hyperliquid drops the whole shared price connection when it is asked for a
 // coin that does not exist, so partial input ("Z", "ZE") must never reach the
-// gateway, and a refused symbol must never be retried.
+// gateway (the market picker only hands over a selected market, see
+// lib/marketPicker.ts), and a refused symbol must never be retried.
 
-export const MARKET_SYMBOL_DEBOUNCE_MS = 300
 export const MARKET_RETRY_INITIAL_MS = 1_000
 export const MARKET_RETRY_MAX_MS = 30_000
 export const MARKET_RETRY_MAX_ATTEMPTS = 8
@@ -29,7 +29,7 @@ export function marketSymbolDecision(
   if (normalized === '') return 'none'
   if (catalog.status === 'loading') return 'wait'
   // Without a catalog the gateway is the only judge; it refuses unknown
-  // symbols with a non-retryable error, and the debounce keeps partial input
+  // symbols with a non-retryable error, and the picker keeps partial input
   // from reaching it.
   if (catalog.status === 'unavailable') return 'subscribe'
   return catalog.symbols.includes(normalized) ? 'subscribe' : 'unknown'
@@ -120,37 +120,5 @@ export class MarketRetryScheduler {
     for (const timer of this.timers.values()) this.clock.clear(timer)
     this.timers.clear()
     this.attemptCounts.clear()
-  }
-}
-
-// Holds a typed symbol until it has stopped changing for `delayMs`.
-export class DebouncedMarketSymbol {
-  private timer: number | null = null
-  private readonly delayMs: number
-  private readonly settle: (symbol: string) => void
-  private readonly clock: Timers
-
-  constructor(delayMs: number, settle: (symbol: string) => void, clock: Timers = browserTimers) {
-    this.delayMs = delayMs
-    this.settle = settle
-    this.clock = clock
-  }
-
-  update(symbol: string, immediate = false): void {
-    const normalized = symbol.trim().toUpperCase()
-    this.cancel()
-    if (immediate) {
-      this.settle(normalized)
-      return
-    }
-    this.timer = this.clock.set(() => {
-      this.timer = null
-      this.settle(normalized)
-    }, this.delayMs)
-  }
-
-  cancel(): void {
-    if (this.timer !== null) this.clock.clear(this.timer)
-    this.timer = null
   }
 }

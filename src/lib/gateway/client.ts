@@ -55,6 +55,9 @@ export class GatewayWebSocketClient {
   private rotationRetryTimer: ReturnType<typeof setTimeout> | null = null
   private rotationSocket: GatewaySocket | null = null
   private activeLeaseExpiresAt = 0
+  // When the planned renewal is due. Background tabs can hold timers back
+  // for a minute or more, so incoming frames and tab visibility also check it.
+  private leaseRotationDueAt: number | null = null
   private readonly retiringSockets = new Map<GatewaySocket, ReturnType<typeof setTimeout>>()
 
   private messageHandler: ((message: BrowserServerMessage) => void) | null = null
@@ -111,6 +114,15 @@ export class GatewayWebSocketClient {
       throw new Error('gateway socket is not ready; message was not queued')
     }
     this.sendRaw(message)
+  }
+
+  // Starts a planned lease renewal whose timer is overdue. Safe to call often.
+  checkLease(now = Date.now()): void {
+    if (this.leaseRotationDueAt === null || now < this.leaseRotationDueAt) return
+    if (this.stopped || this.fatal || this.status !== 'ready' || this.rotationSocket !== null)
+      return
+    this.clearLeaseRotationTimers()
+    void this.beginLeaseRotation()
   }
 
   setMessageHandler(handler: (message: BrowserServerMessage) => void): void {
@@ -199,6 +211,7 @@ export class GatewayWebSocketClient {
   }
 
   private receive(raw: unknown): void {
+    this.checkLease()
     const message = parseServerMessage(raw)
     if (message === null) {
       this.fail('invalid gateway frame', 4002)
@@ -243,11 +256,12 @@ export class GatewayWebSocketClient {
     this.clearLeaseRotationTimers()
     this.activeLeaseExpiresAt = Date.now() + validForMs
     const configuredLead = this.options.leaseRenewalLeadMs
-    const lead =
-      configuredLead ?? Math.min(60_000, Math.max(1_000, Math.floor(validForMs / 10)))
+    const lead = configuredLead ?? Math.min(60_000, Math.max(1_000, Math.floor(validForMs / 10)))
     const delay = Math.max(0, validForMs - Math.min(validForMs, lead))
+    this.leaseRotationDueAt = Date.now() + delay
     this.leaseRotationTimer = setTimeout(() => {
       this.leaseRotationTimer = null
+      this.leaseRotationDueAt = null
       void this.beginLeaseRotation()
     }, delay)
   }
@@ -361,8 +375,10 @@ export class GatewayWebSocketClient {
     if (remaining <= 1_000) return
     const configured = this.options.rotationRetryDelayMs ?? DEFAULT_ROTATION_RETRY_DELAY_MS
     const delay = Math.min(configured, Math.max(0, remaining - 1_000))
+    this.leaseRotationDueAt = Date.now() + delay
     this.rotationRetryTimer = setTimeout(() => {
       this.rotationRetryTimer = null
+      this.leaseRotationDueAt = null
       void this.beginLeaseRotation()
     }, delay)
   }
@@ -457,6 +473,7 @@ export class GatewayWebSocketClient {
     if (this.rotationRetryTimer !== null) clearTimeout(this.rotationRetryTimer)
     this.leaseRotationTimer = null
     this.rotationRetryTimer = null
+    this.leaseRotationDueAt = null
   }
 
   private closeRotationSocket(reason: string): void {

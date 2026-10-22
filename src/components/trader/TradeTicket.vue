@@ -40,6 +40,7 @@ const draft = reactive(
   ),
 )
 const previewReady = ref(false)
+const marketPending = ref(false)
 const previewStatus = ref<'idle' | 'planning' | 'ready' | 'rejected'>('idle')
 const acceptedMessage = ref<string | null>(null)
 const submitError = ref<string | null>(null)
@@ -61,6 +62,7 @@ const planningIntent = computed(() => {
 })
 const readiness = computed(() => {
   if (accountId.value === '') return 'Select a trading account.'
+  if (marketPending.value) return 'Pick a market from the list or press Enter to select it.'
   try {
     buildTradeTicketIntent(draft)
   } catch (error) {
@@ -237,6 +239,7 @@ defineExpose({ applyPrefill })
         :model-value="draft"
         :account-id="accountId"
         :units="units"
+        v-model:market-pending="marketPending"
         @update:model-value="replaceDraft"
       />
       <TradeTicketExecution

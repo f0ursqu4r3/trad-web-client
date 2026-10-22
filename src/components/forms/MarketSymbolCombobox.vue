@@ -3,24 +3,42 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { ChevronDown, LoaderCircle } from 'lucide-vue-next'
 
 import { loadMarketSymbols } from '@/lib/marketCatalog'
+import type { MarketCatalogState } from '@/lib/gateway/marketSubscriptionPolicy'
+import {
+  marketPickerCommit,
+  marketPickerPending,
+  marketPickerValidity,
+  normalizeMarketSymbol,
+  type MarketPickerEvent,
+} from '@/lib/marketPicker'
 import type { AccountRecord } from '@/stores/accounts'
 
 const props = withDefaults(defineProps<{ account: AccountRecord | null; ariaLabel?: string }>(), {
   ariaLabel: 'Market',
 })
-const emit = defineEmits<{ validity: [error: string | null] }>()
+const emit = defineEmits<{ validity: [error: string | null]; pending: [pending: boolean] }>()
+// The ticket's market. Typing changes only `text`; the model changes when the
+// trader selects a market (see marketPickerCommit).
 const model = defineModel<string>({ required: true })
 
 let nextComboboxId = 0
 const listboxId = `market-symbols-${++nextComboboxId}`
 const input = ref<HTMLInputElement | null>(null)
+const text = ref(model.value)
+const focused = ref(false)
 const symbols = ref<string[]>([])
 const loading = ref(false)
 const loadError = ref<string | null>(null)
 const open = ref(false)
 const activeIndex = ref(0)
 
-const normalized = computed(() => model.value.trim().toUpperCase())
+const normalized = computed(() => normalizeMarketSymbol(text.value))
+const catalog = computed<MarketCatalogState>(() => {
+  if (loading.value) return { status: 'loading' }
+  if (loadError.value !== null || symbols.value.length === 0) return { status: 'unavailable' }
+  return { status: 'ready', symbols: symbols.value }
+})
+const pending = computed(() => marketPickerPending(text.value, model.value))
 const filtered = computed(() => {
   const query = normalized.value
   const ranked = symbols.value
@@ -29,38 +47,55 @@ const filtered = computed(() => {
   return ranked.slice(0, 12)
 })
 const activeSymbol = computed(() => filtered.value[activeIndex.value] ?? null)
-const validity = computed(() => {
-  if (!normalized.value || loading.value || loadError.value || symbols.value.length === 0)
-    return null
-  return symbols.value.includes(normalized.value)
-    ? null
-    : `${normalized.value} is not available for this account`
-})
+// Shown while the typed text has something Enter can select.
+const showHint = computed(
+  () =>
+    focused.value &&
+    pending.value &&
+    normalized.value !== '' &&
+    (filtered.value.length > 0 || catalog.value.status !== 'ready'),
+)
+const validity = computed(() =>
+  marketPickerValidity(text.value, model.value, catalog.value, focused.value),
+)
 
+// Keyed by exchange and network: an accounts refresh that brings a new copy
+// of the same account must not reload the catalog or close the list.
+const catalogDomain = computed(() =>
+  props.account === null ? null : `${props.account.exchange}:${props.account.network}`,
+)
 watch(
-  () => props.account,
-  async (account) => {
+  catalogDomain,
+  async (domain) => {
     symbols.value = []
     loadError.value = null
     open.value = false
-    if (!account) return
+    const account = props.account
+    if (domain === null || account === null) return
 
     loading.value = true
     try {
-      symbols.value = await loadMarketSymbols(account)
+      const loaded = await loadMarketSymbols(account)
+      if (catalogDomain.value === domain) symbols.value = loaded
     } catch (error) {
-      loadError.value = error instanceof Error ? error.message : String(error)
+      if (catalogDomain.value === domain) {
+        loadError.value = error instanceof Error ? error.message : String(error)
+      }
     } finally {
-      loading.value = false
+      if (catalogDomain.value === domain) loading.value = false
     }
   },
   { immediate: true },
 )
+// A market set from outside (account switch, duplicated trade) replaces
+// whatever was typed.
+watch(model, (symbol) => (text.value = symbol))
 watch(filtered, () => (activeIndex.value = 0))
 watch(validity, (error) => emit('validity', error), { immediate: true })
+watch(pending, (value) => emit('pending', value), { immediate: true })
 
 function edit(event: Event): void {
-  model.value = (event.target as HTMLInputElement).value.toUpperCase()
+  text.value = (event.target as HTMLInputElement).value.toUpperCase()
   open.value = true
 }
 
@@ -82,10 +117,24 @@ function move(delta: number): void {
   )
 }
 
-function accept(symbol = activeSymbol.value): void {
-  if (!symbol) return
+// Applies a selection; returns whether the ticket's market changed.
+function commit(event: MarketPickerEvent): boolean {
+  const symbol = marketPickerCommit(text.value, model.value, catalog.value, event)
+  if (symbol === null) return false
   model.value = symbol
+  text.value = symbol
+  return true
+}
+
+function pick(symbol: string): void {
+  commit({ kind: 'pick', symbol })
+  // Picking the market already selected still settles the text.
+  text.value = model.value
   open.value = false
+}
+
+function revert(): void {
+  text.value = model.value
 }
 
 function keydown(event: KeyboardEvent): void {
@@ -95,22 +144,34 @@ function keydown(event: KeyboardEvent): void {
   } else if (event.key === 'ArrowUp') {
     event.preventDefault()
     move(-1)
-  } else if (event.key === 'Enter' && open.value && activeSymbol.value) {
+  } else if (event.key === 'Enter') {
+    const highlighted = open.value ? activeSymbol.value : null
+    // Enter in a settled field still submits the form.
+    if (!pending.value && highlighted === null) return
     event.preventDefault()
-    accept()
-  } else if (event.key === 'Tab' && open.value && activeSymbol.value && normalized.value) {
-    accept()
+    if (highlighted !== null) {
+      pick(highlighted)
+      return
+    }
+    if (commit({ kind: 'enter', highlighted: null })) open.value = false
   } else if (event.key === 'Escape') {
     event.preventDefault()
     open.value = false
+    revert()
   }
+}
+
+function focusin(): void {
+  focused.value = true
 }
 
 function blur(event: FocusEvent): void {
   const next = event.relatedTarget
   if (next instanceof Node && (event.currentTarget as HTMLElement).contains(next)) return
+  focused.value = false
   open.value = false
-  model.value = normalized.value
+  commit({ kind: 'blur' })
+  text.value = pending.value ? normalized.value : model.value
 }
 
 function optionId(index: number): string {
@@ -119,11 +180,12 @@ function optionId(index: number): string {
 </script>
 
 <template>
-  <span class="market-combobox" @focusout="blur">
+  <span class="market-combobox" @focusin="focusin" @focusout="blur">
     <input
       ref="input"
-      :value="model"
+      :value="text"
       class="input market-combobox-input"
+      :class="{ 'has-hint': showHint }"
       role="combobox"
       :aria-label="ariaLabel"
       aria-autocomplete="list"
@@ -138,6 +200,9 @@ function optionId(index: number): string {
       @click="showOptions"
       @keydown="keydown"
     />
+    <span v-if="showHint" class="market-combobox-hint" aria-hidden="true">
+      press Enter to select
+    </span>
     <button
       class="market-combobox-toggle"
       type="button"
@@ -159,10 +224,11 @@ function optionId(index: number): string {
         :class="{ active: index === activeIndex }"
         type="button"
         role="option"
+        tabindex="-1"
         :aria-selected="symbol === normalized"
         @mousedown.prevent
         @mouseenter="activeIndex = index"
-        @click="accept(symbol)"
+        @click="pick(symbol)"
       >
         <strong>{{ symbol }}</strong>
         <span>{{ account?.exchange }} · {{ account?.network }}</span>
@@ -187,6 +253,20 @@ function optionId(index: number): string {
 .market-combobox-input {
   width: 100%;
   padding-right: 2rem;
+}
+.market-combobox-input.has-hint {
+  padding-right: 9.5rem;
+}
+.market-combobox-hint {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  right: 38px;
+  color: var(--fg-muted);
+  font-size: 10px;
+  pointer-events: none;
+  transform: translateY(-50%);
+  white-space: nowrap;
 }
 .market-combobox-toggle {
   position: absolute;

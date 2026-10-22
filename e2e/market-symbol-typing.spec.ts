@@ -1,169 +1,24 @@
-import { expect, test, type Page, type WebSocketRoute } from '@playwright/test'
-import { BROWSER_PROTOCOL_VERSION } from '../src/lib/gateway/wire'
-import {
-  ENGINE_SUBSCRIPTION_ID,
-  engineProjectionSnapshot,
-} from '../src/views/e2e/engineProjectionFixtureData'
+import { expect, test, type Page } from '@playwright/test'
+import { installVisibilitySwitch, openWorkspace, setTabHidden } from './support/workspaceWire'
 
 // Hyperliquid drops the whole shared price connection when asked for a coin
-// that does not exist, so typing a ticker must never send partial symbols.
-
-interface MarketWire {
-  subscribes: string[]
-  unsubscribes: string[]
-}
-
-type MarketErrorReply = Record<string, unknown> | null
-
-async function openWorkspace(
-  page: Page,
-  options: { catalog: boolean; marketError?: (symbol: string) => MarketErrorReply },
-): Promise<MarketWire> {
-  await page.route('**/api/accounts', (route) =>
-    route.fulfill({
-      json: [
-        {
-          id: '10000000-0000-4000-8000-000000000001',
-          label: 'Krio demo',
-          key: 'fixture',
-          exchange: 'hyperliquid',
-          network: 'mainnet',
-          exchange_metadata: {
-            agent_approved: true,
-            builder_approved: true,
-            product: 'usdc_perp',
-            margin_mode: 'cross',
-            user_address: '0x7d6cabebf3ab638ee10e0eaabe671bfcfb8336dc3',
-            default_leverage: 1,
-          },
-        },
-      ],
-    }),
-  )
-  await page.route('**/auth/session', (route) =>
-    route.fulfill({
-      json: { authenticated: true, user: { sub: 'test', email: 'typing@trad.local' } },
-    }),
-  )
-  await page.route('**/auth/ws-ticket', (route) =>
-    route.fulfill({ json: { token: 'fixture-ticket', expires_in: 60 } }),
-  )
-  await page.route('https://api.hyperliquid.xyz/info', async (route) => {
-    const request = route.request().postDataJSON() as { type?: string }
-    if (request.type === 'activeAssetData') {
-      await route.fulfill({
-        json: {
-          leverage: { type: 'cross', value: 1 },
-          availableToTrade: ['100000', '100000'],
-          maxTradeSzs: ['10', '10'],
-        },
-      })
-      return
-    }
-    if (!options.catalog) {
-      await route.fulfill({ status: 503, body: 'catalog down' })
-      return
-    }
-    await route.fulfill({
-      json: {
-        universe: [
-          { name: 'BTC', szDecimals: 5 },
-          { name: 'ETH', szDecimals: 4 },
-          { name: 'SOL', szDecimals: 2 },
-          { name: 'ZEC', szDecimals: 2 },
-        ],
-      },
-    })
-  })
-
-  const wire: MarketWire = { subscribes: [], unsubscribes: [] }
-  const subscriptionSymbols = new Map<string, string>()
-  await page.routeWebSocket('**/ws', (ws: WebSocketRoute) => {
-    ws.onMessage((raw) => {
-      const message = JSON.parse(String(raw))
-      if (message.kind === 'authenticate') {
-        ws.send(
-          JSON.stringify({
-            kind: 'hello',
-            protocol_version: BROWSER_PROTOCOL_VERSION,
-            session_valid_for_ms: 3_600_000,
-          }),
-        )
-      } else if (message.kind === 'subscribe_account') {
-        ws.send(
-          JSON.stringify({
-            kind: 'account_snapshot',
-            request_id: message.request_id,
-            subscription_id: ENGINE_SUBSCRIPTION_ID,
-            route: { exchange: 'hyperliquid', network: 'testnet', account_id: message.account_id },
-            cause: { kind: 'initial' },
-            snapshot: engineProjectionSnapshot(),
-          }),
-        )
-      } else if (message.kind === 'subscribe_market') {
-        wire.subscribes.push(message.symbol)
-        const error = options.marketError?.(message.symbol) ?? null
-        if (error !== null) {
-          ws.send(
-            JSON.stringify({
-              kind: 'market_error',
-              request_id: message.request_id,
-              subscription_id: null,
-              account_id: message.account_id,
-              error,
-            }),
-          )
-          return
-        }
-        const subscription = `10000000-0000-4000-8000-${String(subscriptionSymbols.size + 10).padStart(12, '0')}`
-        subscriptionSymbols.set(subscription, message.symbol)
-        ws.send(
-          JSON.stringify({
-            kind: 'market_window',
-            request_id: message.request_id,
-            subscription_id: subscription,
-            account_id: message.account_id,
-            window: {
-              symbol: message.symbol,
-              unavailable_reason: null,
-              oldest_sequence: 1,
-              next_sequence: 2,
-              samples: [
-                {
-                  sequence: 1,
-                  update_id: `market-${subscription}`,
-                  generation: 1,
-                  received_at_ms: Date.now(),
-                  exchange_time_ms: Date.now(),
-                  price: message.symbol === 'ZEC' ? '41.25' : '2100',
-                  trade_id: `trade-${subscription}`,
-                },
-              ],
-            },
-          }),
-        )
-      } else if (message.kind === 'unsubscribe_market') {
-        wire.unsubscribes.push(subscriptionSymbols.get(message.subscription_id) ?? '?')
-      } else if (message.kind === 'ping') {
-        ws.send(JSON.stringify({ kind: 'pong', nonce: message.nonce }))
-      }
-    })
-  })
-  await page.goto('/e2e/trader-workspace?market_wire=1')
-  return wire
-}
+// that does not exist. The market picker therefore only filters while the
+// trader types; the ticket's market and its price subscription change when a
+// market is selected (click, Enter, or leaving the field on an exact match).
 
 function ticketParts(page: Page) {
   const ticket = page.getByRole('form', { name: 'New trade order ticket' })
   return {
+    ticket,
     market: ticket.getByRole('combobox', { name: /market/i }).first(),
     price: ticket.locator('.market-price').first(),
+    hint: ticket.getByText('press Enter to select', { exact: true }),
   }
 }
 
-test('typing a ticker sends one subscription for the finished symbol only', async ({ page }) => {
-  const wire = await openWorkspace(page, { catalog: true })
-  const { market, price } = ticketParts(page)
+test('typing a ticker without selecting it sends no subscription', async ({ page }) => {
+  const wire = await openWorkspace(page)
+  const { market, price, hint } = ticketParts(page)
   await expect.poll(() => [...wire.subscribes].sort()).toEqual(['BTC', 'ETH', 'SOL'])
   await expect(price).toContainText('2,100')
   const before = wire.subscribes.length
@@ -171,26 +26,80 @@ test('typing a ticker sends one subscription for the finished symbol only', asyn
   await market.selectText()
   await market.pressSequentially('ZEC', { delay: 60 })
   await expect(market).toHaveValue('ZEC')
-  await expect(price).toContainText('41.25')
-  // Give any stray debounce or retry time to fire.
+  await expect(hint).toBeVisible()
+  // The ticket keeps showing its selected market's price meanwhile.
+  await expect(price).toContainText('2,100')
+  await expect(price).not.toContainText('unavailable')
   await page.waitForTimeout(1_000)
 
-  expect(wire.subscribes.slice(before)).toEqual(['ZEC'])
-  // The trade cards keep BTC, ETH and SOL: the ticket only released its own
-  // BTC demand, so nothing else was unsubscribed or resubscribed.
+  expect(wire.subscribes.slice(before)).toEqual([])
   expect(wire.unsubscribes).toEqual([])
-  expect(wire.subscribes.filter((symbol) => symbol !== 'ZEC').sort()).toEqual(['BTC', 'ETH', 'SOL'])
 })
 
-test('an unlisted ticker shows Unknown market and is never subscribed', async ({ page }) => {
-  const wire = await openWorkspace(page, { catalog: true })
-  const { market, price } = ticketParts(page)
+test('Enter selects the typed market and subscribes it once', async ({ page }) => {
+  const wire = await openWorkspace(page)
+  const { market, price, hint } = ticketParts(page)
+  await expect.poll(() => wire.subscribes.length).toBe(3)
+  await expect(price).toContainText('2,100')
+
+  await market.selectText()
+  await market.pressSequentially('ZEC', { delay: 30 })
+  await market.press('Enter')
+  await expect(price).toContainText('41.25')
+  await expect(hint).toHaveCount(0)
+  await page.waitForTimeout(800)
+
+  expect(wire.subscribes.slice(3)).toEqual(['ZEC'])
+  // The trade cards keep BTC, ETH and SOL: the ticket only released its own
+  // BTC demand, so nothing was unsubscribed or resubscribed.
+  expect(wire.unsubscribes).toEqual([])
+})
+
+test('clicking an option selects it and subscribes it once', async ({ page }) => {
+  const wire = await openWorkspace(page)
+  const { ticket, market, price } = ticketParts(page)
+  await expect.poll(() => wire.subscribes.length).toBe(3)
+
+  await market.selectText()
+  await market.pressSequentially('Z', { delay: 30 })
+  await page.waitForTimeout(500)
+  expect(wire.subscribes.length).toBe(3)
+  await ticket.getByRole('option', { name: /ZEC/ }).click()
+  await expect(market).toHaveValue('ZEC')
+  await expect(price).toContainText('41.25')
+  await page.waitForTimeout(800)
+
+  expect(wire.subscribes.slice(3)).toEqual(['ZEC'])
+  expect(wire.unsubscribes).toEqual([])
+})
+
+test('leaving the field on an exact listed match selects it', async ({ page }) => {
+  const wire = await openWorkspace(page)
+  const { ticket, market, price } = ticketParts(page)
+  await expect.poll(() => wire.subscribes.length).toBe(3)
+
+  await market.selectText()
+  await market.pressSequentially('ZEC', { delay: 30 })
+  await market.press('Tab')
+  await expect(market).not.toBeFocused()
+  await expect(ticket.getByText('press Enter to select', { exact: true })).toHaveCount(0)
+  await expect(price).toContainText('41.25')
+  await expect.poll(() => wire.subscribes.slice(3)).toEqual(['ZEC'])
+})
+
+test('an unlisted ticker is never subscribed and keeps the selected market', async ({ page }) => {
+  const wire = await openWorkspace(page)
+  const { ticket, market, price } = ticketParts(page)
   await expect.poll(() => wire.subscribes.length).toBe(3)
 
   await market.selectText()
   await market.pressSequentially('ZZZ', { delay: 30 })
-  await expect(price).toHaveText('Unknown market')
-  await page.waitForTimeout(1_000)
+  await market.press('Enter')
+  await market.press('Tab')
+  await expect(ticket.getByText('ZZZ is not available for this account')).toBeVisible()
+  await expect(price).toContainText('2,100')
+  await expect(ticket.getByText(/press Enter to select it/)).toBeVisible()
+  await page.waitForTimeout(800)
   expect(wire.subscribes.length).toBe(3)
   expect(wire.unsubscribes).toEqual([])
 })
@@ -207,7 +116,8 @@ for (const [name, error] of [
   }) => {
     await page.clock.install()
     const wire = await openWorkspace(page, {
-      // Without a catalog the gateway is the judge of the typed symbol.
+      // Without a catalog the typed symbol is manual entry and the gateway is
+      // its judge.
       catalog: false,
       marketError: (symbol) => (symbol === 'ZE' ? error : null),
     })
@@ -216,6 +126,9 @@ for (const [name, error] of [
 
     await market.selectText()
     await market.pressSequentially('ZE')
+    await page.clock.runFor(1_000)
+    expect(wire.subscribes.length).toBe(3)
+    await market.press('Enter')
     await page.clock.runFor(400)
     await expect(price).toHaveText('Unknown market')
     await page.clock.runFor(120_000)
@@ -238,10 +151,12 @@ test('a pending retry for a symbol the ticket moved past never resubscribes it',
 
   await market.selectText()
   await market.pressSequentially('ZE')
+  await market.press('Enter')
   await page.clock.runFor(400)
   await expect.poll(() => wire.subscribes.slice(3)).toEqual(['ZE'])
   await market.press('End')
   await market.pressSequentially('C')
+  await market.press('Enter')
   await page.clock.runFor(400)
   await expect(price).toContainText('41.25')
   await page.clock.runFor(120_000)
@@ -249,3 +164,68 @@ test('a pending retry for a symbol the ticket moved past never resubscribes it',
   expect(wire.subscribes.slice(3)).toEqual(['ZE', 'ZEC'])
   expect(wire.unsubscribes).toEqual([])
 })
+
+test('a background-tab round trip keeps every subscription and refetches accounts at most once', async ({
+  page,
+}) => {
+  await installVisibilitySwitch(page)
+  const wire = await openWorkspace(page)
+  const { price } = ticketParts(page)
+  await expect.poll(() => wire.subscribes.length).toBe(3)
+  await expect(price).toContainText('2,100')
+  await expect.poll(() => wire.accountSubscribes).toBe(1)
+  const fetchesBefore = wire.accountFetches
+
+  for (let round = 0; round < 3; round += 1) {
+    await setTabHidden(page, true)
+    expect(wire.sendSamples('ETH', 3)).toBe(true)
+    wire.sendDelta()
+    await page.waitForTimeout(200)
+    await setTabHidden(page, false)
+    await page.waitForTimeout(200)
+  }
+
+  await expect(page.getByTestId('managed-trade-card')).toHaveCount(3)
+  expect(wire.subscribes.length).toBe(3)
+  expect(wire.unsubscribes).toEqual([])
+  expect(wire.accountSubscribes).toBe(1)
+  // Focus and visibility together, three times over: one refresh at most.
+  expect(wire.accountFetches - fetchesBefore).toBeLessThanOrEqual(1)
+})
+
+test('market samples that arrive while hidden apply in one update on return', async ({ page }) => {
+  await installVisibilitySwitch(page)
+  const wire = await openWorkspace(page)
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' })
+  await expect.poll(() => wire.markets.has('ETH')).toBe(true)
+
+  await setTabHidden(page, true)
+  for (let message = 0; message < 40; message += 1) wire.sendSamples('ETH', 2)
+  await page.waitForTimeout(300)
+  // Nothing reached the store while hidden: the window still ends at the
+  // initial sample.
+  expect(await appliedNextSequence(page, 'ETH')).toBe(2)
+
+  await setTabHidden(page, false)
+  await expect.poll(() => appliedNextSequence(page, 'ETH')).toBe(82)
+  await expect(eth).toBeVisible()
+  expect(wire.subscribes.length).toBe(3)
+})
+
+// Where the market store's window for `symbol` ends.
+async function appliedNextSequence(page: Page, symbol: string): Promise<number | null> {
+  return page.evaluate((wanted) => {
+    interface Streams {
+      [key: string]: { symbol: string; nextSequence: number | null }
+    }
+    const root = document.querySelector('#app') as unknown as {
+      __vue_app__: {
+        config: {
+          globalProperties: { $pinia: { state: { value: { market: { streams: Streams } } } } }
+        }
+      }
+    }
+    const streams = root.__vue_app__.config.globalProperties.$pinia.state.value.market.streams
+    return Object.values(streams).find((stream) => stream.symbol === wanted)?.nextSequence ?? null
+  }, symbol)
+}

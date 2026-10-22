@@ -12,7 +12,7 @@ export function installMarketWindow(window: BrowserMarketWindow): MarketSampleWi
   if (window.unavailable_reason != null && typeof window.unavailable_reason !== 'string') {
     throw new Error('market window has invalid feed health')
   }
-  validateSamples(window.samples, null)
+  validateMarketSamples(window.samples, null)
   const first = window.samples[0]
   const last = window.samples[window.samples.length - 1]
   if ((first?.sequence ?? null) !== window.oldest_sequence) {
@@ -34,7 +34,7 @@ export function appendMarketSamples(
   current: MarketSampleWindow,
   incoming: BrowserMarketSample[],
 ): MarketSampleWindow {
-  validateSamples(incoming, current.nextSequence)
+  validateMarketSamples(incoming, current.nextSequence)
   if (incoming.length === 0) return current
 
   const samples = [...current.samples, ...incoming].slice(-MAX_MARKET_SAMPLES)
@@ -47,7 +47,11 @@ export function appendMarketSamples(
   }
 }
 
-function validateSamples(samples: BrowserMarketSample[], minimum: number | null): void {
+// Samples must be increasing and start at or after `minimum`.
+export function validateMarketSamples(
+  samples: BrowserMarketSample[],
+  minimum: number | null,
+): void {
   let previous: number | null = null
   for (const sample of samples) {
     if (!Number.isSafeInteger(sample.sequence) || sample.sequence < 0) {

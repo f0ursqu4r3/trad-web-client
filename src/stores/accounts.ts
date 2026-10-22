@@ -21,6 +21,7 @@ import {
 } from '@/lib/accountMetadata'
 import { accountsStoreKey, getSessionUserId } from '@/lib/userSession'
 import { observeAccountAction } from '@/lib/telemetry/accountObservation'
+import { accountListAge, reconcileAccountList } from '@/lib/accountRefresh'
 export interface AccountFormPayload {
   label: string
   key: string
@@ -236,37 +237,74 @@ export const useAccountsStore = defineStore('accounts', () => {
   )
   const hasAccounts = computed(() => accounts.value.length > 0)
 
+  // Newest request wins: an older response never overwrites a newer one.
+  let fetchSerial = 0
+  let fetchesInFlight = 0
+  let backgroundRefresh: Promise<void> | null = null
+
   async function fetchAccounts(): Promise<void> {
-    loading.value = true
-    error.value = null
+    await loadAccounts(false)
+  }
+
+  // Cross-session refresh for tab focus and the periodic timer: skipped while
+  // another fetch is running or when the list is newer than `maxAgeMs`, never
+  // flips the loading state, and keeps the current accounts if it fails.
+  function refreshAccountsInBackground(maxAgeMs = 0): Promise<void> {
+    if (backgroundRefresh !== null) return backgroundRefresh
+    if (fetchesInFlight > 0 || accountListAge(lastFetchedAt.value) < maxAgeMs) {
+      return Promise.resolve()
+    }
+    backgroundRefresh = loadAccounts(true).finally(() => {
+      backgroundRefresh = null
+    })
+    return backgroundRefresh
+  }
+
+  async function loadAccounts(background: boolean): Promise<void> {
+    const serial = ++fetchSerial
+    fetchesInFlight += 1
+    if (!background) {
+      loading.value = true
+      error.value = null
+    }
     let response: AccountRecord[] | { error?: string; code?: string }
     try {
       response = await apiGet<AccountRecord[] | { error?: string; code?: string }>('/accounts', {
         throwOnHTTPError: false,
       })
     } catch (err) {
-      error.value = err instanceof Error ? err.message : String(err)
-      accountsRaw.value = []
-      loading.value = false
+      if (serial === fetchSerial && !background) {
+        error.value = err instanceof Error ? err.message : String(err)
+        accountsRaw.value = []
+      }
       return
+    } finally {
+      fetchesInFlight -= 1
+      if (serial === fetchSerial && !background) loading.value = false
     }
+    if (serial !== fetchSerial) return
 
     if (!Array.isArray(response)) {
+      if (background) return
       error.value = response?.error || 'Failed to load accounts'
       accountsRaw.value = []
-      loading.value = false
       return
     }
 
-    accountsRaw.value = response
+    const reconciled = reconcileAccountList(accountsRaw.value, response)
+    if (reconciled !== null) accountsRaw.value = reconciled
+    error.value = null
 
     const fetchedIds = new Set(response.map((account) => account.id))
-    accountOrder.value = accountOrder.value.filter((id) => fetchedIds.has(id))
-
+    const order = accountOrder.value.filter((id) => fetchedIds.has(id))
     for (const account of response) {
-      if (!accountOrder.value.includes(account.id)) {
-        accountOrder.value.push(account.id)
-      }
+      if (!order.includes(account.id)) order.push(account.id)
+    }
+    if (
+      order.length !== accountOrder.value.length ||
+      order.some((id, index) => accountOrder.value[index] !== id)
+    ) {
+      accountOrder.value = order
     }
 
     if (accounts.value.length === 0) {
@@ -279,7 +317,6 @@ export const useAccountsStore = defineStore('accounts', () => {
     }
 
     lastFetchedAt.value = Date.now()
-    loading.value = false
   }
 
   async function addAccount(payload: AccountFormPayload): Promise<AccountRecord | null> {
@@ -597,6 +634,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     lastFetchedAt,
     // actions
     fetchAccounts,
+    refreshAccountsInBackground,
     addAccount,
     validateAccountKey,
     updateAccountMetadata,

@@ -3,9 +3,7 @@ import test from 'node:test'
 
 import {
   classifyMarketError,
-  DebouncedMarketSymbol,
   MARKET_RETRY_MAX_ATTEMPTS,
-  MARKET_SYMBOL_DEBOUNCE_MS,
   MarketRetryScheduler,
   marketRetryDelay,
   marketSymbolDecision,
@@ -58,66 +56,8 @@ test('only a listed market symbol may be subscribed', () => {
   assert.equal(marketSymbolDecision('ZEC', catalog), 'subscribe')
   assert.equal(marketSymbolDecision(' zec ', catalog), 'subscribe')
   assert.equal(marketSymbolDecision('ZEC', { status: 'loading' }), 'wait')
-  // Without a catalog the gateway judges the (debounced) symbol.
+  // Without a catalog the gateway judges the selected symbol.
   assert.equal(marketSymbolDecision('ZEC', { status: 'unavailable' }), 'subscribe')
-})
-
-test('typing Z, ZE, ZEC quickly settles once on ZEC', () => {
-  const clock = new ManualClock()
-  const settled: string[] = []
-  const debounce = new DebouncedMarketSymbol(
-    MARKET_SYMBOL_DEBOUNCE_MS,
-    (symbol) => settled.push(symbol),
-    clock,
-  )
-
-  debounce.update('BTC', true)
-  debounce.update('Z')
-  clock.advance(80)
-  debounce.update('ZE')
-  clock.advance(80)
-  debounce.update('zec')
-  clock.advance(MARKET_SYMBOL_DEBOUNCE_MS - 1)
-  assert.deepEqual(settled, ['BTC'])
-  clock.advance(1)
-  assert.deepEqual(settled, ['BTC', 'ZEC'])
-
-  const subscribed = settled.filter(
-    (symbol) => marketSymbolDecision(symbol, catalog) === 'subscribe',
-  )
-  assert.deepEqual(subscribed, ['BTC', 'ZEC'])
-})
-
-test('a pause on a partial symbol still never subscribes it', () => {
-  const clock = new ManualClock()
-  const settled: string[] = []
-  const debounce = new DebouncedMarketSymbol(
-    MARKET_SYMBOL_DEBOUNCE_MS,
-    (symbol) => settled.push(symbol),
-    clock,
-  )
-
-  debounce.update('ZE')
-  clock.advance(MARKET_SYMBOL_DEBOUNCE_MS)
-  debounce.update('ZEC')
-  clock.advance(MARKET_SYMBOL_DEBOUNCE_MS)
-
-  assert.deepEqual(settled, ['ZE', 'ZEC'])
-  assert.deepEqual(
-    settled.map((symbol) => marketSymbolDecision(symbol, catalog)),
-    ['unknown', 'subscribe'],
-  )
-})
-
-test('cancelled debounce never settles', () => {
-  const clock = new ManualClock()
-  const settled: string[] = []
-  const debounce = new DebouncedMarketSymbol(100, (symbol) => settled.push(symbol), clock)
-  debounce.update('ETH')
-  debounce.cancel()
-  clock.advance(1_000)
-  assert.deepEqual(settled, [])
-  assert.equal(clock.size, 0)
 })
 
 test('market errors that cannot succeed are never retried', () => {

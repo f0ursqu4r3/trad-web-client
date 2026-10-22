@@ -810,8 +810,17 @@ test('market combobox filters the account catalog and completes with the keyboar
 
   await market.fill('E')
   await expect(page.getByRole('option', { name: /ETH/ })).toBeVisible()
-  await market.press('Tab')
+  await expect(ticket.getByText('press Enter to select', { exact: true })).toBeVisible()
+  await market.press('Enter')
   await expect(market).toHaveValue('ETH')
+  await expect(ticket.getByText('press Enter to select', { exact: true })).toHaveCount(0)
+
+  // Leaving partial text does not select a market.
+  await market.fill('S')
+  await market.press('Tab')
+  await expect(market).toHaveValue('S')
+  await expect(ticket.getByText('S is not available for this account')).toBeVisible()
+  await expect(ticket.getByRole('button', { name: /^Buy ETH / })).toBeDisabled()
 })
 
 test('sets directional stop prices from explicit latest-trade distance presets', async ({

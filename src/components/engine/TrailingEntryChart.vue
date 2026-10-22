@@ -58,6 +58,13 @@ let resizeObserver: ResizeObserver | null = null
 let themeObserver: MutationObserver | null = null
 let offScaleFrame: number | null = null
 let marketDemand: { accountId: string; symbol: string } | null = null
+// Reading CSS variables forces a style recalculation, so the palette is read
+// once and again only when the theme changes.
+let palette: ChartPalette | null = null
+let chartHeight = 0
+let heldAxisWidth = 0
+let offScaleKey = ''
+let markersKey = ''
 
 const PRICE_AXIS_WHEEL_FACTOR = 1.12
 const OFF_SCALE_PADDING = 0.05
@@ -144,7 +151,7 @@ const lineDefinitions = computed<DraggablePriceLineDefinition[]>(() => {
 })
 
 function buildLineDefinitions(lines: TrailingEntryChartLine[]): DraggablePriceLineDefinition[] {
-  const colors = chartColors()
+  const colors = chartPalette()
   return lines.map((line) => ({
     id: line.id,
     draggable: props.interactive && line.editable,
@@ -164,6 +171,7 @@ watch(
   ([accountId, nextSymbol]) => {
     releaseMarketDemand()
     terminalSamples.value = null
+    releasePriceAxisWidth()
     if (accountId === '' || nextSymbol === '') return
     gateway.subscribeMarket(accountId, nextSymbol)
     marketDemand = { accountId, symbol: nextSymbol }
@@ -177,18 +185,16 @@ watch(
   { immediate: true },
 )
 
-watch(
-  seriesData,
-  (data) => {
-    series?.setData(data)
-    syncMarkers()
-    if (data.length > 0 && (stream.value?.status === 'ready' || terminalSamples.value !== null)) {
-      chart?.timeScale().fitContent()
-    }
-    scheduleOffScaleUpdate()
-  },
-  { deep: true },
-)
+// The market window is replaced, never edited, so a shallow watch sees every
+// update without walking up to a thousand samples each time.
+watch(seriesData, (data) => {
+  series?.setData(data)
+  syncMarkers()
+  if (data.length > 0 && (stream.value?.status === 'ready' || terminalSamples.value !== null)) {
+    chart?.timeScale().fitContent()
+  }
+  scheduleOffScaleUpdate()
+})
 
 watch(
   lineDefinitions,
@@ -207,7 +213,7 @@ watch(
 
 onMounted(() => {
   if (container.value === null) return
-  const colors = chartColors()
+  const colors = chartPalette()
   chart = createChart(container.value, {
     layout: {
       background: { color: colors.background },
@@ -301,13 +307,16 @@ function releaseMarketDemand(): void {
 
 function syncSize(): void {
   if (chart === null || container.value === null) return
-  if (container.value.clientWidth <= 0 || container.value.clientHeight <= 0) return
-  chart.resize(container.value.clientWidth, container.value.clientHeight)
+  chartHeight = container.value.clientHeight
+  if (container.value.clientWidth <= 0 || chartHeight <= 0) return
+  chart.resize(container.value.clientWidth, chartHeight)
   scheduleOffScaleUpdate()
 }
 
 function applyTheme(): void {
-  const colors = chartColors()
+  palette = null
+  markersKey = ''
+  const colors = chartPalette()
   chart?.applyOptions({
     layout: { background: { color: colors.background }, textColor: colors.text },
     grid: { vertLines: { color: colors.grid }, horzLines: { color: colors.grid } },
@@ -330,7 +339,7 @@ function syncMarkers(): void {
     next.push({
       time: activation.sequence as UTCTimestamp,
       position: 'inBar',
-      color: chartColors().activation,
+      color: chartPalette().activation,
       shape: 'square',
       size: 0.7,
       text: 'Activation',
@@ -348,13 +357,17 @@ function syncMarkers(): void {
     next.push({
       time: triggered.sequence as UTCTimestamp,
       position: 'inBar',
-      color: chartColors().jump,
+      color: chartPalette().jump,
       shape: 'square',
       size: 0.7,
       text: props.trailingEntry.plan.position_side === 'long' ? 'Bought' : 'Sold',
     })
   }
-  markers.setMarkers(next.sort((left, right) => Number(left.time) - Number(right.time)))
+  next.sort((left, right) => Number(left.time) - Number(right.time))
+  const key = JSON.stringify(next)
+  if (key === markersKey) return
+  markersKey = key
+  markers.setMarkers(next)
 }
 
 function scheduleOffScaleUpdate(): void {
@@ -368,11 +381,12 @@ function scheduleOffScaleUpdate(): void {
 function updateOffScale(): void {
   if (series === null || chart === null || container.value === null) {
     offScale.value = []
+    offScaleKey = ''
     return
   }
-  const height = container.value.clientHeight
-  rightAxisWidth.value = chart.priceScale('right').width()
-  offScale.value = lineDefinitions.value.flatMap((definition) => {
+  const height = chartHeight
+  holdPriceAxisWidth()
+  const next: OffScaleIndicator[] = lineDefinitions.value.flatMap((definition) => {
     const coordinate = series?.priceToCoordinate(definition.options.price)
     if (coordinate == null || !Number.isFinite(coordinate)) return []
     const edge = coordinate < 0 ? 'upper' : coordinate > height ? 'lower' : null
@@ -386,10 +400,34 @@ function updateOffScale(): void {
           definition.options.price,
           { minDecimals: 2, maxDecimals: 8 },
         )}`,
-        color: definition.options.color ?? chartColors().text,
+        color: definition.options.color ?? chartPalette().text,
       },
     ]
   })
+  // Most frames move nothing off scale; leave the rails alone then.
+  const key = JSON.stringify(next)
+  if (key === offScaleKey) return
+  offScaleKey = key
+  offScale.value = next
+}
+
+// The price axis is as wide as its widest label, so a ticking price can widen
+// and narrow it many times a second, and each change resizes and repaints the
+// chart canvases. The axis keeps the widest width it has needed instead.
+function holdPriceAxisWidth(): void {
+  if (chart === null) return
+  const width = chart.priceScale('right').width()
+  if (width > heldAxisWidth) {
+    heldAxisWidth = width
+    chart.applyOptions({ rightPriceScale: { minimumWidth: width } })
+  }
+  rightAxisWidth.value = Math.max(width, heldAxisWidth)
+}
+
+function releasePriceAxisWidth(): void {
+  if (heldAxisWidth === 0) return
+  heldAxisWidth = 0
+  chart?.applyOptions({ rightPriceScale: { minimumWidth: 0 } })
 }
 
 function focusIndicator(indicator: OffScaleIndicator): void {
@@ -472,6 +510,13 @@ function isPriceAxisPointer(event: MouseEvent): boolean {
   const width = chart.priceScale('right').width()
   const bounds = container.value.getBoundingClientRect()
   return event.clientX - bounds.left >= bounds.width - width
+}
+
+type ChartPalette = ReturnType<typeof chartColors>
+
+function chartPalette(): ChartPalette {
+  palette ??= chartColors()
+  return palette
 }
 
 function chartColors() {

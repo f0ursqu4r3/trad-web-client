@@ -93,23 +93,32 @@ watch(
   { immediate: true },
 )
 
-function refreshCrossSessionAccountState(): void {
+// Picks up account changes made in another session. Returning to the tab
+// fires both focus and visibilitychange; together with the 30 s timer they
+// refresh at most once per 30 s, and an unchanged list changes nothing.
+const ACCOUNT_REFRESH_MIN_AGE_MS = 30_000
+
+function refreshCrossSessionAccountState(maxAgeMs = ACCOUNT_REFRESH_MIN_AGE_MS): void {
   if (!isAuthenticated.value || document.visibilityState !== 'visible') return
-  void accountsStore.fetchAccounts()
+  void accountsStore.refreshAccountsInBackground(maxAgeMs)
+}
+
+function refreshOnReturn(): void {
+  refreshCrossSessionAccountState()
 }
 
 onMounted(() => {
-  window.addEventListener('focus', refreshCrossSessionAccountState)
+  window.addEventListener('focus', refreshOnReturn)
   window.addEventListener('error', captureWindowError)
   window.addEventListener('unhandledrejection', captureRejectedPromise)
-  document.addEventListener('visibilitychange', refreshCrossSessionAccountState)
-  accountRefreshTimer = window.setInterval(refreshCrossSessionAccountState, 30_000)
+  document.addEventListener('visibilitychange', refreshOnReturn)
+  accountRefreshTimer = window.setInterval(() => refreshCrossSessionAccountState(0), 30_000)
 })
 onBeforeUnmount(() => {
-  window.removeEventListener('focus', refreshCrossSessionAccountState)
+  window.removeEventListener('focus', refreshOnReturn)
   window.removeEventListener('error', captureWindowError)
   window.removeEventListener('unhandledrejection', captureRejectedPromise)
-  document.removeEventListener('visibilitychange', refreshCrossSessionAccountState)
+  document.removeEventListener('visibilitychange', refreshOnReturn)
   if (accountRefreshTimer !== null) window.clearInterval(accountRefreshTimer)
 })
 

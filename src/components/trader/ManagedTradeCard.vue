@@ -53,7 +53,11 @@ const availableActions = computed(() => managedTradeActions(props.trade, props.s
 const activeAmendment = computed(() =>
   activeProtectionAmendment(props.trade.protection, props.snapshot.protection_amendments),
 )
-const createdAtTitle = computed(() => new Date(props.trade.createdAt).toLocaleString())
+// Every projection delta brings a new trade object; reading the timestamp
+// through its own computed keeps the date labels (locale formatting is slow)
+// from being rebuilt on each one.
+const createdAt = computed(() => props.trade.createdAt)
+const createdAtTitle = computed(() => new Date(createdAt.value).toLocaleString())
 const rootCommandId = computed(() => props.trade.primaryCommand.command_id)
 const shortRootCommandId = computed(() => rootCommandId.value.slice(0, 8))
 const tradeIdCopied = ref(false)
@@ -87,7 +91,7 @@ const progressMessage = computed(() => {
   return null
 })
 const createdAtLabel = computed(() => {
-  const created = new Date(props.trade.createdAt)
+  const created = new Date(createdAt.value)
   if (Number.isNaN(created.getTime())) return ''
   const now = new Date()
   const sameDay =
