@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { openWorkspace, type Json } from './support/workspaceWire'
 
 interface TelemetryEvent {
   event_name: string
@@ -150,4 +151,66 @@ test('authenticated browser telemetry reaches the real Gateway collector', async
   expect(result.accepted).toBeGreaterThan(0)
   expect(result.invalid).toBe(0)
   expect(result.dropped).toBe(0)
+})
+
+function cardMarketEvents(events: Json[]): Json[] {
+  return events.filter(
+    (event) =>
+      event.event_name === 'market_stream_state_changed' && event.properties?.source === 'card',
+  )
+}
+
+test('a dropped gateway socket shows cards reconnecting, never a bare error', async ({ page }) => {
+  const wire = await openWorkspace(page, { telemetry: true })
+  const cards = page.getByTestId('managed-trade-card')
+  await expect(cards).toHaveCount(3)
+  const eth = cards.filter({ hasText: 'ETH' }).first()
+  await expect(eth.locator('.metric-pnl')).toContainText('Gross open')
+  await expect
+    .poll(() => cardMarketEvents(wire.telemetry).filter((e) => e.properties.state === 'ready'))
+    .toHaveLength(3)
+  const before = wire.telemetry.length
+
+  await wire.dropSocket()
+  await expect
+    .poll(() =>
+      cardMarketEvents(wire.telemetry.slice(before)).filter(
+        (event) => event.properties.state === 'reconnecting',
+      ),
+    )
+    .toHaveLength(3)
+  await expect(eth.locator('.metric-pnl')).toContainText('Gross open')
+  await expect
+    .poll(() =>
+      cardMarketEvents(wire.telemetry.slice(before)).filter(
+        (event) => event.properties.state === 'ready',
+      ),
+    )
+    .toHaveLength(3)
+
+  const after = cardMarketEvents(wire.telemetry.slice(before))
+  for (const event of after.filter((candidate) => candidate.properties.state === 'reconnecting')) {
+    expect(event.properties.outcome_code).toBe('transport_interrupted')
+  }
+  expect(after.filter((event) => event.properties.state === 'error')).toEqual([])
+})
+
+test('a card market error carries the gateway reason', async ({ page }) => {
+  const wire = await openWorkspace(page, {
+    telemetry: true,
+    marketError: (symbol) => (symbol === 'ETH' ? { kind: 'unauthorized' } : null),
+  })
+  const eth = page.getByTestId('managed-trade-card').filter({ hasText: 'ETH' }).first()
+  await expect(eth.locator('.metric-pnl')).toContainText('feed unavailable')
+  await expect
+    .poll(() =>
+      cardMarketEvents(wire.telemetry).find(
+        (event) => event.properties.state === 'error' && event.properties.market_symbol === 'ETH',
+      ),
+    )
+    .toBeTruthy()
+  const errors = cardMarketEvents(wire.telemetry).filter(
+    (event) => event.properties.state === 'error',
+  )
+  for (const event of errors) expect(event.properties.reason_code).toBe('unauthorized')
 })

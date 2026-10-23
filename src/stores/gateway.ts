@@ -190,7 +190,9 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (wasReady && next !== 'ready') {
       connectionTiming.socketLost()
       projections.markAllStale(error ?? 'gateway connection interrupted')
-      markets.disconnected(error ?? 'gateway connection interrupted')
+      // A reconnecting socket resubscribes every market, so the cards show a
+      // reconnect rather than a failed feed.
+      markets.disconnected(error ?? 'gateway connection interrupted', next === 'reconnecting')
       losePendingRequests(error ?? 'gateway connection interrupted')
       resetSubscriptions()
     }
@@ -281,7 +283,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     connectionTiming.socketLost()
     client.disconnect()
     projections.markAllStale('gateway disconnected')
-    markets.disconnected('gateway disconnected')
+    markets.disconnected('gateway disconnected', false)
     losePendingRequests('gateway disconnected')
     resetSubscriptions()
   }

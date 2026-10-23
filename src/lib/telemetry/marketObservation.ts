@@ -1,3 +1,4 @@
+import type { BrowserMarketError } from '../gateway/market.ts'
 import type { TelemetryRecord } from './contract.ts'
 
 export type MarketStreamState =
@@ -17,6 +18,38 @@ export type MarketStreamReason =
   | 'window_not_installed'
   | 'send_failed'
 
+// 'request_timeout': the gateway did not answer a subscribe in time.
+// 'transport_interrupted': the gateway socket closed; the market resubscribes
+// on the next socket.
+export type MarketStreamOutcome = 'request_timeout' | 'transport_interrupted'
+
+// Why a market stream is not live, as the telemetry catalog names it. Kept on
+// the stream so a view reporting its state can say why.
+export interface MarketStreamCause {
+  reasonCode?: MarketStreamReason
+  outcomeCode?: MarketStreamOutcome
+}
+
+// The cause each market stream path records.
+export const marketStreamCauses = {
+  // The gateway socket closed under the stream.
+  transportInterrupted: { outcomeCode: 'transport_interrupted' },
+  // The subscribe could not be sent on the socket.
+  sendFailed: { reasonCode: 'send_failed' },
+  // The gateway did not answer a subscribe in time; it is retried.
+  requestTimeout: { reasonCode: 'unavailable', outcomeCode: 'request_timeout' },
+  // Every retry failed.
+  retriesExhausted: { reasonCode: 'unavailable' },
+  // The exchange feed is down; the subscription stays and recovers.
+  feedUnavailable: { reasonCode: 'unavailable' },
+} as const satisfies Record<string, MarketStreamCause>
+
+// A gateway market_error. The collector accepts only its known reason codes;
+// an unknown market is the request's fault.
+export function marketErrorCause(kind: BrowserMarketError['kind']): MarketStreamCause {
+  return { reasonCode: kind === 'unknown_market' ? 'invalid_request' : kind }
+}
+
 interface MarketObservation {
   requestId?: string | null
   source?:
@@ -28,8 +61,7 @@ interface MarketObservation {
     | 'client_validation'
     | 'card'
   reasonCode?: MarketStreamReason
-  // 'request_timeout': the gateway did not answer a subscribe in time.
-  outcomeCode?: 'request_timeout'
+  outcomeCode?: MarketStreamOutcome
   retryCount?: number
   sampleCount?: number
   lastSampleReceivedAtMs?: number | null
@@ -63,6 +95,39 @@ export function marketStreamEvent(
     ...(observation.requestId ? { requestId: observation.requestId } : {}),
     properties,
   }
+}
+
+// What a trade card shows of its market, reported with the cause the stream
+// recorded so a card error is never bare.
+export function cardMarketStreamEvent(
+  accountId: string,
+  symbol: string,
+  stream: {
+    status: 'idle' | 'subscribing' | 'ready' | 'reconnecting' | 'error'
+    cause: MarketStreamCause | null
+  },
+  lastSampleReceivedAtMs: number | null,
+  now = Date.now(),
+): TelemetryRecord {
+  const state: MarketStreamState =
+    stream.status === 'reconnecting' || stream.status === 'error'
+      ? stream.status
+      : stream.status === 'ready' && lastSampleReceivedAtMs !== null
+        ? 'ready'
+        : 'waiting_for_sample'
+  const cause = state === 'reconnecting' || state === 'error' ? stream.cause : null
+  return marketStreamEvent(
+    accountId,
+    symbol,
+    state,
+    {
+      source: 'card',
+      ...(cause?.reasonCode !== undefined ? { reasonCode: cause.reasonCode } : {}),
+      ...(cause?.outcomeCode !== undefined ? { outcomeCode: cause.outcomeCode } : {}),
+      lastSampleReceivedAtMs,
+    },
+    now,
+  )
 }
 
 export function marketSampleAgeBucket(receivedAtMs: number | null, now: number): string {

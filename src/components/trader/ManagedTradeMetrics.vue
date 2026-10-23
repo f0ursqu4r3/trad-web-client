@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ShieldCheck } from 'lucide-vue-next'
 import { recordTelemetry } from '@/lib/telemetry'
-import { marketStreamEvent } from '@/lib/telemetry/marketObservation'
+import { cardMarketStreamEvent } from '@/lib/telemetry/marketObservation'
 
 import {
   addExact,
@@ -95,7 +95,9 @@ const liveMissing = computed(() => {
     return {
       label: latestSample.value === null ? 'waiting for price' : 'feed reconnecting',
       title:
-        'Waiting for the exchange price feed to recover; cached prices are not used as live P&L',
+        market.value.cause?.outcomeCode === 'transport_interrupted'
+          ? 'Reconnecting to Trad; cached prices are not used as live P&L'
+          : 'Waiting for the exchange price feed to recover; cached prices are not used as live P&L',
     }
   }
   if (market.value?.status === 'error' && market.value.unknownMarket) {
@@ -253,20 +255,11 @@ watch(
     if (lifecycle === 'closed' || lifecycle === 'taken_over' || !currentAccountId || !status) return
 
     recordTelemetry(
-      marketStreamEvent(
+      cardMarketStreamEvent(
         currentAccountId,
         symbol,
-        status === 'reconnecting'
-          ? 'reconnecting'
-          : status === 'error'
-            ? 'error'
-            : status === 'ready' && latestSample.value
-              ? 'ready'
-              : 'waiting_for_sample',
-        {
-          source: 'card',
-          lastSampleReceivedAtMs: latestSample.value?.received_at_ms ?? null,
-        },
+        { status, cause: market.value?.cause ?? null },
+        latestSample.value?.received_at_ms ?? null,
       ),
     )
   },

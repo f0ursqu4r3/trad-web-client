@@ -3,8 +3,10 @@ import { defineStore } from 'pinia'
 
 import type { BrowserMarketSample, BrowserMarketWindow, Uuid } from '@/lib/gateway'
 import { appendMarketSamples, installMarketWindow } from '@/lib/gateway/marketWindow'
+import { disconnectedStream, type MarketStreamStatus } from '@/lib/gateway/marketStreamState'
+import { marketStreamCauses, type MarketStreamCause } from '@/lib/telemetry/marketObservation'
 
-export type MarketStreamStatus = 'idle' | 'subscribing' | 'ready' | 'reconnecting' | 'error'
+export type { MarketStreamStatus }
 
 export interface MarketStreamView {
   accountId: Uuid
@@ -16,6 +18,8 @@ export interface MarketStreamView {
   nextSequence: number | null
   samples: BrowserMarketSample[]
   error: string | null
+  // Why the stream is reconnecting or failed, in telemetry catalog terms.
+  cause: MarketStreamCause | null
   // The exchange does not list this symbol; shown as "Unknown market".
   unknownMarket: boolean
 }
@@ -37,6 +41,7 @@ export const useMarketStore = defineStore('market', () => {
       nextSequence: current?.nextSequence ?? null,
       samples: current?.samples ?? frozenSamples([]),
       error: null,
+      cause: null,
       unknownMarket: false,
     }
   }
@@ -63,6 +68,7 @@ export const useMarketStore = defineStore('market', () => {
       nextSequence: installed.nextSequence,
       samples: frozenSamples(installed.samples),
       error: unavailableReason,
+      cause: unavailableReason === null ? null : marketStreamCauses.feedUnavailable,
       unknownMarket: false,
     }
   }
@@ -88,6 +94,7 @@ export const useMarketStore = defineStore('market', () => {
       ...current,
       status: samples.length > 0 ? 'ready' : current.status,
       error: samples.length > 0 ? null : current.error,
+      cause: samples.length > 0 ? null : current.cause,
       samples: frozenSamples(appended.samples),
       oldestSequence: appended.oldestSequence,
       nextSequence: appended.nextSequence,
@@ -103,10 +110,21 @@ export const useMarketStore = defineStore('market', () => {
     const key = marketKey(accountId, symbol)
     const current = streams.value[key]
     if (current?.subscriptionId !== subscriptionId) return
-    streams.value[key] = { ...current, status: 'reconnecting', error: reason }
+    streams.value[key] = {
+      ...current,
+      status: 'reconnecting',
+      error: reason,
+      cause: marketStreamCauses.feedUnavailable,
+    }
   }
 
-  function fail(accountId: Uuid, symbol: string, reason: string, unknownMarket = false): void {
+  function fail(
+    accountId: Uuid,
+    symbol: string,
+    reason: string,
+    cause: MarketStreamCause,
+    unknownMarket = false,
+  ): void {
     const key = marketKey(accountId, symbol)
     const current = streams.value[key]
     streams.value[key] = {
@@ -119,19 +137,15 @@ export const useMarketStore = defineStore('market', () => {
       nextSequence: current?.nextSequence ?? null,
       samples: current?.samples ?? frozenSamples([]),
       error: reason,
+      cause,
       unknownMarket,
     }
   }
 
-  function disconnected(reason: string): void {
+  // reconnecting: the client opens a new socket and resubscribes every market.
+  function disconnected(reason: string, reconnecting: boolean): void {
     for (const [key, stream] of Object.entries(streams.value)) {
-      streams.value[key] = {
-        ...stream,
-        status: 'error',
-        requestId: null,
-        subscriptionId: null,
-        error: reason,
-      }
+      streams.value[key] = disconnectedStream(stream, reason, reconnecting)
     }
   }
 

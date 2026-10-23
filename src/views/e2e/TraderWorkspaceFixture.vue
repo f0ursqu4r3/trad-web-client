@@ -295,7 +295,9 @@ if (!marketWire) {
       samples,
     })
     if (new URLSearchParams(location.search).has('market_error') && symbol === 'ETH') {
-      markets.fail(accountId, symbol, 'fixture market stream unavailable')
+      markets.fail(accountId, symbol, 'fixture market stream unavailable', {
+        reasonCode: 'unavailable',
+      })
     }
   }
   gateway.unsubscribeMarket = () => undefined

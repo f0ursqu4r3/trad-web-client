@@ -8,7 +8,11 @@ import {
 } from '@/lib/gateway/marketSubscriptionPolicy'
 import { MarketSampleBuffer } from '@/lib/gateway/marketSampleBuffer'
 import { recordTelemetry } from '@/lib/telemetry'
-import { marketStreamEvent } from '@/lib/telemetry/marketObservation'
+import {
+  marketErrorCause,
+  marketStreamCauses,
+  marketStreamEvent,
+} from '@/lib/telemetry/marketObservation'
 import { marketKey, useMarketStore } from '@/stores/market'
 
 // The gateway store's market subscriptions: which markets the UI wants
@@ -288,7 +292,7 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
     recordTelemetry(
       marketStreamEvent(demand.accountId, demand.symbol, 'reconnecting', {
         source: 'feed_health',
-        reasonCode: 'unavailable',
+        ...marketStreamCauses.feedUnavailable,
       }),
     )
   }
@@ -312,20 +316,19 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
     // answer already delivered the market leaves the live stream alone.
     if (message.subscription_id === null && marketSubscribed(key)) return
     const errorClass = classifyMarketError(message.error)
+    const cause = marketErrorCause(message.error.kind)
     markets.fail(
       demand.accountId,
       demand.symbol,
       marketErrorMessage(message.error),
+      cause,
       errorClass === 'unknown_market',
     )
     recordTelemetry(
       marketStreamEvent(demand.accountId, demand.symbol, 'error', {
         requestId: message.request_id,
         source: 'market_error',
-        // The collector accepts only its known reason codes; an unknown
-        // market is the request's fault.
-        reasonCode:
-          message.error.kind === 'unknown_market' ? 'invalid_request' : message.error.kind,
+        ...cause,
         retryCount: marketRetries.attempts(key),
       }),
     )
@@ -368,12 +371,17 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
       )
     } catch (error) {
       forgetMarketRequest(requestId)
-      markets.fail(demand.accountId, demand.symbol, 'gateway disconnected before subscription')
+      markets.fail(
+        demand.accountId,
+        demand.symbol,
+        'gateway disconnected before subscription',
+        marketStreamCauses.sendFailed,
+      )
       recordTelemetry(
         marketStreamEvent(demand.accountId, demand.symbol, 'error', {
           requestId,
           source: 'request',
-          reasonCode: 'send_failed',
+          ...marketStreamCauses.sendFailed,
         }),
       )
       logger.debug('Market subscribe raced a gateway disconnect', error)
@@ -392,13 +400,17 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
     const key = marketKey(demand.accountId, demand.symbol)
     if (!marketDemands.has(key)) return
     logger.warn(`Market ${demand.symbol} subscription timed out; retrying`)
-    markets.fail(demand.accountId, demand.symbol, 'price feed request timed out; retrying')
+    markets.fail(
+      demand.accountId,
+      demand.symbol,
+      'price feed request timed out; retrying',
+      marketStreamCauses.requestTimeout,
+    )
     recordTelemetry(
       marketStreamEvent(demand.accountId, demand.symbol, 'error', {
         requestId,
         source: 'request',
-        reasonCode: 'unavailable',
-        outcomeCode: 'request_timeout',
+        ...marketStreamCauses.requestTimeout,
         retryCount: marketRetries.attempts(key),
       }),
     )
@@ -455,11 +467,12 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
       demand.accountId,
       demand.symbol,
       `price feed unavailable after ${attempts} retries`,
+      marketStreamCauses.retriesExhausted,
     )
     recordTelemetry(
       marketStreamEvent(demand.accountId, demand.symbol, 'error', {
         source: 'request',
-        reasonCode: 'unavailable',
+        ...marketStreamCauses.retriesExhausted,
         retryCount: attempts,
       }),
     )
