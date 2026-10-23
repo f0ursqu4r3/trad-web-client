@@ -1,3 +1,4 @@
+import type { TradeSummary } from './tradeSummary.ts'
 import type { BrowserCommandIntent, ExactDecimal, Uuid } from './intent.ts'
 
 export type TimestampMillis = number
@@ -846,6 +847,11 @@ export interface BrowserAccountDelta extends ProjectionGraph {
   protections: ProtectionProjection[]
   external_orders?: ExternalOrderProjection[]
   replace_external_order_inventory?: boolean
+  // Slice S2 server card numbers, omitted when empty: a snapshot's are the
+  // window's trades; a delta's replace by trade id, and removed ones left
+  // the window.
+  trade_summaries?: TradeSummary[]
+  removed_trade_summaries?: string[]
 }
 
 export interface BrowserAccountSnapshot extends BrowserAccountDelta {
