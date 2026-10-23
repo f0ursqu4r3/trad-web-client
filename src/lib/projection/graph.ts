@@ -290,15 +290,59 @@ function commandId(command: CommandProjection): Uuid {
   return command.command_id
 }
 
-function mergeRows<T>(existing: T[], incoming: T[], identity: (row: T) => string): T[] {
+// Arrays mergeRows produced: unique identities in ascending localeCompare
+// order. Each projection array keeps one identity for its whole life (the
+// array of a field is only ever merged by that field's key).
+const sortedByIdentity = new WeakSet<object>()
+// Above this many incoming rows a full rebuild is as cheap.
+const PLACED_MERGE_LIMIT = 256
+
+// Upserts `incoming` into `existing` by identity; the result is sorted by
+// identity (localeCompare) with later incoming rows winning. Merging into an
+// array this function produced places only the incoming rows (binary search
+// and insert), so a delta costs its own size rather than the account's.
+export function mergeRows<T>(existing: T[], incoming: T[], identity: (row: T) => string): T[] {
   if (incoming.length === 0) return existing
+  if (sortedByIdentity.has(existing) && incoming.length <= PLACED_MERGE_LIMIT) {
+    const placed = placeRows(existing, incoming, identity)
+    if (placed !== null) return placed
+  }
   const rows = new Map(existing.map((row) => [identity(row), row]))
   for (const row of incoming) {
     rows.set(identity(row), row)
   }
-  return Array.from(rows.entries())
+  const merged = Array.from(rows.entries())
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([, row]) => row)
+  sortedByIdentity.add(merged)
+  return merged
+}
+
+// null when two different identities compare equal, where only the full
+// merge's stable sort decides the order.
+function placeRows<T>(existing: T[], incoming: T[], identity: (row: T) => string): T[] | null {
+  const result = existing.slice()
+  for (const row of incoming) {
+    const id = identity(row)
+    let low = 0
+    let high = result.length
+    while (low < high) {
+      const middle = (low + high) >> 1
+      if (identity(result[middle]!).localeCompare(id) < 0) low = middle + 1
+      else high = middle
+    }
+    if (low < result.length) {
+      const found = identity(result[low]!)
+      if (found === id) {
+        result[low] = row
+        continue
+      }
+      if (found.localeCompare(id) === 0) return null
+    }
+    result.splice(low, 0, row)
+  }
+  sortedByIdentity.add(result)
+  return result
 }
 
 function mergeRelationships(

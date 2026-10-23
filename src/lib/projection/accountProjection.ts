@@ -17,6 +17,7 @@ import {
   graphNodes,
   isTerminalCommand,
   mergeGraph,
+  mergeRows,
   nodeKey,
   pruneLiveSnapshot,
   relationshipKey,
@@ -442,17 +443,6 @@ function equalSets(left: Set<string>, right: Set<string>): boolean {
 
 function unique<T>(values: T[]): T[] {
   return Array.from(new Set(values))
-}
-
-function mergeRows<T>(existing: T[], incoming: T[], identity: (row: T) => string): T[] {
-  if (incoming.length === 0) return existing
-  const rows = new Map(existing.map((row) => [identity(row), row]))
-  for (const row of incoming) {
-    rows.set(identity(row), row)
-  }
-  return Array.from(rows.entries())
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([, row]) => row)
 }
 
 function exceedsTerminalWindow(snapshot: BrowserAccountSnapshot): boolean {
