@@ -15,6 +15,7 @@ import {
 } from '@/lib/browserErrorSource'
 import { recordTelemetry } from '@/lib/telemetry'
 
+import ProtocolUpdateNotice from '@/components/general/ProtocolUpdateNotice.vue'
 import AuthenticatedLayout from '@/layouts/Authenticated.vue'
 import ControlPlaneLayout from '@/layouts/ControlPlane.vue'
 
@@ -152,6 +153,7 @@ watch(
 
 <template>
   <div class="app-root">
+    <ProtocolUpdateNotice />
     <aside v-if="frontendFailure" class="frontend-failure" role="alert">
       <span>Interface error: {{ frontendFailure }}</span>
       <button type="button" @click="frontendFailure = null">dismiss</button>

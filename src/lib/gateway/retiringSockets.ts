@@ -1,4 +1,4 @@
-import type { GatewaySocket } from './client.ts'
+import type { GatewaySocket } from './socketTypes.ts'
 import type { BrowserServerMessage } from './wire.ts'
 
 // Sockets a lease renewal replaced (networking work item 9). Each stays open

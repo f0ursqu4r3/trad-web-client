@@ -419,6 +419,68 @@ test('every handled frame reports its length and main-thread handling time', asy
   client.disconnect()
 })
 
+test('a protocol refusal goes to the mismatch handler, which may stop reconnecting', async () => {
+  for (const stop of [true, false]) {
+    const sockets: FakeSocket[] = []
+    const mismatches: Array<{ expected: number; actual: number }> = []
+    let finalStatus: GatewayConnectionStatus = 'idle'
+    const client = clientWithSockets(sockets, async () => 'ticket', {
+      reconnectDelayMs: 0,
+      maxReconnectDelayMs: 0,
+    })
+    client.setStatusHandler((status) => {
+      finalStatus = status
+    })
+    client.setProtocolMismatchHandler((mismatch) => {
+      mismatches.push(mismatch)
+      return stop
+    })
+    client.connect()
+    await settle()
+    const socket = requiredSocket(sockets, 0)
+    socket.open()
+    socket.serverClose(
+      1008,
+      `browser protocol mismatch: expected ${BROWSER_PROTOCOL_VERSION + 1}, received ${BROWSER_PROTOCOL_VERSION}`,
+    )
+    await settle(5)
+    assert.deepEqual(mismatches, [
+      { expected: BROWSER_PROTOCOL_VERSION + 1, actual: BROWSER_PROTOCOL_VERSION },
+    ])
+    if (stop) {
+      assert.equal(finalStatus, 'error')
+      assert.equal(sockets.length, 1, 'no reconnect after the handler stops it')
+    } else {
+      assert.ok(sockets.length >= 2, 'reconnects while waiting for the gateway')
+    }
+    client.disconnect()
+  }
+})
+
+test('other policy closes reconnect without the mismatch handler', async () => {
+  const sockets: FakeSocket[] = []
+  let calls = 0
+  const client = clientWithSockets(sockets, async () => 'ticket', {
+    reconnectDelayMs: 0,
+    maxReconnectDelayMs: 0,
+  })
+  client.setProtocolMismatchHandler(() => {
+    calls += 1
+    return true
+  })
+  client.connect()
+  await settle()
+  requiredSocket(sockets, 0).open()
+  requiredSocket(sockets, 0).serverClose(
+    1008,
+    'websocket ticket is invalid, expired, or already consumed',
+  )
+  await settle(5)
+  assert.equal(calls, 0)
+  assert.ok(sockets.length >= 2)
+  client.disconnect()
+})
+
 function clientWithSockets(
   sockets: FakeSocket[],
   getTicket: () => Promise<string | null>,
