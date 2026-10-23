@@ -34,8 +34,15 @@ export async function startTelemetry(router: Router): Promise<void> {
       eventName: 'visibility_changed',
       properties: { visibility_state: document.visibilityState },
     })
+    // Phones often never fire pagehide; a hidden tab may be frozen or killed.
+    if (document.visibilityState === 'hidden') {
+      queueMicrotask(() => void collector.flush(true))
+    }
   })
-  window.addEventListener('online', () => setTelemetryConnectionState('reconnecting'))
+  window.addEventListener('online', () => {
+    setTelemetryConnectionState('reconnecting')
+    collector.flushSoon()
+  })
   window.addEventListener('offline', () => setTelemetryConnectionState('offline'))
   window.addEventListener('pagehide', () => collector.stop(), { once: true })
 }
