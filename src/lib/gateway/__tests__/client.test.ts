@@ -457,6 +457,88 @@ test('a protocol refusal goes to the mismatch handler, which may stop reconnecti
   }
 })
 
+test('after a protocol halt, connect() opens nothing', async () => {
+  const sockets: FakeSocket[] = []
+  let tickets = 0
+  const client = clientWithSockets(
+    sockets,
+    async () => {
+      tickets += 1
+      return 'ticket'
+    },
+    { reconnectDelayMs: 0, maxReconnectDelayMs: 0 },
+  )
+  client.setProtocolMismatchHandler(() => true)
+  client.connect()
+  await settle()
+  requiredSocket(sockets, 0).open()
+  requiredSocket(sockets, 0).serverClose(
+    1008,
+    `browser protocol mismatch: expected ${BROWSER_PROTOCOL_VERSION + 1}, received ${BROWSER_PROTOCOL_VERSION}`,
+  )
+  // The app and the route both call connect() again while the page reloads.
+  client.connect()
+  client.connect()
+  await settle(10)
+  assert.equal(sockets.length, 1)
+  assert.equal(tickets, 1)
+  client.disconnect()
+  client.connect()
+  await settle(10)
+  assert.equal(sockets.length, 1, 'only a page reload clears the halt')
+})
+
+test('a halt cancels a scheduled reconnect', async () => {
+  const sockets: FakeSocket[] = []
+  let tickets = 0
+  const client = clientWithSockets(
+    sockets,
+    async () => {
+      tickets += 1
+      return 'ticket'
+    },
+    { reconnectDelayMs: 20, maxReconnectDelayMs: 20 },
+  )
+  client.connect()
+  await settle()
+  requiredSocket(sockets, 0).open()
+  requiredSocket(sockets, 0).serverClose(1006, '')
+  client.haltForProtocol('gateway speaks another protocol')
+  await settle(60)
+  assert.equal(sockets.length, 1)
+  assert.equal(tickets, 1)
+})
+
+test('a halt aborts an in-flight ticket request and ignores its answer', async () => {
+  const sockets: FakeSocket[] = []
+  let signal: AbortSignal | undefined
+  let answer: (ticket: string) => void = () => {}
+  const client = clientWithSockets(sockets, (requestSignal?: AbortSignal) => {
+    signal = requestSignal
+    return new Promise<string>((resolve) => (answer = resolve))
+  })
+  client.connect()
+  await settle()
+  assert.equal(signal?.aborted, false)
+  client.haltForProtocol('gateway speaks another protocol')
+  assert.equal(signal?.aborted, true)
+  answer('late-ticket')
+  await settle(5)
+  assert.equal(sockets.length, 0)
+})
+
+test('a socket that opens after a halt is closed without authenticating', async () => {
+  const sockets: FakeSocket[] = []
+  const client = clientWithSockets(sockets, async () => 'ticket')
+  client.connect()
+  await settle()
+  const socket = requiredSocket(sockets, 0)
+  client.haltForProtocol('gateway speaks another protocol')
+  socket.open()
+  assert.deepEqual(socket.sent, [])
+  assert.equal(socket.readyState, 3)
+})
+
 test('other policy closes reconnect without the mismatch handler', async () => {
   const sockets: FakeSocket[] = []
   let calls = 0
@@ -483,7 +565,7 @@ test('other policy closes reconnect without the mismatch handler', async () => {
 
 function clientWithSockets(
   sockets: FakeSocket[],
-  getTicket: () => Promise<string | null>,
+  getTicket: (signal?: AbortSignal) => Promise<string | null>,
   overrides: Partial<ConstructorParameters<typeof GatewayWebSocketClient>[0]> = {},
 ): GatewayWebSocketClient {
   return new GatewayWebSocketClient({
