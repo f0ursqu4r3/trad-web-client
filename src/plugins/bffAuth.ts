@@ -1,6 +1,7 @@
 import { ref, watch } from 'vue'
 import type { AuthProvider, AuthUser, LoginOptions, LogoutOptions } from '@/lib/auth'
 import { useGatewayStore } from '@/stores/gateway'
+import { deleteHistoryCache } from '@/lib/gateway/historyCache'
 
 interface SessionResponse {
   authenticated: boolean
@@ -135,6 +136,7 @@ export function createBffAuthProvider(): AuthProvider {
         method: 'POST',
         credentials: 'include',
       }).catch(() => undefined)
+      deleteHistoryCache()
       isAuthenticated.value = false
       user.value = null
       sessionExpiryHandled = true
