@@ -35,8 +35,8 @@ test('the terminal warns of agent expiry from seven days and links to approval',
     'From 24 hours before it expires, Trad refuses new trades on this account',
   )
   await expect(notice).toContainText('closes keep working until it expires')
-  const link = notice.getByRole('link', { name: 'Renew agent approval' })
-  await expect(link).toHaveAttribute('href', /\/settings\/accounts\/[^/]+\/authorization$/)
+  const link = notice.getByRole('link', { name: 'Renew agent' })
+  await expect(link).toHaveAttribute('href', /\/settings\/accounts\/[^/]+\/authorization\?renew=1$/)
   await page.screenshot({ path: 'test-results/agent-expiry-warning.png' })
 })
 
@@ -50,6 +50,6 @@ test('inside 24 hours the warning says new trades are refused', async ({ page })
   await page.screenshot({ path: 'test-results/agent-expiry-blocked.png' })
 
   await page.setViewportSize({ width: 390, height: 844 })
-  await expect(notice.getByRole('link', { name: 'Renew agent approval' })).toBeVisible()
+  await expect(notice.getByRole('link', { name: 'Renew agent' })).toBeVisible()
   await page.screenshot({ path: 'test-results/agent-expiry-blocked-phone.png' })
 })

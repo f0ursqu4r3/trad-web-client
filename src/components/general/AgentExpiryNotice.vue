@@ -38,9 +38,9 @@ const notices = computed(() =>
         <span>{{ notice.detail }}</span>
       </div>
       <RouterLink
-        :to="`/settings/accounts/${notice.accountId}/authorization`"
+        :to="`/settings/accounts/${notice.accountId}/authorization?renew=1`"
         class="btn btn-sm agent-expiry__action"
-        >Renew agent approval</RouterLink
+        >Renew agent</RouterLink
       >
     </aside>
   </div>

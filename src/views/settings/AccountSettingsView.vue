@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-vue-next'
 import AccountsListPanel from '@/components/terminal/panels/AccountsListPanel.vue'
 import ControlPageHeader from '@/components/control/ControlPageHeader.vue'
 import AgentExpiryNotice from '@/components/general/AgentExpiryNotice.vue'
+import HyperliquidAgentRenewal from '@/components/settings/HyperliquidAgentRenewal.vue'
 import {
   accountMetadataStatus,
   isBybitMetadataVerified,
@@ -128,6 +129,10 @@ watch(section, (next, previous) => {
             >
           </div>
 
+          <HyperliquidAgentRenewal
+            v-if="section === 'authorization' && account.exchange === ExchangeType.Hyperliquid"
+            :account="account"
+          />
           <AccountsListPanel
             mode="detail"
             :detail-account-id="account.id"

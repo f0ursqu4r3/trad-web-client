@@ -16,9 +16,19 @@ export interface HyperliquidAgentConnection {
   agent_address: string
   approved: boolean
   approval_verified_at_ms?: number | null
+  // Hyperliquid validUntil of the active agent (Unix ms), when known.
+  valid_until_ms?: number | null
   attached_accounts: number
   preferred_name: string
   remote_agents: HyperliquidRemoteAgent[]
+  // A replacement agent awaiting approval (agent renewal), if any.
+  renewal?: HyperliquidPendingRenewal | null
+}
+
+export interface HyperliquidPendingRenewal {
+  agent_name: string
+  agent_address: string
+  started_at: string
 }
 
 const root = '/hyperliquid/agent-wallets'
