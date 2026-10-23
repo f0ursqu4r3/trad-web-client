@@ -3,6 +3,15 @@ import { ref } from 'vue'
 import { apiDelete, apiGet, apiPost, apiPut } from '@/lib/apiClient'
 import type { ExchangeAccountMetadata } from '@/stores/accounts'
 import type { BillingInvoice, CommercialPlan, EffectiveEntitlement } from '@/stores/billing'
+import {
+  adminWriteError,
+  adminWriteResult,
+  type AdminWrite,
+  type InviteUserRequest,
+  type InvitedUser,
+  type UserAccessResponse,
+  type UserCellResponse,
+} from '@/lib/adminOnboarding'
 
 export interface AdminOverview {
   users: number
@@ -26,6 +35,8 @@ export interface AdminUser {
   account_count: number
   created_at: string
   last_login_at: string | null
+  // Recorded by an operator; nothing routes by it yet.
+  cell_id: string | null
 }
 export interface AdminAccount {
   account_id: string
@@ -338,6 +349,33 @@ export const useAdminStore = defineStore('admin', () => {
     )
     await fetchUsers()
   }
+  // Onboarding writes answer server refusals (409 already invited, 403, 400)
+  // as values so the page can show them as written.
+  async function adminWrite<T>(request: () => Promise<unknown>): Promise<AdminWrite<T>> {
+    try {
+      return adminWriteResult<T>(await request())
+    } catch (cause) {
+      return adminWriteError(cause)
+    }
+  }
+  const inviteUser = (request: InviteUserRequest) =>
+    adminWrite<InvitedUser>(() => apiPost('/admin/users', request, { throwOnHTTPError: false }))
+  async function setUserEnabled(userId: string, enabled: boolean) {
+    const result = await adminWrite<UserAccessResponse>(() =>
+      apiPut(`/admin/users/${userId}/enabled`, { enabled }, { throwOnHTTPError: false }),
+    )
+    const user = users.value.find((entry) => entry.user_id === userId)
+    if (result.ok && user) user.enabled = result.value.enabled
+    return result
+  }
+  async function setUserCell(userId: string, cellId: string | null) {
+    const result = await adminWrite<UserCellResponse>(() =>
+      apiPut(`/admin/users/${userId}/cell`, { cell_id: cellId }, { throwOnHTTPError: false }),
+    )
+    const user = users.value.find((entry) => entry.user_id === userId)
+    if (result.ok && user) user.cell_id = result.value.cell_id
+    return result
+  }
   async function updateUserBuilderTarget(userId: string, target: number | null) {
     return apiPut<EffectiveEntitlement>(
       `/admin/users/${userId}/builder-target`,
@@ -393,6 +431,9 @@ export const useAdminStore = defineStore('admin', () => {
     createCommercialPlan,
     putPriceBinding,
     updateUser,
+    inviteUser,
+    setUserEnabled,
+    setUserCell,
     updateUserBuilderTarget,
     updateAccountAllInTarget,
     updatePolicy,
