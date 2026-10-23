@@ -1,4 +1,9 @@
 import { expect, test } from '@playwright/test'
+import { visibleProductReleases } from '../src/lib/releases'
+
+// The e2e server is Vite dev, where drafts are visible too. Each visible
+// release renders one "Fixes" section heading under the Fixes filter.
+const visibleReleaseCount = visibleProductReleases(true).length
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/auth/session', async (route) => {
@@ -44,7 +49,9 @@ test('lists published releases and filters their categories', async ({ page }) =
   await expect(page.getByText('Account removal fencing', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Fixes', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Fixes', exact: true })).toHaveCount(28)
+  await expect(page.getByRole('heading', { name: 'Fixes', exact: true })).toHaveCount(
+    visibleReleaseCount,
+  )
   await expect(page.getByRole('heading', { name: 'Major', exact: true })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Minor', exact: true })).toHaveCount(0)
   await expect(page.getByText('Account removal fencing', { exact: true })).toBeVisible()

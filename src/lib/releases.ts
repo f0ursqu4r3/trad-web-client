@@ -1,4 +1,4 @@
-import releases from '@/content/releases.json'
+import releases from '@/content/releases.json' with { type: 'json' }
 
 export type ReleaseCategory = 'major' | 'minor' | 'fixes'
 
