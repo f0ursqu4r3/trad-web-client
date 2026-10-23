@@ -15,10 +15,11 @@ import { openWorkspace, type Json, type WorkspaceWire } from './support/workspac
 //   throttling through CDP. This is the phone *compute* measurement:
 //   Playwright cannot throttle WebKit's CPU.
 // - phone-webkit: WebKit on an iPhone profile, unthrottled. Correctness on
-//   Safari's engine; its timings are desktop-CPU timings and WebKit reports
-//   no long tasks.
-// The scripted socket delivers frames in-process: there is no network
-// latency, loss or bandwidth here (that is the toxiproxy roaming profile).
+//   Safari's engine; its timings are desktop-CPU timings, at 1 ms
+//   resolution, and WebKit reports no long tasks.
+// Frames travel over a real WebSocket on 127.0.0.1 (support/loopbackSocket.ts):
+// no network latency, loss or bandwidth here (that is the toxiproxy roaming
+// profile).
 //
 // Each run loads the page twice: cold (first visit, nothing remembered) and
 // warm (reload; the card coins are remembered), with the account snapshot
@@ -55,41 +56,57 @@ interface Ratchet {
   steadyLongestTaskMs: number | null
 }
 
-// NETWORK_BUDGET_RATCHET: the worst of three runs each, measured 2026-10-23
-// on the shared dev box (frontend release/v0.10.32-frontend, Playwright
-// 1.61.1). Targets are in docs/networking-2026-10.md "Budgets" (backend
-// repo); most of these miss them today. Tighten an entry when a
-// change improves it; never loosen one. null: not measured (phone-webkit
-// could not launch here: the host lacks WebKit's GStreamer and libavif
-// libraries).
+// NETWORK_BUDGET_RATCHET: worst of three runs per profile on the shared dev
+// box, over the loopback socket (frontend release/v0.10.32-frontend,
+// Playwright 1.61.1). First recorded 2026-10-23; tightened the same day
+// after the projection reactivity work, keeping an entry where a run did
+// not beat it (the snapshot parse+apply time, a long-task count). Bytes
+// rose by 4 when the heavy account's live window was fixed to hold all of
+// its terminal commands. Targets are in docs/networking-2026-10.md
+// "Budgets" (backend repo); several of these still miss them. Tighten an
+// entry when a change improves it; never loosen one. WebKit reports no long
+// tasks (null).
 const NETWORK_BUDGET_RATCHET: Record<string, Ratchet | null> = {
   chromium: {
-    snapshotBytes: 15_652_208,
-    coldReceivedBytes: 15_653_876,
-    coldSnapshotAppliedMs: 660,
-    coldAllCardsPricedMs: 820,
-    coldCardsRenderedMs: 1_650,
+    snapshotBytes: 15_652_212,
+    coldReceivedBytes: 15_653_880,
+    coldSnapshotAppliedMs: 95,
+    coldAllCardsPricedMs: 360,
+    coldCardsRenderedMs: 1_240,
     applyP95Ms: 26,
     applyMaxMs: 26,
     longTasks: 1,
-    longestTaskMs: 620,
-    steadyApplyP95Ms: 0.3,
-    steadyLongestTaskMs: 56,
+    longestTaskMs: 230,
+    steadyApplyP95Ms: 0.2,
+    steadyLongestTaskMs: 0,
   },
   'phone-chromium-4x': {
-    snapshotBytes: 15_652_208,
-    coldReceivedBytes: 15_653_876,
-    coldSnapshotAppliedMs: 2_240,
-    coldAllCardsPricedMs: 3_060,
-    coldCardsRenderedMs: 3_710,
+    snapshotBytes: 15_652_212,
+    coldReceivedBytes: 15_653_880,
+    coldSnapshotAppliedMs: 250,
+    coldAllCardsPricedMs: 1_290,
+    coldCardsRenderedMs: 1_920,
     applyP95Ms: 97,
     applyMaxMs: 97,
     longTasks: 3,
-    longestTaskMs: 2_800,
+    longestTaskMs: 330,
     steadyApplyP95Ms: 0.7,
-    steadyLongestTaskMs: 320,
+    // 0 when run alone; 57 with three profiles running at once.
+    steadyLongestTaskMs: 57,
   },
-  'phone-webkit': null,
+  'phone-webkit': {
+    snapshotBytes: 15_652_212,
+    coldReceivedBytes: 15_653_880,
+    coldSnapshotAppliedMs: 150,
+    coldAllCardsPricedMs: 360,
+    coldCardsRenderedMs: 1_250,
+    applyP95Ms: 36,
+    applyMaxMs: 36,
+    longTasks: null,
+    longestTaskMs: null,
+    steadyApplyP95Ms: 1,
+    steadyLongestTaskMs: null,
+  },
 }
 
 interface Probe {
