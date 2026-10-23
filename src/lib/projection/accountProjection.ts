@@ -152,6 +152,17 @@ export function applyDelta(
   }
 }
 
+// A resume's missed deltas, applied in order to a copy: the result, or a
+// throw that leaves `view` as it was. A tab never shows part of a resume.
+export function applyResumedDeltas(
+  view: AccountProjectionView,
+  deltas: readonly BrowserAccountDelta[],
+): AccountProjectionView {
+  let next = view
+  for (const delta of deltas) next = applyDelta(next, delta)
+  return next
+}
+
 export function mergeHistoryPage(
   view: AccountProjectionView,
   page: ClientCommandPage,

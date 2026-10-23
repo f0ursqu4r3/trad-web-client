@@ -35,6 +35,7 @@ export class RetiringSockets {
   receive(socket: GatewaySocket, message: BrowserServerMessage): boolean {
     switch (message.kind) {
       case 'account_snapshot':
+      case 'account_resumed':
       case 'account_delta':
         this.unsubscribe(socket, 'unsubscribe_account', message.subscription_id)
         return false

@@ -4,6 +4,7 @@ import { defineStore } from 'pinia'
 import type {
   BrowserAccountDelta,
   BrowserAccountSnapshot,
+  BrowserResumePoint,
   BrowserSnapshotCause,
   ClientCommandPage,
   LegacyCommandPage,
@@ -13,6 +14,7 @@ import type {
 import {
   ProjectionStateError,
   applyDelta,
+  applyResumedDeltas,
   combinedProjection,
   installHandoffSnapshot,
   installSnapshot,
@@ -32,6 +34,9 @@ export interface AccountProjectionState {
   subscriptionId: Uuid | null
   snapshotCause: BrowserSnapshotCause | null
   view: AccountProjectionView | null
+  // The gateway stream `view` belongs to, while every delta since its
+  // snapshot applied cleanly; null when the tab should not resume.
+  streamId: Uuid | null
 }
 
 export const useAccountProjectionStore = defineStore('accountProjection', () => {
@@ -67,6 +72,7 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
     cause: BrowserSnapshotCause,
     snapshot: BrowserAccountSnapshot,
     preserveMonotonicRevision = false,
+    streamId: Uuid | null = null,
   ): boolean {
     const entry = ensure(accountId)
     try {
@@ -81,6 +87,44 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
     }
     entry.subscriptionId = subscriptionId
     entry.snapshotCause = cause
+    entry.streamId = streamId
+    entry.status = 'ready'
+    entry.error = null
+    entry.failure = null
+    return true
+  }
+
+  // Where a resubscribe can resume from, or null for a snapshot.
+  function resumePoint(accountId: Uuid): BrowserResumePoint | null {
+    const entry = byAccount.value[accountId]
+    if (entry === undefined || entry.view === null || entry.streamId === null) return null
+    return {
+      stream_id: entry.streamId,
+      projection_revision: entry.view.live.checkpoint.projection_revision,
+    }
+  }
+
+  // Installs a resume's missed deltas all at once. False (and no resume
+  // next time) when the stream is not this view's or a delta does not
+  // apply; the view is then untouched and the caller asks for a snapshot.
+  function resume(
+    accountId: Uuid,
+    subscriptionId: Uuid,
+    streamId: Uuid,
+    deltas: readonly BrowserAccountDelta[],
+  ): boolean {
+    const entry = ensure(accountId)
+    if (entry.view === null || entry.streamId !== streamId) {
+      entry.streamId = null
+      return false
+    }
+    try {
+      entry.view = rawView(applyResumedDeltas(entry.view, deltas))
+    } catch {
+      entry.streamId = null
+      return false
+    }
+    entry.subscriptionId = subscriptionId
     entry.status = 'ready'
     entry.error = null
     entry.failure = null
@@ -102,6 +146,7 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
       entry.error = null
       entry.failure = null
     } catch (error) {
+      entry.streamId = null
       stale(accountId, errorMessage(error))
       throw error
     }
@@ -139,6 +184,7 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
     entry.error = reason
     entry.failure = failure
     entry.subscriptionId = null
+    entry.streamId = null
   }
 
   function stale(accountId: Uuid, reason: string): void {
@@ -179,6 +225,7 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
       subscriptionId: null,
       snapshotCause: null,
       view: null,
+      streamId: null,
     }
     byAccount.value[accountId] = created
     return created
@@ -192,6 +239,8 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
     selectedGraph,
     beginSubscription,
     install,
+    resumePoint,
+    resume,
     apply,
     mergeHistory,
     mergeLegacyHistory,

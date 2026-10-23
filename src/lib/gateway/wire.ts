@@ -12,7 +12,17 @@ import type {
   ProjectionRevision,
 } from './projection.ts'
 
-export const BROWSER_PROTOCOL_VERSION = 15
+// 16: resume (`resume_from_revision`, `stream_id`, `account_resumed`). The
+// gateway still serves 15 tabs; they never resume.
+export const BROWSER_PROTOCOL_VERSION = 16
+
+// Where this tab's copy of an account stands: the stream its snapshot came
+// from and the revision it applied up to. The gateway resumes only inside
+// that stream; anything else gets a snapshot.
+export interface BrowserResumePoint {
+  stream_id: Uuid
+  projection_revision: ProjectionRevision
+}
 
 export interface BrowserPositionResolutionIntent {
   resolution_id: Uuid
@@ -28,7 +38,12 @@ export interface BrowserPositionResolutionIntent {
 
 export type BrowserClientMessage =
   | { kind: 'authenticate'; protocol_version: number; ticket: string }
-  | { kind: 'subscribe_account'; request_id: Uuid; account_id: Uuid }
+  | {
+      kind: 'subscribe_account'
+      request_id: Uuid
+      account_id: Uuid
+      resume_from_revision?: BrowserResumePoint
+    }
   | { kind: 'unsubscribe_account'; subscription_id: Uuid }
   | {
       kind: 'subscribe_market'
@@ -142,7 +157,19 @@ export type BrowserServerMessage =
       subscription_id: Uuid
       route: AccountRouteKey
       cause: BrowserSnapshotCause
+      // The stream this snapshot starts (absent from older gateways).
+      stream_id?: Uuid
       snapshot: BrowserAccountSnapshot
+    }
+  | {
+      // The answer to a resuming subscribe: the deltas after the tab's
+      // revision, in order (none when it was current). Applied all or none.
+      kind: 'account_resumed'
+      request_id: Uuid
+      subscription_id: Uuid
+      route: AccountRouteKey
+      stream_id: Uuid
+      deltas: BrowserAccountDelta[]
     }
   | {
       kind: 'account_delta'

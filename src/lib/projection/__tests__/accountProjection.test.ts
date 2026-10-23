@@ -22,6 +22,7 @@ import type {
 import {
   ProjectionStateError,
   applyDelta,
+  applyResumedDeltas,
   combinedProjection,
   installHandoffSnapshot,
   installSnapshot,
@@ -143,6 +144,36 @@ test('terminal pruning retains a protection amendment descendant with its comman
 
   assert.deepEqual(ids(next.live.commands, 'command_id'), ['amend-command'])
   assert.deepEqual(ids(next.live.protection_amendments, 'amendment_id'), ['protection-amendment'])
+})
+
+test('a resume applies every missed delta or none', () => {
+  const initial = snapshot(4, [command('a', 10, 'running')])
+  const view = installSnapshot(initial)
+  const resumed = applyResumedDeltas(view, [
+    delta(initial, 5, [command('a', 10, 'succeeded')]),
+    delta(initial, 6, [command('b', 11, 'running')]),
+  ])
+  assert.equal(resumed.live.checkpoint.projection_revision, 6)
+  assert.deepEqual(
+    resumed.live.commands.map((row) => [row.command_id, row.lifecycle]),
+    [
+      ['a', 'succeeded'],
+      ['b', 'running'],
+    ],
+  )
+
+  // a hole inside the resume throws and leaves the view as it was
+  assert.throws(
+    () =>
+      applyResumedDeltas(view, [
+        delta(initial, 5, [command('a', 10, 'succeeded')]),
+        delta(initial, 7, [command('b', 11, 'running')]),
+      ]),
+    (error: unknown) => error instanceof ProjectionStateError && error.code === 'revision_gap',
+  )
+  assert.equal(view.live.checkpoint.projection_revision, 4)
+  assert.equal(view.live.commands[0]?.lifecycle, 'running')
+  assert.equal(applyResumedDeltas(view, []), view)
 })
 
 test('a revision gap is rejected before any state changes', () => {
