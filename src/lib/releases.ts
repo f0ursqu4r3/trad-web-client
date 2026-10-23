@@ -40,9 +40,7 @@ export function isProductionReleaseHost(hostname: string): boolean {
 }
 
 export function releasePreviewPath(version: string, hostname = ''): string {
-  const directory = isProductionReleaseHost(hostname)
-    ? '/prod-update-previews'
-    : '/update-previews'
+  const directory = isProductionReleaseHost(hostname) ? '/prod-update-previews' : '/update-previews'
   return `${directory}/${version}.png`
 }
 
