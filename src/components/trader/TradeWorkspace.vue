@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { Activity, ArrowDown, ListChecks, WalletCards } from 'lucide-vue-next'
+import { Activity, ArrowDown } from 'lucide-vue-next'
 
 import PanelEmptyState from '@/components/general/PanelEmptyState.vue'
 import ReconciliationControl from '@/components/engine/ReconciliationControl.vue'
@@ -12,11 +12,13 @@ import { scheduleTradeSummaryShadow } from '@/lib/telemetry/tradeSummaryShadowRu
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
 import { useProjectionUiStore } from '@/stores/projectionUi'
-import ManagedTradeCard from './ManagedTradeCard.vue'
 import OpenOrdersSummary from './OpenOrdersSummary.vue'
 import PositionSummary from './PositionSummary.vue'
 import TradeDiscovery from './TradeDiscovery.vue'
+import TradeLifecycleFilter, { type TradeLifecycleFilterValue } from './TradeLifecycleFilter.vue'
+import TradeList from './TradeList.vue'
 import TradeTicket from './TradeTicket.vue'
+import WorkspaceSummaryPane from './WorkspaceSummaryPane.vue'
 
 export type TraderWorkspaceSection = 'trades' | 'positions' | 'orders'
 
@@ -31,7 +33,7 @@ const focusedTradeId = ref<string | null>(null)
 const mobilePane = ref<'ticket' | 'trades'>('trades')
 const ticket = ref<InstanceType<typeof TradeTicket> | null>(null)
 const sidebar = ref<HTMLElement | null>(null)
-const lifecycleFilter = ref<'active' | 'closed' | 'all'>('active')
+const lifecycleFilter = ref<TradeLifecycleFilterValue>('active')
 const query = ref('')
 let focusTimer: number | null = null
 const showTradeGuide = ref(false)
@@ -211,32 +213,12 @@ onBeforeUnmount(() => {
           :hidden="hiddenTradeCount"
         />
         <div class="workspace-status">
-          <template v-if="section === 'trades'">
-            <button
-              class="btn btn-sm"
-              type="button"
-              :aria-pressed="lifecycleFilter === 'active'"
-              @click="lifecycleFilter = 'active'"
-            >
-              Active {{ model?.activeTrades.length ?? 0 }}
-            </button>
-            <button
-              class="btn btn-sm"
-              type="button"
-              :aria-pressed="lifecycleFilter === 'closed'"
-              @click="lifecycleFilter = 'closed'"
-            >
-              Closed {{ model?.closedTrades.length ?? 0 }}
-            </button>
-            <button
-              class="btn btn-sm"
-              type="button"
-              :aria-pressed="lifecycleFilter === 'all'"
-              @click="lifecycleFilter = 'all'"
-            >
-              All {{ (model?.activeTrades.length ?? 0) + (model?.closedTrades.length ?? 0) }}
-            </button>
-          </template>
+          <TradeLifecycleFilter
+            v-if="section === 'trades'"
+            v-model="lifecycleFilter"
+            :active-count="model?.activeTrades.length ?? 0"
+            :closed-count="model?.closedTrades.length ?? 0"
+          />
           <ReconciliationControl />
         </div>
       </header>
@@ -270,62 +252,29 @@ onBeforeUnmount(() => {
         </PanelEmptyState>
       </div>
 
-      <div v-else-if="section === 'trades'" class="trade-list">
-        <ManagedTradeCard
-          v-for="trade in visibleTrades"
-          :key="trade.tradeId"
-          :trade="trade"
-          :snapshot="snapshot!"
-          :expanded="expandedTradeId === trade.tradeId"
-          :selected="selectedTradeId === trade.tradeId"
-          :focused="focusedTradeId === trade.tradeId"
-          :stale="resyncing"
-          @toggle="toggleTrade"
-          @select="markSelected"
-          @duplicate="duplicateTrade"
-        />
-        <PanelEmptyState
-          v-if="visibleTrades.length === 0"
-          :title="
-            lifecycleFilter === 'closed'
-              ? 'No closed trades'
-              : lifecycleFilter === 'all'
-                ? 'No trades yet'
-                : 'No active trades'
-          "
-          :description="
-            lifecycleFilter === 'closed'
-              ? 'Closed managed trades will remain available here as durable history.'
-              : lifecycleFilter === 'all'
-                ? 'Use the order ticket or command palette to establish your first managed trade.'
-                : 'No managed trades currently need attention or execution.'
-          "
-        >
-          <template #icon><Activity :size="18" /></template>
-        </PanelEmptyState>
-      </div>
+      <TradeList
+        v-else-if="section === 'trades'"
+        :trades="visibleTrades"
+        :model="model"
+        :snapshot="snapshot!"
+        :filter="lifecycleFilter"
+        :query="query"
+        :expanded-trade-id="expandedTradeId"
+        :selected-trade-id="selectedTradeId"
+        :focused-trade-id="focusedTradeId"
+        :stale="resyncing"
+        @toggle="toggleTrade"
+        @select="markSelected"
+        @duplicate="duplicateTrade"
+      />
 
-      <div v-else-if="section === 'positions'" class="primary-summary">
-        <PositionSummary :rows="model?.positions ?? []" expanded @select-trade="selectTrade" />
-        <div class="summary-explanation">
-          <WalletCards :size="16" />
-          <p>
-            Venue net is authoritative exchange exposure. Trad shows every durable managed scope
-            separately and leaves manual or outside activity explicit.
-          </p>
-        </div>
-      </div>
-
-      <div v-else class="primary-summary">
-        <OpenOrdersSummary :rows="model?.openOrders ?? []" expanded @select-trade="selectTrade" />
-        <div class="summary-explanation">
-          <ListChecks :size="16" />
-          <p>
-            Managed orders link back to their owning trade. External orders stay unowned unless an
-            explicit future adoption workflow proves that relationship.
-          </p>
-        </div>
-      </div>
+      <WorkspaceSummaryPane
+        v-else
+        :section="section"
+        :positions="model?.positions ?? []"
+        :orders="model?.openOrders ?? []"
+        @select-trade="selectTrade"
+      />
     </main>
   </div>
 </template>
@@ -449,14 +398,6 @@ onBeforeUnmount(() => {
 .workspace-main :deep(.panel-empty-state) {
   background: transparent;
 }
-.trade-list {
-  display: flex;
-  min-height: 0;
-  flex: 1;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 0.75rem;
-}
 .workspace-state {
   flex: 1;
   min-height: 300px;
@@ -467,26 +408,6 @@ onBeforeUnmount(() => {
   color: var(--state-warning);
   background: color-mix(in srgb, var(--state-warning) 10%, transparent);
   border: 1px solid color-mix(in srgb, var(--state-warning) 40%, var(--border-subtle));
-}
-.primary-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 0.75rem;
-}
-.summary-explanation {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
-  padding: 0.85rem;
-  color: var(--fg-muted);
-  background: var(--surface-sunken);
-  border: 1px solid var(--border-subtle);
-}
-.summary-explanation p {
-  margin: 0;
-  max-width: 60rem;
-  line-height: 1.55;
 }
 @media (max-width: 980px) {
   .trader-workspace {
@@ -551,8 +472,6 @@ onBeforeUnmount(() => {
     border-right: 0;
     border-top: 1px solid var(--border-normal);
   }
-  .trade-list,
-  .primary-summary,
   .workspace-summaries {
     min-width: 0;
     max-width: 100%;
@@ -575,10 +494,6 @@ onBeforeUnmount(() => {
   }
   .workspace-title {
     min-width: auto;
-  }
-  .trade-list {
-    gap: 0.4rem;
-    padding: 0.4rem;
   }
 }
 </style>
