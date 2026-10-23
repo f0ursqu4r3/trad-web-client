@@ -3,37 +3,17 @@ import { BROWSER_PROTOCOL_VERSION } from './wire.ts'
 import { parseServerMessage } from './serverMessage.ts'
 import { RetiringSockets } from './retiringSockets.ts'
 
-export type GatewayConnectionStatus =
-  | 'idle'
-  | 'connecting'
-  | 'authenticating'
-  | 'ready'
-  | 'reconnecting'
-  | 'error'
+import type {
+  GatewayConnectionStatus,
+  GatewaySocket,
+  GatewayWebSocketClientOptions,
+} from './socketTypes.ts'
 
-export interface GatewaySocket {
-  binaryType: BinaryType
-  readyState: number
-  onopen: ((event: Event) => void) | null
-  onmessage: ((event: MessageEvent) => void) | null
-  onerror: ((event: Event) => void) | null
-  onclose: ((event: CloseEvent) => void) | null
-  send(data: string): void
-  close(code?: number, reason?: string): void
-}
-
-export interface GatewayWebSocketClientOptions {
-  url: string
-  getTicket: () => Promise<string | null>
-  reconnectDelayMs?: number
-  maxReconnectDelayMs?: number
-  pingIntervalMs?: number
-  leaseRenewalLeadMs?: number
-  rotationRetryDelayMs?: number
-  retiringSocketGraceMs?: number
-  createSocket?: (url: string) => GatewaySocket
-  logger?: Pick<Console, 'debug' | 'info' | 'warn' | 'error'>
-}
+export type {
+  GatewayConnectionStatus,
+  GatewaySocket,
+  GatewayWebSocketClientOptions,
+} from './socketTypes.ts'
 
 const OPEN = 1
 const DEFAULT_RECONNECT_DELAY_MS = 1_000
