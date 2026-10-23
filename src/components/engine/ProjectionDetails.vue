@@ -12,6 +12,7 @@ import OperationalDetails from '@/components/engine/details/OperationalDetails.v
 import OrderDetails from '@/components/engine/details/OrderDetails.vue'
 import ProtectionEvidence from '@/components/engine/details/ProtectionEvidence.vue'
 import TrailingEntryDetails from '@/components/engine/details/TrailingEntryDetails.vue'
+import TradeEvidencePanel from '@/components/engine/details/TradeEvidencePanel.vue'
 import NativeProtectionDetails from '@/components/engine/details/NativeProtectionDetails.vue'
 import ProtectionChildDetails from '@/components/engine/details/ProtectionChildDetails.vue'
 import OrderGenerationDetails from '@/components/engine/details/OrderGenerationDetails.vue'
@@ -35,7 +36,12 @@ import {
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useProjectionUiStore } from '@/stores/projectionUi'
 
-withDefaults(defineProps<{ showActions?: boolean }>(), { showActions: true })
+// historyTradeId: a trade outside the live snapshot (a paged closed trade);
+// its evidence comes from the server's history instead of the selection.
+withDefaults(defineProps<{ showActions?: boolean; historyTradeId?: string | null }>(), {
+  showActions: true,
+  historyTradeId: null,
+})
 
 type OperationalEntity = Extract<
   ProjectionEntity,
@@ -211,8 +217,9 @@ function formatDate(value: number | null): string {
       <span class="panel-title">Device Details</span>
     </header>
 
+    <TradeEvidencePanel v-if="historyTradeId" :key="historyTradeId" :trade-id="historyTradeId" />
     <div
-      v-if="directlySelectedProtectionChild && directlySelectedProtection"
+      v-else-if="directlySelectedProtectionChild && directlySelectedProtection"
       class="details-scroll"
     >
       <div class="entity-meta">
