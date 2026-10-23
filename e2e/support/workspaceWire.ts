@@ -1,6 +1,16 @@
 import type { Page, WebSocketRoute } from '@playwright/test'
 import { startLoopbackServer } from './loopbackSocket'
-import { ResumeServer, resumeReply } from './resumeServer'
+import { ResumeServer, merged, resumeReply } from './resumeServer'
+import {
+  deltaPatch,
+  newPartTraffic,
+  sendInParts,
+  type PartOptions,
+  type PartTraffic,
+} from './compactWire'
+import { busySnapshot, liveDelta } from './workspaceAccount'
+
+export { installVisibilitySwitch, setTabHidden } from './tabVisibility'
 import { BROWSER_PROTOCOL_VERSION } from '../../src/lib/gateway/wire'
 import {
   ENGINE_SUBSCRIPTION_ID,
@@ -67,6 +77,8 @@ export interface WorkspaceWire {
   commitDelta: (extra?: Json) => void
   // Every subscribe_account the page sent.
   accountSubscribeLog: Json[]
+  // What went in parts (with `parts`).
+  parts: PartTraffic
 }
 
 export interface WorkspaceOptions {
@@ -99,6 +111,9 @@ export interface WorkspaceOptions {
   // page.routeWebSocket, whose delivery inlines each message into an
   // evaluated script (seconds of page time for a multi-MB snapshot).
   loopback?: boolean
+  // Protocol 17 (compactWire.ts): large messages in parts, deltas as patches.
+  parts?: PartOptions
+  patches?: boolean
 }
 
 const START_PRICES: Record<string, number> = { BTC: 64_000, ETH: 2_100, ZEC: 41.25, SOL: 144 }
@@ -125,8 +140,14 @@ export async function openWorkspace(
     const traffic = (wire.received[kind] ??= { messages: 0, bytes: 0 })
     traffic.messages += 1
     traffic.bytes += Buffer.byteLength(text)
+    if (options.parts !== undefined && text.length > options.parts.bytes) {
+      void sendInParts(ws, text, options.parts, wire.parts)
+      return
+    }
     ws.send(text)
   }
+  // The window the page holds, which patches are made against.
+  let held: Json = snapshot
 
   function sendJson(ws: WireSocket, message: Json): void {
     sendText(ws, String(message.kind), JSON.stringify(message))
@@ -217,18 +238,23 @@ export async function openWorkspace(
     sendDelta(extra = {}) {
       if (socket === null || accountSubscription === null) return
       const delta = nextDelta(extra)
-      sendJson(socket, {
-        kind: 'account_delta',
-        subscription_id: accountSubscription,
-        route: { exchange: 'hyperliquid', network: 'testnet', account_id: WORKSPACE_ACCOUNT_ID },
-        delta,
-      })
+      const route = {
+        exchange: 'hyperliquid',
+        network: 'testnet',
+        account_id: WORKSPACE_ACCOUNT_ID,
+      }
+      const change = options.patches
+        ? { kind: 'account_patch', patch: deltaPatch(held, delta) }
+        : { kind: 'account_delta', delta }
+      held = merged(held, delta)
+      sendJson(socket, { subscription_id: accountSubscription, route, ...change })
     },
     resume: options.resume ? new ResumeServer(snapshot) : null,
     commitDelta(extra = {}) {
       nextDelta(extra)
     },
     accountSubscribeLog: [],
+    parts: newPartTraffic(),
   }
 
   function nextDelta(extra: Json): Json {
@@ -377,6 +403,7 @@ export async function openWorkspace(
           return
         }
         revision = snapshot.checkpoint.projection_revision
+        held = snapshot
         snapshotText ??= JSON.stringify(snapshot)
         const route = {
           exchange: 'hyperliquid',
@@ -442,136 +469,4 @@ export async function openWorkspace(
   }
   await page.goto(options.path ?? '/e2e/trader-workspace?market_wire=1')
   return wire
-}
-
-// Replaces document visibility with a switch the test controls, and holds
-// animation frames while "hidden" the way a background tab does.
-export async function installVisibilitySwitch(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    let hidden = false
-    const held: Array<() => void> = []
-    const nativeFrame = window.requestAnimationFrame.bind(window)
-    Object.defineProperty(Document.prototype, 'visibilityState', {
-      configurable: true,
-      get: () => (hidden ? 'hidden' : 'visible'),
-    })
-    Object.defineProperty(Document.prototype, 'hidden', {
-      configurable: true,
-      get: () => hidden,
-    })
-    window.requestAnimationFrame = (callback: FrameRequestCallback): number => {
-      if (!hidden) return nativeFrame(callback)
-      held.push(() => nativeFrame(callback))
-      return -1
-    }
-    ;(window as unknown as { __setTabHidden: (next: boolean) => void }).__setTabHidden = (
-      next: boolean,
-    ) => {
-      hidden = next
-      if (next) {
-        window.dispatchEvent(new Event('blur'))
-        document.dispatchEvent(new Event('visibilitychange'))
-        return
-      }
-      document.dispatchEvent(new Event('visibilitychange'))
-      window.dispatchEvent(new Event('focus'))
-      for (const release of held.splice(0)) release()
-    }
-  })
-}
-
-export async function setTabHidden(page: Page, hidden: boolean): Promise<void> {
-  await page.evaluate(
-    (next) =>
-      (window as unknown as { __setTabHidden: (next: boolean) => void }).__setTabHidden(next),
-    hidden,
-  )
-}
-
-// Three more trades on a copy of the fixture account: BTC, ETH and ZEC each
-// carry two cards.
-function busySnapshot(): Json {
-  const base = JSON.parse(JSON.stringify(engineProjectionSnapshot()).replaceAll('"SOL"', '"ZEC"'))
-  const copy = JSON.parse(
-    JSON.stringify(engineProjectionSnapshot())
-      .replace(/"([2-9]\d{7}-0000-4000-8000-)0/g, '"$11')
-      .replaceAll('scope-', 'scope-b-')
-      .replaceAll('"BTC"', '"@ETH"')
-      .replaceAll('"ETH"', '"@ZEC"')
-      .replaceAll('"SOL"', '"@BTC"')
-      .replaceAll('"@', '"'),
-  )
-  for (const key of [
-    'commands',
-    'execution_groups',
-    'chases',
-    'trailing_entries',
-    'close_workflows',
-    'flatten_workflows',
-    'entry_cancellations',
-    'account_controls',
-    'protection_amendments',
-    'native_protections',
-    'orders',
-    'executions',
-    'relationships',
-  ]) {
-    base[key] = [...base[key], ...copy[key]]
-  }
-  for (const position of copy.positions) {
-    const existing = base.positions.find((row: Json) => row.symbol === position.symbol)
-    if (existing === undefined) base.positions.push(position)
-    else existing.owned_exposure = { ...existing.owned_exposure, ...position.owned_exposure }
-  }
-  const summary = base.checkpoint.summary
-  for (const key of Object.keys(summary)) {
-    if (Array.isArray(base[key]) && typeof summary[key] === 'number') {
-      summary[key] = base[key].length
-    }
-    if (key.startsWith('active_') && typeof summary[key] === 'number') summary[key] *= 2
-  }
-  base.window.total_commands = base.commands.length + 1
-  base.window.included_commands = base.commands.length
-  return base
-}
-
-// What the engine streams while trades work: chase quotes, trailing-entry
-// tracking and the settlement balance.
-function liveDelta(snapshot: Json, revision: number, tick: number): Json {
-  const drift = Math.sin(tick / 7)
-  return {
-    checkpoint: { ...snapshot.checkpoint, projection_revision: revision },
-    commands: [],
-    execution_groups: [],
-    chases: snapshot.chases.map((chase: Json) => ({
-      ...chase,
-      latest_bid: (Number(chase.latest_bid) + drift).toFixed(3),
-      latest_ask: (Number(chase.latest_ask) + drift).toFixed(3),
-      market_generation: chase.market_generation + tick,
-    })),
-    trailing_entries: snapshot.trailing_entries.map((entry: Json) => ({
-      ...entry,
-      market_generation: entry.market_generation + tick,
-      latest_trade: {
-        ...entry.latest_trade,
-        generation: entry.latest_trade.generation + tick,
-        price: (Number(entry.latest_trade.price) + drift * 0.1).toFixed(3),
-      },
-    })),
-    close_workflows: [],
-    flatten_workflows: [],
-    entry_cancellations: [],
-    account_controls: [],
-    protection_amendments: [],
-    orders: [],
-    executions: [],
-    relationships: [],
-    native_protections: [],
-    positions: [],
-    balances: snapshot.balances.map((balance: Json) => ({
-      ...balance,
-      available: (Number(balance.available) + drift).toFixed(6),
-    })),
-    protections: [],
-  }
 }

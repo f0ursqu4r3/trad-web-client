@@ -1,6 +1,11 @@
 import type { BrowserCommandIntent, Uuid } from './intent.ts'
 import type { BrowserPreviewIntent, BrowserPreviewOutcome } from './preview.ts'
-import type { BrowserMarketError, BrowserMarketSample, BrowserMarketWindow } from './market.ts'
+import type {
+  BrowserMarketError,
+  BrowserMarketSample,
+  BrowserMarketWindow,
+  BrowserTickRun,
+} from './market.ts'
 import type {
   AccountRouteKey,
   BrowserAccountDelta,
@@ -11,10 +16,15 @@ import type {
   LegacyHistoryCursor,
   ProjectionRevision,
 } from './projection.ts'
+import type { BrowserAccountPatch } from '../projection/accountPatch.ts'
 
-// 16: resume (`resume_from_revision`, `stream_id`, `account_resumed`). The
-// gateway still serves 15 tabs; they never resume.
-export const BROWSER_PROTOCOL_VERSION = 16
+// 16: resume (`resume_from_revision`, `stream_id`, `account_resumed`).
+// 17: compact frames (networking items 19 and 21): no frame over 64 KiB
+// (larger messages come as `message_part` frames, messageParts.ts), deltas
+// as patches (`account_patch`, `account_resumed.patches`,
+// lib/projection/accountPatch.ts) and prices as ticks (`market_ticks`,
+// `window.ticks`, marketTicks.ts). The gateway still serves 15 and 16 tabs.
+export const BROWSER_PROTOCOL_VERSION = 17
 
 // Where this tab's copy of an account stands: the stream its snapshot came
 // from and the revision it applied up to. The gateway resumes only inside
@@ -169,13 +179,23 @@ export type BrowserServerMessage =
       subscription_id: Uuid
       route: AccountRouteKey
       stream_id: Uuid
+      // Protocol 16; empty for 17, which sends `patches`.
       deltas: BrowserAccountDelta[]
+      patches?: BrowserAccountPatch[]
     }
   | {
       kind: 'account_delta'
       subscription_id: Uuid
       route: AccountRouteKey
       delta: BrowserAccountDelta
+    }
+  | {
+      // Protocol 17's account_delta: a patch against the window one
+      // revision back.
+      kind: 'account_patch'
+      subscription_id: Uuid
+      route: AccountRouteKey
+      patch: BrowserAccountPatch
     }
   | {
       kind: 'account_error'
@@ -198,6 +218,14 @@ export type BrowserServerMessage =
       account_id: Uuid
       symbol: string
       samples: BrowserMarketSample[]
+    }
+  | {
+      // Protocol 17's market_samples; read as market_samples (marketTicks.ts).
+      kind: 'market_ticks'
+      subscription_id: Uuid
+      account_id: Uuid
+      symbol: string
+      ticks: BrowserTickRun[]
     }
   | {
       kind: 'market_error'
