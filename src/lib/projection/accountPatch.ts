@@ -83,7 +83,7 @@ export function expandAccountPatch(
 ): BrowserAccountDelta {
   const live = view.live
   const rows = (name: string, existing: readonly unknown[], key: string, fills = false) =>
-    expandRows(name, existing as Json[], patchRows(patch, name), key, fills)
+    expandRows(name, inList(existing as Json[], key), patchRows(patch, name), fills)
   const delta: Json = {
     checkpoint: applyObjectPatch(live.checkpoint as unknown as Json, patch.checkpoint),
     commands: rows('commands', live.commands, 'command_id'),
@@ -109,8 +109,8 @@ export function expandAccountPatch(
     replace_external_order_inventory: patch.replace_external_order_inventory ?? false,
     relationships: patch.relationships ?? [],
   }
-  const summaries = Array.from(view.summaries?.values() ?? []) as unknown as Json[]
-  const changed = expandRows('trade_summaries', summaries, patch.trade_summaries ?? [], 'trade_id')
+  const summary = (id: unknown) => view.summaries?.get(String(id)) as Json | undefined
+  const changed = expandRows('trade_summaries', summary, patch.trade_summaries ?? [])
   if (changed.length > 0) delta.trade_summaries = changed
   if ((patch.removed_trade_summaries ?? []).length > 0) {
     delta.removed_trade_summaries = patch.removed_trade_summaries
@@ -125,11 +125,15 @@ function patchRows(patch: BrowserAccountPatch, name: string): Json[] {
   return rows as Json[]
 }
 
+// The window's row with a key, by a scan: a patch names a few rows.
+function inList(rows: readonly Json[], key: string): (id: unknown) => Json | undefined {
+  return (id) => rows.find((row) => sameKey(row[key], id))
+}
+
 function expandRows(
   name: string,
-  existing: readonly Json[],
+  held: (id: unknown) => Json | undefined,
   entries: readonly Json[],
-  key: string,
   fills = false,
 ): Json[] {
   const rows: Json[] = []
@@ -139,7 +143,7 @@ function expandRows(
     const { $id: id, $prev: afterPrevious, ...changes } = entry
     let row: Json
     if (id !== undefined) {
-      const old = existing.find((candidate) => sameKey(candidate[key], id))
+      const old = held(id)
       if (old === undefined) {
         throw new AccountPatchError(`${name} row ${JSON.stringify(id)} is not in the window`)
       }
