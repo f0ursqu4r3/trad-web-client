@@ -27,6 +27,9 @@ import {
 } from '@/lib/gateway/accountCommandReadiness'
 import { useMarketStore } from '@/stores/market'
 import { createGatewayMarkets } from '@/stores/gatewayMarkets'
+import { ClientWorkMeter, observeLongTasks } from '@/lib/telemetry/clientWork'
+import { ConnectionTimingObserver } from '@/lib/telemetry/connectionTiming'
+import { recordTelemetry } from '@/lib/telemetry'
 import {
   GatewayTelemetryObserver,
   type GatewayActionAttempt,
@@ -102,6 +105,9 @@ export const useGatewayStore = defineStore('gateway', () => {
   const pendingHistories = new Map<Uuid, PendingHistory>()
   const pendingPositionResolutions = new Map<Uuid, PendingPositionResolution>()
   const telemetry = new GatewayTelemetryObserver()
+  const connectionTiming = new ConnectionTimingObserver(() => performance.now(), recordTelemetry)
+  const clientWork = new ClientWorkMeter(() => performance.now(), recordTelemetry)
+  observeLongTasks(clientWork)
   let selectedSubscriptionId: Uuid | null = null
   let started = false
 
@@ -121,6 +127,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     ready: () => status.value === 'ready',
     send,
     logger,
+    priceApplied: (accountId, symbol) => connectionTiming.priceApplied(accountId, symbol),
   })
   const { flushMarketSamples, subscribeMarketDemands } = marketFeeds
 
@@ -131,6 +138,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     lastError.value = error
     telemetry.connection(next)
     if (wasReady && next !== 'ready') {
+      connectionTiming.socketLost()
       projections.markAllStale(error ?? 'gateway connection interrupted')
       markets.disconnected(error ?? 'gateway connection interrupted')
       losePendingRequests(error ?? 'gateway connection interrupted')
@@ -139,6 +147,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   })
   client.setReadyHandler((validForMs, cause) => {
     sessionValidUntil.value = Date.now() + validForMs
+    connectionTiming.socketReady(cause)
     resetSubscriptions()
     const preserveCurrentView = cause === 'lease_rotation'
     subscribeSelectedAccount(!preserveCurrentView)
@@ -146,8 +155,10 @@ export const useGatewayStore = defineStore('gateway', () => {
   })
   client.setLeaseRotationHandler((phase, outcomeCode) => {
     telemetry.leaseRotation(phase, outcomeCode)
+    if (phase === 'started') connectionTiming.rotationStarted()
   })
   client.setMessageHandler(handleMessage)
+  client.setFrameObserver((_kind, frameBytes, applyMs) => clientWork.message(frameBytes, applyMs))
 
   // A background tab holds market samples instead of rendering each one; the
   // tab shows them in a single update when it is visible again.
@@ -187,6 +198,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (!started) return
     started = false
     flushMarketSamples()
+    connectionTiming.socketLost()
     client.disconnect()
     projections.markAllStale('gateway disconnected')
     markets.disconnected('gateway disconnected')
@@ -422,14 +434,14 @@ export const useGatewayStore = defineStore('gateway', () => {
     })
   }
 
-  function handleMessage(message: BrowserServerMessage): void {
+  function handleMessage(message: BrowserServerMessage, frameBytes: number): void {
     // Everything else applies in arrival order after the samples before it.
     if (message.kind !== 'market_samples') flushMarketSamples()
     switch (message.kind) {
       case 'hello':
         return
       case 'account_snapshot':
-        handleSnapshot(message)
+        handleSnapshot(message, frameBytes)
         return
       case 'account_delta':
         handleDelta(message)
@@ -484,6 +496,7 @@ export const useGatewayStore = defineStore('gateway', () => {
 
   function handleSnapshot(
     message: Extract<BrowserServerMessage, { kind: 'account_snapshot' }>,
+    frameBytes: number,
   ): void {
     const request =
       message.request_id === null ? null : subscriptionRequests.get(message.request_id)
@@ -527,6 +540,7 @@ export const useGatewayStore = defineStore('gateway', () => {
       scheduleSubscriptionRetry(accountId, true)
       return
     }
+    connectionTiming.snapshotApplied(accountId, frameBytes)
     telemetry.snapshot(accountId, message.snapshot.checkpoint.projection_revision, message.cause)
     telemetry.terminalCommands(
       message.snapshot.commands,

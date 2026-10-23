@@ -69,6 +69,8 @@ export const telemetryEventNames = [
   'agent_rotation_started',
   'recovery_guidance_opened',
   'support_reference_copied',
+  'connection_timing_measured',
+  'client_work_measured',
 ] as const
 
 export type TelemetryEventName = (typeof telemetryEventNames)[number]
@@ -153,4 +155,17 @@ export interface TelemetryProperties {
   queue_depth?: number
   retry_count?: number
   sampled?: boolean
+  // connection_timing_measured (with market_symbol on first_price)
+  stage?: 'socket_connected' | 'snapshot_applied' | 'first_price'
+  elapsed_ms?: number
+  payload_bytes?: number
+  reconnect?: boolean
+  // client_work_measured
+  messages?: number
+  bytes?: number
+  apply_ms_p95?: number
+  apply_ms_max?: number
+  long_tasks?: number
+  longest_task_ms?: number
+  window_ms?: number
 }

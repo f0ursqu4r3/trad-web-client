@@ -60,7 +60,9 @@ export class GatewayWebSocketClient {
   private leaseRotationDueAt: number | null = null
   private readonly retiringSockets = new Map<GatewaySocket, ReturnType<typeof setTimeout>>()
 
-  private messageHandler: ((message: BrowserServerMessage) => void) | null = null
+  private messageHandler: ((message: BrowserServerMessage, frameBytes: number) => void) | null =
+    null
+  private frameObserver: ((kind: string, frameBytes: number, applyMs: number) => void) | null = null
   private statusHandler: ((status: GatewayConnectionStatus, error: string | null) => void) | null =
     null
   private readyHandler:
@@ -125,8 +127,16 @@ export class GatewayWebSocketClient {
     void this.beginLeaseRotation()
   }
 
-  setMessageHandler(handler: (message: BrowserServerMessage) => void): void {
+  // frameBytes: the frame's length (characters for text frames, which are
+  // JSON and nearly all ASCII).
+  setMessageHandler(handler: (message: BrowserServerMessage, frameBytes: number) => void): void {
     this.messageHandler = handler
+  }
+
+  // Called after each server frame with the time spent parsing and handling
+  // it on the main thread.
+  setFrameObserver(observer: (kind: string, frameBytes: number, applyMs: number) => void): void {
+    this.frameObserver = observer
   }
 
   setStatusHandler(handler: (status: GatewayConnectionStatus, error: string | null) => void): void {
@@ -212,6 +222,7 @@ export class GatewayWebSocketClient {
 
   private receive(raw: unknown): void {
     this.checkLease()
+    const startedAt = performance.now()
     const message = parseServerMessage(raw)
     if (message === null) {
       this.fail('invalid gateway frame', 4002)
@@ -235,7 +246,16 @@ export class GatewayWebSocketClient {
       this.fail(`gateway sent ${message.kind} before hello`, 4002)
       return
     }
-    this.messageHandler?.(message)
+    this.dispatch(message, raw, startedAt)
+  }
+
+  private dispatch(message: BrowserServerMessage, raw: unknown, startedAt: number): void {
+    const bytes = frameLength(raw)
+    try {
+      this.messageHandler?.(message, bytes)
+    } finally {
+      this.frameObserver?.(message.kind, bytes, performance.now() - startedAt)
+    }
   }
 
   private retry(reason: string): void {
@@ -393,6 +413,7 @@ export class GatewayWebSocketClient {
   }
 
   private receiveRetiring(raw: unknown): void {
+    const startedAt = performance.now()
     const message = parseServerMessage(raw)
     if (message === null) return
     switch (message.kind) {
@@ -404,7 +425,7 @@ export class GatewayWebSocketClient {
       case 'legacy_command_history_page':
       case 'legacy_command_history_error':
       case 'pong':
-        this.messageHandler?.(message)
+        this.dispatch(message, raw, startedAt)
     }
   }
 
@@ -481,6 +502,12 @@ export class GatewayWebSocketClient {
     this.rotationSocket = null
     socket?.close(1000, reason)
   }
+}
+
+function frameLength(raw: unknown): number {
+  if (typeof raw === 'string') return raw.length
+  if (raw instanceof ArrayBuffer) return raw.byteLength
+  return 0
 }
 
 function errorMessage(error: unknown): string {

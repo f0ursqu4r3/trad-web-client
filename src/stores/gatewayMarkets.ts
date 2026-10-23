@@ -26,6 +26,8 @@ export interface GatewayMarketDeps {
   ready: () => boolean
   send: (message: BrowserClientMessage) => void
   logger: { debug: (...args: unknown[]) => unknown; warn: (...args: unknown[]) => unknown }
+  // A price for this market was applied (its first per connection is timed).
+  priceApplied: (accountId: Uuid, symbol: string) => void
 }
 
 type ServerMessage<Kind extends BrowserServerMessage['kind']> = Extract<
@@ -34,7 +36,7 @@ type ServerMessage<Kind extends BrowserServerMessage['kind']> = Extract<
 >
 
 export function createGatewayMarkets(deps: GatewayMarketDeps) {
-  const { markets, ready, send, logger } = deps
+  const { markets, ready, send, logger, priceApplied } = deps
   const marketDemands = new Map<string, MarketDemand>()
   const marketDemandReferences = new Map<string, number>()
   const marketRequests = new Map<Uuid, MarketDemand>()
@@ -144,6 +146,7 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
         )
       } else {
         const latest = installed.samples[installed.samples.length - 1]
+        if (latest && installed.status === 'ready') priceApplied(demand.accountId, demand.symbol)
         recordTelemetry(
           marketStreamEvent(
             demand.accountId,
@@ -238,6 +241,7 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
       const samples = markets.stream(demand.accountId, demand.symbol)?.samples ?? []
       const latest = samples[samples.length - 1]
       if (latest) {
+        priceApplied(demand.accountId, demand.symbol)
         recordTelemetry(
           marketStreamEvent(demand.accountId, demand.symbol, 'ready', {
             source: 'samples',

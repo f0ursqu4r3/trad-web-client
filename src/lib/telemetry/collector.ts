@@ -11,6 +11,7 @@ import {
   safeTelemetryProperties,
   validTelemetryBatchResult,
   validTelemetryContextIds,
+  validTelemetryEventShape,
 } from './validation.ts'
 import {
   batchBody,
@@ -60,18 +61,24 @@ export class TelemetryCollector {
 
   async start(): Promise<void> {
     if (this.config !== null) return
-    let config: TelemetryClientConfig | null = null
+    let response: Response
     try {
-      const response = await fetch(CONFIG_PATH, { credentials: 'include' })
-      if (!response.ok) {
-        // A stalled or failing gateway may answer later; a refusal is final.
-        if (telemetryStatusFailure(response.status) === 'transport') this.retryStart()
-        else this.preconfigQueue = []
-        return
-      }
-      config = (await response.json()) as TelemetryClientConfig
+      response = await fetch(CONFIG_PATH, { credentials: 'include' })
     } catch {
       this.retryStart()
+      return
+    }
+    if (!response.ok) {
+      // A stalled or failing gateway may answer later; a refusal is final.
+      if (telemetryStatusFailure(response.status) === 'transport') this.retryStart()
+      else this.preconfigQueue = []
+      return
+    }
+    let config: TelemetryClientConfig
+    try {
+      config = (await response.json()) as TelemetryClientConfig
+    } catch {
+      this.preconfigQueue = []
       return
     }
     if (!validConfig(config)) {
@@ -172,6 +179,7 @@ export class TelemetryCollector {
       if (!config.collection_enabled) return
       const properties = safeTelemetryProperties(record.properties ?? {})
       if (properties === null) return
+      if (!validTelemetryEventShape(record.eventName, properties)) return
       if (!validTelemetryContextIds(record)) return
       const queuedAt = Date.now()
       const release = currentProductRelease(false).version

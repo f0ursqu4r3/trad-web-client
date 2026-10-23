@@ -347,6 +347,33 @@ test('malformed frames fail closed instead of being ignored', async () => {
   client.disconnect()
 })
 
+test('every handled frame reports its length and main-thread handling time', async () => {
+  const sockets: FakeSocket[] = []
+  const frames: Array<{ kind: string; bytes: number; applyMs: number }> = []
+  const handled: number[] = []
+  const client = clientWithSockets(sockets, async () => 'ticket')
+  client.setMessageHandler((_message, frameBytes) => handled.push(frameBytes))
+  client.setFrameObserver((kind, bytes, applyMs) => frames.push({ kind, bytes, applyMs }))
+  client.connect()
+  await settle()
+  const socket = requiredSocket(sockets, 0)
+  socket.open()
+  const helloFrame = JSON.stringify(hello(30_000))
+  socket.receiveRaw(helloFrame)
+  const pongFrame = JSON.stringify({ kind: 'pong', nonce: 7 })
+  socket.receiveRaw(pongFrame)
+  assert.deepEqual(handled, [helloFrame.length, pongFrame.length])
+  assert.deepEqual(
+    frames.map((frame) => [frame.kind, frame.bytes]),
+    [
+      ['hello', helloFrame.length],
+      ['pong', pongFrame.length],
+    ],
+  )
+  assert.ok(frames.every((frame) => frame.applyMs >= 0))
+  client.disconnect()
+})
+
 function clientWithSockets(
   sockets: FakeSocket[],
   getTicket: () => Promise<string | null>,

@@ -73,7 +73,7 @@ export function marketSampleAgeBucket(receivedAtMs: number | null, now: number):
   return 'stale_over_60s'
 }
 
-function telemetryMarketSymbol(symbol: string): string {
+export function telemetryMarketSymbol(symbol: string): string {
   const normalized = symbol.trim().toUpperCase()
   if (/^@[0-9]{1,12}$/.test(normalized)) return `SPOT:${normalized.slice(1)}`
   return /^[A-Z0-9._:/-]{1,32}$/.test(normalized) ? normalized : 'UNKNOWN'
