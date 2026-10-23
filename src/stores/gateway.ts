@@ -1,4 +1,4 @@
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 
 import {
@@ -29,6 +29,12 @@ import { useMarketStore } from '@/stores/market'
 import { createGatewayMarkets } from '@/stores/gatewayMarkets'
 import { ClientWorkMeter, observeLongTasks } from '@/lib/telemetry/clientWork'
 import { ConnectionTimingObserver } from '@/lib/telemetry/connectionTiming'
+import {
+  browserCardMarketStorage,
+  CARD_MARKET_LIMIT,
+  CardMarketHold,
+  recalledCardMarkets,
+} from '@/lib/gateway/cardMarkets'
 import { recordTelemetry } from '@/lib/telemetry'
 import {
   GatewayTelemetryObserver,
@@ -43,6 +49,9 @@ const HISTORY_RESULT_TIMEOUT_MS = 30_000
 const PROJECTION_CONFIRM_TIMEOUT_MS = 3_000
 const SUBSCRIPTION_RETRY_INITIAL_MS = 1_000
 const SUBSCRIPTION_RETRY_MAX_MS = 30_000
+// Remembered card markets stay held this long after the snapshot renders, so
+// the cards' own subscriptions take over without a gap.
+const CARD_MARKET_RELEASE_DELAY_MS = 2_000
 
 interface PendingCommand extends GatewayActionAttempt {
   timer: number
@@ -130,6 +139,10 @@ export const useGatewayStore = defineStore('gateway', () => {
     priceApplied: (accountId, symbol) => connectionTiming.priceApplied(accountId, symbol),
   })
   const { flushMarketSamples, subscribeMarketDemands } = marketFeeds
+  const cardMarkets = new CardMarketHold(
+    (accountId, symbol) => marketFeeds.subscribeMarket(accountId, symbol, CARD_MARKET_LIMIT),
+    (accountId, symbol) => marketFeeds.unsubscribeMarket(accountId, symbol),
+  )
 
   client.setStatusHandler((next, error) => {
     const wasReady = status.value === 'ready'
@@ -150,8 +163,10 @@ export const useGatewayStore = defineStore('gateway', () => {
     connectionTiming.socketReady(cause)
     resetSubscriptions()
     const preserveCurrentView = cause === 'lease_rotation'
-    subscribeSelectedAccount(!preserveCurrentView)
+    // Prices first: they never wait behind the account snapshot.
     subscribeMarketDemands(!preserveCurrentView)
+    holdRememberedCardMarkets()
+    subscribeSelectedAccount(!preserveCurrentView)
   })
   client.setLeaseRotationHandler((phase, outcomeCode) => {
     telemetry.leaseRotation(phase, outcomeCode)
@@ -198,6 +213,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (!started) return
     started = false
     flushMarketSamples()
+    cardMarkets.release()
     connectionTiming.socketLost()
     client.disconnect()
     projections.markAllStale('gateway disconnected')
@@ -541,6 +557,7 @@ export const useGatewayStore = defineStore('gateway', () => {
       return
     }
     connectionTiming.snapshotApplied(accountId, frameBytes)
+    releaseCardMarketsAfterRender(accountId)
     telemetry.snapshot(accountId, message.snapshot.checkpoint.projection_revision, message.cause)
     telemetry.terminalCommands(
       message.snapshot.commands,
@@ -583,6 +600,7 @@ export const useGatewayStore = defineStore('gateway', () => {
       return
     }
     const failure = subscriptionFailure(message.error)
+    if (cardMarkets.account() === message.account_id) cardMarkets.release()
     projections.fail(message.account_id, failure.reason, failure.kind)
     telemetry.accountUnavailable(message.account_id, message.error.kind)
     if (message.error.kind !== 'unauthorized') scheduleSubscriptionRetry(message.account_id)
@@ -729,13 +747,32 @@ export const useGatewayStore = defineStore('gateway', () => {
     pending.reject(new Error(historyError(error, kind)))
   }
 
+  // The last known trade list's card prices, before its snapshot arrives. A
+  // ready view (lease renewal) already has its cards mounted.
+  function holdRememberedCardMarkets(): void {
+    const accountId = accounts.selectedAccountId
+    if (accountId === null || projections.byAccount[accountId]?.status === 'ready') return
+    cardMarkets.hold(accountId, recalledCardMarkets(browserCardMarketStorage(), accountId))
+  }
+
+  function releaseCardMarketsAfterRender(accountId: Uuid): void {
+    if (cardMarkets.account() !== accountId) return
+    void nextTick(() => {
+      window.setTimeout(() => {
+        if (cardMarkets.account() === accountId) cardMarkets.release()
+      }, CARD_MARKET_RELEASE_DELAY_MS)
+    })
+  }
+
   function switchSelectedAccount(): void {
+    cardMarkets.release()
     clearAllSubscriptionRetries()
     if (selectedSubscriptionId !== null) {
       const oldSubscription = selectedSubscriptionId
       selectedSubscriptionId = null
       send({ kind: 'unsubscribe_account', subscription_id: oldSubscription })
     }
+    holdRememberedCardMarkets()
     subscribeSelectedAccount()
   }
 

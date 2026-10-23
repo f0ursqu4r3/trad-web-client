@@ -39,10 +39,17 @@ export function marketSymbolDecision(
 // not list the symbol; final: any other error that retrying cannot fix.
 export type MarketErrorClass = 'retry' | 'unknown_market' | 'final'
 
+// The gateway's per-socket subscription cap (and its duplicate guard, which a
+// timed-out request still being admitted can trip) clears when another
+// market is released or the earlier request lands. Older gateways sent it as
+// retryable:false.
+const CAPACITY_REASON = /subscription capacity|duplicate account\/symbol subscription/i
+
 export function classifyMarketError(error: BrowserMarketError): MarketErrorClass {
   if (error.kind === 'unknown_market') return 'unknown_market'
   if (error.kind !== 'unavailable') return 'final'
   if (error.retryable === true) return 'retry'
+  if (CAPACITY_REASON.test(error.reason ?? '')) return 'retry'
   return /unknown|not listed|not found|no such|unsupported/i.test(error.reason ?? '')
     ? 'unknown_market'
     : 'final'
@@ -62,6 +69,39 @@ export interface Timers {
 const browserTimers: Timers = {
   set: (callback, delayMs) => setTimeout(callback, delayMs) as unknown as number,
   clear: (timer) => clearTimeout(timer),
+}
+
+// One market the UI wants priced: an account's symbol and the sample window.
+export interface MarketDemand {
+  accountId: string
+  symbol: string
+  limit: number
+}
+
+export function marketErrorMessage(error: BrowserMarketError): string {
+  switch (error.kind) {
+    case 'unauthorized':
+      return 'market subscription is unauthorized'
+    case 'unknown_market':
+      return error.reason ?? 'unknown market'
+    case 'invalid_request':
+    case 'unavailable':
+      return error.reason
+  }
+  return 'market subscription failed'
+}
+
+export function normalizeMarketDemand(
+  accountId: string,
+  symbol: string,
+  limit: number,
+): MarketDemand {
+  const normalized = symbol.trim().toUpperCase()
+  if (normalized.length === 0) throw new Error('market symbol is required')
+  if (!Number.isInteger(limit) || limit < 1 || limit > 1_024) {
+    throw new Error('market sample limit must be between 1 and 1024')
+  }
+  return { accountId, symbol: normalized, limit }
 }
 
 export type MarketRetryOutcome = 'scheduled' | 'pending' | 'unwanted' | 'exhausted'

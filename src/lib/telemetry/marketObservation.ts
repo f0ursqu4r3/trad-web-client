@@ -28,6 +28,8 @@ interface MarketObservation {
     | 'client_validation'
     | 'card'
   reasonCode?: MarketStreamReason
+  // 'request_timeout': the gateway did not answer a subscribe in time.
+  outcomeCode?: 'request_timeout'
   retryCount?: number
   sampleCount?: number
   lastSampleReceivedAtMs?: number | null
@@ -46,6 +48,7 @@ export function marketStreamEvent(
   }
   if (observation.source !== undefined) properties.source = observation.source
   if (observation.reasonCode !== undefined) properties.reason_code = observation.reasonCode
+  if (observation.outcomeCode !== undefined) properties.outcome_code = observation.outcomeCode
   if (observation.retryCount !== undefined) properties.retry_count = observation.retryCount
   if (observation.sampleCount !== undefined) properties.sample_count = observation.sampleCount
   if (observation.lastSampleReceivedAtMs !== undefined) {

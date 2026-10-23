@@ -27,6 +27,8 @@ const props = defineProps<{
   expanded: boolean
   selected: boolean
   focused: boolean
+  // The account is resyncing: this is the last known state.
+  stale?: boolean
 }>()
 const emit = defineEmits<{
   (event: 'toggle', tradeId: string): void
@@ -197,7 +199,13 @@ async function copyTradeId(): Promise<void> {
     class="trade-card"
     :class="[
       `trade-${trade.lifecycle}`,
-      { expanded, selected, focused, 'with-mini-chart': showMiniChart && !expanded },
+      {
+        expanded,
+        selected,
+        focused,
+        stale,
+        'with-mini-chart': showMiniChart && !expanded,
+      },
     ]"
     :data-trade-id="trade.tradeId"
     data-testid="managed-trade-card"
@@ -274,6 +282,12 @@ async function copyTradeId(): Promise<void> {
         <span v-if="trade.attentionReason" :title="trade.attentionReason">
           <TriangleAlert :size="14" />
         </span>
+        <span
+          v-if="stale"
+          class="pill pill-sm pill-stale"
+          title="The account is resyncing; this card shows the last update"
+          >stale</span
+        >
         <span class="pill pill-sm" :class="`pill-${trade.lifecycle}`">{{ trade.lifecycle }}</span>
         <ManagedTradeMenu
           ref="tradeMenu"
@@ -291,7 +305,11 @@ async function copyTradeId(): Promise<void> {
       <div class="trade-summary">
         <div v-if="trade.attentionReason" class="trade-alert">{{ trade.attentionReason }}</div>
         <div v-else-if="progressMessage" class="trade-progress">{{ progressMessage }}</div>
-        <ManagedTradeMetrics :trade="trade" @move-protection="openMoveProtection" />
+        <ManagedTradeMetrics
+          :trade="trade"
+          :stale="stale === true"
+          @move-protection="openMoveProtection"
+        />
         <ManagedTradeActions ref="actionBar" :trade="trade" :snapshot="snapshot" />
       </div>
       <ManagedTradeChart
@@ -456,6 +474,12 @@ async function copyTradeId(): Promise<void> {
 }
 .pill-taken_over {
   --_c: var(--state-info);
+}
+.pill-stale {
+  --_c: var(--state-warning);
+}
+.trade-card.stale .trade-metrics {
+  opacity: 0.6;
 }
 .trade-alert {
   padding: 0.55rem 0.75rem;

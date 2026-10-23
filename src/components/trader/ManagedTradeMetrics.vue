@@ -19,7 +19,9 @@ import { useAccountsStore } from '@/stores/accounts'
 import { useGatewayStore } from '@/stores/gateway'
 import { useMarketStore } from '@/stores/market'
 
-const props = defineProps<{ trade: ManagedTradeView }>()
+// stale: the account is resyncing, so quantities may be out of date and open
+// P&L is not computed from them.
+const props = defineProps<{ trade: ManagedTradeView; stale?: boolean }>()
 const emit = defineEmits<{ (event: 'move-protection', childId: string): void }>()
 const accounts = useAccountsStore()
 const gateway = useGatewayStore()
@@ -51,6 +53,7 @@ const latestPrice = computed(() => {
 })
 let subscribed: { accountId: string; symbol: string } | null = null
 const unrealized = computed(() => {
+  if (props.stale) return null
   if (latestPrice.value === null || props.trade.averageEntryPrice === null) return null
   const change =
     props.trade.side === 'long'
@@ -80,6 +83,12 @@ const liveMissing = computed(() => {
     return {
       label: 'incomplete',
       title: 'Closing-fill evidence is incomplete; P&L is not estimated from fees alone',
+    }
+  }
+  if (props.stale) {
+    return {
+      label: 'resyncing',
+      title: 'The account is resyncing; open P&L returns with fresh account data',
     }
   }
   if (market.value?.status === 'reconnecting') {

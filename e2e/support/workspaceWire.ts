@@ -15,11 +15,27 @@ export const WORKSPACE_ACCOUNT_ID = '10000000-0000-4000-8000-000000000001'
 export type Json = Record<string, any>
 export type MarketErrorReply = Record<string, unknown> | null
 
+export interface HeldMarketRequest {
+  requestId: string
+  accountId: string
+  symbol: string
+}
+
 export interface WorkspaceWire {
   subscribes: string[]
   unsubscribes: string[]
   accountSubscribes: number
   accountFetches: number
+  // Client messages in arrival order: `kind` or `kind:SYMBOL` for markets.
+  clientLog: string[]
+  // Subscribes left unanswered by `holdMarket`, answerable later.
+  heldMarkets: HeldMarketRequest[]
+  answerMarket: (held: HeldMarketRequest) => void
+  // Account snapshots wait from holdSnapshots() until releaseSnapshots().
+  holdSnapshots: () => void
+  releaseSnapshots: () => void
+  // Closes the page's socket from the server side.
+  dropSocket: () => Promise<void>
   // Live market subscriptions by symbol.
   markets: Map<string, { subscriptionId: string; sequence: number; price: number }>
   socket: () => WebSocketRoute | null
@@ -38,6 +54,8 @@ export interface WorkspaceOptions {
   catalogRows?: unknown[]
   // Edits the account snapshot before it is sent.
   editSnapshot?: (snapshot: Json) => void
+  // Leaves this subscribe unanswered (attempt counts from 1 per symbol).
+  holdMarket?: (symbol: string, attempt: number) => boolean
 }
 
 const START_PRICES: Record<string, number> = { BTC: 64_000, ETH: 2_100, ZEC: 41.25, SOL: 144 }
@@ -53,12 +71,62 @@ export async function openWorkspace(
   let socket: WebSocketRoute | null = null
   let accountSubscription: string | null = null
   let tick = 0
+  let snapshotGate: Promise<void> = Promise.resolve()
+  let openSnapshotGate = () => {}
+  const marketAttempts = new Map<string, number>()
+  const subscriptionSymbols = new Map<string, string>()
+
+  function sendMarketWindow(ws: WebSocketRoute, held: HeldMarketRequest): void {
+    const subscription = `10000000-0000-4000-8000-${String(subscriptionSymbols.size + 10).padStart(12, '0')}`
+    subscriptionSymbols.set(subscription, held.symbol)
+    const price = START_PRICES[held.symbol] ?? 100
+    wire.markets.set(held.symbol, { subscriptionId: subscription, sequence: 1, price })
+    ws.send(
+      JSON.stringify({
+        kind: 'market_window',
+        request_id: held.requestId,
+        subscription_id: subscription,
+        account_id: held.accountId,
+        window: {
+          symbol: held.symbol,
+          unavailable_reason: null,
+          oldest_sequence: 1,
+          next_sequence: 2,
+          samples: [
+            {
+              sequence: 1,
+              update_id: `market-${subscription}`,
+              generation: 1,
+              received_at_ms: Date.now(),
+              exchange_time_ms: Date.now(),
+              price: held.symbol === 'ZEC' ? '41.25' : '2100',
+              trade_id: `trade-${subscription}`,
+            },
+          ],
+        },
+      }),
+    )
+  }
 
   const wire: WorkspaceWire = {
     subscribes: [],
     unsubscribes: [],
     accountSubscribes: 0,
     accountFetches: 0,
+    clientLog: [],
+    heldMarkets: [],
+    answerMarket(held) {
+      if (socket !== null) sendMarketWindow(socket, held)
+    },
+    holdSnapshots() {
+      snapshotGate = new Promise((resolve) => (openSnapshotGate = resolve))
+    },
+    releaseSnapshots() {
+      openSnapshotGate()
+    },
+    async dropSocket() {
+      await socket?.close({ code: 1011, reason: 'test drop' })
+    },
     markets: new Map(),
     socket: () => socket,
     sendSamples(symbol, count = 1) {
@@ -185,11 +253,11 @@ export async function openWorkspace(
     })
   })
 
-  const subscriptionSymbols = new Map<string, string>()
   await page.routeWebSocket('**/ws', (ws: WebSocketRoute) => {
     socket = ws
-    ws.onMessage((raw) => {
+    ws.onMessage(async (raw) => {
       const message = JSON.parse(String(raw))
+      wire.clientLog.push(message.symbol ? `${message.kind}:${message.symbol}` : message.kind)
       if (message.kind === 'authenticate') {
         ws.send(
           JSON.stringify({
@@ -200,6 +268,7 @@ export async function openWorkspace(
         )
       } else if (message.kind === 'subscribe_account') {
         wire.accountSubscribes += 1
+        await snapshotGate
         accountSubscription = ENGINE_SUBSCRIPTION_ID
         revision = snapshot.checkpoint.projection_revision
         ws.send(
@@ -214,6 +283,17 @@ export async function openWorkspace(
         )
       } else if (message.kind === 'subscribe_market') {
         wire.subscribes.push(message.symbol)
+        const attempt = (marketAttempts.get(message.symbol) ?? 0) + 1
+        marketAttempts.set(message.symbol, attempt)
+        const held: HeldMarketRequest = {
+          requestId: message.request_id,
+          accountId: message.account_id,
+          symbol: message.symbol,
+        }
+        if (options.holdMarket?.(message.symbol, attempt)) {
+          wire.heldMarkets.push(held)
+          return
+        }
         const error = options.marketError?.(message.symbol) ?? null
         if (error !== null) {
           ws.send(
@@ -227,35 +307,7 @@ export async function openWorkspace(
           )
           return
         }
-        const subscription = `10000000-0000-4000-8000-${String(subscriptionSymbols.size + 10).padStart(12, '0')}`
-        subscriptionSymbols.set(subscription, message.symbol)
-        const price = START_PRICES[message.symbol] ?? 100
-        wire.markets.set(message.symbol, { subscriptionId: subscription, sequence: 1, price })
-        ws.send(
-          JSON.stringify({
-            kind: 'market_window',
-            request_id: message.request_id,
-            subscription_id: subscription,
-            account_id: message.account_id,
-            window: {
-              symbol: message.symbol,
-              unavailable_reason: null,
-              oldest_sequence: 1,
-              next_sequence: 2,
-              samples: [
-                {
-                  sequence: 1,
-                  update_id: `market-${subscription}`,
-                  generation: 1,
-                  received_at_ms: Date.now(),
-                  exchange_time_ms: Date.now(),
-                  price: message.symbol === 'ZEC' ? '41.25' : '2100',
-                  trade_id: `trade-${subscription}`,
-                },
-              ],
-            },
-          }),
-        )
+        sendMarketWindow(ws, held)
       } else if (message.kind === 'unsubscribe_market') {
         const symbol = subscriptionSymbols.get(message.subscription_id) ?? '?'
         wire.unsubscribes.push(symbol)

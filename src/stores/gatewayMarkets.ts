@@ -1,5 +1,11 @@
 import type { BrowserClientMessage, BrowserServerMessage, Uuid } from '@/lib/gateway'
-import { classifyMarketError, MarketRetryScheduler } from '@/lib/gateway/marketSubscriptionPolicy'
+import {
+  classifyMarketError,
+  marketErrorMessage,
+  MarketRetryScheduler,
+  normalizeMarketDemand,
+  type MarketDemand,
+} from '@/lib/gateway/marketSubscriptionPolicy'
 import { MarketSampleBuffer } from '@/lib/gateway/marketSampleBuffer'
 import { recordTelemetry } from '@/lib/telemetry'
 import { marketStreamEvent } from '@/lib/telemetry/marketObservation'
@@ -14,12 +20,9 @@ import { marketKey, useMarketStore } from '@/stores/market'
 // A quiet feed shows its next trade at once; a busy one updates prices and
 // charts ten times a second instead of on every message.
 const MARKET_SAMPLE_FLUSH_INTERVAL_MS = 100
-
-export interface MarketDemand {
-  accountId: Uuid
-  symbol: string
-  limit: number
-}
+// A subscribe the gateway has not answered by then is retried. A window that
+// arrives later is still used if nothing newer replaced it.
+export const MARKET_SUBSCRIBE_TIMEOUT_MS = 10_000
 
 export interface GatewayMarketDeps {
   markets: ReturnType<typeof useMarketStore>
@@ -40,6 +43,9 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
   const marketDemands = new Map<string, MarketDemand>()
   const marketDemandReferences = new Map<string, number>()
   const marketRequests = new Map<Uuid, MarketDemand>()
+  const marketRequestTimers = new Map<Uuid, number>()
+  // Requests that timed out on this socket; their late answer may still land.
+  const lateMarketRequests = new Map<Uuid, MarketDemand>()
   const marketSubscriptions = new Map<Uuid, MarketDemand>()
   const marketRetries = new MarketRetryScheduler(
     (key) => ready() && marketDemands.has(key),
@@ -100,11 +106,12 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
   }
 
   function handleMarketWindow(message: ServerMessage<'market_window'>): void {
+    const late = message.request_id !== null && lateMarketRequests.has(message.request_id)
     const demand =
       message.request_id === null
         ? marketSubscriptions.get(message.subscription_id)
-        : marketRequests.get(message.request_id)
-    if (message.request_id !== null) marketRequests.delete(message.request_id)
+        : (marketRequests.get(message.request_id) ?? lateMarketRequests.get(message.request_id))
+    if (message.request_id !== null) forgetMarketRequest(message.request_id)
     if (
       demand === undefined ||
       demand.accountId !== message.account_id ||
@@ -123,7 +130,9 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
       return
     }
     const key = marketKey(demand.accountId, demand.symbol)
-    if (!marketDemands.has(key)) {
+    // A late answer is used only while no newer request or subscription for
+    // the market exists.
+    if (!marketDemands.has(key) || (late && marketBusy(key))) {
       send({ kind: 'unsubscribe_market', subscription_id: message.subscription_id })
       return
     }
@@ -131,7 +140,7 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
     try {
       markets.install(
         message.account_id,
-        message.request_id,
+        late ? null : message.request_id,
         message.subscription_id,
         message.window,
       )
@@ -285,23 +294,28 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
   }
 
   function handleMarketError(message: ServerMessage<'market_error'>): void {
+    // A timed-out request already counted as failed and is being retried.
+    if (message.request_id !== null && lateMarketRequests.delete(message.request_id)) return
     const demand =
       message.request_id === null
         ? message.subscription_id === null
           ? undefined
           : marketSubscriptions.get(message.subscription_id)
         : marketRequests.get(message.request_id)
-    if (message.request_id !== null) marketRequests.delete(message.request_id)
+    if (message.request_id !== null) forgetMarketRequest(message.request_id)
     if (message.subscription_id !== null) marketSubscriptions.delete(message.subscription_id)
     if (demand === undefined) return
     const key = marketKey(demand.accountId, demand.symbol)
     // The UI let go of this market while the request was in flight.
     if (!marketDemands.has(key)) return
+    // A refused retry (for example the gateway's duplicate guard) while a late
+    // answer already delivered the market leaves the live stream alone.
+    if (message.subscription_id === null && marketSubscribed(key)) return
     const errorClass = classifyMarketError(message.error)
     markets.fail(
       demand.accountId,
       demand.symbol,
-      marketError(message.error),
+      marketErrorMessage(message.error),
       errorClass === 'unknown_market',
     )
     recordTelemetry(
@@ -329,16 +343,7 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
   function subscribeMarketDemand(demand: MarketDemand, markSubscribing = true): void {
     if (!ready()) return
     const key = marketKey(demand.accountId, demand.symbol)
-    if (
-      Array.from(marketRequests.values()).some(
-        (current) => marketKey(current.accountId, current.symbol) === key,
-      ) ||
-      Array.from(marketSubscriptions.values()).some(
-        (current) => marketKey(current.accountId, current.symbol) === key,
-      )
-    ) {
-      return
-    }
+    if (marketBusy(key)) return
     const requestId = crypto.randomUUID()
     marketRequests.set(requestId, demand)
     markets.begin(demand.accountId, demand.symbol, requestId, !markSubscribing)
@@ -350,6 +355,10 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
         symbol: demand.symbol,
         limit: demand.limit,
       })
+      marketRequestTimers.set(
+        requestId,
+        window.setTimeout(() => marketRequestTimedOut(requestId), MARKET_SUBSCRIBE_TIMEOUT_MS),
+      )
       recordTelemetry(
         marketStreamEvent(demand.accountId, demand.symbol, 'subscribing', {
           requestId,
@@ -358,7 +367,7 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
         }),
       )
     } catch (error) {
-      marketRequests.delete(requestId)
+      forgetMarketRequest(requestId)
       markets.fail(demand.accountId, demand.symbol, 'gateway disconnected before subscription')
       recordTelemetry(
         marketStreamEvent(demand.accountId, demand.symbol, 'error', {
@@ -370,6 +379,53 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
       logger.debug('Market subscribe raced a gateway disconnect', error)
       scheduleMarketRetry(demand)
     }
+  }
+
+  // No answer within the timeout: the request no longer blocks a retry. Its
+  // answer may still arrive and is then used if nothing newer took its place.
+  function marketRequestTimedOut(requestId: Uuid): void {
+    marketRequestTimers.delete(requestId)
+    const demand = marketRequests.get(requestId)
+    if (demand === undefined) return
+    marketRequests.delete(requestId)
+    lateMarketRequests.set(requestId, demand)
+    const key = marketKey(demand.accountId, demand.symbol)
+    if (!marketDemands.has(key)) return
+    logger.warn(`Market ${demand.symbol} subscription timed out; retrying`)
+    markets.fail(demand.accountId, demand.symbol, 'price feed request timed out; retrying')
+    recordTelemetry(
+      marketStreamEvent(demand.accountId, demand.symbol, 'error', {
+        requestId,
+        source: 'request',
+        reasonCode: 'unavailable',
+        outcomeCode: 'request_timeout',
+        retryCount: marketRetries.attempts(key),
+      }),
+    )
+    scheduleMarketRetry(demand)
+  }
+
+  function forgetMarketRequest(requestId: Uuid): void {
+    marketRequests.delete(requestId)
+    lateMarketRequests.delete(requestId)
+    const timer = marketRequestTimers.get(requestId)
+    if (timer !== undefined) window.clearTimeout(timer)
+    marketRequestTimers.delete(requestId)
+  }
+
+  // A request is in flight or a subscription is live for this market.
+  function marketBusy(key: string): boolean {
+    for (const current of marketRequests.values()) {
+      if (marketKey(current.accountId, current.symbol) === key) return true
+    }
+    return marketSubscribed(key)
+  }
+
+  function marketSubscribed(key: string): boolean {
+    for (const current of marketSubscriptions.values()) {
+      if (marketKey(current.accountId, current.symbol) === key) return true
+    }
+    return false
   }
 
   function subscribeMarketDemands(markSubscribing = true): void {
@@ -412,7 +468,10 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
   // The socket's subscriptions are gone; the demands stay for the next socket.
   function resetMarketSubscriptions(): void {
     marketRetries.cancelAll()
+    for (const timer of marketRequestTimers.values()) window.clearTimeout(timer)
+    marketRequestTimers.clear()
     marketRequests.clear()
+    lateMarketRequests.clear()
     marketSubscriptions.clear()
   }
 
@@ -428,26 +487,4 @@ export function createGatewayMarkets(deps: GatewayMarketDeps) {
     subscribeMarketDemands,
     resetMarketSubscriptions,
   }
-}
-
-function marketError(error: ServerMessage<'market_error'>['error']): string {
-  switch (error.kind) {
-    case 'unauthorized':
-      return 'market subscription is unauthorized'
-    case 'unknown_market':
-      return error.reason ?? 'unknown market'
-    case 'invalid_request':
-    case 'unavailable':
-      return error.reason
-  }
-  return 'market subscription failed'
-}
-
-function normalizeMarketDemand(accountId: Uuid, symbol: string, limit: number): MarketDemand {
-  const normalized = symbol.trim().toUpperCase()
-  if (normalized.length === 0) throw new Error('market symbol is required')
-  if (!Number.isInteger(limit) || limit < 1 || limit > 1_024) {
-    throw new Error('market sample limit must be between 1 and 1024')
-  }
-  return { accountId, symbol: normalized, limit }
 }

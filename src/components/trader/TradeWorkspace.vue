@@ -7,7 +7,9 @@ import ReconciliationControl from '@/components/engine/ReconciliationControl.vue
 import ProjectionCommandFilters from '@/components/engine/ProjectionCommandFilters.vue'
 import type { EngineCommandPrefill } from '@/lib/engineCommands/prefill'
 import { tradeWorkspaceProjection } from '@/lib/projection/tradeWorkspace'
+import { browserCardMarketStorage, rememberCardMarkets } from '@/lib/gateway/cardMarkets'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
+import { useAccountsStore } from '@/stores/accounts'
 import { useProjectionUiStore } from '@/stores/projectionUi'
 import ManagedTradeCard from './ManagedTradeCard.vue'
 import OpenOrdersSummary from './OpenOrdersSummary.vue'
@@ -20,6 +22,7 @@ export type TraderWorkspaceSection = 'trades' | 'positions' | 'orders'
 const props = defineProps<{ section: TraderWorkspaceSection; startTrade?: boolean }>()
 const emit = defineEmits<{ (event: 'section', section: TraderWorkspaceSection): void }>()
 const projections = useAccountProjectionStore()
+const accounts = useAccountsStore()
 const ui = useProjectionUiStore()
 const expandedTradeId = ref<string | null>(null)
 const selectedTradeId = ref<string | null>(null)
@@ -68,6 +71,29 @@ const visibleTrades = computed(() => {
     })
 })
 const hiddenTradeCount = computed(() => sourceTrades.value.length - visibleTrades.value.length)
+// While the account resyncs, the last view stays on screen marked stale, so
+// the cards keep their price subscriptions; the empty state is for no view
+// yet or a failed account.
+const resyncing = computed(() => {
+  const status = projections.selected?.status
+  return status === 'stale' || status === 'subscribing'
+})
+const showProjection = computed(
+  () =>
+    projections.selected?.status === 'ready' ||
+    (resyncing.value && projections.selected?.view != null),
+)
+// The coins the active cards price, for the next connection's head start.
+const activeCardSymbols = computed(() =>
+  projections.selected?.status === 'ready'
+    ? (model.value?.activeTrades.map((trade) => trade.symbol).join(',') ?? null)
+    : null,
+)
+watch(activeCardSymbols, (symbols) => {
+  const accountId = accounts.selectedAccountId
+  if (symbols === null || accountId === null) return
+  rememberCardMarkets(browserCardMarketStorage(), accountId, symbols.split(','))
+})
 
 function toggleTrade(tradeId: string): void {
   expandedTradeId.value = expandedTradeId.value === tradeId ? null : tradeId
@@ -210,7 +236,18 @@ onBeforeUnmount(() => {
         class="workspace-filter-panel"
       />
 
-      <div v-if="projections.selected?.status !== 'ready'" class="workspace-state">
+      <div
+        v-if="showProjection && resyncing"
+        class="workspace-stale"
+        role="status"
+        data-testid="workspace-stale"
+        :title="projections.selected?.error ?? undefined"
+      >
+        <strong>Resyncing account.</strong>
+        Showing the last update; it may be out of date. Live P&amp;L returns with fresh account
+        data.
+      </div>
+      <div v-if="!showProjection" class="workspace-state">
         <PanelEmptyState
           :title="
             projections.selected?.status === 'error' ? 'Account unavailable' : 'Loading account'
@@ -232,6 +269,7 @@ onBeforeUnmount(() => {
           :expanded="expandedTradeId === trade.tradeId"
           :selected="selectedTradeId === trade.tradeId"
           :focused="focusedTradeId === trade.tradeId"
+          :stale="resyncing"
           @toggle="toggleTrade"
           @select="markSelected"
           @duplicate="duplicateTrade"
@@ -412,6 +450,13 @@ onBeforeUnmount(() => {
 .workspace-state {
   flex: 1;
   min-height: 300px;
+}
+.workspace-stale {
+  margin: 0.75rem 0.75rem 0;
+  padding: 0.55rem 0.75rem;
+  color: var(--state-warning);
+  background: color-mix(in srgb, var(--state-warning) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--state-warning) 40%, var(--border-subtle));
 }
 .primary-summary {
   display: flex;

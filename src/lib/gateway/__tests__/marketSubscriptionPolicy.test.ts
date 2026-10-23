@@ -60,6 +60,20 @@ test('only a listed market symbol may be subscribed', () => {
   assert.equal(marketSymbolDecision('ZEC', { status: 'unavailable' }), 'subscribe')
 })
 
+test('the gateway capacity refusal is retried whether or not it says so', () => {
+  const reason = 'market subscription capacity or duplicate account/symbol subscription reached'
+  assert.equal(classifyMarketError({ kind: 'unavailable', reason, retryable: false }), 'retry')
+  assert.equal(classifyMarketError({ kind: 'unavailable', reason, retryable: true }), 'retry')
+  assert.equal(
+    classifyMarketError({
+      kind: 'unavailable',
+      reason: 'market subscription capacity reached',
+      retryable: false,
+    }),
+    'retry',
+  )
+})
+
 test('market errors that cannot succeed are never retried', () => {
   assert.equal(
     classifyMarketError({ kind: 'unavailable', reason: 'busy', retryable: true }),
