@@ -140,12 +140,13 @@ export function createBffAuthProvider(): AuthProvider {
       sessionExpiryHandled = true
       window.location.assign(options?.returnTo ?? '/login')
     },
-    async getWebSocketToken() {
+    async getWebSocketToken(signal?: AbortSignal) {
       if (!isAuthenticated.value) return null
       try {
         const response = await fetch('/auth/ws-ticket', {
           method: 'POST',
           credentials: 'include',
+          signal,
         })
         if (response.status === 401) {
           await handleSessionExpiry()

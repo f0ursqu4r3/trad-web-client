@@ -21,3 +21,10 @@ function isServerMessage(value: unknown): value is BrowserServerMessage {
     typeof value === 'object' && value !== null && 'kind' in value && typeof value.kind === 'string'
   )
 }
+
+// A frame's length: characters for text frames (JSON, nearly all ASCII).
+export function frameLength(raw: unknown): number {
+  if (typeof raw === 'string') return raw.length
+  if (raw instanceof ArrayBuffer) return raw.byteLength
+  return 0
+}

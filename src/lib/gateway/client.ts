@@ -1,12 +1,17 @@
 import type { BrowserClientMessage, BrowserServerMessage } from './wire.ts'
 import { BROWSER_PROTOCOL_VERSION } from './wire.ts'
-import { parseServerMessage } from './serverMessage.ts'
+import { frameLength, parseServerMessage } from './serverMessage.ts'
+import { TicketRequests } from './ticketRequests.ts'
 import { RetiringSockets } from './retiringSockets.ts'
 import { protocolMismatchFromClose, type ProtocolMismatch } from './protocolVersion.ts'
 
 import type {
   GatewayConnectionStatus,
+  GatewayLeaseRotationHandler,
+  GatewayMessageHandler,
+  GatewayReadyHandler,
   GatewaySocket,
+  GatewayStatusHandler,
   GatewayWebSocketClientOptions,
 } from './socketTypes.ts'
 
@@ -42,19 +47,16 @@ export class GatewayWebSocketClient {
   private leaseRotationDueAt: number | null = null
   private readonly retiringSockets = new RetiringSockets()
 
-  private messageHandler: ((message: BrowserServerMessage, frameBytes: number) => void) | null =
-    null
+  private messageHandler: GatewayMessageHandler | null = null
   private frameObserver: ((kind: string, frameBytes: number, applyMs: number) => void) | null = null
-  private statusHandler: ((status: GatewayConnectionStatus, error: string | null) => void) | null =
-    null
-  private readyHandler:
-    | ((sessionValidForMs: number, cause: 'initial' | 'lease_rotation') => void)
-    | null = null
+  private statusHandler: GatewayStatusHandler | null = null
+  private readyHandler: GatewayReadyHandler | null = null
   // Returns true to stop reconnecting (see protocolVersion.ts).
   private protocolMismatchHandler: ((mismatch: ProtocolMismatch) => boolean) | null = null
-  private leaseRotationHandler:
-    | ((phase: 'started' | 'completed' | 'failed', outcomeCode: string) => void)
-    | null = null
+  // Set by haltForProtocol; only a page reload clears it.
+  private halted = false
+  private readonly tickets = new TicketRequests()
+  private leaseRotationHandler: GatewayLeaseRotationHandler | null = null
 
   constructor(options: GatewayWebSocketClientOptions) {
     if (options.url.length === 0) {
@@ -64,6 +66,7 @@ export class GatewayWebSocketClient {
   }
 
   connect(): void {
+    if (this.halted) return
     if (!this.stopped && this.status !== 'idle' && this.status !== 'error') return
     this.stopped = false
     this.fatal = false
@@ -74,17 +77,8 @@ export class GatewayWebSocketClient {
 
   disconnect(): void {
     this.stopped = true
-    this.connectionSerial += 1
-    this.clearReconnectTimer()
-    this.clearPingTimer()
-    this.clearLeaseRotationTimers()
-    this.closeRotationSocket('client disconnect')
+    this.closeEverything('client disconnect')
     this.closeRetiringSockets('client disconnect')
-    const socket = this.socket
-    this.socket = null
-    if (socket !== null) {
-      socket.close(1000, 'client disconnect')
-    }
     this.setStatus('idle', null)
   }
 
@@ -96,6 +90,29 @@ export class GatewayWebSocketClient {
       throw new Error('gateway socket is not ready; message was not queued')
     }
     this.sendRaw(message)
+  }
+
+  // The gateway refused this page's protocol version and the page will
+  // reload (or asks to): stop for good. Pending reconnects and ticket
+  // requests are cancelled, sockets closed, and connect() does nothing.
+  haltForProtocol(reason: string): void {
+    this.halted = true
+    this.fatal = true
+    this.tickets.abortAll()
+    this.closeEverything('browser protocol mismatch')
+    this.setStatus('error', reason)
+  }
+
+  // Invalidates in-flight connects and closes every socket and timer.
+  private closeEverything(reason: string): void {
+    this.connectionSerial += 1
+    this.clearReconnectTimer()
+    this.clearPingTimer()
+    this.clearLeaseRotationTimers()
+    this.closeRotationSocket(reason)
+    const socket = this.socket
+    this.socket = null
+    socket?.close(1000, reason)
   }
 
   // Closes the sockets a lease renewal replaced, once nothing sent on them is
@@ -115,7 +132,7 @@ export class GatewayWebSocketClient {
 
   // frameBytes: the frame's length (characters for text frames, which are
   // JSON and nearly all ASCII).
-  setMessageHandler(handler: (message: BrowserServerMessage, frameBytes: number) => void): void {
+  setMessageHandler(handler: GatewayMessageHandler): void {
     this.messageHandler = handler
   }
 
@@ -125,13 +142,11 @@ export class GatewayWebSocketClient {
     this.frameObserver = observer
   }
 
-  setStatusHandler(handler: (status: GatewayConnectionStatus, error: string | null) => void): void {
+  setStatusHandler(handler: GatewayStatusHandler): void {
     this.statusHandler = handler
   }
 
-  setReadyHandler(
-    handler: (sessionValidForMs: number, cause: 'initial' | 'lease_rotation') => void,
-  ): void {
+  setReadyHandler(handler: GatewayReadyHandler): void {
     this.readyHandler = handler
   }
 
@@ -139,9 +154,7 @@ export class GatewayWebSocketClient {
     this.protocolMismatchHandler = handler
   }
 
-  setLeaseRotationHandler(
-    handler: (phase: 'started' | 'completed' | 'failed', outcomeCode: string) => void,
-  ): void {
+  setLeaseRotationHandler(handler: GatewayLeaseRotationHandler): void {
     this.leaseRotationHandler = handler
   }
 
@@ -152,7 +165,7 @@ export class GatewayWebSocketClient {
 
     let ticket: string | null
     try {
-      ticket = await this.options.getTicket()
+      ticket = await this.tickets.request(this.options.getTicket)
     } catch (error) {
       if (serial !== this.connectionSerial || this.stopped) return
       this.retry(`failed to acquire WebSocket ticket: ${errorMessage(error)}`)
@@ -173,7 +186,10 @@ export class GatewayWebSocketClient {
 
   private bindSocket(socket: GatewaySocket, serial: number, ticket: string): void {
     socket.onopen = () => {
-      if (!this.current(socket, serial)) return
+      if (!this.current(socket, serial)) {
+        if (this.halted) socket.close(1000, 'browser protocol mismatch')
+        return
+      }
       this.setStatus('authenticating', null)
       this.sendRaw({
         kind: 'authenticate',
@@ -206,8 +222,7 @@ export class GatewayWebSocketClient {
       const reason = `gateway socket closed (code ${event.code}${event.reason ? `: ${event.reason}` : ''})`
       const mismatch = protocolMismatchFromClose(event.code, event.reason)
       if (mismatch !== null && this.protocolMismatchHandler?.(mismatch) === true) {
-        this.fatal = true
-        this.setStatus('error', reason)
+        this.haltForProtocol(reason)
         return
       }
       this.retry(reason)
@@ -225,14 +240,10 @@ export class GatewayWebSocketClient {
 
     if (message.kind === 'hello') {
       if (message.protocol_version !== BROWSER_PROTOCOL_VERSION) {
-        this.protocolMismatchHandler?.({
-          expected: message.protocol_version,
-          actual: BROWSER_PROTOCOL_VERSION,
-        })
-        this.fail(
-          `gateway protocol mismatch: server ${message.protocol_version}, client ${BROWSER_PROTOCOL_VERSION}`,
-          4000,
-        )
+        const reason = `gateway protocol mismatch: server ${message.protocol_version}, client ${BROWSER_PROTOCOL_VERSION}`
+        const mismatch = { expected: message.protocol_version, actual: BROWSER_PROTOCOL_VERSION }
+        if (this.protocolMismatchHandler?.(mismatch) === true) this.haltForProtocol(reason)
+        else this.fail(reason, 4000)
         return
       }
       this.reconnectAttempts = 0
@@ -298,7 +309,7 @@ export class GatewayWebSocketClient {
     const serial = this.connectionSerial
     let ticket: string | null
     try {
-      ticket = await this.options.getTicket()
+      ticket = await this.tickets.request(this.options.getTicket)
     } catch (error) {
       if (serial === this.connectionSerial && !this.stopped) {
         this.deferLeaseRotation(
@@ -480,12 +491,6 @@ export class GatewayWebSocketClient {
     this.rotationSocket = null
     socket?.close(1000, reason)
   }
-}
-
-function frameLength(raw: unknown): number {
-  if (typeof raw === 'string') return raw.length
-  if (raw instanceof ArrayBuffer) return raw.byteLength
-  return 0
 }
 
 function errorMessage(error: unknown): string {

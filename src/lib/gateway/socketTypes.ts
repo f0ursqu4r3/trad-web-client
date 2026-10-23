@@ -1,4 +1,6 @@
-// The gateway client's socket and option shapes (client.ts).
+// The gateway client's socket, option and handler shapes (client.ts).
+
+import type { BrowserServerMessage } from './wire.ts'
 
 export type GatewayConnectionStatus =
   | 'idle'
@@ -21,7 +23,8 @@ export interface GatewaySocket {
 
 export interface GatewayWebSocketClientOptions {
   url: string
-  getTicket: () => Promise<string | null>
+  // The signal aborts the request when the client halts.
+  getTicket: (signal?: AbortSignal) => Promise<string | null>
   reconnectDelayMs?: number
   maxReconnectDelayMs?: number
   pingIntervalMs?: number
@@ -31,3 +34,15 @@ export interface GatewayWebSocketClientOptions {
   createSocket?: (url: string) => GatewaySocket
   logger?: Pick<Console, 'debug' | 'info' | 'warn' | 'error'>
 }
+
+// frameBytes: the frame's length (characters for text frames).
+export type GatewayMessageHandler = (message: BrowserServerMessage, frameBytes: number) => void
+export type GatewayStatusHandler = (status: GatewayConnectionStatus, error: string | null) => void
+export type GatewayReadyHandler = (
+  sessionValidForMs: number,
+  cause: 'initial' | 'lease_rotation',
+) => void
+export type GatewayLeaseRotationHandler = (
+  phase: 'started' | 'completed' | 'failed',
+  outcomeCode: string,
+) => void

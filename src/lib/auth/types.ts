@@ -22,6 +22,6 @@ export interface AuthProvider {
   user: Ref<AuthUser | null | undefined>
   login(options?: LoginOptions): Promise<void>
   logout(options?: LogoutOptions): Promise<void>
-  getWebSocketToken(): Promise<string | null>
+  getWebSocketToken(signal?: AbortSignal): Promise<string | null>
   waitUntilReady(): Promise<void>
 }
