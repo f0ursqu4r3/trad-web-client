@@ -24,6 +24,11 @@ import {
   upsertSnapshotGraph,
   validateExecutionReferences,
 } from './graph.ts'
+import {
+  applyTradeSummaryChanges,
+  snapshotTradeSummaries,
+  type TradeSummaryIndex,
+} from './tradeSummaries.ts'
 
 export type ProjectionStateErrorCode =
   | 'invalid_revision'
@@ -65,11 +70,18 @@ export interface AccountProjectionView {
   live: BrowserAccountSnapshot
   history: HistoricalCommandProjection | null
   legacyHistory: HistoricalLegacyProjection | null
+  // Server trade summaries (slice S2, shadow only); not part of `live`.
+  summaries: TradeSummaryIndex
 }
 
 export function installSnapshot(snapshot: BrowserAccountSnapshot): AccountProjectionView {
   validateRevision(snapshot.checkpoint.projection_revision)
-  return { live: cloneSnapshot(snapshot), history: null, legacyHistory: null }
+  return {
+    live: cloneSnapshot(snapshot),
+    history: null,
+    legacyHistory: null,
+    summaries: snapshotTradeSummaries(snapshot.trade_summaries),
+  }
 }
 
 export function installHandoffSnapshot(
@@ -128,7 +140,16 @@ export function applyDelta(
   const topologyChanged = delta.commands.length > 0 || delta.relationships.length > 0
   const live = topologyChanged || exceedsTerminalWindow(merged) ? pruneLiveSnapshot(merged) : merged
 
-  return { live, history: null, legacyHistory: view.legacyHistory }
+  return {
+    live,
+    history: null,
+    legacyHistory: view.legacyHistory,
+    summaries: applyTradeSummaryChanges(
+      view.summaries,
+      delta.trade_summaries,
+      delta.removed_trade_summaries,
+    ),
+  }
 }
 
 export function mergeHistoryPage(
@@ -151,7 +172,7 @@ export function mergeHistoryPage(
   const incoming = graphFromPage(page)
   const prior = view.history
   const history = prior === null ? incoming : mergeHistory(prior, incoming)
-  return { live: view.live, history, legacyHistory: view.legacyHistory }
+  return { live: view.live, history, legacyHistory: view.legacyHistory, summaries: view.summaries }
 }
 
 export function mergeLegacyHistoryPage(
@@ -176,7 +197,7 @@ export function mergeLegacyHistoryPage(
     invalidLegacyHistory('legacy history source changed between pages')
   }
   const legacyHistory = prior === null ? cloneLegacyPage(page) : mergeLegacyHistory(prior, page)
-  return { live: view.live, history: view.history, legacyHistory }
+  return { live: view.live, history: view.history, legacyHistory, summaries: view.summaries }
 }
 
 export function combinedProjection(view: AccountProjectionView): ProjectionGraph {
@@ -352,9 +373,11 @@ function graphFromPage(page: ClientCommandPage): HistoricalCommandProjection {
   }
 }
 
+// The summaries move to the view's index; the live rows never carry them.
 function cloneSnapshot(snapshot: BrowserAccountSnapshot): BrowserAccountSnapshot {
+  const { trade_summaries: _summaries, removed_trade_summaries: _removed, ...rows } = snapshot
   return {
-    ...snapshot,
+    ...rows,
     window: { ...snapshot.window },
     commands: [...snapshot.commands],
     execution_groups: [...snapshot.execution_groups],
