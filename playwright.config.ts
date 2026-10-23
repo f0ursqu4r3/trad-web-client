@@ -23,6 +23,25 @@ export default defineConfig({
         channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL,
       },
     },
+    // Phone profiles for the network budgets (e2e/network-budgets.spec.ts).
+    // Playwright can throttle the CPU only in Chromium (CDP), so phone compute
+    // is measured on Chromium at 4x with a phone viewport and touch, and
+    // WebKit on an iPhone profile runs unthrottled for Safari-engine
+    // correctness.
+    {
+      name: 'phone-chromium-4x',
+      testMatch: /network-budgets\.spec\.ts/,
+      metadata: { cpuThrottle: 4 },
+      use: {
+        ...devices['Pixel 7'],
+        channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL,
+      },
+    },
+    {
+      name: 'phone-webkit',
+      testMatch: /network-budgets\.spec\.ts/,
+      use: { ...devices['iPhone 14'] },
+    },
   ],
   webServer: {
     command: `npm run dev -- --host 127.0.0.1 --port ${port}`,

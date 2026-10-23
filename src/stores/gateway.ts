@@ -196,9 +196,11 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (phase === 'started') connectionTiming.rotationStarted()
   })
   client.setMessageHandler(handleMessage)
-  client.setFrameObserver((_kind, frameBytes, applyMs) => {
+  client.setFrameObserver((kind, frameBytes, applyMs) => {
     framesReceived += 1
     clientWork.message(frameBytes, applyMs)
+    // Only e2e/network-budgets.spec.ts defines this probe.
+    frameProbe()?.push({ kind, bytes: frameBytes, ms: applyMs })
     if (retiringRequests.size > 0) closeSettledRetiringSocket()
   })
 
@@ -1014,6 +1016,11 @@ function historyError(error: BrowserHistoryError, kind: PendingHistory['kind']):
     case 'revision_changed':
       return `${label} revision changed from ${error.expected} to ${error.actual}`
   }
+}
+
+function frameProbe(): Array<{ kind: string; bytes: number; ms: number }> | undefined {
+  return (globalThis as { __tradFrameProbe?: Array<{ kind: string; bytes: number; ms: number }> })
+    .__tradFrameProbe
 }
 
 function uuid(): Uuid {

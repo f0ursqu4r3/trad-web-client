@@ -15,6 +15,9 @@ export const WORKSPACE_ACCOUNT_ID = '10000000-0000-4000-8000-000000000001'
 export type Json = Record<string, any>
 export type MarketErrorReply = Record<string, unknown> | null
 
+// What the page received, by message kind (bytes are UTF-8 frame bytes).
+export type ReceivedTraffic = Record<string, { messages: number; bytes: number }>
+
 export interface HeldMarketRequest {
   requestId: string
   accountId: string
@@ -39,6 +42,9 @@ export interface WorkspaceWire {
   // Sockets the page opened, and how many it has closed.
   socketsOpened: number
   socketsClosed: number
+  received: ReceivedTraffic
+  // Telemetry events the page posted (with `telemetry: true`).
+  telemetry: Json[]
   // Live market subscriptions by symbol.
   markets: Map<string, { subscriptionId: string; sequence: number; price: number }>
   socket: () => WebSocketRoute | null
@@ -62,6 +68,10 @@ export interface WorkspaceOptions {
   // Socket lease the hello grants (default one hour); the page renews it
   // on a new socket shortly before it ends.
   leaseMs?: number
+  // The account snapshot to serve instead of the fixture account.
+  snapshot?: Json
+  // Enables the page's telemetry and records what it posts.
+  telemetry?: boolean
 }
 
 const START_PRICES: Record<string, number> = { BTC: 64_000, ETH: 2_100, ZEC: 41.25, SOL: 144 }
@@ -71,7 +81,8 @@ export async function openWorkspace(
   options: WorkspaceOptions = {},
 ): Promise<WorkspaceWire> {
   const catalog = options.catalog ?? true
-  const snapshot: Json = options.busy ? busySnapshot() : engineProjectionSnapshot()
+  const snapshot: Json =
+    options.snapshot ?? (options.busy ? busySnapshot() : engineProjectionSnapshot())
   options.editSnapshot?.(snapshot)
   let revision = snapshot.checkpoint.projection_revision
   let socket: WebSocketRoute | null = null
@@ -80,6 +91,19 @@ export async function openWorkspace(
   let snapshotGate: Promise<void> = Promise.resolve()
   let openSnapshotGate = () => {}
   const marketAttempts = new Map<string, number>()
+  // A heavy snapshot is serialized once.
+  let snapshotText: string | null = null
+
+  function sendText(ws: WebSocketRoute, kind: string, text: string): void {
+    const traffic = (wire.received[kind] ??= { messages: 0, bytes: 0 })
+    traffic.messages += 1
+    traffic.bytes += Buffer.byteLength(text)
+    ws.send(text)
+  }
+
+  function sendJson(ws: WebSocketRoute, message: Json): void {
+    sendText(ws, String(message.kind), JSON.stringify(message))
+  }
   const subscriptionSymbols = new Map<string, string>()
 
   function sendMarketWindow(ws: WebSocketRoute, held: HeldMarketRequest): void {
@@ -87,31 +111,29 @@ export async function openWorkspace(
     subscriptionSymbols.set(subscription, held.symbol)
     const price = START_PRICES[held.symbol] ?? 100
     wire.markets.set(held.symbol, { subscriptionId: subscription, sequence: 1, price })
-    ws.send(
-      JSON.stringify({
-        kind: 'market_window',
-        request_id: held.requestId,
-        subscription_id: subscription,
-        account_id: held.accountId,
-        window: {
-          symbol: held.symbol,
-          unavailable_reason: null,
-          oldest_sequence: 1,
-          next_sequence: 2,
-          samples: [
-            {
-              sequence: 1,
-              update_id: `market-${subscription}`,
-              generation: 1,
-              received_at_ms: Date.now(),
-              exchange_time_ms: Date.now(),
-              price: held.symbol === 'ZEC' ? '41.25' : '2100',
-              trade_id: `trade-${subscription}`,
-            },
-          ],
-        },
-      }),
-    )
+    sendJson(ws, {
+      kind: 'market_window',
+      request_id: held.requestId,
+      subscription_id: subscription,
+      account_id: held.accountId,
+      window: {
+        symbol: held.symbol,
+        unavailable_reason: null,
+        oldest_sequence: 1,
+        next_sequence: 2,
+        samples: [
+          {
+            sequence: 1,
+            update_id: `market-${subscription}`,
+            generation: 1,
+            received_at_ms: Date.now(),
+            exchange_time_ms: Date.now(),
+            price: held.symbol === 'ZEC' ? '41.25' : '2100',
+            trade_id: `trade-${subscription}`,
+          },
+        ],
+      },
+    })
   }
 
   const wire: WorkspaceWire = {
@@ -135,6 +157,8 @@ export async function openWorkspace(
     },
     socketsOpened: 0,
     socketsClosed: 0,
+    received: {},
+    telemetry: [],
     markets: new Map(),
     socket: () => socket,
     sendSamples(symbol, count = 1) {
@@ -154,29 +178,25 @@ export async function openWorkspace(
           trade_id: `trade-${symbol}-${market.sequence}`,
         }
       })
-      socket.send(
-        JSON.stringify({
-          kind: 'market_samples',
-          subscription_id: market.subscriptionId,
-          account_id: WORKSPACE_ACCOUNT_ID,
-          symbol,
-          samples,
-        }),
-      )
+      sendJson(socket, {
+        kind: 'market_samples',
+        subscription_id: market.subscriptionId,
+        account_id: WORKSPACE_ACCOUNT_ID,
+        symbol,
+        samples,
+      })
       return true
     },
     sendDelta() {
       if (socket === null || accountSubscription === null) return
       revision += 1
       tick += 1
-      socket.send(
-        JSON.stringify({
-          kind: 'account_delta',
-          subscription_id: accountSubscription,
-          route: { exchange: 'hyperliquid', network: 'testnet', account_id: WORKSPACE_ACCOUNT_ID },
-          delta: liveDelta(snapshot, revision, tick),
-        }),
-      )
+      sendJson(socket, {
+        kind: 'account_delta',
+        subscription_id: accountSubscription,
+        route: { exchange: 'hyperliquid', network: 'testnet', account_id: WORKSPACE_ACCOUNT_ID },
+        delta: liveDelta(snapshot, revision, tick),
+      })
     },
   }
 
@@ -215,7 +235,34 @@ export async function openWorkspace(
   await page.route('**/auth/ws-ticket', (route) =>
     route.fulfill({ json: { token: 'fixture-ticket', expires_in: 60 } }),
   )
-  await page.route('**/api/telemetry**', (route) => route.fulfill({ status: 204, body: '' }))
+  await page.route('**/api/telemetry**', (route) => {
+    if (!options.telemetry) return route.fulfill({ status: 204, body: '' })
+    if (route.request().url().endsWith('/config')) {
+      return route.fulfill({
+        json: {
+          schema_version: 1,
+          collection_enabled: true,
+          max_batch_bytes: 65_536,
+          max_events_per_batch: 64,
+          flush_interval_ms: 1_000,
+          queue_capacity: 512,
+          max_event_age_ms: 120_000,
+        },
+      })
+    }
+    const events = (route.request().postDataJSON() as { events?: Json[] }).events ?? []
+    wire.telemetry.push(...events)
+    return route.fulfill({
+      json: {
+        collection_enabled: true,
+        accepted: events.length,
+        duplicate: 0,
+        invalid: 0,
+        dropped: 0,
+        sequence_gaps: 0,
+      },
+    })
+  })
   await page.route('**/api/markets/**', (route) =>
     options.catalogRows === undefined
       ? route.fulfill({ status: 503, json: { error: 'no node returned the instrument catalog' } })
@@ -271,27 +318,28 @@ export async function openWorkspace(
       const message = JSON.parse(String(raw))
       wire.clientLog.push(message.symbol ? `${message.kind}:${message.symbol}` : message.kind)
       if (message.kind === 'authenticate') {
-        ws.send(
-          JSON.stringify({
-            kind: 'hello',
-            protocol_version: BROWSER_PROTOCOL_VERSION,
-            session_valid_for_ms: options.leaseMs ?? 3_600_000,
-          }),
-        )
+        sendJson(ws, {
+          kind: 'hello',
+          protocol_version: BROWSER_PROTOCOL_VERSION,
+          session_valid_for_ms: options.leaseMs ?? 3_600_000,
+        })
       } else if (message.kind === 'subscribe_account') {
         wire.accountSubscribes += 1
         await snapshotGate
         accountSubscription = ENGINE_SUBSCRIPTION_ID
         revision = snapshot.checkpoint.projection_revision
-        ws.send(
-          JSON.stringify({
-            kind: 'account_snapshot',
-            request_id: message.request_id,
-            subscription_id: ENGINE_SUBSCRIPTION_ID,
-            route: { exchange: 'hyperliquid', network: 'testnet', account_id: message.account_id },
-            cause: { kind: 'initial' },
-            snapshot,
-          }),
+        snapshotText ??= JSON.stringify(snapshot)
+        const route = {
+          exchange: 'hyperliquid',
+          network: 'testnet',
+          account_id: message.account_id,
+        }
+        sendText(
+          ws,
+          'account_snapshot',
+          `{"kind":"account_snapshot","request_id":${JSON.stringify(message.request_id)},` +
+            `"subscription_id":"${ENGINE_SUBSCRIPTION_ID}","route":${JSON.stringify(route)},` +
+            `"cause":{"kind":"initial"},"snapshot":${snapshotText}}`,
         )
       } else if (message.kind === 'subscribe_market') {
         wire.subscribes.push(message.symbol)
@@ -308,15 +356,13 @@ export async function openWorkspace(
         }
         const error = options.marketError?.(message.symbol) ?? null
         if (error !== null) {
-          ws.send(
-            JSON.stringify({
-              kind: 'market_error',
-              request_id: message.request_id,
-              subscription_id: null,
-              account_id: message.account_id,
-              error,
-            }),
-          )
+          sendJson(ws, {
+            kind: 'market_error',
+            request_id: message.request_id,
+            subscription_id: null,
+            account_id: message.account_id,
+            error,
+          })
           return
         }
         sendMarketWindow(ws, held)
@@ -327,7 +373,7 @@ export async function openWorkspace(
           wire.markets.delete(symbol)
         }
       } else if (message.kind === 'ping') {
-        ws.send(JSON.stringify({ kind: 'pong', nonce: message.nonce }))
+        sendJson(ws, { kind: 'pong', nonce: message.nonce })
       }
     })
   })
