@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from './support/test'
 
 async function openFixture(page: Page, viewport = { width: 1680, height: 940 }) {
   await page.setViewportSize(viewport)

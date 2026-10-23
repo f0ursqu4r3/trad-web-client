@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from './support/test'
 import { installVisibilitySwitch, openWorkspace, setTabHidden } from './support/workspaceWire'
 
 // Hyperliquid drops the whole shared price connection when asked for a coin

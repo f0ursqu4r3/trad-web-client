@@ -615,6 +615,10 @@ export interface PositionProjection {
     reductions: OwnedReduction[]
   } | null
   owned_exposure: Record<Uuid, OwnedExposureProjection>
+  // Every owned exposure of the coin, live and closed, once the snapshot
+  // lists only some of them (docs/networking-trade-summaries.md 5.4); the
+  // rest page over HTTP.
+  owned_exposure_total?: number
   unallocated_fills: Record<Uuid, ExactDecimal>
 }
 

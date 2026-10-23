@@ -3,6 +3,7 @@ import MarketSymbolLabel from '@/components/general/MarketSymbolLabel.vue'
 import { computed, ref, watch } from 'vue'
 
 import FlattenCommandModal from '@/components/engine/commands/FlattenCommandModal.vue'
+import OwnedExposureHistory from '@/components/engine/OwnedExposureHistory.vue'
 import PositionDeficitResolution from '@/components/engine/PositionDeficitResolution.vue'
 import BaseCommandModal from '@/components/terminal/modals/commands/BaseCommandModal.vue'
 import { isExactZero, sumExact } from '@/lib/exactDecimalMath'
@@ -281,6 +282,11 @@ function inspectScope(scopeId: string): void {
             <strong>{{ exposure.remaining_quantity }} remaining</strong>
           </div>
         </div>
+        <OwnedExposureHistory
+          :symbol="position.symbol"
+          :live-scope-ids="Object.keys(position.owned_exposure)"
+          :total="position.owned_exposure_total ?? null"
+        />
 
         <div v-if="Object.keys(position.unallocated_fills).length" class="unallocated-list">
           <h4>Unallocated fills</h4>

@@ -50,12 +50,13 @@ accounts.accountsRaw = [
     },
   },
 ]
-projections.install(
-  ENGINE_ACCOUNT_ID,
-  ENGINE_SUBSCRIPTION_ID,
-  { kind: 'initial' },
-  engineProjectionSnapshot(),
-)
+const snapshot = engineProjectionSnapshot()
+// `exposure_total=<n>`: the snapshot lists only some of ETH's owned
+// exposures and counts all n (history slice S3 pages the rest).
+const exposureTotal = new URLSearchParams(location.search).get('exposure_total')
+const eth = snapshot.positions.find((position) => position.symbol === 'ETH')
+if (exposureTotal !== null && eth !== undefined) eth.owned_exposure_total = Number(exposureTotal)
+projections.install(ENGINE_ACCOUNT_ID, ENGINE_SUBSCRIPTION_ID, { kind: 'initial' }, snapshot)
 
 gateway.requestOlderHistory = async () => {
   projections.mergeHistory(ENGINE_ACCOUNT_ID, engineProjectionHistoryPage())

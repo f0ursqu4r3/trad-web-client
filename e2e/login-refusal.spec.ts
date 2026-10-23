@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './support/test'
 import { mockGateway } from './support/mockGateway'
 
 // The Gateway refuses logins that are not invited or not verified: the

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './support/test'
 import { writeFileSync } from 'node:fs'
 
 test('applies and renders a concentrated engine projection load', async ({ page }) => {

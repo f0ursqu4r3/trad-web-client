@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './support/test'
 import { visibleProductReleases } from '../src/lib/releases'
 
 // The e2e server is Vite dev, where drafts are visible too. Each visible

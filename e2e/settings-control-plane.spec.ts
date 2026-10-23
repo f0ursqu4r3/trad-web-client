@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './support/test'
 
 // Every test here signs in through the Gateway's /auth/test-login, so the
 // spec needs a live local Gateway built with test auth behind the Vite dev

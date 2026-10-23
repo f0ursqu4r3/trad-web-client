@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from './support/test'
 
 // The terminal warns from seven days before a Hyperliquid agent wallet
 // expires (the workspace fixture sets agent_valid_until_ms).

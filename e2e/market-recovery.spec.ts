@@ -1,4 +1,5 @@
-import { expect, test, type WebSocketRoute } from '@playwright/test'
+import type { WebSocketRoute } from '@playwright/test'
+import { expect, test } from './support/test'
 import { BROWSER_PROTOCOL_VERSION } from '../src/lib/gateway/wire'
 import {
   ENGINE_SUBSCRIPTION_ID,
