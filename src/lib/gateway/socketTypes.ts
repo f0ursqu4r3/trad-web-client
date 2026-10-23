@@ -1,5 +1,6 @@
 // The gateway client's socket, option and handler shapes (client.ts).
 
+import type { AbandonedTransfer } from './messageParts.ts'
 import type { BrowserServerMessage } from './wire.ts'
 
 export type GatewayConnectionStatus =
@@ -33,6 +34,9 @@ export interface GatewayWebSocketClientOptions {
   retiringSocketGraceMs?: number
   createSocket?: (url: string) => GatewaySocket
   logger?: Pick<Console, 'debug' | 'info' | 'warn' | 'error'>
+  // A protocol 17 message in parts lost a part (messageParts.ts): the
+  // store asks for that subscription or request again.
+  onTransferAbandoned?: (transfer: AbandonedTransfer) => void
 }
 
 // frameBytes: the frame's length (characters for text frames).

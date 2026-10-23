@@ -37,10 +37,12 @@ export class RetiringSockets {
       case 'account_snapshot':
       case 'account_resumed':
       case 'account_delta':
+      case 'account_patch':
         this.unsubscribe(socket, 'unsubscribe_account', message.subscription_id)
         return false
       case 'market_window':
       case 'market_samples':
+      case 'market_ticks':
       case 'market_feed_unavailable':
         this.unsubscribe(socket, 'unsubscribe_market', message.subscription_id)
         return false

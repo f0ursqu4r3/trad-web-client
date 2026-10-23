@@ -1,6 +1,7 @@
 import type { BrowserClientMessage, BrowserServerMessage } from './wire.ts'
 import { BROWSER_PROTOCOL_VERSION } from './wire.ts'
-import { frameLength, parseServerMessage } from './serverMessage.ts'
+import { parseServerMessage } from './serverMessage.ts'
+import { SocketFrames } from './messageParts.ts'
 import { TicketRequests } from './ticketRequests.ts'
 import { RetiringSockets } from './retiringSockets.ts'
 import { protocolMismatchFromClose, type ProtocolMismatch } from './protocolVersion.ts'
@@ -46,6 +47,8 @@ export class GatewayWebSocketClient {
   // for a minute or more, so incoming frames and tab visibility also check it.
   private leaseRotationDueAt: number | null = null
   private readonly retiringSockets = new RetiringSockets()
+  // Joins protocol 17 message parts per socket (messageParts.ts).
+  private readonly frames = new SocketFrames((lost) => this.options.onTransferAbandoned?.(lost))
 
   private messageHandler: GatewayMessageHandler | null = null
   private frameObserver: ((kind: string, frameBytes: number, applyMs: number) => void) | null = null
@@ -90,6 +93,7 @@ export class GatewayWebSocketClient {
       throw new Error('gateway socket is not ready; message was not queued')
     }
     this.sendRaw(message)
+    this.frames.sent(this.socket, message)
   }
 
   // The gateway refused this page's protocol version and the page will
@@ -130,8 +134,7 @@ export class GatewayWebSocketClient {
     void this.beginLeaseRotation()
   }
 
-  // frameBytes: the frame's length (characters for text frames, which are
-  // JSON and nearly all ASCII).
+  // frameBytes: the message's length in characters (all its parts).
   setMessageHandler(handler: GatewayMessageHandler): void {
     this.messageHandler = handler
   }
@@ -203,12 +206,13 @@ export class GatewayWebSocketClient {
         return
       }
       if (!this.current(socket, serial)) return
-      this.receive(event.data)
+      this.receive(socket, event.data)
     }
     socket.onerror = () => {
       this.options.logger?.warn('Gateway WebSocket transport error')
     }
     socket.onclose = (event) => {
+      this.frames.forget(socket)
       if (this.retiringSockets.has(socket)) {
         this.retiringSockets.forget(socket)
         return
@@ -229,14 +233,16 @@ export class GatewayWebSocketClient {
     }
   }
 
-  private receive(raw: unknown): void {
+  private receive(socket: GatewaySocket, raw: unknown): void {
     this.checkLease()
     const startedAt = performance.now()
-    const message = parseServerMessage(raw)
-    if (message === null) {
-      this.fail('invalid gateway frame', 4002)
-      return
+    const frame = this.frames.read(socket, raw)
+    if (frame.kind === 'held') {
+      const kind = `message_part:${frame.messageKind ?? 'unknown'}`
+      return this.frameObserver?.(kind, frame.bytes, performance.now() - startedAt)
     }
+    if (frame.kind === 'invalid') return this.fail('invalid gateway frame', 4002)
+    const message = frame.message
 
     if (message.kind === 'hello') {
       if (message.protocol_version !== BROWSER_PROTOCOL_VERSION) {
@@ -255,11 +261,10 @@ export class GatewayWebSocketClient {
       this.fail(`gateway sent ${message.kind} before hello`, 4002)
       return
     }
-    this.dispatch(message, raw, startedAt)
+    this.dispatch(message, frame.bytes, startedAt)
   }
 
-  private dispatch(message: BrowserServerMessage, raw: unknown, startedAt: number): void {
-    const bytes = frameLength(raw)
+  private dispatch(message: BrowserServerMessage, bytes: number, startedAt: number): void {
     try {
       this.messageHandler?.(message, bytes)
     } finally {
@@ -419,9 +424,9 @@ export class GatewayWebSocketClient {
 
   private receiveRetiring(socket: GatewaySocket, raw: unknown): void {
     const startedAt = performance.now()
-    const message = parseServerMessage(raw)
-    if (message === null) return
-    if (this.retiringSockets.receive(socket, message)) this.dispatch(message, raw, startedAt)
+    const frame = this.frames.read(socket, raw)
+    if (frame.kind !== 'message' || !this.retiringSockets.receive(socket, frame.message)) return
+    this.dispatch(frame.message, frame.bytes, startedAt)
   }
 
   private fail(reason: string, closeCode: number): void {
@@ -465,17 +470,13 @@ export class GatewayWebSocketClient {
   }
 
   private clearReconnectTimer(): void {
-    if (this.reconnectTimer !== null) {
-      clearTimeout(this.reconnectTimer)
-      this.reconnectTimer = null
-    }
+    if (this.reconnectTimer !== null) clearTimeout(this.reconnectTimer)
+    this.reconnectTimer = null
   }
 
   private clearPingTimer(): void {
-    if (this.pingTimer !== null) {
-      clearInterval(this.pingTimer)
-      this.pingTimer = null
-    }
+    if (this.pingTimer !== null) clearInterval(this.pingTimer)
+    this.pingTimer = null
   }
 
   private clearLeaseRotationTimers(): void {

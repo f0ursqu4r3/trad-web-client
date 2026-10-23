@@ -42,6 +42,10 @@ import {
   recalledCardMarkets,
 } from '@/lib/gateway/cardMarkets'
 import { recordTelemetry } from '@/lib/telemetry'
+import { historyError, subscriptionFailure } from '@/lib/gateway/serverErrors'
+import type { AbandonedTransfer } from '@/lib/gateway/messageParts'
+import { LOST_HISTORY_REASON, transferRecovery } from '@/lib/gateway/transferRecovery'
+import { changeRevision } from '@/lib/projection/accountPatch'
 import {
   GatewayTelemetryObserver,
   type GatewayActionAttempt,
@@ -142,6 +146,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     maxReconnectDelayMs: 30_000,
     pingIntervalMs: 30_000,
     logger,
+    onTransferAbandoned: recoverTransfer,
   })
 
   const isConnected = computed(() => status.value === 'ready')
@@ -216,6 +221,8 @@ export const useGatewayStore = defineStore('gateway', () => {
   client.setProtocolMismatchHandler(handleProtocolMismatch)
   client.setFrameObserver((kind, frameBytes, applyMs) => {
     framesReceived += 1
+    // a part of an account message is account feed progress (the confirm wait)
+    if (kind.startsWith('message_part:account_')) accountDeltasApplied += 1
     clientWork.message(frameBytes, applyMs)
     // Only e2e/network-budgets.spec.ts defines this probe.
     frameProbe()?.push({ kind, bytes: frameBytes, ms: applyMs })
@@ -529,6 +536,7 @@ export const useGatewayStore = defineStore('gateway', () => {
         handleResumed(message, frameBytes)
         return
       case 'account_delta':
+      case 'account_patch':
         handleDelta(message)
         return
       case 'account_error':
@@ -655,36 +663,53 @@ export const useGatewayStore = defineStore('gateway', () => {
       return
     }
     selectedSubscriptionId = message.subscription_id
-    if (
-      !projections.resume(accountId, message.subscription_id, message.stream_id, message.deltas)
-    ) {
+    const deltas = projections.resume(accountId, message)
+    if (deltas === null) {
       logger.warn('Resume did not apply; requesting a fresh snapshot')
       resubscribe(accountId, message.subscription_id)
       return
     }
     clearSubscriptionRetry(accountId)
-    accountDeltasApplied += message.deltas.length
+    accountDeltasApplied += deltas.length
     connectionTiming.snapshotApplied(accountId, frameBytes)
     releaseCardMarketsAfterRender(accountId)
-    for (const delta of message.deltas) {
+    for (const delta of deltas) {
       telemetry.terminalCommands(delta.commands, delta.checkpoint.projection_revision)
     }
   }
 
-  function handleDelta(message: Extract<BrowserServerMessage, { kind: 'account_delta' }>): void {
+  // A delta, or a protocol 17 patch of the window (lib/projection/accountPatch.ts).
+  function handleDelta(
+    message: Extract<BrowserServerMessage, { kind: 'account_delta' | 'account_patch' }>,
+  ): void {
     const accountId = subscriptionAccounts.get(message.subscription_id)
     if (accountId === undefined || accountId !== message.route.account_id) return
     try {
-      projections.apply(accountId, message.subscription_id, message.delta)
+      const delta = projections.apply(accountId, message.subscription_id, message)
       accountDeltasApplied += 1
-      telemetry.terminalCommands(
-        message.delta.commands,
-        message.delta.checkpoint.projection_revision,
-      )
+      telemetry.terminalCommands(delta.commands, delta.checkpoint.projection_revision)
     } catch (error) {
       logger.warn('Projection delta rejected; requesting a fresh snapshot', error)
-      telemetry.projectionGap(accountId, message.delta.checkpoint.projection_revision)
+      telemetry.projectionGap(accountId, changeRevision(message) ?? 0)
       resubscribe(accountId, message.subscription_id)
+    }
+  }
+
+  // A message in parts lost a part (lib/gateway/transferRecovery.ts).
+  function recoverTransfer(lost: AbandonedTransfer): void {
+    logger.warn(`Gateway ${lost.messageKind ?? 'message'} lost in transit: ${lost.reason}`)
+    const action = transferRecovery(
+      lost,
+      subscriptionRequests,
+      subscriptionAccounts,
+      pendingHistories,
+    )
+    if (action.kind === 'resubscribe') {
+      if (action.requestId !== null) subscriptionRequests.delete(action.requestId)
+      resubscribe(action.accountId, action.subscriptionId)
+    } else if (action.kind === 'fail_history') {
+      const error = { kind: 'unavailable' as const, reason: LOST_HISTORY_REASON, retryable: true }
+      handleHistoryError(action.requestId, error, pendingHistories.get(action.requestId)!.kind)
     }
   }
 
@@ -1072,36 +1097,6 @@ export const useGatewayStore = defineStore('gateway', () => {
     unsubscribeMarket: marketFeeds.unsubscribeMarket,
   }
 })
-
-function subscriptionFailure(
-  error: Extract<BrowserServerMessage, { kind: 'account_error' }>['error'],
-): {
-  reason: string
-  kind: 'authorization' | 'availability' | 'resync'
-} {
-  switch (error.kind) {
-    case 'unauthorized':
-      return { reason: 'Account access is not authorized for this user', kind: 'authorization' }
-    case 'unavailable':
-      return { reason: error.reason, kind: 'availability' }
-    case 'resync_failed':
-      return { reason: error.reason, kind: 'resync' }
-  }
-}
-
-function historyError(error: BrowserHistoryError, kind: PendingHistory['kind']): string {
-  const label = kind === 'legacy' ? 'imported command history' : 'command history'
-  switch (error.kind) {
-    case 'unauthorized':
-      return `${label} is unauthorized`
-    case 'invalid_request':
-    case 'routing_changed':
-    case 'unavailable':
-      return error.reason
-    case 'revision_changed':
-      return `${label} revision changed from ${error.expected} to ${error.actual}`
-  }
-}
 
 function frameProbe(): Array<{ kind: string; bytes: number; ms: number }> | undefined {
   return (globalThis as { __tradFrameProbe?: Array<{ kind: string; bytes: number; ms: number }> })

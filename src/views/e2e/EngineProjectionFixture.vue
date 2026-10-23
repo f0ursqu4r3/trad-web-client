@@ -241,7 +241,7 @@ function applyFixtureDelta(options: {
     protections: [],
     relationships: [],
   }
-  projections.apply(ENGINE_ACCOUNT_ID, ENGINE_SUBSCRIPTION_ID, update)
+  projections.apply(ENGINE_ACCOUNT_ID, ENGINE_SUBSCRIPTION_ID, { delta: update })
 }
 
 function failProjection(failure: AccountProjectionFailure, reason: string): void {

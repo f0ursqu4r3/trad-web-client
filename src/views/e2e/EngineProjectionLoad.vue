@@ -66,7 +66,9 @@ async function run(): Promise<void> {
     const lag = startLagMonitor()
     const started = performance.now()
     for (let offset = 1; offset <= revisions; offset += 1) {
-      projections.apply(LOAD_ACCOUNT_ID, LOAD_SUBSCRIPTION_ID, loadDelta(count, offset + 1))
+      projections.apply(LOAD_ACCOUNT_ID, LOAD_SUBSCRIPTION_ID, {
+        delta: loadDelta(count, offset + 1),
+      })
       await paint()
     }
     state.elapsedMs = performance.now() - started

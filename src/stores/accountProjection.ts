@@ -13,8 +13,12 @@ import type {
 } from '@/lib/gateway'
 import {
   ProjectionStateError,
+  applyChanges,
   applyDelta,
-  applyResumedDeltas,
+  changeDelta,
+  resumedChanges,
+  type AccountChange,
+  type ResumedChanges,
   combinedProjection,
   installHandoffSnapshot,
   installSnapshot,
@@ -104,34 +108,37 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
     }
   }
 
-  // Installs a resume's missed deltas all at once. False (and no resume
-  // next time) when the stream is not this view's or a delta does not
-  // apply; the view is then untouched and the caller asks for a snapshot.
-  function resume(
-    accountId: Uuid,
-    subscriptionId: Uuid,
-    streamId: Uuid,
-    deltas: readonly BrowserAccountDelta[],
-  ): boolean {
+  // Installs a resume's missed changes all at once and returns them as
+  // full deltas. Null (and no resume next time) when the stream is not this
+  // view's or a change does not apply; the view is then untouched and the
+  // caller asks for a snapshot.
+  function resume(accountId: Uuid, resumed: ResumedChanges): BrowserAccountDelta[] | null {
     const entry = ensure(accountId)
-    if (entry.view === null || entry.streamId !== streamId) {
+    if (entry.view === null || entry.streamId !== resumed.stream_id) {
       entry.streamId = null
-      return false
+      return null
     }
+    let applied: ReturnType<typeof applyChanges>
     try {
-      entry.view = rawView(applyResumedDeltas(entry.view, deltas))
+      applied = applyChanges(entry.view, resumedChanges(resumed))
     } catch {
       entry.streamId = null
-      return false
+      return null
     }
-    entry.subscriptionId = subscriptionId
+    entry.view = rawView(applied.view)
+    entry.subscriptionId = resumed.subscription_id
     entry.status = 'ready'
     entry.error = null
     entry.failure = null
-    return true
+    return applied.deltas
   }
 
-  function apply(accountId: Uuid, subscriptionId: Uuid, delta: BrowserAccountDelta): void {
+  // Applies a delta or a protocol 17 patch; returns the full delta.
+  function apply(
+    accountId: Uuid,
+    subscriptionId: Uuid,
+    change: AccountChange,
+  ): BrowserAccountDelta {
     const entry = ensure(accountId)
     if (entry.subscriptionId !== subscriptionId || entry.view === null) {
       stale(accountId, 'received a projection delta without its authoritative snapshot')
@@ -141,10 +148,12 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
       )
     }
     try {
+      const delta = changeDelta(entry.view, change)
       entry.view = rawView(applyDelta(entry.view, delta))
       entry.status = 'ready'
       entry.error = null
       entry.failure = null
+      return delta
     } catch (error) {
       entry.streamId = null
       stale(accountId, errorMessage(error))
