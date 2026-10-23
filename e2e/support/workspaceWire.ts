@@ -1,5 +1,6 @@
 import type { Page, WebSocketRoute } from '@playwright/test'
 import { startLoopbackServer } from './loopbackSocket'
+import { ResumeServer, resumeReply } from './resumeServer'
 import { BROWSER_PROTOCOL_VERSION } from '../../src/lib/gateway/wire'
 import {
   ENGINE_SUBSCRIPTION_ID,
@@ -60,6 +61,12 @@ export interface WorkspaceWire {
   sendSamples: (symbol: string, count?: number) => boolean
   // `extra` replaces delta fields, e.g. `{ executions: [fill] }`.
   sendDelta: (extra?: Json) => void
+  // With `resume`: the gateway's stream, and a delta committed while the
+  // page is away (kept for its resume, not sent).
+  resume: ResumeServer | null
+  commitDelta: (extra?: Json) => void
+  // Every subscribe_account the page sent.
+  accountSubscribeLog: Json[]
 }
 
 export interface WorkspaceOptions {
@@ -71,6 +78,9 @@ export interface WorkspaceOptions {
   // Rows for Trad's catalog (`GET /api/markets/hyperliquid/...`); without
   // them that endpoint fails and the app falls back to Hyperliquid's meta.
   catalogRows?: unknown[]
+  // Serves protocol 16 resume: snapshots carry a stream id and a resuming
+  // subscribe inside the stream gets account_resumed (resumeServer.ts).
+  resume?: boolean
   // Edits the account snapshot before it is sent.
   editSnapshot?: (snapshot: Json) => void
   // Leaves this subscribe unanswered (attempt counts from 1 per symbol).
@@ -206,15 +216,27 @@ export async function openWorkspace(
     },
     sendDelta(extra = {}) {
       if (socket === null || accountSubscription === null) return
-      revision += 1
-      tick += 1
+      const delta = nextDelta(extra)
       sendJson(socket, {
         kind: 'account_delta',
         subscription_id: accountSubscription,
         route: { exchange: 'hyperliquid', network: 'testnet', account_id: WORKSPACE_ACCOUNT_ID },
-        delta: { ...liveDelta(snapshot, revision, tick), ...extra },
+        delta,
       })
     },
+    resume: options.resume ? new ResumeServer(snapshot) : null,
+    commitDelta(extra = {}) {
+      nextDelta(extra)
+    },
+    accountSubscribeLog: [],
+  }
+
+  function nextDelta(extra: Json): Json {
+    revision = (wire.resume?.revision() ?? revision) + 1
+    tick += 1
+    const delta = { ...liveDelta(snapshot, revision, tick), ...extra }
+    wire.resume?.commit(delta)
+    return delta
   }
 
   await page.route('**/api/accounts', (route) => {
@@ -347,8 +369,13 @@ export async function openWorkspace(
         })
       } else if (message.kind === 'subscribe_account') {
         wire.accountSubscribes += 1
+        wire.accountSubscribeLog.push(message)
         await snapshotGate
         accountSubscription = ENGINE_SUBSCRIPTION_ID
+        if (wire.resume !== null) {
+          sendJson(ws, resumeReply(wire.resume, message, ENGINE_SUBSCRIPTION_ID))
+          return
+        }
         revision = snapshot.checkpoint.projection_revision
         snapshotText ??= JSON.stringify(snapshot)
         const route = {
