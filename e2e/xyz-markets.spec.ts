@@ -113,8 +113,11 @@ test('an xyz market is found, selected, priced and submitted with Trad symbols',
     "XYZ:GOLD needs collateral on Hyperliquid's xyz dex: in Standard mode each dex has its own balance. Move USDC to the xyz dex, or switch the account to Unified Account mode",
   )
   await expect(ticket.getByText('Ready', { exact: true })).toBeVisible()
-  const anyway = ticket.getByRole('button', { name: 'Submit anyway' })
-  if (await anyway.isVisible()) await anyway.click()
+  // With 0 xyz collateral the preview first estimates "insufficient margin"
+  // and shows "Submit anyway"; Hyperliquid's activeAssetData (fixture: 10
+  // max) then clears it. Wait for that settled state instead of racing the
+  // transient button.
+  await expect(ticket.getByRole('button', { name: 'Submit anyway' })).toBeHidden()
   await ticket.getByRole('button', { name: /^Buy XYZ:GOLD / }).click()
   await expect(ticket.getByText(/accepted by Trad/)).toBeVisible()
 

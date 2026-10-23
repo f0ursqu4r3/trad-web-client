@@ -69,12 +69,15 @@ test('R1 protected market-order form', async ({ page }) => {
 test('R1 trailing-entry form', async ({ page }) => {
   await openFixture(page)
   await page.getByTestId('open-hyperliquid-te').click()
-  await expect(page.getByRole('dialog', { name: 'Trailing Entry' })).toBeVisible()
+  const dialog = page.getByRole('dialog', { name: 'Trailing Entry' })
+  await expect(dialog).toBeVisible()
   await page.waitForTimeout(500)
 
   await expect(page).toHaveScreenshot('r1-trailing-entry-form.png', {
     animations: 'disabled',
     fullPage: true,
+    // "Hyperliquid public mid $… · Ns ago" ticks every second.
+    mask: [dialog.locator('small.form-hint', { hasText: 'Hyperliquid public mid' })],
   })
 })
 

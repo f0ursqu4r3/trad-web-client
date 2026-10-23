@@ -1,4 +1,4 @@
-import releases from '@/content/releases.json'
+import releases from '@/content/releases.json' with { type: 'json' }
 
 export type ReleaseCategory = 'major' | 'minor' | 'fixes'
 
@@ -40,9 +40,7 @@ export function isProductionReleaseHost(hostname: string): boolean {
 }
 
 export function releasePreviewPath(version: string, hostname = ''): string {
-  const directory = isProductionReleaseHost(hostname)
-    ? '/prod-update-previews'
-    : '/update-previews'
+  const directory = isProductionReleaseHost(hostname) ? '/prod-update-previews' : '/update-previews'
   return `${directory}/${version}.png`
 }
 
