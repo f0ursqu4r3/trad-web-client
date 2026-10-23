@@ -52,33 +52,7 @@ export function heavyAccountSnapshot(terminalCommands: number, executions: numbe
     })
   }
 
-  for (let index = 0; index < executions; index += 1) {
-    const coin = HISTORY_COINS[index % HISTORY_COINS.length]!
-    const eventId = `synthetic-fill-${index}`
-    snapshot.executions.push({
-      event_id: eventId,
-      fill: {
-        event_id: eventId,
-        execution_id: `synthetic-exec-${index}`,
-        symbol: coin,
-        client_order_id: null,
-        remote_order_id: String(9_000_000_000 + index),
-        side: index % 2 === 0 ? 'buy' : 'sell',
-        position_side: 'long',
-        price: (10 + (index % 997) / 100).toFixed(4),
-        quantity: (1 + (index % 13)).toFixed(2),
-        occurred_at: EPOCH + index * 1_000,
-        is_maker: index % 3 === 0,
-        fee: { asset: 'USDC', amount: '0.001234567891' },
-        builder_fee: { asset: 'USDC', amount: '0.000555555555' },
-        realized_pnl: index % 2 === 0 ? null : { asset: 'USDC', amount: '-0.123456' },
-        start_position: '0',
-        transaction_hash: `0x${index.toString(16).padStart(64, '0')}`,
-      },
-      order: null,
-      reconciliation_required: false,
-    })
-  }
+  for (let index = 0; index < executions; index += 1) snapshot.executions.push(syntheticFill(index))
 
   const summary = snapshot.checkpoint.summary
   for (const key of Object.keys(summary)) {
@@ -88,7 +62,40 @@ export function heavyAccountSnapshot(terminalCommands: number, executions: numbe
   }
   snapshot.window.total_commands = snapshot.commands.length
   snapshot.window.included_commands = snapshot.commands.length
+  // The live window holds all of them, so the first delta does not prune the
+  // account back to the fixture's one terminal command.
+  snapshot.window.terminal_command_limit = snapshot.commands.length
+  snapshot.window.older_terminal_commands_available = false
   return snapshot
+}
+
+// An order-less fill on a history coin; it never touches the active cards.
+export function syntheticFill(index: number): Json {
+  const coin = HISTORY_COINS[index % HISTORY_COINS.length]!
+  const eventId = `synthetic-fill-${index}`
+  return {
+    event_id: eventId,
+    fill: {
+      event_id: eventId,
+      execution_id: `synthetic-exec-${index}`,
+      symbol: coin,
+      client_order_id: null,
+      remote_order_id: String(9_000_000_000 + index),
+      side: index % 2 === 0 ? 'buy' : 'sell',
+      position_side: 'long',
+      price: (10 + (index % 997) / 100).toFixed(4),
+      quantity: (1 + (index % 13)).toFixed(2),
+      occurred_at: EPOCH + index * 1_000,
+      is_maker: index % 3 === 0,
+      fee: { asset: 'USDC', amount: '0.001234567891' },
+      builder_fee: { asset: 'USDC', amount: '0.000555555555' },
+      realized_pnl: index % 2 === 0 ? null : { asset: 'USDC', amount: '-0.123456' },
+      start_position: '0',
+      transaction_hash: `0x${index.toString(16).padStart(64, '0')}`,
+    },
+    order: null,
+    reconciliation_required: false,
+  }
 }
 
 function syntheticUuid(prefix: number, index: number): string {

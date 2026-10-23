@@ -1,6 +1,6 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test'
 import { appendFileSync } from 'node:fs'
-import { heavyAccountSnapshot } from './support/heavyAccount'
+import { heavyAccountSnapshot, syntheticFill } from './support/heavyAccount'
 import { openWorkspace, type Json, type WorkspaceWire } from './support/workspaceWire'
 
 // Network and main-thread budgets for the trader workspace on a heavy
@@ -26,7 +26,7 @@ import { openWorkspace, type Json, type WorkspaceWire } from './support/workspac
 // transfer. `pricesBeforeSnapshot` records whether every visible card's
 // price arrived while that snapshot was in flight; it is recorded, not yet
 // required. Then STEADY_MS of steady state: three coins at 20 messages a
-// second and an account delta every 250 ms.
+// second and an account delta every 250 ms, every fourth with a new fill.
 //
 //   npx playwright test network-budgets --workers=1
 //   TRAD_NETWORK_BUDGET_RESULT=<path> appends each result as a JSON line.
@@ -279,7 +279,7 @@ test('heavy account: bytes, time to snapshot and first prices, main-thread work'
   const snapshot = heavyAccountSnapshot(HEAVY_TERMINAL_COMMANDS, HEAVY_EXECUTIONS)
 
   // Cold: first visit.
-  const wire = await openWorkspace(page, { snapshot, telemetry: true })
+  const wire = await openWorkspace(page, { snapshot, telemetry: true, loopback: true })
   const coldCardsRenderedMs = await cardsRenderedAt(page, 120_000)
   const cold = await connectionTimings(wire, [])
   const coldWork = await readProbe(page)
@@ -297,7 +297,8 @@ test('heavy account: bytes, time to snapshot and first prices, main-thread work'
   const warmWork = await readProbe(page)
 
   // Steady state on the heavy account: three coins at 20 messages a second
-  // each and an account delta every 250 ms.
+  // each and an account delta every 250 ms, every fourth with a new fill.
+
   const steadySince = await page.evaluate(() => ({
     frames: (window as unknown as { __netProbe: Probe }).__netProbe.frames.length,
     at: performance.now(),
@@ -305,7 +306,13 @@ test('heavy account: bytes, time to snapshot and first prices, main-thread work'
   const stream = setInterval(() => {
     for (const symbol of CARD_SYMBOLS) wire.sendSamples(symbol, 1)
   }, 50)
-  const deltas = setInterval(() => wire.sendDelta(), 250)
+  // Every fourth delta also carries a new fill, as live trading does.
+  let fills = HEAVY_EXECUTIONS
+  let deltaCount = 0
+  const deltas = setInterval(() => {
+    deltaCount += 1
+    wire.sendDelta(deltaCount % 4 === 0 ? { executions: [syntheticFill(fills++)] } : {})
+  }, 250)
   try {
     await page.waitForTimeout(STEADY_MS)
   } finally {

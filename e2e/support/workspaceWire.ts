@@ -1,4 +1,5 @@
 import type { Page, WebSocketRoute } from '@playwright/test'
+import { startLoopbackServer } from './loopbackSocket'
 import { BROWSER_PROTOCOL_VERSION } from '../../src/lib/gateway/wire'
 import {
   ENGINE_SUBSCRIPTION_ID,
@@ -14,6 +15,14 @@ export const WORKSPACE_ACCOUNT_ID = '10000000-0000-4000-8000-000000000001'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Json = Record<string, any>
 export type MarketErrorReply = Record<string, unknown> | null
+
+// The server side of one page socket: a Playwright route or a loopback socket.
+export interface WireSocket {
+  send(text: string): void
+  onMessage(handler: (raw: string | Buffer) => unknown): void
+  onClose(handler: () => unknown): void
+  close(options?: { code?: number; reason?: string }): Promise<void>
+}
 
 // What the page received, by message kind (bytes are UTF-8 frame bytes).
 export type ReceivedTraffic = Record<string, { messages: number; bytes: number }>
@@ -47,9 +56,10 @@ export interface WorkspaceWire {
   telemetry: Json[]
   // Live market subscriptions by symbol.
   markets: Map<string, { subscriptionId: string; sequence: number; price: number }>
-  socket: () => WebSocketRoute | null
+  socket: () => WireSocket | null
   sendSamples: (symbol: string, count?: number) => boolean
-  sendDelta: () => void
+  // `extra` replaces delta fields, e.g. `{ executions: [fill] }`.
+  sendDelta: (extra?: Json) => void
 }
 
 export interface WorkspaceOptions {
@@ -72,6 +82,10 @@ export interface WorkspaceOptions {
   snapshot?: Json
   // Enables the page's telemetry and records what it posts.
   telemetry?: boolean
+  // Serves the socket from a real loopback WebSocket server instead of
+  // page.routeWebSocket, whose delivery inlines each message into an
+  // evaluated script (seconds of page time for a multi-MB snapshot).
+  loopback?: boolean
 }
 
 const START_PRICES: Record<string, number> = { BTC: 64_000, ETH: 2_100, ZEC: 41.25, SOL: 144 }
@@ -85,7 +99,7 @@ export async function openWorkspace(
     options.snapshot ?? (options.busy ? busySnapshot() : engineProjectionSnapshot())
   options.editSnapshot?.(snapshot)
   let revision = snapshot.checkpoint.projection_revision
-  let socket: WebSocketRoute | null = null
+  let socket: WireSocket | null = null
   let accountSubscription: string | null = null
   let tick = 0
   let snapshotGate: Promise<void> = Promise.resolve()
@@ -94,19 +108,19 @@ export async function openWorkspace(
   // A heavy snapshot is serialized once.
   let snapshotText: string | null = null
 
-  function sendText(ws: WebSocketRoute, kind: string, text: string): void {
+  function sendText(ws: WireSocket, kind: string, text: string): void {
     const traffic = (wire.received[kind] ??= { messages: 0, bytes: 0 })
     traffic.messages += 1
     traffic.bytes += Buffer.byteLength(text)
     ws.send(text)
   }
 
-  function sendJson(ws: WebSocketRoute, message: Json): void {
+  function sendJson(ws: WireSocket, message: Json): void {
     sendText(ws, String(message.kind), JSON.stringify(message))
   }
   const subscriptionSymbols = new Map<string, string>()
 
-  function sendMarketWindow(ws: WebSocketRoute, held: HeldMarketRequest): void {
+  function sendMarketWindow(ws: WireSocket, held: HeldMarketRequest): void {
     const subscription = `10000000-0000-4000-8000-${String(subscriptionSymbols.size + 10).padStart(12, '0')}`
     subscriptionSymbols.set(subscription, held.symbol)
     const price = START_PRICES[held.symbol] ?? 100
@@ -187,7 +201,7 @@ export async function openWorkspace(
       })
       return true
     },
-    sendDelta() {
+    sendDelta(extra = {}) {
       if (socket === null || accountSubscription === null) return
       revision += 1
       tick += 1
@@ -195,7 +209,7 @@ export async function openWorkspace(
         kind: 'account_delta',
         subscription_id: accountSubscription,
         route: { exchange: 'hyperliquid', network: 'testnet', account_id: WORKSPACE_ACCOUNT_ID },
-        delta: liveDelta(snapshot, revision, tick),
+        delta: { ...liveDelta(snapshot, revision, tick), ...extra },
       })
     },
   }
@@ -308,7 +322,7 @@ export async function openWorkspace(
     })
   })
 
-  await page.routeWebSocket('**/ws', (ws: WebSocketRoute) => {
+  const serveSocket = (ws: WireSocket) => {
     socket = ws
     wire.socketsOpened += 1
     ws.onClose(() => {
@@ -376,7 +390,21 @@ export async function openWorkspace(
         sendJson(ws, { kind: 'pong', nonce: message.nonce })
       }
     })
-  })
+  }
+  if (options.loopback) {
+    const server = await startLoopbackServer(serveSocket)
+    page.on('close', () => void server.stop())
+    await page.addInitScript((url) => {
+      window.WebSocket = new Proxy(window.WebSocket, {
+        construct(target, args: [string | URL, ...unknown[]]) {
+          if (String(args[0]).endsWith('/ws')) args[0] = url
+          return Reflect.construct(target, args)
+        },
+      })
+    }, server.url)
+  } else {
+    await page.routeWebSocket('**/ws', (ws: WebSocketRoute) => serveSocket(ws))
+  }
   await page.goto(options.path ?? '/e2e/trader-workspace?market_wire=1')
   return wire
 }
