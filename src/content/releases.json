@@ -1,5 +1,53 @@
 [
   {
+    "version": "0.10.32",
+    "status": "published",
+    "released_at": "2026-10-23",
+    "channel": "Faster on phones",
+    "summary": "Trad loads and stays responsive on slow or roaming mobile connections: prices no longer wait behind your trade history, and large accounts stop stuttering.",
+    "major": [
+      "Prices on your trade cards start as soon as you connect, instead of waiting for your whole trade history to download."
+    ],
+    "minor": [
+      "Large accounts update smoothly: the terminal no longer freezes for a moment on every fill.",
+      "Your account snapshot is smaller: old stop and take-profit orders and fills that no screen shows are no longer sent on connect."
+    ],
+    "fixes": [
+      "On a slow connection Trad no longer downloads your whole account again when a confirmation is a few seconds late.",
+      "After a connection renewal the old connection stops sending immediately, so it no longer doubles the traffic for half a minute.",
+      "Trade cards stay on screen while Trad resyncs, marked as resyncing, instead of disappearing.",
+      "More coins can be watched at once, and a busy connection retries instead of showing a permanent price error."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "Prices without waiting",
+        "items": [
+          "Trad remembers which coins your trade cards show and asks for their prices the moment it connects.",
+          "If a price request gets no answer within 10 seconds, Trad asks again instead of waiting forever."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Smoother large accounts",
+        "items": [
+          "Updates now cost time in proportion to what changed, not to the size of your account.",
+          "Old protection orders and fills that no screen shows stay on the server; nothing you see changes."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Slow and changing connections",
+        "items": [
+          "A late confirmation no longer triggers a full re-download; Trad waits while updates keep arriving.",
+          "Connection renewals no longer stream on two connections at once.",
+          "Cards stay visible and marked as resyncing during a resync; open P&L shows \"resyncing\" until fresh numbers arrive.",
+          "Usage reports survive network stalls instead of being dropped."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.31",
     "status": "published",
     "released_at": "2026-10-22",
