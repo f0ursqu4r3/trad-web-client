@@ -138,3 +138,10 @@ function position(scopeId: string, remaining: string): PositionProjection {
     unallocated_fills: {},
   }
 }
+
+test('default filters keep every command in order', () => {
+  assert.deepEqual(
+    filterProjectionCommands(GRAPH.commands, GRAPH, POSITIONS, defaultProjectionCommandFilters()),
+    GRAPH.commands,
+  )
+})

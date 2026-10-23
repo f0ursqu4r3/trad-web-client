@@ -59,7 +59,44 @@ export interface ProjectionTreeNode {
   children: ProjectionTreeNode[]
 }
 
+// Projection graphs are immutable (a change produces new arrays), so the
+// entity index is built once per set of row arrays and shared by every
+// reader; callers only read the map. A delta that leaves these arrays alone
+// (prices, balances, positions) reuses the previous index.
+let lastEntityRows: unknown[] | null = null
+let lastEntities: Map<string, ProjectionEntity> | null = null
+
+function entityRows(graph: ProjectionGraph): unknown[] {
+  return [
+    graph.commands,
+    graph.orders,
+    graph.execution_groups,
+    graph.chases,
+    graph.trailing_entries,
+    graph.close_workflows,
+    graph.flatten_workflows,
+    graph.entry_cancellations,
+    graph.account_controls,
+    graph.protection_amendments,
+  ]
+}
+
 export function projectionEntities(graph: ProjectionGraph): Map<string, ProjectionEntity> {
+  const rows = entityRows(graph)
+  if (
+    lastEntities !== null &&
+    lastEntityRows !== null &&
+    rows.every((value, index) => value === lastEntityRows![index])
+  ) {
+    return lastEntities
+  }
+  const entities = buildProjectionEntities(graph)
+  lastEntityRows = rows
+  lastEntities = entities
+  return entities
+}
+
+function buildProjectionEntities(graph: ProjectionGraph): Map<string, ProjectionEntity> {
   const entities = new Map<string, ProjectionEntity>()
   for (const row of graph.commands) put(entities, { kind: 'command', id: row.command_id, row })
   for (const row of graph.orders) put(entities, { kind: 'order', id: row.order_id, row })

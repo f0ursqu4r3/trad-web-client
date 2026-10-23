@@ -29,15 +29,18 @@ export function filterProjectionCommands(
   filters: ProjectionCommandFilters,
   now = Date.now(),
 ): CommandProjection[] {
-  if (graph === null) return commands
-  const symbols = commandSymbolIndex(graph)
+  if (graph === null || noFilters(filters)) return commands
+  // The symbol index walks the whole graph; build it only when a symbol
+  // filter needs it (the default shows every command).
+  const symbols = filters.symbols.length === 0 ? null : commandSymbolIndex(graph)
   return commands.filter((command) => {
-    const symbol = symbols.get(command.command_id) ?? null
+    const symbol = symbols?.get(command.command_id) ?? null
     return (
       includesOrAll(filters.kinds, command.accepted.kind) &&
       includesOrAll(filters.lifecycles, command.lifecycle) &&
-      (filters.symbols.length === 0 || (symbol !== null && filters.symbols.includes(symbol))) &&
-      includesOrAll(filters.positions, commandPosition(command, positions)) &&
+      (symbols === null || (symbol !== null && filters.symbols.includes(symbol))) &&
+      (filters.positions.length === 0 ||
+        filters.positions.includes(commandPosition(command, positions))) &&
       withinRecent(command.accepted_at, filters.recent, now)
     )
   })
@@ -63,6 +66,16 @@ export function commandPosition(
 
 function isExactZero(value: string): boolean {
   return /^[+-]?0+(?:\.0+)?$/.test(value.trim())
+}
+
+function noFilters(filters: ProjectionCommandFilters): boolean {
+  return (
+    filters.kinds.length === 0 &&
+    filters.lifecycles.length === 0 &&
+    filters.symbols.length === 0 &&
+    filters.positions.length === 0 &&
+    filters.recent === 'any'
+  )
 }
 
 function includesOrAll<T>(selected: T[], value: T): boolean {
