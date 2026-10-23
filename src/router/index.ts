@@ -102,41 +102,6 @@ const routes: RouteRecordRaw[] = [
           component: () => import('@/views/e2e/EngineCommandFixture.vue'),
           meta: { layout: 'blank' },
         },
-        {
-          path: '/e2e/bybit-live-smoke',
-          component: () => import('@/views/e2e/BybitLiveSmoke.vue'),
-          meta: { layout: 'blank' },
-        },
-        {
-          path: '/e2e/bybit-live-account-panel',
-          component: () => import('@/views/e2e/BybitLiveAccountPanel.vue'),
-          meta: { layout: 'blank' },
-        },
-        {
-          path: '/e2e/bybit-live-watch-only',
-          component: () => import('@/views/e2e/BybitLiveWatchOnly.vue'),
-          meta: { layout: 'blank' },
-        },
-        {
-          path: '/e2e/bybit-live-bulk-te',
-          component: () => import('@/views/e2e/BybitLiveBulkTe.vue'),
-          meta: { layout: 'blank' },
-        },
-        {
-          path: '/e2e/bybit-live-native-tpsl-fill',
-          component: () => import('@/views/e2e/BybitLiveNativeTpslFill.vue'),
-          meta: { layout: 'blank' },
-        },
-        {
-          path: '/e2e/hyperliquid-te-smoke',
-          component: () => import('@/views/e2e/HyperliquidTeSmoke.vue'),
-          meta: { layout: 'blank' },
-        },
-        {
-          path: '/e2e/sim-load-smoke',
-          component: () => import('@/views/e2e/SimLoadSmoke.vue'),
-          meta: { layout: 'blank' },
-        },
       ]
     : []),
   { path: '/:pathMatch(.*)*', redirect: '/terminal' },
