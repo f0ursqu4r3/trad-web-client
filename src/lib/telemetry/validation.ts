@@ -1,3 +1,4 @@
+import { TRADE_SUMMARY_FIELDS } from '../gateway/tradeSummary.ts'
 import type { TelemetryEventName, TelemetryProperties } from './catalog.ts'
 import type { TelemetryBatchResult, TelemetryRecord } from './contract.ts'
 
@@ -40,6 +41,16 @@ const propertyNames = new Set<keyof TelemetryProperties>([
   'long_tasks',
   'longest_task_ms',
   'window_ms',
+  'summary_revision',
+  'client_digest',
+  'server_digest',
+  'cards',
+  'matched',
+  'mismatched',
+  'missing_summary',
+  'orphan_summary',
+  'comparisons',
+  'field_mismatches',
 ])
 
 // Counts and durations that are never negative.
@@ -54,6 +65,14 @@ const nonNegativeNames = new Set<string>([
   'long_tasks',
   'longest_task_ms',
   'window_ms',
+  'summary_revision',
+  'cards',
+  'matched',
+  'mismatched',
+  'missing_summary',
+  'orphan_summary',
+  'comparisons',
+  'field_mismatches',
 ])
 
 const CONNECTION_TIMING_STAGES = new Set(['socket_connected', 'snapshot_applied', 'first_price'])
@@ -102,7 +121,51 @@ export function validTelemetryEventShape(
 ): boolean {
   if (eventName === 'connection_timing_measured') return validConnectionTiming(properties)
   if (eventName === 'client_work_measured') return validClientWork(properties)
+  if (eventName === 'trade_summary_mismatch') return validSummaryMismatch(properties)
+  if (eventName === 'trade_summary_shadow_measured') return validShadowMeasured(properties)
   return true
+}
+
+// Context ids an event cannot do without.
+export function validTelemetryEventContext(record: TelemetryRecord): boolean {
+  if (record.eventName === 'trade_summary_mismatch') {
+    return record.accountId != null && record.tradeId != null
+  }
+  return true
+}
+
+const SUMMARY_FIELD_NAMES = new Set<string>(TRADE_SUMMARY_FIELDS)
+const SUMMARY_MISMATCH_KINDS = new Set(['different', 'missing_on_client', 'missing_on_server'])
+const SUMMARY_DIGEST = /^[0-9a-f]{16}$/
+const SHADOW_COUNTS = [
+  'cards',
+  'matched',
+  'mismatched',
+  'missing_summary',
+  'orphan_summary',
+  'comparisons',
+  'field_mismatches',
+  'window_ms',
+] as const
+
+function validSummaryMismatch(properties: TelemetryProperties): boolean {
+  return (
+    Object.keys(properties).length === 5 &&
+    typeof properties.field_name === 'string' &&
+    SUMMARY_FIELD_NAMES.has(properties.field_name) &&
+    typeof properties.reason_code === 'string' &&
+    SUMMARY_MISMATCH_KINDS.has(properties.reason_code) &&
+    wholeNumber(properties.summary_revision) &&
+    SUMMARY_DIGEST.test(properties.client_digest ?? '') &&
+    SUMMARY_DIGEST.test(properties.server_digest ?? '')
+  )
+}
+
+function validShadowMeasured(properties: TelemetryProperties): boolean {
+  return (
+    Object.keys(properties).length === SHADOW_COUNTS.length &&
+    SHADOW_COUNTS.every((key) => wholeNumber(properties[key]))
+  )
 }
 
 function validConnectionTiming(properties: TelemetryProperties): boolean {

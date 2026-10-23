@@ -71,6 +71,8 @@ export const telemetryEventNames = [
   'support_reference_copied',
   'connection_timing_measured',
   'client_work_measured',
+  'trade_summary_mismatch',
+  'trade_summary_shadow_measured',
 ] as const
 
 export type TelemetryEventName = (typeof telemetryEventNames)[number]
@@ -168,4 +170,16 @@ export interface TelemetryProperties {
   long_tasks?: number
   longest_task_ms?: number
   window_ms?: number
+  // trade_summary_mismatch (with field_name and reason_code)
+  summary_revision?: number
+  client_digest?: string
+  server_digest?: string
+  // trade_summary_shadow_measured (with window_ms)
+  cards?: number
+  matched?: number
+  mismatched?: number
+  missing_summary?: number
+  orphan_summary?: number
+  comparisons?: number
+  field_mismatches?: number
 }

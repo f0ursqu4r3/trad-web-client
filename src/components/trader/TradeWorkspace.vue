@@ -8,6 +8,7 @@ import ProjectionCommandFilters from '@/components/engine/ProjectionCommandFilte
 import type { EngineCommandPrefill } from '@/lib/engineCommands/prefill'
 import { tradeWorkspaceProjection } from '@/lib/projection/tradeWorkspace'
 import { browserCardMarketStorage, rememberCardMarkets } from '@/lib/gateway/cardMarkets'
+import { scheduleTradeSummaryShadow } from '@/lib/telemetry/tradeSummaryShadowRunner'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
 import { useProjectionUiStore } from '@/stores/projectionUi'
@@ -88,6 +89,15 @@ const activeCardSymbols = computed(() =>
   projections.selected?.status === 'ready'
     ? (model.value?.activeTrades.map((trade) => trade.symbol).join(',') ?? null)
     : null,
+)
+// Trade-summary slice S2: compares these cards with the server's summaries
+// in the background (telemetry only; nothing on screen changes).
+watch(model, () =>
+  scheduleTradeSummaryShadow(() => ({
+    accountId: accounts.selectedAccountId,
+    projection: projections.selected,
+    model: model.value,
+  })),
 )
 watch(activeCardSymbols, (symbols) => {
   const accountId = accounts.selectedAccountId

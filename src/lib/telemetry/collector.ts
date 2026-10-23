@@ -11,6 +11,7 @@ import {
   safeTelemetryProperties,
   validTelemetryBatchResult,
   validTelemetryContextIds,
+  validTelemetryEventContext,
   validTelemetryEventShape,
 } from './validation.ts'
 import {
@@ -180,6 +181,7 @@ export class TelemetryCollector {
       const properties = safeTelemetryProperties(record.properties ?? {})
       if (properties === null) return
       if (!validTelemetryEventShape(record.eventName, properties)) return
+      if (!validTelemetryEventContext(record)) return
       if (!validTelemetryContextIds(record)) return
       const queuedAt = Date.now()
       const release = currentProductRelease(false).version
