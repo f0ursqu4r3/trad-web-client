@@ -29,6 +29,7 @@ import { useMarketStore } from '@/stores/market'
 import { createGatewayMarkets } from '@/stores/gatewayMarkets'
 import { ClientWorkMeter, observeLongTasks } from '@/lib/telemetry/clientWork'
 import { ConnectionTimingObserver } from '@/lib/telemetry/connectionTiming'
+import { ProjectionConfirmations } from '@/lib/gateway/projectionConfirm'
 import {
   browserCardMarketStorage,
   CARD_MARKET_LIMIT,
@@ -46,7 +47,6 @@ const COMMAND_RESULT_TIMEOUT_MS = 30_000
 const POSITION_RESOLUTION_TIMEOUT_MS = 30_000
 const PREVIEW_RESULT_TIMEOUT_MS = 15_000
 const HISTORY_RESULT_TIMEOUT_MS = 30_000
-const PROJECTION_CONFIRM_TIMEOUT_MS = 3_000
 const SUBSCRIPTION_RETRY_INITIAL_MS = 1_000
 const SUBSCRIPTION_RETRY_MAX_MS = 30_000
 // Remembered card markets stay held this long after the snapshot renders, so
@@ -139,6 +139,26 @@ export const useGatewayStore = defineStore('gateway', () => {
     priceApplied: (accountId, symbol) => connectionTiming.priceApplied(accountId, symbol),
   })
   const { flushMarketSamples, subscribeMarketDemands } = marketFeeds
+  // Counters the confirmation wait reads to tell a slow feed from a stuck one.
+  let framesReceived = 0
+  let accountDeltasApplied = 0
+  const confirmations = new ProjectionConfirmations(
+    {
+      set: (callback, delayMs) => window.setTimeout(callback, delayMs),
+      clear: (timer) => window.clearTimeout(timer),
+    },
+    () => Date.now(),
+    (accountId) => ({
+      live:
+        status.value === 'ready' &&
+        accounts.selectedAccountId === accountId &&
+        projections.byAccount[accountId]?.status === 'ready',
+      revision: projections.byAccount[accountId]?.view?.live.checkpoint.projection_revision ?? null,
+      accountDeltas: accountDeltasApplied,
+      frames: framesReceived,
+    }),
+    recoverSelectedProjection,
+  )
   const cardMarkets = new CardMarketHold(
     (accountId, symbol) => marketFeeds.subscribeMarket(accountId, symbol, CARD_MARKET_LIMIT),
     (accountId, symbol) => marketFeeds.unsubscribeMarket(accountId, symbol),
@@ -173,7 +193,10 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (phase === 'started') connectionTiming.rotationStarted()
   })
   client.setMessageHandler(handleMessage)
-  client.setFrameObserver((_kind, frameBytes, applyMs) => clientWork.message(frameBytes, applyMs))
+  client.setFrameObserver((_kind, frameBytes, applyMs) => {
+    framesReceived += 1
+    clientWork.message(frameBytes, applyMs)
+  })
 
   // A background tab holds market samples instead of rendering each one; the
   // tab shows them in a single update when it is visible again.
@@ -570,6 +593,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (accountId === undefined || accountId !== message.route.account_id) return
     try {
       projections.apply(accountId, message.subscription_id, message.delta)
+      accountDeltasApplied += 1
       telemetry.terminalCommands(
         message.delta.commands,
         message.delta.checkpoint.projection_revision,
@@ -668,16 +692,12 @@ export const useGatewayStore = defineStore('gateway', () => {
     pending.resolve(message.outcome)
   }
 
+  // The accepted revision should arrive as a delta; see lib/gateway/projectionConfirm.ts
+  // for when a missing one is worth a resnapshot.
   function confirmProjectionRevision(accountId: Uuid, expectedRevision: number): void {
-    window.setTimeout(() => {
-      const actual =
-        projections.byAccount[accountId]?.view?.live.checkpoint.projection_revision ?? null
-      if (actual !== null && actual >= expectedRevision) return
-      recoverSelectedProjection(
-        accountId,
-        `accepted command revision ${expectedRevision} was not observed; current revision is ${actual ?? 'unavailable'}`,
-      )
-    }, PROJECTION_CONFIRM_TIMEOUT_MS)
+    const actual = projections.byAccount[accountId]?.view?.live.checkpoint.projection_revision
+    if (actual !== undefined && actual >= expectedRevision) return
+    confirmations.watch(accountId, expectedRevision)
   }
 
   function recoverSelectedProjection(accountId: Uuid, reason: string): void {
@@ -854,6 +874,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   function resetSubscriptions(): void {
     flushMarketSamples()
     clearAllSubscriptionRetries()
+    confirmations.cancelAll()
     marketFeeds.resetMarketSubscriptions()
     subscriptionRequests.clear()
     subscriptionAccounts.clear()
