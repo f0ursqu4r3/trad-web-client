@@ -82,6 +82,9 @@ export interface WorkspaceOptions {
   snapshot?: Json
   // Enables the page's telemetry and records what it posts.
   telemetry?: boolean
+  // A gateway protocol version to refuse Authenticate with (as the gateway
+  // does: close 1008 before hello); null or undefined accepts.
+  refuseProtocol?: () => number | null
   // Serves the socket from a real loopback WebSocket server instead of
   // page.routeWebSocket, whose delivery inlines each message into an
   // evaluated script (seconds of page time for a multi-MB snapshot).
@@ -331,7 +334,12 @@ export async function openWorkspace(
     ws.onMessage(async (raw) => {
       const message = JSON.parse(String(raw))
       wire.clientLog.push(message.symbol ? `${message.kind}:${message.symbol}` : message.kind)
-      if (message.kind === 'authenticate') {
+      if (message.kind === 'authenticate' && options.refuseProtocol?.() != null) {
+        await ws.close({
+          code: 1008,
+          reason: `browser protocol mismatch: expected ${options.refuseProtocol()}, received ${message.protocol_version}`,
+        })
+      } else if (message.kind === 'authenticate') {
         sendJson(ws, {
           kind: 'hello',
           protocol_version: BROWSER_PROTOCOL_VERSION,

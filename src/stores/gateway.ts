@@ -31,6 +31,11 @@ import { ClientWorkMeter, observeLongTasks } from '@/lib/telemetry/clientWork'
 import { ConnectionTimingObserver } from '@/lib/telemetry/connectionTiming'
 import { ProjectionConfirmations } from '@/lib/gateway/projectionConfirm'
 import {
+  browserReloadStampStorage,
+  protocolMismatchAction,
+  type ProtocolMismatch,
+} from '@/lib/gateway/protocolVersion'
+import {
   browserCardMarketStorage,
   CARD_MARKET_LIMIT,
   CardMarketHold,
@@ -52,6 +57,14 @@ const SUBSCRIPTION_RETRY_MAX_MS = 30_000
 // Remembered card markets stay held this long after the snapshot renders, so
 // the cards' own subscriptions take over without a gap.
 const CARD_MARKET_RELEASE_DELAY_MS = 2_000
+// The "Trad was updated" notice is on screen this long before the reload.
+const PROTOCOL_RELOAD_NOTICE_MS = 1_500
+
+// A gateway on another browser protocol version (lib/gateway/protocolVersion.ts):
+// reloading: this page is out of date and reloads now; reload_required: it
+// already reloaded recently and is still out of date; server_updating: the
+// gateway is older and the client keeps reconnecting.
+export type ProtocolUpdateState = 'reloading' | 'reload_required' | 'server_updating'
 
 interface PendingCommand extends GatewayActionAttempt {
   timer: number
@@ -104,6 +117,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   const sessionValidUntil = ref<number | null>(null)
   const pendingCommandCount = ref(0)
   const pendingHistoryCount = ref(0)
+  const protocolUpdate = ref<ProtocolUpdateState | null>(null)
 
   const subscriptionRequests = new Map<Uuid, AccountSubscriptionRequest>()
   const subscriptionAccounts = new Map<Uuid, Uuid>()
@@ -171,6 +185,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (wasReady && next !== 'ready') flushMarketSamples()
     status.value = next
     lastError.value = error
+    if (next === 'ready' && protocolUpdate.value === 'server_updating') protocolUpdate.value = null
     telemetry.connection(next)
     if (wasReady && next !== 'ready') {
       connectionTiming.socketLost()
@@ -196,6 +211,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     if (phase === 'started') connectionTiming.rotationStarted()
   })
   client.setMessageHandler(handleMessage)
+  client.setProtocolMismatchHandler(handleProtocolMismatch)
   client.setFrameObserver((kind, frameBytes, applyMs) => {
     framesReceived += 1
     clientWork.message(frameBytes, applyMs)
@@ -231,6 +247,25 @@ export const useGatewayStore = defineStore('gateway', () => {
       telemetry.sync(accounts.selectedAccountId, next, previous)
     },
   )
+
+  // Returns true to stop reconnecting.
+  function handleProtocolMismatch(mismatch: ProtocolMismatch): boolean {
+    const action = protocolMismatchAction(mismatch, browserReloadStampStorage(), Date.now())
+    logger.warn(
+      `Gateway speaks browser protocol ${mismatch.expected}, this page ${mismatch.actual}: ${action}`,
+    )
+    if (action === 'wait_for_server') {
+      protocolUpdate.value = 'server_updating'
+      return false
+    }
+    if (action === 'reload') {
+      protocolUpdate.value = 'reloading'
+      window.setTimeout(() => window.location.reload(), PROTOCOL_RELOAD_NOTICE_MS)
+      return true
+    }
+    protocolUpdate.value = 'reload_required'
+    return true
+  }
 
   function connect(): void {
     if (started) return
@@ -974,6 +1009,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     sessionValidUntil,
     pendingCommandCount,
     pendingHistoryCount,
+    protocolUpdate,
     isConnected,
     connect,
     disconnect,

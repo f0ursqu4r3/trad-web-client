@@ -2,6 +2,7 @@ import type { BrowserClientMessage, BrowserServerMessage } from './wire.ts'
 import { BROWSER_PROTOCOL_VERSION } from './wire.ts'
 import { parseServerMessage } from './serverMessage.ts'
 import { RetiringSockets } from './retiringSockets.ts'
+import { protocolMismatchFromClose, type ProtocolMismatch } from './protocolVersion.ts'
 
 import type {
   GatewayConnectionStatus,
@@ -49,6 +50,8 @@ export class GatewayWebSocketClient {
   private readyHandler:
     | ((sessionValidForMs: number, cause: 'initial' | 'lease_rotation') => void)
     | null = null
+  // Returns true to stop reconnecting (see protocolVersion.ts).
+  private protocolMismatchHandler: ((mismatch: ProtocolMismatch) => boolean) | null = null
   private leaseRotationHandler:
     | ((phase: 'started' | 'completed' | 'failed', outcomeCode: string) => void)
     | null = null
@@ -132,6 +135,10 @@ export class GatewayWebSocketClient {
     this.readyHandler = handler
   }
 
+  setProtocolMismatchHandler(handler: (mismatch: ProtocolMismatch) => boolean): void {
+    this.protocolMismatchHandler = handler
+  }
+
   setLeaseRotationHandler(
     handler: (phase: 'started' | 'completed' | 'failed', outcomeCode: string) => void,
   ): void {
@@ -195,11 +202,15 @@ export class GatewayWebSocketClient {
       this.clearPingTimer()
       this.clearLeaseRotationTimers()
       this.closeRotationSocket('active transport closed')
-      if (!this.stopped && !this.fatal) {
-        this.retry(
-          `gateway socket closed (code ${event.code}${event.reason ? `: ${event.reason}` : ''})`,
-        )
+      if (this.stopped || this.fatal) return
+      const reason = `gateway socket closed (code ${event.code}${event.reason ? `: ${event.reason}` : ''})`
+      const mismatch = protocolMismatchFromClose(event.code, event.reason)
+      if (mismatch !== null && this.protocolMismatchHandler?.(mismatch) === true) {
+        this.fatal = true
+        this.setStatus('error', reason)
+        return
       }
+      this.retry(reason)
     }
   }
 
@@ -214,6 +225,10 @@ export class GatewayWebSocketClient {
 
     if (message.kind === 'hello') {
       if (message.protocol_version !== BROWSER_PROTOCOL_VERSION) {
+        this.protocolMismatchHandler?.({
+          expected: message.protocol_version,
+          actual: BROWSER_PROTOCOL_VERSION,
+        })
         this.fail(
           `gateway protocol mismatch: server ${message.protocol_version}, client ${BROWSER_PROTOCOL_VERSION}`,
           4000,
