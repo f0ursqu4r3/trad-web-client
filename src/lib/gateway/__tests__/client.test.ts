@@ -121,6 +121,51 @@ test('planned lease rotation authenticates before switching and keeps late repli
   client.disconnect()
 })
 
+test('a replaced socket unsubscribes its streams, keeps replies, and closes on request', async () => {
+  const sockets: FakeSocket[] = []
+  const messages: string[] = []
+  const tickets = ['ticket-1', 'ticket-2']
+  let ticketRequests = 0
+  const client = clientWithSockets(sockets, async () => tickets[ticketRequests++] ?? null, {
+    leaseRenewalLeadMs: 25,
+    retiringSocketGraceMs: 60_000,
+  })
+  client.setMessageHandler((message) => messages.push(message.kind))
+  client.connect()
+  await settle()
+  const first = requiredSocket(sockets, 0)
+  first.open()
+  first.receive(hello(30))
+  await settle(10)
+  const replacement = requiredSocket(sockets, 1)
+  replacement.open()
+  replacement.receive(hello(10_000))
+
+  const sentBefore = first.sent.length
+  first.receive({ kind: 'account_delta', subscription_id: 'account-sub' })
+  first.receive({ kind: 'account_delta', subscription_id: 'account-sub' })
+  first.receive({ kind: 'market_samples', subscription_id: 'btc-sub' })
+  first.receive({ kind: 'market_window', subscription_id: 'eth-sub', request_id: 'late' })
+  first.receive({ kind: 'command_result', request_id: 'r1' })
+  assert.deepEqual(
+    first.sent.slice(sentBefore).map((raw) => JSON.parse(raw)),
+    [
+      { kind: 'unsubscribe_account', subscription_id: 'account-sub' },
+      { kind: 'unsubscribe_market', subscription_id: 'btc-sub' },
+      { kind: 'unsubscribe_market', subscription_id: 'eth-sub' },
+    ],
+  )
+  assert.deepEqual(messages, ['hello', 'command_result'])
+  assert.equal(first.closeCode, null)
+
+  client.closeRetiringSockets()
+  assert.equal(first.closeCode, 1000)
+  assert.equal(replacement.closeCode, null)
+  client.send({ kind: 'ping', nonce: 3 })
+  assert.equal(JSON.parse(replacement.sent.at(-1) ?? '').nonce, 3)
+  client.disconnect()
+})
+
 test('a failed planned renewal leaves the current ready socket usable', async () => {
   const sockets: FakeSocket[] = []
   let ticketRequests = 0

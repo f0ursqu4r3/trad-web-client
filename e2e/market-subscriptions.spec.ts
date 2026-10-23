@@ -136,3 +136,22 @@ test('a new page load subscribes the remembered card prices before its snapshot'
   for (const symbol of ['BTC', 'ETH', 'SOL']) expect(count(subscribed, symbol), symbol).toBe(1)
   expect(wire.unsubscribes.slice(unsubscribesBefore)).toEqual([])
 })
+
+test('a lease renewal closes the replaced socket instead of streaming on both', async ({
+  page,
+}) => {
+  // A 4 s lease renews about 1 s before it ends.
+  const wire = await openWorkspace(page, { leaseMs: 4_000 })
+  await expect(page.getByTestId('managed-trade-card')).toHaveCount(3)
+  await expect(card(page, 'ETH').locator('.metric-pnl')).toContainText('Gross open')
+  const opened = wire.socketsOpened
+  const closed = wire.socketsClosed
+  const accountSubscribes = wire.accountSubscribes
+  await expect.poll(() => wire.socketsOpened, { timeout: 10_000 }).toBe(opened + 1)
+  // Nothing was waiting for a reply on the old socket, so it closes at once
+  // rather than after the 35 s grace.
+  await expect.poll(() => wire.socketsClosed, { timeout: 2_000 }).toBe(closed + 1)
+  await expect.poll(() => wire.accountSubscribes).toBe(accountSubscribes + 1)
+  await expect(page.getByTestId('workspace-stale')).toHaveCount(0)
+  await expect(card(page, 'ETH').locator('.metric-pnl')).toContainText('Gross open')
+})

@@ -1,6 +1,7 @@
 import type { BrowserClientMessage, BrowserServerMessage } from './wire.ts'
 import { BROWSER_PROTOCOL_VERSION } from './wire.ts'
 import { parseServerMessage } from './serverMessage.ts'
+import { RetiringSockets } from './retiringSockets.ts'
 
 export type GatewayConnectionStatus =
   | 'idle'
@@ -58,7 +59,7 @@ export class GatewayWebSocketClient {
   // When the planned renewal is due. Background tabs can hold timers back
   // for a minute or more, so incoming frames and tab visibility also check it.
   private leaseRotationDueAt: number | null = null
-  private readonly retiringSockets = new Map<GatewaySocket, ReturnType<typeof setTimeout>>()
+  private readonly retiringSockets = new RetiringSockets()
 
   private messageHandler: ((message: BrowserServerMessage, frameBytes: number) => void) | null =
     null
@@ -95,11 +96,7 @@ export class GatewayWebSocketClient {
     this.clearPingTimer()
     this.clearLeaseRotationTimers()
     this.closeRotationSocket('client disconnect')
-    for (const [retiring, timer] of this.retiringSockets) {
-      clearTimeout(timer)
-      retiring.close(1000, 'client disconnect')
-    }
-    this.retiringSockets.clear()
+    this.closeRetiringSockets('client disconnect')
     const socket = this.socket
     this.socket = null
     if (socket !== null) {
@@ -116,6 +113,12 @@ export class GatewayWebSocketClient {
       throw new Error('gateway socket is not ready; message was not queued')
     }
     this.sendRaw(message)
+  }
+
+  // Closes the sockets a lease renewal replaced, once nothing sent on them is
+  // still waiting for a reply.
+  closeRetiringSockets(reason = 'lease rotated'): void {
+    this.retiringSockets.closeAll(reason)
   }
 
   // Starts a planned lease renewal whose timer is overdue. Safe to call often.
@@ -193,7 +196,7 @@ export class GatewayWebSocketClient {
     }
     socket.onmessage = (event) => {
       if (this.retiringSockets.has(socket)) {
-        this.receiveRetiring(event.data)
+        this.receiveRetiring(socket, event.data)
         return
       }
       if (!this.current(socket, serial)) return
@@ -204,7 +207,7 @@ export class GatewayWebSocketClient {
     }
     socket.onclose = (event) => {
       if (this.retiringSockets.has(socket)) {
-        this.forgetRetiringSocket(socket)
+        this.retiringSockets.forget(socket)
         return
       }
       if (!this.current(socket, serial)) return
@@ -405,34 +408,14 @@ export class GatewayWebSocketClient {
 
   private retireSocket(socket: GatewaySocket): void {
     const grace = this.options.retiringSocketGraceMs ?? DEFAULT_RETIRING_SOCKET_GRACE_MS
-    const timer = setTimeout(() => {
-      this.retiringSockets.delete(socket)
-      socket.close(1000, 'lease rotated')
-    }, grace)
-    this.retiringSockets.set(socket, timer)
+    this.retiringSockets.retire(socket, grace)
   }
 
-  private receiveRetiring(raw: unknown): void {
+  private receiveRetiring(socket: GatewaySocket, raw: unknown): void {
     const startedAt = performance.now()
     const message = parseServerMessage(raw)
     if (message === null) return
-    switch (message.kind) {
-      case 'command_result':
-      case 'command_preview_result':
-      case 'position_resolution_result':
-      case 'command_history_page':
-      case 'command_history_error':
-      case 'legacy_command_history_page':
-      case 'legacy_command_history_error':
-      case 'pong':
-        this.dispatch(message, raw, startedAt)
-    }
-  }
-
-  private forgetRetiringSocket(socket: GatewaySocket): void {
-    const timer = this.retiringSockets.get(socket)
-    if (timer !== undefined) clearTimeout(timer)
-    this.retiringSockets.delete(socket)
+    if (this.retiringSockets.receive(socket, message)) this.dispatch(message, raw, startedAt)
   }
 
   private fail(reason: string, closeCode: number): void {

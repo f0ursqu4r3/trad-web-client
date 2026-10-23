@@ -36,6 +36,9 @@ export interface WorkspaceWire {
   releaseSnapshots: () => void
   // Closes the page's socket from the server side.
   dropSocket: () => Promise<void>
+  // Sockets the page opened, and how many it has closed.
+  socketsOpened: number
+  socketsClosed: number
   // Live market subscriptions by symbol.
   markets: Map<string, { subscriptionId: string; sequence: number; price: number }>
   socket: () => WebSocketRoute | null
@@ -56,6 +59,9 @@ export interface WorkspaceOptions {
   editSnapshot?: (snapshot: Json) => void
   // Leaves this subscribe unanswered (attempt counts from 1 per symbol).
   holdMarket?: (symbol: string, attempt: number) => boolean
+  // Socket lease the hello grants (default one hour); the page renews it
+  // on a new socket shortly before it ends.
+  leaseMs?: number
 }
 
 const START_PRICES: Record<string, number> = { BTC: 64_000, ETH: 2_100, ZEC: 41.25, SOL: 144 }
@@ -127,6 +133,8 @@ export async function openWorkspace(
     async dropSocket() {
       await socket?.close({ code: 1011, reason: 'test drop' })
     },
+    socketsOpened: 0,
+    socketsClosed: 0,
     markets: new Map(),
     socket: () => socket,
     sendSamples(symbol, count = 1) {
@@ -255,6 +263,10 @@ export async function openWorkspace(
 
   await page.routeWebSocket('**/ws', (ws: WebSocketRoute) => {
     socket = ws
+    wire.socketsOpened += 1
+    ws.onClose(() => {
+      wire.socketsClosed += 1
+    })
     ws.onMessage(async (raw) => {
       const message = JSON.parse(String(raw))
       wire.clientLog.push(message.symbol ? `${message.kind}:${message.symbol}` : message.kind)
@@ -263,7 +275,7 @@ export async function openWorkspace(
           JSON.stringify({
             kind: 'hello',
             protocol_version: BROWSER_PROTOCOL_VERSION,
-            session_valid_for_ms: 3_600_000,
+            session_valid_for_ms: options.leaseMs ?? 3_600_000,
           }),
         )
       } else if (message.kind === 'subscribe_account') {

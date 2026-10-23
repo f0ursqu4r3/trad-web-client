@@ -142,6 +142,8 @@ export const useGatewayStore = defineStore('gateway', () => {
   // Counters the confirmation wait reads to tell a slow feed from a stuck one.
   let framesReceived = 0
   let accountDeltasApplied = 0
+  // Requests still waiting for a reply on a socket a lease renewal replaced.
+  const retiringRequests = new Set<Uuid>()
   const confirmations = new ProjectionConfirmations(
     {
       set: (callback, delayMs) => window.setTimeout(callback, delayMs),
@@ -181,6 +183,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   client.setReadyHandler((validForMs, cause) => {
     sessionValidUntil.value = Date.now() + validForMs
     connectionTiming.socketReady(cause)
+    if (cause === 'lease_rotation') retireReplacedSocket()
     resetSubscriptions()
     const preserveCurrentView = cause === 'lease_rotation'
     // Prices first: they never wait behind the account snapshot.
@@ -196,6 +199,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   client.setFrameObserver((_kind, frameBytes, applyMs) => {
     framesReceived += 1
     clientWork.message(frameBytes, applyMs)
+    if (retiringRequests.size > 0) closeSettledRetiringSocket()
   })
 
   // A background tab holds market samples instead of rendering each one; the
@@ -765,6 +769,41 @@ export const useGatewayStore = defineStore('gateway', () => {
       return
     }
     pending.reject(new Error(historyError(error, kind)))
+  }
+
+  // A lease renewal replaced the socket. Every request still pending was sent
+  // on the old one, which the gateway answers on; the old socket closes once
+  // they are settled (it unsubscribes its streams meanwhile, see
+  // lib/gateway/retiringSockets.ts).
+  function retireReplacedSocket(): void {
+    retiringRequests.clear()
+    for (const requestId of pendingRequestIds()) retiringRequests.add(requestId)
+    closeSettledRetiringSocket()
+  }
+
+  function closeSettledRetiringSocket(): void {
+    for (const requestId of retiringRequests) {
+      if (!requestPending(requestId)) retiringRequests.delete(requestId)
+    }
+    if (retiringRequests.size === 0) client.closeRetiringSockets()
+  }
+
+  function pendingRequestIds(): Uuid[] {
+    return [
+      ...pendingCommands.keys(),
+      ...pendingPreviews.keys(),
+      ...pendingHistories.keys(),
+      ...pendingPositionResolutions.keys(),
+    ]
+  }
+
+  function requestPending(requestId: Uuid): boolean {
+    return (
+      pendingCommands.has(requestId) ||
+      pendingPreviews.has(requestId) ||
+      pendingHistories.has(requestId) ||
+      pendingPositionResolutions.has(requestId)
+    )
   }
 
   // The last known trade list's card prices, before its snapshot arrives. A
