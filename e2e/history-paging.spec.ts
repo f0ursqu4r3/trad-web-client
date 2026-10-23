@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from './support/test'
 import type { BrowserAccountSnapshot } from '../src/lib/gateway/projection'
 import { tradeWorkspaceProjection } from '../src/lib/projection/tradeWorkspace'
 import { cardSummaryFields } from '../src/lib/projection/tradeSummaryShadow'
@@ -186,13 +187,18 @@ test('a rate-limited page waits out Retry-After and then loads', async ({ page }
 test('position inspector pages closed exposures from the server', async ({ page }) => {
   const history = await routeHistory(page)
   await page.route('**/auth/session', (route) => route.fulfill({ json: { authenticated: false } }))
-  await page.goto('/e2e/engine-projection')
+  // The snapshot lists one of ETH's four owned exposures.
+  await page.goto('/e2e/engine-projection?exposure_total=4')
   const fixture = page.getByTestId('engine-projection-fixture')
   await fixture.getByRole('button', { name: 'Inspect account positions' }).click()
   const inspector = page.getByTestId('account-position-inspector')
   const eth = inspector.locator('[data-symbol="ETH"]')
 
-  await eth.getByRole('button', { name: 'show closed' }).click()
+  // Coins whose snapshot lists every exposure offer nothing more.
+  await expect(
+    inspector.locator('[data-symbol="BTC"]').getByTestId('exposure-history'),
+  ).toHaveCount(0)
+  await eth.getByRole('button', { name: 'show closed (3)' }).click()
   const closed = eth.getByTestId('closed-exposure')
   await expect(closed).toHaveCount(2)
   await expect(eth.getByRole('button', { name: 'hide closed (3)' })).toBeVisible()

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './support/test'
 import type { BrowserAccountSnapshot } from '../src/lib/gateway/projection'
 import { tradeWorkspaceProjection } from '../src/lib/projection/tradeWorkspace'
 import { cardSummaryFields } from '../src/lib/projection/tradeSummaryShadow'

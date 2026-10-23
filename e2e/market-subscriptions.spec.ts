@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from './support/test'
 import { openWorkspace, WORKSPACE_ACCOUNT_ID } from './support/workspaceWire'
 
 // Card price subscriptions on a scripted gateway (networking work item 7):

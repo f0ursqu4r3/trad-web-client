@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './support/test'
 
 test('Bybit command and device filters are explicit, not selected-account scoped', async ({
   page,
@@ -325,7 +325,7 @@ test('Hyperliquid fee manager sees and saves target total cost clearly', async (
   await page.route('**/api/accounts/**/exchange-metadata', async (route) => {
     const request = route.request()
     if (request.method() !== 'PUT') {
-      await route.continue()
+      await route.fallback()
       return
     }
     metadataPayload = request.postDataJSON() as Record<string, unknown>
@@ -343,6 +343,11 @@ test('Hyperliquid fee manager sees and saves target total cost clearly', async (
       }),
     })
   })
+
+  // The account list refresh after a save is not under test: no backend.
+  await page.route('**/api/accounts', (route) =>
+    route.fulfill({ status: 404, json: { error: 'not mocked' } }),
+  )
 
   await page.goto('/e2e/bybit-terminal')
 

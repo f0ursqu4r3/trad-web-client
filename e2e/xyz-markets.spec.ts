@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from './support/test'
 import { openWorkspace, type Json } from './support/workspaceWire'
 
 // Hyperliquid HIP-3 "xyz" markets: Trad symbols are upper case (XYZ:GOLD),

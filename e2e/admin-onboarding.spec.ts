@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from './support/test'
 import { mockGateway } from './support/mockGateway'
 
 // Operator onboarding in Users & access against a mocked Gateway: invite,

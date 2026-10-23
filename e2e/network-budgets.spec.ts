@@ -1,4 +1,5 @@
-import { expect, test, type Page, type TestInfo } from '@playwright/test'
+import type { Page, TestInfo } from '@playwright/test'
+import { expect, test } from './support/test'
 import { appendFileSync } from 'node:fs'
 import { heavyAccountSnapshot, syntheticFill } from './support/heavyAccount'
 import { openWorkspace, type Json, type WorkspaceWire } from './support/workspaceWire'
