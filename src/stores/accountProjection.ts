@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, markRaw, ref } from 'vue'
 import { defineStore } from 'pinia'
 
 import type {
@@ -70,10 +70,11 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
   ): boolean {
     const entry = ensure(accountId)
     try {
-      entry.view =
+      entry.view = rawView(
         preserveMonotonicRevision && entry.view !== null
           ? installHandoffSnapshot(entry.view, snapshot)
-          : installSnapshot(snapshot)
+          : installSnapshot(snapshot),
+      )
     } catch (error) {
       if (error instanceof ProjectionStateError && error.code === 'stale_snapshot') return false
       throw error
@@ -96,7 +97,7 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
       )
     }
     try {
-      entry.view = applyDelta(entry.view, delta)
+      entry.view = rawView(applyDelta(entry.view, delta))
       entry.status = 'ready'
       entry.error = null
       entry.failure = null
@@ -114,7 +115,7 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
         'cannot install history before the live account snapshot',
       )
     }
-    entry.view = mergeHistoryPage(entry.view, page)
+    entry.view = rawView(mergeHistoryPage(entry.view, page))
   }
 
   function mergeLegacyHistory(accountId: Uuid, page: LegacyCommandPage): void {
@@ -125,7 +126,7 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
         'cannot install imported history before the live account snapshot',
       )
     }
-    entry.view = mergeLegacyHistoryPage(entry.view, page)
+    entry.view = rawView(mergeLegacyHistoryPage(entry.view, page))
   }
 
   function fail(
@@ -201,6 +202,15 @@ export const useAccountProjectionStore = defineStore('accountProjection', () => 
     reset,
   }
 })
+
+// A projection view is immutable: every snapshot, delta and history page
+// produces a new view object (unchanged collections keep their identity), and
+// readers re-run when `entry.view` is replaced. Keeping the view out of deep
+// reactivity saves proxying and dependency tracking on every row of a large
+// account, which dominated main-thread time on phones.
+function rawView(view: AccountProjectionView): AccountProjectionView {
+  return markRaw(view)
+}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
