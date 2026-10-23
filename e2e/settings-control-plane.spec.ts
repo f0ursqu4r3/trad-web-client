@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test'
 
+// Every test here signs in through the Gateway's /auth/test-login, so the
+// spec needs a live local Gateway built with test auth behind the Vite dev
+// proxy. Run it with TRAD_GATEWAY_SETTINGS_E2E=1; without the flag the whole
+// file is skipped.
+test.skip(
+  process.env.TRAD_GATEWAY_SETTINGS_E2E !== '1',
+  'requires a local test-auth Gateway (set TRAD_GATEWAY_SETTINGS_E2E=1)',
+)
+
 test('legacy authorization route redirects to detached connection maintenance', async ({
   page,
 }) => {
