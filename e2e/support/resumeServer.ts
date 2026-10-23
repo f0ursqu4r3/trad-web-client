@@ -125,7 +125,7 @@ export function resumeReply(server: ResumeServer, subscribe: Json, subscriptionI
   }
 }
 
-function merged(snapshot: Json, delta: Json): Json {
+export function merged(snapshot: Json, delta: Json): Json {
   const next = { ...snapshot, checkpoint: delta.checkpoint }
   for (const [field, identity] of Object.entries(IDENTITIES)) {
     const incoming = delta[field] as Json[] | undefined
