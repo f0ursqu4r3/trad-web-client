@@ -20,12 +20,14 @@ import {
   ENGINE_SUBSCRIPTION_ID,
   engineProjectionSnapshot,
 } from './engineProjectionFixtureData'
+import { installProjectionProbe } from './projectionProbe'
 
 const accounts = useAccountsStore()
 const projections = useAccountProjectionStore()
 const gateway = useGatewayStore()
 const markets = useMarketStore()
 const marketWire = new URLSearchParams(location.search).has('market_wire')
+installProjectionProbe(projections)
 const telemetry = new GatewayTelemetryObserver()
 const requestedAccountId = new URLSearchParams(location.search).get('account_id')
 const fixtureAccountId =

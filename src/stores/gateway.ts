@@ -525,6 +525,9 @@ export const useGatewayStore = defineStore('gateway', () => {
       case 'account_snapshot':
         handleSnapshot(message, frameBytes)
         return
+      case 'account_resumed':
+        handleResumed(message, frameBytes)
+        return
       case 'account_delta':
         handleDelta(message)
         return
@@ -614,6 +617,7 @@ export const useGatewayStore = defineStore('gateway', () => {
         message.cause,
         message.snapshot,
         request?.preserveCurrentView ?? false,
+        message.stream_id ?? null,
       )
     ) {
       subscriptionAccounts.delete(message.subscription_id)
@@ -629,6 +633,42 @@ export const useGatewayStore = defineStore('gateway', () => {
       message.snapshot.commands,
       message.snapshot.checkpoint.projection_revision,
     )
+  }
+
+  // A resumed subscription: only the deltas missed while away, applied all
+  // at once. Anything off asks for a snapshot instead (the store forgets the
+  // stream, so the next subscribe does not resume).
+  function handleResumed(
+    message: Extract<BrowserServerMessage, { kind: 'account_resumed' }>,
+    frameBytes: number,
+  ): void {
+    const request = subscriptionRequests.get(message.request_id)
+    subscriptionRequests.delete(message.request_id)
+    const accountId = message.route.account_id
+    if (request === undefined || request.accountId !== accountId) {
+      send({ kind: 'unsubscribe_account', subscription_id: message.subscription_id })
+      return
+    }
+    subscriptionAccounts.set(message.subscription_id, accountId)
+    if (accounts.selectedAccountId !== accountId) {
+      send({ kind: 'unsubscribe_account', subscription_id: message.subscription_id })
+      return
+    }
+    selectedSubscriptionId = message.subscription_id
+    if (
+      !projections.resume(accountId, message.subscription_id, message.stream_id, message.deltas)
+    ) {
+      logger.warn('Resume did not apply; requesting a fresh snapshot')
+      resubscribe(accountId, message.subscription_id)
+      return
+    }
+    clearSubscriptionRetry(accountId)
+    accountDeltasApplied += message.deltas.length
+    connectionTiming.snapshotApplied(accountId, frameBytes)
+    releaseCardMarketsAfterRender(accountId)
+    for (const delta of message.deltas) {
+      telemetry.terminalCommands(delta.commands, delta.checkpoint.projection_revision)
+    }
   }
 
   function handleDelta(message: Extract<BrowserServerMessage, { kind: 'account_delta' }>): void {
@@ -893,8 +933,15 @@ export const useGatewayStore = defineStore('gateway', () => {
       accountId,
       preserveCurrentView: !markSubscribing,
     })
+    // a consistent copy resumes with the deltas it missed
+    const resume = projections.resumePoint(accountId)
     if (markSubscribing) projections.beginSubscription(accountId)
-    send({ kind: 'subscribe_account', request_id: requestId, account_id: accountId })
+    send({
+      kind: 'subscribe_account',
+      request_id: requestId,
+      account_id: accountId,
+      ...(resume === null ? {} : { resume_from_revision: resume }),
+    })
   }
 
   function resubscribe(accountId: Uuid, subscriptionId: Uuid): void {
