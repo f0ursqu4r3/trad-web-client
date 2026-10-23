@@ -160,6 +160,9 @@ router.beforeEach(async (to) => {
   if (to.meta.requiresEntitlement && authed) {
     const userStore = useUserStore()
     if (!userStore.lastFetchedAt) await userStore.fetchMe()
+    if (userStore.identityRefusal) {
+      return { path: '/login', query: { reason: userStore.identityRefusal } }
+    }
     if (userStore.entitled === false) {
       return { path: '/subscriptions', query: { redirect: to.fullPath } }
     }
@@ -168,10 +171,13 @@ router.beforeEach(async (to) => {
   if (to.meta.requiresAdmin && authed) {
     const userStore = useUserStore()
     if (!userStore.lastFetchedAt) await userStore.fetchMe()
+    if (userStore.identityRefusal) {
+      return { path: '/login', query: { reason: userStore.identityRefusal } }
+    }
     if (!userStore.isAdmin) return { path: '/settings/profile' }
   }
 
-  if (to.path === '/login' && authed) {
+  if (to.path === '/login' && authed && !useUserStore().identityRefusal) {
     return { path: '/terminal' }
   }
   return true

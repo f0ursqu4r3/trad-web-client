@@ -8,6 +8,11 @@ import { normalizeTheme, useUiStore } from '@/stores/ui'
 import { type AccountRecord, useAccountsStore } from '@/stores/accounts'
 import { normalizeProfileIcon, type ProfileIconKey } from '@/lib/profileIcons'
 import { normalizeProfileImage } from '@/lib/profileImages'
+import {
+  identityRefusalCode,
+  refusedLoginPath,
+  type IdentityRefusalCode,
+} from '@/lib/identityRefusal'
 
 export interface ClientProfile {
   display_name?: string | null
@@ -25,7 +30,8 @@ export interface UserMeta {
 }
 
 export const useUserStore = defineStore('user', () => {
-  const { isAuthenticated } = useAuth()
+  const auth = useAuth()
+  const { isAuthenticated } = auth
 
   const email = ref<string | null>(null)
   const userId = ref<string | null>(null)
@@ -38,6 +44,9 @@ export const useUserStore = defineStore('user', () => {
   const enabled = ref(true)
   const role = ref<'user' | 'admin' | 'super_admin'>('user')
   const capabilities = ref<string[]>([])
+  // Set when the Gateway refuses this login (403 not_invited and the like):
+  // the session is dropped once and /login explains why. Never retried.
+  const identityRefusal = ref<IdentityRefusalCode | null>(null)
   let fetchInFlight: Promise<void> | null = null
 
   const displayName = computed(
@@ -116,9 +125,12 @@ export const useUserStore = defineStore('user', () => {
           !('user_id' in data)
         ) {
           error.value = (data as { error: string }).error
-          if ('code' in data && (data as { code?: string }).code === 'subscription_required') {
+          const code = 'code' in data ? (data as { code?: string }).code : undefined
+          if (code === 'subscription_required') {
             entitled.value = false
           }
+          const refusal = identityRefusalCode(code)
+          if (refusal !== null) await endRefusedSession(refusal)
           email.value = null
           userId.value = null
           profile.value = { display_name: null, meta: { preferences: {} } }
@@ -179,7 +191,15 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  async function endRefusedSession(refusal: IdentityRefusalCode) {
+    if (identityRefusal.value !== null) return
+    identityRefusal.value = refusal
+    clearSessionUserId()
+    await auth.logout({ returnTo: refusedLoginPath(refusal) })
+  }
+
   function fetchMe(): Promise<void> {
+    if (identityRefusal.value !== null) return Promise.resolve()
     if (fetchInFlight) return fetchInFlight
     const request = fetchMeRequest()
     fetchInFlight = request
@@ -244,6 +264,7 @@ export const useUserStore = defineStore('user', () => {
     enabled,
     role,
     capabilities,
+    identityRefusal,
     // getters
     displayName,
     isAdmin,

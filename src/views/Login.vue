@@ -3,14 +3,16 @@
 import { computed, onMounted, ref } from 'vue'
 import { useAuth } from '@/lib/auth'
 import { useUiStore } from '@/stores/ui'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Sun, Moon } from 'lucide-vue-next'
 import { resolveEnvironmentBranding } from '@/lib/environmentBranding'
+import { identityRefusalCode, identityRefusalMessage } from '@/lib/identityRefusal'
 
 import WsIndicator from '@/components/general/WsIndicator.vue'
 
 const ui = useUiStore()
 const router = useRouter()
+const route = useRoute()
 const brandIconPath = resolveEnvironmentBranding(window.location.hostname).appIconPath
 
 const { login, logout, isAuthenticated, error: authError, user } = useAuth()
@@ -23,6 +25,12 @@ const themeToggleLabel = computed(() => {
 })
 
 const showDebug = ref(false)
+
+// The Gateway refused this login (no session was created).
+const refusalMessage = computed(() => {
+  const code = identityRefusalCode(route.query.reason)
+  return code ? identityRefusalMessage(code) : null
+})
 
 const userLabel = computed(() => {
   const u = user?.value ?? {}
@@ -79,6 +87,15 @@ onMounted(() => {
         <p class="muted">Access your trading workspace with your account.</p>
 
         <div class="section-divider" />
+
+        <p
+          v-if="refusalMessage"
+          class="login-refusal mb-4"
+          role="status"
+          data-testid="login-refusal"
+        >
+          {{ refusalMessage }}
+        </p>
 
         <p v-if="authError" class="notice-err mb-4">
           {{ authError.message || 'Authentication failed. Please try again.' }}
@@ -166,6 +183,16 @@ onMounted(() => {
 .login-card {
   width: 100%;
   max-width: 560px;
+}
+
+.login-refusal {
+  padding: 0.6rem 0.75rem;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  background: color-mix(in srgb, var(--state-info) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--state-info) 55%, transparent);
+  border-radius: 4px;
 }
 
 /* simple fade for debug */
