@@ -9,6 +9,7 @@ import ExecutionTreeView, {
 import type { BrowserAccountSnapshot } from '@/lib/gateway'
 import { terminalCommandTree, type TerminalTreeNode } from '@/lib/projection/terminalPresentation'
 import type { ManagedTradeView } from '@/lib/projection/tradeWorkspace'
+import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useProjectionUiStore } from '@/stores/projectionUi'
 import ManagedTradeChart from './ManagedTradeChart.vue'
 import TradeHistoryPanel from './TradeHistoryPanel.vue'
@@ -22,6 +23,11 @@ const props = defineProps<{
 }>()
 
 const ui = useProjectionUiStore()
+const projections = useAccountProjectionStore()
+// The server's summary (slice S2), when the gateway sends them.
+const summary = computed(
+  () => projections.selected?.view?.summaries?.get(props.trade.scopeId) ?? null,
+)
 const activeTab = defineModel<ExpansionTab>('activeTab', { default: 'orders' })
 const tabs: ExpansionTab[] = ['orders', 'chart', 'devices', 'sequence', 'history']
 const tree = computed(() =>
@@ -135,7 +141,7 @@ function graphStatus(value: string): string {
       />
       <p v-else class="empty-copy">No execution sequence is available.</p>
     </div>
-    <TradeHistoryPanel v-else :trade="trade" />
+    <TradeHistoryPanel v-else :trade="trade" :summary="summary" />
   </div>
 </template>
 

@@ -47,7 +47,7 @@ export function memoryHistoryCache(limit = HISTORY_CACHE_PAGES): HistoryPageCach
     },
     remove: async (key) => void pages.delete(key),
     dropPrefix: async (prefix) => {
-      for (const key of [...pages.keys()]) if (key.startsWith(prefix)) pages.delete(key)
+      for (const key of pages.keys()) if (key.startsWith(prefix)) pages.delete(key)
     },
     clear: async () => pages.clear(),
   }
