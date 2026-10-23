@@ -23,6 +23,7 @@ export interface ExchangeAccountMetadataLike {
   builder_approval_verified_at_ms?: number | null
   agent_approved?: boolean | null
   agent_approval_verified_at_ms?: number | null
+  agent_valid_until_ms?: number | null
   default_leverage?: number | null
   symbol_leverage_overrides?: Record<string, number> | null
   entry_market_guard_tenths_bps?: number | null

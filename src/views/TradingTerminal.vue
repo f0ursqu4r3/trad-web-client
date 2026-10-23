@@ -8,6 +8,7 @@ import OrdersColumn from '@/components/terminal/layout/OrdersColumn.vue'
 import EngineWorkspace from '@/components/engine/EngineWorkspace.vue'
 import EngineCommandPalette from '@/components/engine/commands/EngineCommandPalette.vue'
 import TerminalAccountEmptyState from '@/components/terminal/TerminalAccountEmptyState.vue'
+import AgentExpiryNotice from '@/components/general/AgentExpiryNotice.vue'
 import TradeWorkspace, { type TraderWorkspaceSection } from '@/components/trader/TradeWorkspace.vue'
 import { useAccountsStore } from '@/stores/accounts'
 import { openCommandPalette } from '@/lib/engineCommands/palette'
@@ -99,6 +100,7 @@ onMounted(async () => {
       </div>
       <EngineCommandPalette />
     </nav>
+    <AgentExpiryNotice :accounts="accounts.accounts" />
 
     <TradeWorkspace
       v-if="surface === 'workspace'"

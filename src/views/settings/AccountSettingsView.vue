@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { ArrowLeft } from 'lucide-vue-next'
 import AccountsListPanel from '@/components/terminal/panels/AccountsListPanel.vue'
 import ControlPageHeader from '@/components/control/ControlPageHeader.vue'
+import AgentExpiryNotice from '@/components/general/AgentExpiryNotice.vue'
 import {
   accountMetadataStatus,
   isBybitMetadataVerified,
@@ -87,6 +88,7 @@ watch(section, (next, previous) => {
     />
 
     <template v-if="account">
+      <AgentExpiryNotice :accounts="[account]" class="account-agent-expiry" />
       <nav class="account-tabs" aria-label="Account management">
         <RouterLink
           v-for="tab in tabs"
@@ -167,6 +169,9 @@ watch(section, (next, previous) => {
 }
 .account-back-link:hover {
   color: var(--fg-strong);
+}
+.account-agent-expiry {
+  margin-bottom: 0.9rem;
 }
 .account-tabs {
   display: flex;

@@ -46,6 +46,10 @@ const submissionEvidence = computed(() =>
   }),
 )
 
+// `agent_valid_for_ms=<ms>` puts the agent wallet's expiry that far from now.
+const agentValidFor = new URLSearchParams(location.search).get('agent_valid_for_ms')
+const agentValidUntilMs = agentValidFor === null ? null : Date.now() + Number(agentValidFor)
+
 accounts.accountsRaw = [
   {
     id: fixtureAccountId,
@@ -59,6 +63,7 @@ accounts.accountsRaw = [
       user_address: '0x7d6cabebf3ab638ee10e0eaabe671bfcfb8336dc3',
       agent_address: '0xagent',
       agent_approved: true,
+      agent_valid_until_ms: agentValidUntilMs,
       builder_address: '0x9585dc2df331106464f56e73d57cecda7d226510',
       builder_approved: true,
       builder_target_total_tenths_bps: 52,
