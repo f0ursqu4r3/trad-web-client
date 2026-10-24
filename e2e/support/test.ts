@@ -9,7 +9,8 @@ import { expect, test as base, type Page } from '@playwright/test'
 // - the requests every page makes in the background: telemetry off (204),
 //   Trad's market catalog unavailable (503, so the app uses Hyperliquid's
 //   meta) and no profile (404, the fixtures set the user themselves);
-// - the history routes (slice S3): empty pages.
+// - the history routes (slice S3): empty pages, on /api and on a cell
+//   edge's /ws/<cell>/api.
 //
 // The gated real-Mainnet spec talks to a real terminal and does not use it.
 
@@ -34,8 +35,9 @@ const EMPTY_EVIDENCE = {
   next: null,
 }
 
+// Today's /api, and a cell edge's history pages (/ws/<cell>/api/...).
 function isApi(url: URL): boolean {
-  return url.pathname === '/api' || url.pathname.startsWith('/api/')
+  return /^(\/ws\/[^/]+)?\/api(\/|$)/.test(url.pathname)
 }
 
 export async function installHermeticApi(page: Page): Promise<HermeticApi> {
@@ -59,21 +61,26 @@ export async function installHermeticApi(page: Page): Promise<HermeticApi> {
   await page.route(path(/^\/api\/me$/), (route) =>
     route.fulfill({ status: 404, json: { error: 'no profile in e2e' } }),
   )
-  await page.route(path(/^\/api\/accounts\/[^/]+\/trades$/), (route) =>
+  await page.route(path(/^(\/ws\/[^/]+)?\/api\/accounts\/[^/]+\/trades$/), (route) =>
     route.fulfill({ json: { trades: [], next: null } }),
   )
-  await page.route(path(/^\/api\/accounts\/[^/]+\/trades\/[^/]+\/fills$/), (route) =>
+  await page.route(path(/^(\/ws\/[^/]+)?\/api\/accounts\/[^/]+\/trades\/[^/]+\/fills$/), (route) =>
     route.fulfill({
       json: { trade_id: tradeIdOf(route.request().url()), fills: [], next: null },
     }),
   )
-  await page.route(path(/^\/api\/accounts\/[^/]+\/trades\/[^/]+\/evidence$/), (route) =>
-    route.fulfill({ json: { trade_id: tradeIdOf(route.request().url()), ...EMPTY_EVIDENCE } }),
+  await page.route(
+    path(/^(\/ws\/[^/]+)?\/api\/accounts\/[^/]+\/trades\/[^/]+\/evidence$/),
+    (route) =>
+      route.fulfill({ json: { trade_id: tradeIdOf(route.request().url()), ...EMPTY_EVIDENCE } }),
   )
-  await page.route(path(/^\/api\/accounts\/[^/]+\/positions\/[^/]+\/exposures$/), (route) => {
-    const symbol = decodeURIComponent(new URL(route.request().url()).pathname.split('/').at(-2)!)
-    return route.fulfill({ json: { symbol, total: 0, exposures: [], next: null } })
-  })
+  await page.route(
+    path(/^(\/ws\/[^/]+)?\/api\/accounts\/[^/]+\/positions\/[^/]+\/exposures$/),
+    (route) => {
+      const symbol = decodeURIComponent(new URL(route.request().url()).pathname.split('/').at(-2)!)
+      return route.fulfill({ json: { symbol, total: 0, exposures: [], next: null } })
+    },
+  )
   return api
 }
 
