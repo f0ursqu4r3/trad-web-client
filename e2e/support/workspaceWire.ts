@@ -59,8 +59,9 @@ export interface WorkspaceWire {
   releaseSnapshots: () => void
   // Closes the page's socket from the server side.
   dropSocket: () => Promise<void>
-  // Sockets the page opened, and how many it has closed.
+  // Sockets the page opened (and their URLs), and how many it has closed.
   socketsOpened: number
+  socketUrls: string[]
   socketsClosed: number
   received: ReceivedTraffic
   // Telemetry events the page posted (with `telemetry: true`).
@@ -114,6 +115,9 @@ export interface WorkspaceOptions {
   // Protocol 17 (compactWire.ts): large messages in parts, deltas as patches.
   parts?: PartOptions
   patches?: boolean
+  // The /auth/ws-ticket answer (default: a token and no ws_url, as an
+  // older gateway sends); a cell user's has ws_url "/ws/<cell>".
+  ticket?: Json
 }
 
 const START_PRICES: Record<string, number> = { BTC: 64_000, ETH: 2_100, ZEC: 41.25, SOL: 144 }
@@ -204,6 +208,7 @@ export async function openWorkspace(
       await socket?.close({ code: 1011, reason: 'test drop' })
     },
     socketsOpened: 0,
+    socketUrls: [],
     socketsClosed: 0,
     received: {},
     telemetry: [],
@@ -298,7 +303,7 @@ export async function openWorkspace(
     }),
   )
   await page.route('**/auth/ws-ticket', (route) =>
-    route.fulfill({ json: { token: 'fixture-ticket', expires_in: 60 } }),
+    route.fulfill({ json: options.ticket ?? { token: 'fixture-ticket', expires_in: 60 } }),
   )
   await page.route('**/api/telemetry**', (route) => {
     if (!options.telemetry) return route.fulfill({ status: 204, body: '' })
@@ -459,13 +464,17 @@ export async function openWorkspace(
     await page.addInitScript((url) => {
       window.WebSocket = new Proxy(window.WebSocket, {
         construct(target, args: [string | URL, ...unknown[]]) {
-          if (String(args[0]).endsWith('/ws')) args[0] = url
+          if (/\/ws(\/[^/]+)?$/.test(String(args[0]))) args[0] = url
           return Reflect.construct(target, args)
         },
       })
     }, server.url)
   } else {
-    await page.routeWebSocket('**/ws', (ws: WebSocketRoute) => serveSocket(ws))
+    // today's /ws and a cell edge's /ws/<cell>
+    await page.routeWebSocket(/\/ws(\/[^/]+)?$/, (ws: WebSocketRoute) => {
+      wire.socketUrls.push(ws.url())
+      serveSocket(ws)
+    })
   }
   await page.goto(options.path ?? '/e2e/trader-workspace?market_wire=1')
   return wire

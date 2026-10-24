@@ -1,4 +1,5 @@
 import { noHistoryCache, type HistoryPageCache } from './historyCache.ts'
+import type { HistoryRoute } from './socketTicket.ts'
 import {
   closedTradesRequest,
   decodeClosedTradesPage,
@@ -21,7 +22,9 @@ import {
 // History over HTTP (slice S3): GETs with the session cookie, revalidated
 // against the ETag cache (a 304 serves the cached page), and backed off by
 // Retry-After on 429 and 503. The rate limit is per user, so one wait holds
-// every request this client sends. Requests never go on the socket.
+// every request this client sends. Requests never go on the socket. A user
+// with a cell reads their cell's edge instead, with the history pass from
+// the socket ticket (`route`); a refused pass asks for a new ticket once.
 
 export type HistoryErrorCode =
   | 'invalid_cursor'
@@ -63,6 +66,10 @@ export interface HistoryLoadOptions {
 
 export interface HistoryClientOptions {
   baseUrl: string
+  // The cell's history base and pass, when the user has a cell.
+  route?: () => HistoryRoute | null
+  // Fetches a new ticket (and with it a new pass).
+  renewRoute?: () => Promise<void>
   fetch?: typeof fetch
   cache?: HistoryPageCache
   now?: () => number
@@ -77,6 +84,8 @@ const BACKOFF_CODES = new Set([429, 503])
 
 export class HistoryClient {
   private readonly baseUrl: string
+  private readonly route: () => HistoryRoute | null
+  private readonly renewRoute: (() => Promise<void>) | null
   private readonly fetcher: typeof fetch
   private readonly cache: HistoryPageCache
   private readonly now: () => number
@@ -86,6 +95,8 @@ export class HistoryClient {
 
   constructor(options: HistoryClientOptions) {
     this.baseUrl = options.baseUrl
+    this.route = options.route ?? (() => null)
+    this.renewRoute = options.renewRoute ?? null
     this.fetcher = options.fetch ?? ((input, init) => globalThis.fetch(input, init))
     this.cache = options.cache ?? noHistoryCache
     this.now = options.now ?? (() => Date.now())
@@ -156,10 +167,19 @@ export class HistoryClient {
   ): Promise<T> {
     const key = historyCacheKey(request)
     let revalidate = true
+    let renewed = false
     for (let attempt = 1; ; attempt += 1) {
       await this.waitForGate(options)
       const cached = revalidate ? await this.cache.get(key) : null
-      const response = await this.send(request, cached?.etag ?? null, options.signal)
+      const route = this.route()
+      const response = await this.send(request, route, cached?.etag ?? null, options.signal)
+
+      // an expired pass: one new ticket, then the same request again
+      if (response.status === 401 && route !== null && !renewed && this.renewRoute !== null) {
+        renewed = true
+        await this.renewRoute()
+        continue
+      }
 
       if (response.status === 304) {
         const page = cached === null ? null : decode(cached.body)
@@ -214,13 +234,15 @@ export class HistoryClient {
 
   private async send(
     request: HistoryRequest,
+    route: HistoryRoute | null,
     etag: string | null,
     signal: AbortSignal | undefined,
   ): Promise<Response> {
     const headers: Record<string, string> = { Accept: 'application/json' }
     if (etag !== null) headers['If-None-Match'] = etag
+    if (route !== null) headers.Authorization = `Bearer ${route.bearer}`
     try {
-      return await this.fetcher(historyUrl(this.baseUrl, request), {
+      return await this.fetcher(historyUrl(route?.baseUrl ?? this.baseUrl, request), {
         method: 'GET',
         credentials: 'include',
         // Our own ETag cache revalidates; the HTTP cache would hide the 304.

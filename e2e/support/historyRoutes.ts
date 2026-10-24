@@ -10,6 +10,8 @@ type Json = Record<string, any>
 export interface HistoryCall {
   url: URL
   ifNoneMatch: string | null
+  // A cell user's history pass (bearer); null with the session cookie.
+  authorization: string | null
 }
 
 export interface HistoryRoutes {
@@ -195,7 +197,11 @@ export async function routeHistory(page: Page): Promise<HistoryRoutes> {
     return async (route: Route, request: Request) => {
       const url = new URL(request.url())
       const calls = routes[name as 'trades']
-      calls.push({ url, ifNoneMatch: request.headers()['if-none-match'] ?? null })
+      calls.push({
+        url,
+        ifNoneMatch: request.headers()['if-none-match'] ?? null,
+        authorization: request.headers()['authorization'] ?? null,
+      })
       const seconds = limited[name]!.shift()
       if (seconds !== undefined) {
         await route.fulfill({

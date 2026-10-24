@@ -25,15 +25,17 @@ export default defineConfig({
     },
     // Phone profiles for the network budgets (e2e/network-budgets.spec.ts),
     // history paging (e2e/history-paging.spec.ts), account resume
-    // (e2e/account-resume.spec.ts) and protocol 17 frames
-    // (e2e/compact-protocol.spec.ts).
+    // (e2e/account-resume.spec.ts), protocol 17 frames
+    // (e2e/compact-protocol.spec.ts) and cell edge sockets
+    // (e2e/edge-socket.spec.ts).
     // Playwright can throttle the CPU only in Chromium (CDP), so phone compute
     // is measured on Chromium at 4x with a phone viewport and touch, and
     // WebKit on an iPhone profile runs unthrottled for Safari-engine
     // correctness.
     {
       name: 'phone-chromium-4x',
-      testMatch: /(network-budgets|history-paging|account-resume|compact-protocol)\.spec\.ts/,
+      testMatch:
+        /(network-budgets|history-paging|account-resume|compact-protocol|edge-socket)\.spec\.ts/,
       metadata: { cpuThrottle: 4 },
       use: {
         ...devices['Pixel 7'],
@@ -42,7 +44,8 @@ export default defineConfig({
     },
     {
       name: 'phone-webkit',
-      testMatch: /(network-budgets|history-paging|account-resume|compact-protocol)\.spec\.ts/,
+      testMatch:
+        /(network-budgets|history-paging|account-resume|compact-protocol|edge-socket)\.spec\.ts/,
       use: { ...devices['iPhone 14'] },
     },
   ],

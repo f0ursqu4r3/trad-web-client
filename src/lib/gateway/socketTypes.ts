@@ -1,6 +1,7 @@
 // The gateway client's socket, option and handler shapes (client.ts).
 
 import type { AbandonedTransfer } from './messageParts.ts'
+import type { SocketTicket } from './socketTicket.ts'
 import type { BrowserServerMessage } from './wire.ts'
 
 export type GatewayConnectionStatus =
@@ -23,9 +24,11 @@ export interface GatewaySocket {
 }
 
 export interface GatewayWebSocketClientOptions {
+  // The socket URL when a ticket names no path (today's "/ws").
   url: string
-  // The signal aborts the request when the client halts.
-  getTicket: (signal?: AbortSignal) => Promise<string | null>
+  // The signal aborts the request when the client halts. A SocketTicket's
+  // `wsUrl` ("/ws/<cell>") is opened on the host of `url`.
+  getTicket: (signal?: AbortSignal) => Promise<string | SocketTicket | null>
   reconnectDelayMs?: number
   maxReconnectDelayMs?: number
   pingIntervalMs?: number

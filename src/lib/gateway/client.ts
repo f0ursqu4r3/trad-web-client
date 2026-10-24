@@ -3,6 +3,7 @@ import { BROWSER_PROTOCOL_VERSION } from './wire.ts'
 import { parseServerMessage } from './serverMessage.ts'
 import { SocketFrames } from './messageParts.ts'
 import { TicketRequests } from './ticketRequests.ts'
+import type { IssuedTicket } from './socketTicket.ts'
 import { RetiringSockets } from './retiringSockets.ts'
 import { protocolMismatchFromClose, type ProtocolMismatch } from './protocolVersion.ts'
 
@@ -166,25 +167,25 @@ export class GatewayWebSocketClient {
     const serial = ++this.connectionSerial
     this.setStatus(reconnecting ? 'reconnecting' : 'connecting', null)
 
-    let ticket: string | null
+    let ticket: IssuedTicket | null
     try {
-      ticket = await this.tickets.request(this.options.getTicket)
+      ticket = await this.tickets.request(this.options.getTicket, this.options.url)
     } catch (error) {
       if (serial !== this.connectionSerial || this.stopped) return
       this.retry(`failed to acquire WebSocket ticket: ${errorMessage(error)}`)
       return
     }
     if (serial !== this.connectionSerial || this.stopped) return
-    if (ticket === null || ticket.length === 0) {
+    if (ticket === null) {
       this.retry('failed to acquire WebSocket ticket')
       return
     }
 
     const createSocket = this.options.createSocket ?? ((url) => new WebSocket(url))
-    const socket = createSocket(this.options.url)
+    const socket = createSocket(ticket.url)
     socket.binaryType = 'arraybuffer'
     this.socket = socket
-    this.bindSocket(socket, serial, ticket)
+    this.bindSocket(socket, serial, ticket.token)
   }
 
   private bindSocket(socket: GatewaySocket, serial: number, ticket: string): void {
@@ -312,9 +313,9 @@ export class GatewayWebSocketClient {
     }
     this.leaseRotationHandler?.('started', 'planned_renewal')
     const serial = this.connectionSerial
-    let ticket: string | null
+    let ticket: IssuedTicket | null
     try {
-      ticket = await this.tickets.request(this.options.getTicket)
+      ticket = await this.tickets.request(this.options.getTicket, this.options.url)
     } catch (error) {
       if (serial === this.connectionSerial && !this.stopped) {
         this.deferLeaseRotation(
@@ -325,15 +326,15 @@ export class GatewayWebSocketClient {
       return
     }
     if (serial !== this.connectionSerial || this.stopped || this.status !== 'ready') return
-    if (ticket === null || ticket.length === 0) {
+    if (ticket === null) {
       this.deferLeaseRotation('failed to acquire renewal ticket', 'ticket_failed')
       return
     }
     const createSocket = this.options.createSocket ?? ((url) => new WebSocket(url))
-    const socket = createSocket(this.options.url)
+    const socket = createSocket(ticket.url)
     socket.binaryType = 'arraybuffer'
     this.rotationSocket = socket
-    this.bindRotationSocket(socket, serial, ticket)
+    this.bindRotationSocket(socket, serial, ticket.token)
   }
 
   private bindRotationSocket(socket: GatewaySocket, serial: number, ticket: string): void {
