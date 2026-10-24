@@ -30,4 +30,6 @@ throttling) as well as desktop, and report browser coverage honestly.
 Protocol changes ship with the backend in one release. `main` is the trunk.
 Commit finished, verified chunks in focused commits; run `npm run lint`,
 `npm run type-check`, `npm run test:engine-client` and the relevant
-Playwright specs before calling work done.
+Playwright specs before calling work done. `npm run test:e2e` runs the whole
+suite, then `network-budgets.spec.ts` alone: its main-thread timings fail
+when other specs share the CPU.

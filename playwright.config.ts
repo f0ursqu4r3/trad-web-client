@@ -5,6 +5,9 @@ const baseURL = `http://127.0.0.1:${port}`
 
 export default defineConfig({
   testDir: './e2e',
+  // The network budgets measure main-thread time, which other specs running
+  // beside them inflate; `npm run test:e2e` runs them alone afterwards.
+  testIgnore: process.env.TRAD_E2E_SKIP_TIMING ? /network-budgets\.spec\.ts/ : undefined,
   timeout: 30_000,
   expect: {
     timeout: 5_000,
