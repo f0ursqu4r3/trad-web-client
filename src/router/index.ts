@@ -73,11 +73,6 @@ const routes: RouteRecordRaw[] = [
   ...(import.meta.env.VITE_E2E === '1'
     ? [
         {
-          path: '/e2e/bybit-terminal',
-          component: () => import('@/views/e2e/BybitTerminalFixture.vue'),
-          meta: { layout: 'blank' },
-        },
-        {
           path: '/e2e/engine-projection',
           component: () => import('@/views/e2e/EngineProjectionFixture.vue'),
           meta: { layout: 'blank' },

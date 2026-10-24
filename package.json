@@ -18,7 +18,6 @@
     "test:projection": "node --experimental-strip-types --test src/lib/projection/__tests__/*.test.ts",
     "test:e2e": "TRAD_E2E_SKIP_TIMING=1 playwright test && playwright test e2e/network-budgets.spec.ts --workers=1",
     "validate:releases": "node scripts/validate_release_notes.mjs",
-    "smoke:bybit-filters": "node scripts/bybit_filter_smoke.mjs",
     "lint:oxlint": "oxlint . --fix -D correctness --ignore-path .gitignore",
     "lint:eslint": "eslint . --fix",
     "lint": "run-s lint:*",

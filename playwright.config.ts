@@ -54,7 +54,7 @@ export default defineConfig({
   ],
   webServer: {
     command: `npm run dev -- --host 127.0.0.1 --port ${port}`,
-    url: `${baseURL}/e2e/bybit-terminal`,
+    url: `${baseURL}/e2e/engine-projection`,
     reuseExistingServer: !process.env.CI,
     env: {
       ...process.env,
