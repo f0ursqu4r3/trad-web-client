@@ -15,7 +15,7 @@ import {
   type GatewayConnectionStatus,
   type Uuid,
 } from '@/lib/gateway'
-import { getWebSocketToken } from '@/lib/auth'
+import { getSocketTicket } from '@/lib/auth'
 import { createLogger } from '@/lib/utils'
 import { useAccountProjectionStore } from '@/stores/accountProjection'
 import { useAccountsStore } from '@/stores/accounts'
@@ -141,7 +141,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   const url = import.meta.env.VITE_WS_URL || location.origin.replace(/^http/, 'ws') + '/ws'
   const client = new GatewayWebSocketClient({
     url,
-    getTicket: getWebSocketToken,
+    getTicket: getSocketTicket,
     reconnectDelayMs: 1_000,
     maxReconnectDelayMs: 30_000,
     pingIntervalMs: 30_000,

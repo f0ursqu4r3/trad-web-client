@@ -2,15 +2,15 @@ import { ref, watch } from 'vue'
 import type { AuthProvider, AuthUser, LoginOptions, LogoutOptions } from '@/lib/auth'
 import { useGatewayStore } from '@/stores/gateway'
 import { deleteHistoryCache } from '@/lib/gateway/historyCache'
+import {
+  forgetHistoryRoute,
+  parseSocketTicket,
+  type SocketTicket,
+} from '@/lib/gateway/socketTicket'
 
 interface SessionResponse {
   authenticated: boolean
   user?: AuthUser | null
-}
-
-interface WsTicketResponse {
-  token: string
-  expires_in: number
 }
 
 export function createBffAuthProvider(): AuthProvider {
@@ -94,6 +94,28 @@ export function createBffAuthProvider(): AuthProvider {
     }
   }
 
+  // The ticket and where it goes (`ws_url`; a cell user's history pass).
+  async function getWebSocketTicket(signal?: AbortSignal): Promise<SocketTicket | null> {
+    if (!isAuthenticated.value) return null
+    try {
+      const response = await fetch('/auth/ws-ticket', {
+        method: 'POST',
+        credentials: 'include',
+        signal,
+      })
+      if (response.status === 401) {
+        await handleSessionExpiry()
+        return null
+      }
+      if (!response.ok) return null
+      const ticket = parseSocketTicket(await response.json())
+      lastRefreshAt = Date.now()
+      return ticket
+    } catch {
+      return null
+    }
+  }
+
   function maybeRenewActiveSession() {
     const now = Date.now()
     if (
@@ -137,32 +159,16 @@ export function createBffAuthProvider(): AuthProvider {
         credentials: 'include',
       }).catch(() => undefined)
       deleteHistoryCache()
+      forgetHistoryRoute()
       isAuthenticated.value = false
       user.value = null
       sessionExpiryHandled = true
       window.location.assign(options?.returnTo ?? '/login')
     },
     async getWebSocketToken(signal?: AbortSignal) {
-      if (!isAuthenticated.value) return null
-      try {
-        const response = await fetch('/auth/ws-ticket', {
-          method: 'POST',
-          credentials: 'include',
-          signal,
-        })
-        if (response.status === 401) {
-          await handleSessionExpiry()
-          return null
-        }
-        if (!response.ok) return null
-
-        const ticket = (await response.json()) as WsTicketResponse
-        lastRefreshAt = Date.now()
-        return typeof ticket.token === 'string' && ticket.token.length > 0 ? ticket.token : null
-      } catch {
-        return null
-      }
+      return (await getWebSocketTicket(signal))?.token ?? null
     },
+    getWebSocketTicket,
     async waitUntilReady() {
       if (!isLoading.value) return
       await new Promise<void>((resolve) => {

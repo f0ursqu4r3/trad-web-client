@@ -1,4 +1,5 @@
 import type { Ref } from 'vue'
+import type { SocketTicket } from '@/lib/gateway/socketTicket'
 
 export interface AuthUser {
   name?: string
@@ -23,5 +24,7 @@ export interface AuthProvider {
   login(options?: LoginOptions): Promise<void>
   logout(options?: LogoutOptions): Promise<void>
   getWebSocketToken(signal?: AbortSignal): Promise<string | null>
+  // The ticket with its socket path (and a cell user's history pass).
+  getWebSocketTicket(signal?: AbortSignal): Promise<SocketTicket | null>
   waitUntilReady(): Promise<void>
 }
