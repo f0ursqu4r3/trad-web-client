@@ -1,5 +1,73 @@
 [
   {
+    "version": "0.10.34",
+    "status": "published",
+    "released_at": "2026-10-24",
+    "channel": "Exits that never wait",
+    "summary": "Closes and stops go out without waiting on anything else, reconnecting picks up where you left off, and older trades load on demand instead of with every connection.",
+    "major": [
+      "A close or flatten is never held back by a busy account, a missing order book or an account check in progress."
+    ],
+    "minor": [
+      "Reconnecting after a drop or a network change resumes your account where it left off instead of downloading it again.",
+      "Older closed trades, a trade's full fill list and its order history load from the server when you open them.",
+      "A banner warns 7 days before your Hyperliquid agent wallet expires, with a Renew agent button that keeps the current agent signing until the new one is approved."
+    ],
+    "fixes": [
+      "A stop you canceled by hand on Hyperliquid stays flagged after Trad's own change to it was refused, and Trad never places it again on its own.",
+      "A flatten no longer gets stuck when a take profit closes one of its trades before the flatten's own close goes out.",
+      "A market close on a coin you weren't watching no longer waits a second or more for its price feed.",
+      "Trade cards say why a price feed is not live, and show reconnecting instead of an error while the connection comes back."
+    ],
+    "details": [
+      {
+        "category": "major",
+        "title": "Exits first",
+        "items": [
+          "Your orders and closes go ahead of price updates on your account, and one account's activity never slows another's.",
+          "A market close no longer waits for the price feed: if no order book is on hand, Trad reads it from Hyperliquid directly.",
+          "Fills and stops are applied the moment they arrive, also while Trad is checking your account against Hyperliquid.",
+          "Chase reprices are spaced out (at most every 250 ms for entries, 150 ms for closes) so a busy Chase cannot use up the exchange allowance your exits need.",
+          "Commands sent very fast in a row are paced (20 at once, 120 a minute); closes and flattens never are."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Faster connections and history",
+        "items": [
+          "After a dropped connection Trad sends only what changed while you were away.",
+          "Large updates arrive in pieces, so prices never queue behind them.",
+          "Under Closed and All, older trades load as you scroll; each opens onto its fills and orders.",
+          "The position inspector can show a coin's closed exposures."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Agent wallet expiry",
+        "items": [
+          "Hyperliquid agent wallets expire. From 7 days before, the terminal and the account settings show when.",
+          "From 24 hours before the expiry Trad refuses new trades; closes keep working until the expiry itself.",
+          "Renew agent approves a replacement in your wallet; the current agent keeps signing until the switch."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Protections and closes",
+        "items": [
+          "A stop or take profit you cancel by hand stays flagged with its re-arm action, also when Hyperliquid had refused Trad's own edit of it just before.",
+          "A flatten whose close could not go out yet, and whose trade a take profit then closed, ends instead of waiting forever and blocking new trades on the account."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Sign-in",
+        "items": [
+          "Trad accounts are now by invitation only. A refused sign-in says why: the email was not invited, or it still needs verifying with the login provider."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.32",
     "status": "published",
     "released_at": "2026-10-23",
