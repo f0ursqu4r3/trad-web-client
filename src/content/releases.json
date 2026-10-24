@@ -15,6 +15,8 @@
     ],
     "fixes": [
       "A stop you canceled by hand on Hyperliquid stays flagged after Trad's own change to it was refused, and Trad never places it again on its own.",
+      "A stop you just moved or canceled no longer shows as still working because a late exchange update arrived after the change.",
+      "A take profit Trad re-placed is never placed a second time when Hyperliquid's answer about it was unclear.",
       "A flatten no longer gets stuck when a take profit closes one of its trades before the flatten's own close goes out.",
       "A market close on a coin you weren't watching no longer waits a second or more for its price feed.",
       "Trade cards say why a price feed is not live, and show reconnecting instead of an error while the connection comes back."
@@ -55,7 +57,9 @@
         "title": "Protections and closes",
         "items": [
           "A stop or take profit you cancel by hand stays flagged with its re-arm action, also when Hyperliquid had refused Trad's own edit of it just before.",
-          "A flatten whose close could not go out yet, and whose trade a take profit then closed, ends instead of waiting forever and blocking new trades on the account."
+          "A flatten whose close could not go out yet, and whose trade a take profit then closed, ends instead of waiting forever and blocking new trades on the account.",
+          "A stop or take profit that ended on Hyperliquid stays ended in Trad, even when an older open-orders update arrives after the change.",
+          "When Hyperliquid's answer about a re-placed take profit names the order it replaced, Trad looks again instead of placing it twice."
         ]
       },
       {
