@@ -9,10 +9,12 @@ import {
   releasePath,
   releasePreviewPath,
   updatesPreviewPath,
+} from '@/lib/releases'
+import {
   visibleProductReleases,
   type ProductRelease,
   type ReleaseCategory,
-} from '@/lib/releases'
+} from '@/lib/releaseNotes'
 
 type Category = 'all' | 'major' | 'minor' | 'fixes'
 type ChangeCategory = ReleaseCategory

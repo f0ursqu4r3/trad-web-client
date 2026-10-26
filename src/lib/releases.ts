@@ -1,33 +1,19 @@
-import releases from '@/content/releases.json' with { type: 'json' }
-
-export type ReleaseCategory = 'major' | 'minor' | 'fixes'
-
-export interface ReleaseDetailGroup {
-  category: ReleaseCategory
-  title: string
-  items: string[]
-}
-
-export interface ProductRelease {
+// The current release, without the notes: vite.config.ts compiles it in from
+// src/content/releases.json, so it cannot drift from them. The full notes are
+// in @/lib/releaseNotes, loaded with the Updates view.
+export interface CurrentProductRelease {
   version: string
   status: 'draft' | 'published'
-  released_at: string | null
-  channel: string
-  summary: string
-  major: string[]
-  minor: string[]
-  fixes: string[]
-  details: ReleaseDetailGroup[]
 }
 
-export const productReleases = releases as ProductRelease[]
-
-export function visibleProductReleases(development = import.meta.env.DEV): ProductRelease[] {
-  return productReleases.filter((release) => release.status === 'published' || development)
+declare const __TRAD_CURRENT_RELEASES__: {
+  development: CurrentProductRelease
+  published: CurrentProductRelease
 }
 
-export function currentProductRelease(development = import.meta.env.DEV): ProductRelease {
-  return visibleProductReleases(development)[0] ?? productReleases[0]
+// The newest visible release: development shows drafts, a build does not.
+export function currentProductRelease(development = import.meta.env.DEV): CurrentProductRelease {
+  return development ? __TRAD_CURRENT_RELEASES__.development : __TRAD_CURRENT_RELEASES__.published
 }
 
 export function releasePath(version: string): string {

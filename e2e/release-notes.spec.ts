@@ -1,5 +1,5 @@
 import { expect, test } from './support/test'
-import { visibleProductReleases } from '../src/lib/releases'
+import { visibleProductReleases } from '../src/lib/releaseNotes'
 
 // The e2e server is Vite dev, where drafts are visible too. Each visible
 // release renders one "Fixes" section heading under the Fixes filter.
@@ -62,6 +62,17 @@ test('lists published releases and filters their categories', async ({ page }) =
   await expect(page.getByText('Account removal fencing', { exact: true })).toBeVisible()
   await expect(page.getByText('Multi-venue state-machine campaign', { exact: true })).toHaveCount(0)
   await expect(page.getByText('Trade-scoped economics and risk', { exact: true })).toHaveCount(0)
+})
+
+test('the header shows the current release and links to its notes', async ({ page }) => {
+  // Dev shows drafts, so its current release is the newest entry.
+  const current = visibleProductReleases(true)[0]!
+  const version = page.locator('.trad-version')
+  await expect(version).toHaveText(`v${current.version}${current.status === 'draft' ? '-dev' : ''}`)
+  await expect(version).toHaveAttribute('href', `/updates/${current.version}/`)
+  await expect(page.locator('.build-identity code')).toHaveText(
+    `${current.version}${current.status === 'draft' ? '-dev' : ''}`,
+  )
 })
 
 test('opens a stable release permalink with release-specific metadata', async ({ page }) => {

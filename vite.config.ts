@@ -4,6 +4,26 @@ import { defineConfig, loadEnv, type PluginOption } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 
+import releases from './src/content/releases.json' with { type: 'json' }
+
+interface CurrentRelease {
+  version: string
+  status: 'draft' | 'published'
+}
+
+// The header and telemetry need only the current release, so it is compiled
+// in from the notes here; the notes themselves load with the Updates view
+// (src/lib/releaseNotes.ts). Development shows drafts, so its current release
+// is the newest entry; a build's is the newest published one.
+function currentReleases(): { development: CurrentRelease; published: CurrentRelease } {
+  const entries = releases as CurrentRelease[]
+  const pick = ({ version, status }: CurrentRelease): CurrentRelease => ({ version, status })
+  const newest = entries[0]
+  if (!newest) throw new Error('src/content/releases.json has no release')
+  const published = entries.find((release) => release.status === 'published') ?? newest
+  return { development: pick(newest), published: pick(published) }
+}
+
 function ensureDevtoolsStorage(): void {
   const storage = globalThis.localStorage as Storage | undefined
   if (typeof storage?.getItem === 'function') return
@@ -54,6 +74,9 @@ export default defineConfig(async ({ command, mode }) => {
   return {
     envDir: root,
     plugins,
+    define: {
+      __TRAD_CURRENT_RELEASES__: JSON.stringify(currentReleases()),
+    },
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
