@@ -1,5 +1,93 @@
 [
   {
+    "version": "0.10.35.1",
+    "status": "published",
+    "released_at": "2026-10-26",
+    "channel": "Accounts stay available",
+    "summary": "An account no longer shows as unavailable when Hyperliquid stops listing an empty balance, stops and take profits show their current state after a Chase adds to a trade, and each account now trades from its own address.",
+    "major": [],
+    "minor": [
+      "Each account now sends its Hyperliquid requests from its own network address, so one account's activity never uses up another's request allowance."
+    ],
+    "fixes": [
+      "An account no longer shows Account unavailable, with its Trad commands refused, after Hyperliquid stops listing a stablecoin balance that went to zero.",
+      "A stop or take profit no longer shows as pending after it has finished when a Chase entry added to its trade or its target changed."
+    ],
+    "details": [
+      {
+        "category": "minor",
+        "title": "An address per account",
+        "items": [
+          "Every request, stream and rate limit of an account runs on that account's own address; public market data is shared.",
+          "If an account cannot use its address, only that account waits; the others keep trading."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Balances Hyperliquid stops listing",
+        "items": [
+          "After a reconnect Hyperliquid can stop listing stablecoin balances that are empty. Trad now removes them from your account instead of keeping the old rows.",
+          "On 25 October this left two accounts showing Account unavailable from 09:35 to 13:01 UTC, and Trad commands on them would have been refused. Fills, stops, take profits and account checks kept running, and the 0.10.35 update repaired both accounts.",
+          "The balance list may keep showing a removed zero balance until the page reloads or reconnects."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Protection status after a Chase",
+        "items": [
+          "When a Chase adds to a trade or the trade's protection target changes, its stop and take profit are shown again with their current state, size and orders."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.10.35",
+    "status": "published",
+    "released_at": "2026-10-25",
+    "channel": "Faster Chase and updates",
+    "summary": "Many Chases at once keep up with a fast market, updates pause trading for about a minute and a half instead of three minutes, and a stop can no longer be placed twice after a move.",
+    "major": [],
+    "minor": [
+      "Chase reprices go out as fast as the market moves while Hyperliquid's request allowance has room, and slow down together only as it fills, entries before closes.",
+      "Updates are shorter: accounts are trading again about a minute and a half after an update starts, down from about three minutes."
+    ],
+    "fixes": [
+      "A stop you moved can no longer be placed twice when Hyperliquid's answer about it names the order it replaced.",
+      "A flatten waiting for Hyperliquid to confirm a fill no longer waits for the next five-minute account check.",
+      "A Chase reprice held back for room goes out as soon as another Chase ends or the allowance frees up.",
+      "Trad no longer asks Hyperliquid how a cancel ended for an order it already saw end, which leaves more of the allowance for your orders."
+    ],
+    "details": [
+      {
+        "category": "minor",
+        "title": "Chase pacing",
+        "items": [
+          "With room in the allowance, Chases reprice with no fixed wait between reprices.",
+          "As the allowance fills, Chases share a reprice rate that falls step by step. Entry Chases slow down first, and closes always keep room to go out.",
+          "Cancels and post-only orders of one account that go out together are sent as one request.",
+          "With 20 Chases in a fast market the slowest reprices lag about 7.5 seconds, down from 50."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Shorter updates",
+        "items": [
+          "Accounts start side by side when Trad restarts instead of one after another, and spread their first exchange reads so none is refused.",
+          "This update paused trading for under a minute and a half."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Stops and flattens",
+        "items": [
+          "Moving a stop cancels the old order and rests a new one under the same order id. If Hyperliquid answered with the old, canceled order, Trad could place a second stop. Trad now asks again, and flags only that trade until the exchange settles it.",
+          "A stop that filled after such a move settles the move.",
+          "A flatten whose position waits for the exchange's fill confirmation reads the position again after a few checks."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.34",
     "status": "published",
     "released_at": "2026-10-24",
@@ -120,6 +208,30 @@
     ]
   },
   {
+    "version": "0.10.31.1",
+    "status": "published",
+    "released_at": "2026-10-23",
+    "channel": "Hand cancels stay put",
+    "summary": "A stop you canceled by hand on Hyperliquid stays flagged and is never placed again on its own, also after a take profit took the trade flat and the entry grew it again.",
+    "major": [],
+    "minor": [],
+    "fixes": [
+      "A stop you canceled by hand on Hyperliquid is no longer placed again when Trad's own cancel of it finds it already gone.",
+      "An order missing from Hyperliquid's open orders is flagged on its trade, also when the trade is flat, instead of being counted as Trad's own cancel."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Hand-canceled stops",
+        "items": [
+          "When Trad tried to cancel a stop you had already canceled by hand, Hyperliquid answered that the order was already canceled, and Trad took the cancel as its own. After a take profit took the trade flat and the entry then grew it, the stop could be placed again.",
+          "Now the stop stays flagged with its re-arm action, and it comes back only when you re-arm it.",
+          "Found by Trad's automated testing."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.31",
     "status": "published",
     "released_at": "2026-10-22",
@@ -206,6 +318,31 @@
           "Prices and charts update up to ten times a second instead of on every trade, which roughly halves the work the page does when markets are busy.",
           "Trade charts keep their price scale steady instead of resizing as prices tick.",
           "Prices are formatted much faster, and trade cards no longer redraw their dates on every update."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.10.29.1",
+    "status": "published",
+    "released_at": "2026-10-22",
+    "channel": "Fast replies again",
+    "summary": "Previews, order replies and prices are fast again: Trad no longer resends every stop and take profit to your browser on each exchange update.",
+    "major": [],
+    "minor": [],
+    "fixes": [
+      "Previews, command replies and prices no longer arrive seconds late, or time out, on accounts with many stops and take profits.",
+      "The order ticket no longer stays on \"waiting for a fresh price\" while the connection is busy."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Less traffic to your browser",
+        "items": [
+          "Each Hyperliquid update about an order resent every stop and take profit the account ever had, canceled ones included: about 170 KB at a time, about twice a second, and growing with every trade.",
+          "The browser applied each one before anything else, so replies and prices queued behind them. Previews took 6 to 8 seconds and many timed out.",
+          "The closes that showed timed out had still gone through, each once.",
+          "Now only stops and take profits that need your attention are sent again. Traffic to one open browser fell from about 5.5 MB to under 2 KB every 20 seconds."
         ]
       }
     ]
@@ -358,6 +495,168 @@
           "Stop and take-profit help text now matches each exchange: reduce-only on Binance and Bybit, plain orders on Hyperliquid.",
           "The Trailing Entry form no longer says an opposite position is reduced first.",
           "Old screens that previewed an order as reducing or reversing another trade were removed."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.10.25",
+    "status": "published",
+    "released_at": "2026-10-17",
+    "channel": "Exact counting",
+    "summary": "Includes 0.10.24. Closes and the automatic dust close never send more than a trade still holds, a lost stop edit no longer pauses the account, and Trad reloads an account's history in seconds.",
+    "major": [],
+    "minor": [
+      "When Trad has to reload an account's whole history after an update, it takes seconds instead of hours."
+    ],
+    "fixes": [
+      "The automatic dust close can no longer close a whole trade: it waits while the stop is being placed or is filling, and only closes leftovers worth under $20.",
+      "Every order that reduces a trade is checked against what the trade still holds right before it is sent; one that is too large waits on that trade alone, with the reason on the order.",
+      "After a close sold past flat, the next entry fills no longer count as a new position, so Trad never protects units your account doesn't hold.",
+      "A stop edit whose answer was lost no longer pauses the account after a restart, and it settles once the moved stop fills.",
+      "A trade whose stop filled in part, or whose take profit is below the exchange minimum, finishes its protection instead of staying flagged until a restart.",
+      "A Chase that finished at a reduced size no longer pauses the account when its last cancel lands."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Dust close",
+        "items": [
+          "A trade whose first entry fills were below Hyperliquid's $10 minimum could be read as dust and closed in full. The dust close now waits for the stop's order and stands down when the leftover is worth $20 or more at the stop price.",
+          "The dust close also waits while a stop of the trade is filling, and is withdrawn instead of sent when a take profit already sold the leftover."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Closes sized to what the trade holds",
+        "items": [
+          "On Hyperliquid neither closes nor take profits are reduce-only, so a close sized before another exit filled could sell past flat. Trad keeps that overshoot on the trade, and later entry fills offset it before they count.",
+          "If you close the overshoot by hand, Trad sees it and protects the next entry fills as usual.",
+          "A close, flatten or Chase exit larger than what its trade still holds is held before it is sent. Only that trade waits, and canceling it retires it at once.",
+          "A flatten close that no longer fits is withdrawn, and the flatten reports it."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Stop edits and restarts",
+        "items": [
+          "A stop you moved whose answer from Hyperliquid was lost settles from the exchange's own reports, also when the moved stop then fills.",
+          "A restart no longer clears Trad's own pending cancel after such an edit, which had stopped every action on the account."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Faster reloads",
+        "items": [
+          "Reloading the largest account's whole history took nearly three hours without finishing and now takes about 14 seconds. Normal restarts from saved state are unchanged."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.10.23",
+    "status": "published",
+    "released_at": "2026-10-16",
+    "channel": "Safer stops and closes",
+    "summary": "A round of new automated testing found and fixed rare cases where a trade could lose its stop, a close could sell more than the trade held, or an account could pause.",
+    "major": [],
+    "minor": [],
+    "fixes": [
+      "A trade can no longer be left without a stop or take profit when its size changed while protection was waiting to be placed, or when a stop filled during a resize.",
+      "A close is fitted to what its trade still holds: if a take profit or stop already sold part of it, the close is reduced and says so, or withdrawn, so it cannot open a position the other way.",
+      "Exit fills reported before the entry fill they sold are kept, so stops keep matching the trade's size.",
+      "A Chase stays within its risk budget when a reprice or an early fill report races the order.",
+      "A stop that vanished from Hyperliquid without Trad canceling it is flagged and left alone, never placed again on its own.",
+      "Many rare orderings of exchange reports that could pause an account or leave an order waiting forever are handled."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Stops and take profits",
+        "items": [
+          "Protection waiting to be placed for an older, smaller trade size is planned again for the current size.",
+          "A stop resize is no longer sent after the stop has filled; a refused or pointless write plans the protection again.",
+          "Take profits are placed for entry fills that arrive after a stop-out."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Closes",
+        "items": [
+          "A close that a take profit or stop partly beat keeps working at the reduced size and shows why; one with nothing left to close is withdrawn.",
+          "A market order already sent is left alone."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Chase risk",
+        "items": [
+          "A retargeted reprice uses the current price, and a fill shown before its execution counts at the order's limit price until the execution arrives."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Fewer account pauses",
+        "items": [
+          "Rare report orders around Chase cancel-replace, full closes during entry fills, dust closes and restarts no longer stop the account.",
+          "Cancels and protection writes whose outcome stays unknown no longer wait forever."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.10.22",
+    "status": "published",
+    "released_at": "2026-10-16",
+    "channel": "Safer protection edits",
+    "summary": "Editing a stop or take profit is safer around fills and restarts: no account pause after an update, no stop larger than the trade after a refused edit, and stops end with the trade.",
+    "major": [],
+    "minor": [],
+    "fixes": [
+      "A stop or take-profit edit that had failed before an update no longer pauses the account when Trad restarts.",
+      "If Hyperliquid refuses an edit after a fill shrank the trade, the stop is resized to the trade instead of staying larger than the position.",
+      "A stop or take profit that fills in part before Hyperliquid confirms it is recognised as Trad's own order instead of being reconciled as a conflict.",
+      "When partial closes or a take profit take a trade flat during a take-profit edit, the stop is canceled at once instead of waiting for the next account update."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Stop and take-profit edits",
+        "items": [
+          "Every update restarts Trad. A restart rolled back an already rolled-back edit a second time, which could stop the account's processing until it was repaired.",
+          "A refused edit now hands the protection back to Trad, which resizes it to the current position.",
+          "A stop whose trade went flat during a take-profit edit is canceled in the same step, so it never sits live on a flat trade."
+        ]
+      },
+      {
+        "category": "fixes",
+        "title": "Found by new checks",
+        "items": [
+          "Stop and take-profit edits are now covered by model checking and fuzzing, which found these four cases. Each has a test that fails without its fix."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.10.21",
+    "status": "published",
+    "released_at": "2026-10-16",
+    "channel": "Take-profit moves fixed",
+    "summary": "Moving a take profit on Hyperliquid no longer leaves the trade without one, and the take profit this had removed was placed again with the update.",
+    "major": [],
+    "minor": [],
+    "fixes": [
+      "Moving a take profit on Hyperliquid places the new one after the old one is canceled, instead of leaving the trade with only its stop.",
+      "A take profit that went missing this way was placed again at its new price when this update started."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Take-profit moves",
+        "items": [
+          "Since 0.10.20 Trad cancels a take profit before placing it at the new price. When the cancel ended without a fill, Trad read the gap as a lost protection and could skip the new order.",
+          "The short gap while a take profit is replaced is now expected, and the replacement is always placed, also for a take profit moved more than once.",
+          "Stops were not affected; the trade's stop stayed live throughout."
         ]
       }
     ]

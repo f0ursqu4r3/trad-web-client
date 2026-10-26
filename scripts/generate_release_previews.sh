@@ -10,9 +10,9 @@ base_version=$1
 release_version=$2
 subtitle=$3
 
-version_pattern='^[0-9]+\.[0-9]+\.[0-9]+$'
+version_pattern='^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$'
 if [[ ! $base_version =~ $version_pattern || ! $release_version =~ $version_pattern ]]; then
-  echo "base and release versions must use MAJOR.MINOR.PATCH" >&2
+  echo "base and release versions must use MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH.HOTFIX" >&2
   exit 2
 fi
 if [[ -z $subtitle || ${#subtitle} -gt 32 ]]; then

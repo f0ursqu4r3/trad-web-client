@@ -3,7 +3,8 @@ import { access, readFile } from 'node:fs/promises'
 const root = new URL('../', import.meta.url)
 const releases = JSON.parse(await readFile(new URL('src/content/releases.json', root), 'utf8'))
 const appPackage = JSON.parse(await readFile(new URL('package.json', root), 'utf8'))
-const semver = /^\d+\.\d+\.\d+$/
+// MAJOR.MINOR.PATCH, or MAJOR.MINOR.PATCH.HOTFIX for a backend hotfix.
+const semver = /^\d+\.\d+\.\d+(\.\d+)?$/
 const date = /^\d{4}-\d{2}-\d{2}$/
 const categories = ['major', 'minor', 'fixes']
 const seen = new Set()

@@ -29,7 +29,12 @@ test('lists published releases and filters their categories', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'Trad 0.10.16' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Trad 0.10.17' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Trad 0.10.18' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Trad 0.10.31' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Trad 0.10.31', exact: true })).toBeVisible()
+  // Backend hotfixes carry a fourth version part.
+  await expect(page.getByRole('link', { name: 'Trad 0.10.31.1' })).toHaveAttribute(
+    'href',
+    '/updates/0.10.31.1/',
+  )
   await expect(page.getByText('Protection recovery and live P&L', { exact: true })).toBeVisible()
   await expect(
     page.getByText('Account capacity and market visibility', { exact: true }),
