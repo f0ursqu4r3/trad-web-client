@@ -51,8 +51,11 @@
         "category": "fixes",
         "title": "Balances Hyperliquid stops listing",
         "items": [
-          "After a reconnect Hyperliquid can stop listing stablecoin balances that are empty. Trad now removes them from your account instead of keeping the old rows.",
-          "On 25 October this left two accounts showing Account unavailable from 09:35 to 13:01 UTC, and Trad commands on them would have been refused. Fills, stops, take profits and account checks kept running, and the 0.10.35 update repaired both accounts.",
+          "At 09:35 UTC on 25 October an account stream reconnected, and Hyperliquid's next full balance report no longer listed three stablecoin balances that were at zero: USDE, USDH and USDT0.",
+          "Trad removed them from the account summary but kept their stored rows, so the summary counted 1 balance and the stored rows 4. The app checks that the two agree before it shows an account, so it showed Account unavailable instead of numbers it could not vouch for.",
+          "Two accounts were affected, from 09:35 to 13:01 UTC. New Trad commands on them would have been refused. Fills, stops, take profits and periodic account checks kept running, and positions and protection orders were identical before and after the repair.",
+          "It was found at 12:30 UTC when one of the accounts was opened. The 0.10.35 update at 13:01 restarted the trading engine, which rebuilt both accounts from Hyperliquid; summary and stored rows matched at once.",
+          "The fix: a full balance report now replaces the whole balance list, and a balance it leaves out is deleted from the engine and the stored rows. The automated tests now compare the stored account with the engine after every removed balance.",
           "The balance list may keep showing a removed zero balance until the page reloads or reconnects."
         ]
       },
