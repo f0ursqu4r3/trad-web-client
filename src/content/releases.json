@@ -1,5 +1,30 @@
 [
   {
+    "version": "0.10.35.2",
+    "status": "published",
+    "released_at": "2026-10-26",
+    "channel": "Five-second updates",
+    "summary": "Updates now pause trading for about five seconds instead of a minute, and a stop that exactly covers its trade no longer shows a reconciliation warning after its take profit was canceled by hand.",
+    "major": [],
+    "minor": [
+      "Updates pause trade management for about five seconds: only the trading engine restarts, and each account checks in from its own address at once."
+    ],
+    "fixes": [
+      "A trade whose take profit was canceled by hand no longer keeps a stale reconciliation warning after its stop is resized to cover it exactly.",
+      "A one-time fee update to an older take profit no longer waits for a periodic account check to finish."
+    ],
+    "details": [
+      {
+        "category": "minor",
+        "title": "Shorter update pause",
+        "items": [
+          "The 26 October update paused trade management for 5.3 seconds, down from about a minute in 0.10.35.1 and about three and a half minutes before 0.10.35.",
+          "The web connection restarts separately and reconnects within a second; stops and take profits stay on Hyperliquid throughout."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.35.1",
     "status": "published",
     "released_at": "2026-10-26",

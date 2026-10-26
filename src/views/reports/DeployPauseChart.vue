@@ -32,7 +32,7 @@ function isInstant(index: number): boolean {
       class="pause-chart"
       :viewBox="`0 0 ${width} ${height}`"
       role="img"
-      aria-label="Trading pause per production release in seconds, v0.10.10 to v0.10.35.1"
+      aria-label="Trading pause per production release in seconds, v0.10.10 to v0.10.35.2"
     >
       <g v-for="tick in ticks" :key="tick">
         <line class="grid" :x1="x(tick)" :x2="x(tick)" :y1="top - 6" :y2="height - 26" />

@@ -2,6 +2,6 @@
   {
     "path": "/reports/performance-2026-10/",
     "title": "Trad performance report — Aug–Oct 2026",
-    "description": "Engineering measurements for Trad v0.10.10 to v0.10.35.1: engine turn latency, memory, startup, order path, client load, bandwidth and deploy pause, before and after."
+    "description": "Engineering measurements for Trad v0.10.10 to v0.10.35.2: engine turn latency, memory, startup, order path, client load, bandwidth and deploy pause, before and after."
   }
 ]

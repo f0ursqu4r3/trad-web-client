@@ -1,4 +1,4 @@
-// Performance report, Aug–Oct 2026 (v0.10.10 to v0.10.35.1). Figures are
+// Performance report, Aug–Oct 2026 (v0.10.10 to v0.10.35.2). Figures are
 // copied from the measurement ledger of 2026-10-26 (releases/ in the Trad
 // workspace); none were re-run. The page is public: account fixtures carry
 // shape names, never client names, and no hosts, ids or addresses appear.
@@ -37,7 +37,7 @@ export const reportMeta = {
   title: 'Performance report',
   date: '2026-10-26',
   period: 'Aug–Oct 2026',
-  releases: 'v0.10.10 – v0.10.35.1',
+  releases: 'v0.10.10 – v0.10.35.2',
   method:
     'Figures copied from release records, benchmark runs and load tests; none re-run for this report.',
   fixtures:
@@ -99,8 +99,8 @@ export const headlines: Headline[] = [
   {
     label: 'Trading pause per deploy',
     before: sec(205),
-    after: sec(66),
-    note: 'v0.10.34 → v0.10.35.1',
+    after: sec(5.3),
+    note: 'v0.10.34 → v0.10.35.2',
     method: 'production',
   },
   {
@@ -159,6 +159,7 @@ export const deployPauses: Array<{ version: string; seconds: number }> = [
   { version: '0.10.34', seconds: 205 },
   { version: '0.10.35', seconds: 85 },
   { version: '0.10.35.1', seconds: 66 },
+  { version: '0.10.35.2', seconds: 5.3 },
 ]
 
 // Releases with instant startup, drawn as the after state.
