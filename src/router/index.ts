@@ -20,6 +20,14 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/ReleaseNotes.vue'),
     meta: { requiresAuth: true, layout: 'control', controlArea: 'updates' },
   },
+  // Public engineering report; no sign-in. The view brings its own chrome
+  // (layouts/PublicPage.vue) so none of it loads with the main bundle; the
+  // prerendered head tags come from scripts/generate_release_pages.mjs.
+  {
+    path: '/reports/performance-2026-10',
+    component: () => import('@/views/reports/PerformanceReport.vue'),
+    meta: { layout: 'blank' },
+  },
   {
     path: '/settings',
     redirect: '/settings/profile',

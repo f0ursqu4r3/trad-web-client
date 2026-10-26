@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
-    "test:engine-client": "node --experimental-strip-types --test src/lib/engineCommands/__tests__/*.test.ts src/lib/gateway/__tests__/*.test.ts src/lib/projection/__tests__/*.test.ts src/lib/telemetry/__tests__/*.test.ts",
+    "test:engine-client": "node --experimental-strip-types --test src/lib/engineCommands/__tests__/*.test.ts src/lib/gateway/__tests__/*.test.ts src/lib/projection/__tests__/*.test.ts src/lib/telemetry/__tests__/*.test.ts src/views/reports/__tests__/*.test.ts",
     "test:projection": "node --experimental-strip-types --test src/lib/projection/__tests__/*.test.ts",
     "test:e2e": "TRAD_E2E_SKIP_TIMING=1 playwright test && playwright test e2e/network-budgets.spec.ts --workers=1",
     "validate:releases": "node scripts/validate_release_notes.mjs",

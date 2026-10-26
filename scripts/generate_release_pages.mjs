@@ -4,6 +4,7 @@ const root = new URL('../', import.meta.url)
 const dist = new URL('dist/', root)
 const template = await readFile(new URL('index.html', dist), 'utf8')
 const releases = JSON.parse(await readFile(new URL('src/content/releases.json', root), 'utf8'))
+const reports = JSON.parse(await readFile(new URL('src/views/reports/reports.json', root), 'utf8'))
 const configuredOrigin = process.env.TRAD_PUBLIC_ORIGIN?.trim()
 const existingUrl = template.match(/<meta\s+property="og:url"\s+content="([^"]+)"\s*\/?>/)?.[1]
 const publicOrigin = (configuredOrigin || (existingUrl ? new URL(existingUrl).origin : '')).replace(
@@ -119,4 +120,24 @@ for (const release of publishedReleases) {
   generated += 1
 }
 
-console.log(`Generated ${generated} published release pages for ${publicOrigin}.`)
+// Public engineering reports: the same SPA page with the report's head tags.
+for (const report of reports) {
+  const directory = new URL(`.${report.path}`, dist)
+  await mkdir(directory, { recursive: true })
+  await writeFile(
+    new URL('index.html', directory),
+    releaseHtml({
+      title: report.title,
+      description: report.description,
+      url: `${publicOrigin}${report.path}`,
+      image: productionDeployment
+        ? `${publicOrigin}/${previewDirectory}/${currentRelease.version}.png`
+        : `${publicOrigin}/test-brand/social-preview.png`,
+      imageAlt: 'Trad managed-trading workspace',
+    }),
+  )
+}
+
+console.log(
+  `Generated ${generated} published release pages and ${reports.length} report pages for ${publicOrigin}.`,
+)

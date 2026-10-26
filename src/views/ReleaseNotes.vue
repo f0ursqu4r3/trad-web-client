@@ -141,6 +141,9 @@ function formatReleaseDate(value: string | null): string {
       </button>
     </div>
     <div class="build-identity">
+      <RouterLink class="report-link" to="/reports/performance-2026-10"
+        >Performance report</RouterLink
+      >
       <span>Current build</span><code>{{ currentBuild }}</code>
     </div>
   </div>
@@ -276,6 +279,17 @@ function formatReleaseDate(value: string | null): string {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.07em;
+}
+.build-identity > * {
+  white-space: nowrap;
+}
+.build-identity .report-link {
+  padding-right: 0.65rem;
+  border-right: 1px solid var(--border-normal);
+  color: var(--fg-muted);
+}
+.build-identity .report-link:hover {
+  color: var(--accent-color);
 }
 .build-identity code {
   max-width: 18rem;
@@ -556,7 +570,14 @@ function formatReleaseDate(value: string | null): string {
     flex-direction: column;
   }
   .build-identity {
+    flex-wrap: wrap;
     justify-content: space-between;
+  }
+  .build-identity .report-link {
+    flex-basis: 100%;
+    padding: 0 0 0.4rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-subtle);
   }
   .release-list {
     padding-left: 0;
