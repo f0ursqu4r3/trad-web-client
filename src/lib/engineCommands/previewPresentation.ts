@@ -10,7 +10,9 @@ export function isEditingBarrier(code: PreviewPlanningRejectionCode | undefined)
     code === 'zero_entry_stop_distance' ||
     code === 'below_minimum_order' ||
     code === 'above_maximum_order' ||
-    code === 'invalid_price_precision'
+    code === 'invalid_price_precision' ||
+    code === 'invalid_intent' ||
+    code === 'limit_price_out_of_band'
   )
 }
 
@@ -30,6 +32,10 @@ export function editingGuidance(code: PreviewPlanningRejectionCode | undefined):
       return 'Finish entering an order size within the exchange maximum.'
     case 'invalid_price_precision':
       return 'Finish entering a price accepted by the exchange precision rules.'
+    case 'invalid_intent':
+      return 'Finish entering the order details.'
+    case 'limit_price_out_of_band':
+      return 'Enter a limit price near the live market price.'
     default:
       return 'Checking order details…'
   }

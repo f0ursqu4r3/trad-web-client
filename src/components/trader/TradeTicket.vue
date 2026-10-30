@@ -6,6 +6,7 @@ import { useEngineCommandSubmission } from '@/composables/useEngineCommandSubmis
 import { sizingModePreference } from '@/lib/engineCommands/form'
 import { marketUnits } from '@/lib/engineCommands/marketUnits'
 import { previewIntent } from '@/lib/engineCommands/intents'
+import { tradeTicketBlocker, tradeTicketGate } from '@/lib/engineCommands/tradeTicketGate'
 import type { EngineCommandPrefill } from '@/lib/engineCommands/prefill'
 import {
   applyTradeTicketPrefill,
@@ -60,21 +61,18 @@ const planningIntent = computed(() => {
     return null
   }
 })
-const readiness = computed(() => {
-  if (accountId.value === '') return 'Select a trading account.'
-  if (marketPending.value) return 'Pick a market from the list or press Enter to select it.'
-  try {
-    buildTradeTicketIntent(draft)
-  } catch (error) {
-    return error instanceof Error ? error.message : String(error)
-  }
-  if (!gateway.isConnected) return 'Waiting for the Trad gateway.'
-  const accountReadiness = gateway.newRiskReadiness(accountId.value, draft.symbol.trim() || null)
-  if (!accountReadiness.ready) return accountReadiness.reason
-  if (previewStatus.value === 'rejected') return null
-  if (!previewReady.value) return 'Waiting for the authoritative execution preview.'
-  return null
-})
+const gate = computed(() =>
+  tradeTicketGate({
+    accountId: accountId.value,
+    marketPending: marketPending.value,
+    draftError: draftError(),
+    gatewayConnected: gateway.isConnected,
+    accountReadiness: gateway.newRiskReadiness(accountId.value, draft.symbol.trim() || null),
+    previewStatus: previewStatus.value,
+    previewReady: previewReady.value,
+  }),
+)
+const readiness = computed(() => gate.value?.message ?? null)
 const canSubmit = computed(
   () => readiness.value === null && !submission.submitting.value && planningIntent.value !== null,
 )
@@ -197,11 +195,20 @@ function ticketActionKind(): TelemetryActionKind {
 }
 
 function ticketBlocker(): TelemetryBlockerCode {
-  if (accountId.value === '') return 'ACCOUNT_NOT_HYDRATED'
-  if (!gateway.isConnected) return 'TRANSPORT_OFFLINE'
-  if (previewStatus.value === 'rejected') return 'COMMAND_REJECTED'
-  if (!previewReady.value) return 'MARKET_EVIDENCE_STALE'
-  return 'UNCLASSIFIED_BLOCKER'
+  return tradeTicketBlocker(gate.value, {
+    submitting: submission.submitting.value,
+    planningIntentReady: planningIntent.value !== null,
+    previewStatus: previewStatus.value,
+  })
+}
+
+function draftError(): string | null {
+  try {
+    buildTradeTicketIntent(draft)
+    return null
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error)
+  }
 }
 
 async function applyPrefill(prefill: EngineCommandPrefill): Promise<void> {

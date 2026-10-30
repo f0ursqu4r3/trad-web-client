@@ -1,3 +1,4 @@
+import type { AccountReadinessCode } from '@/lib/gateway/accountCommandReadiness'
 import type {
   BrowserAccountDelta,
   BrowserCommandIntent,
@@ -8,6 +9,8 @@ import type {
   GatewayConnectionStatus,
 } from '@/lib/gateway'
 
+import { AccountUnavailableShown, commandOutcomeRecords } from './commandOutcomes.ts'
+import { readinessBlocker } from './readinessBlocker.ts'
 import {
   newActionAttemptId,
   recordTelemetry,
@@ -29,6 +32,7 @@ const MAX_COMMAND_LINKS = 1_024
 
 export class GatewayTelemetryObserver {
   private readonly commandLinks = new Map<string, CommandLink>()
+  private readonly unavailableShown = new AccountUnavailableShown()
 
   attempt(
     intent: BrowserCommandIntent | BrowserPreviewIntent,
@@ -64,6 +68,7 @@ export class GatewayTelemetryObserver {
   }
 
   accountSelected(accountId: string): void {
+    this.unavailableShown.forget(accountId)
     recordTelemetry({
       eventName: 'account_selected',
       accountId,
@@ -102,12 +107,12 @@ export class GatewayTelemetryObserver {
     this.blocked(actionAttemptId, commandAction(intent), accountId, blockerCode)
   }
 
-  readinessBlocked(attempt: GatewayActionAttempt, reason: string | null): void {
+  readinessBlocked(attempt: GatewayActionAttempt, code: AccountReadinessCode | null): void {
     this.blocked(
       attempt.actionAttemptId,
       attempt.actionKind,
       attempt.accountId,
-      readinessBlocker(reason),
+      readinessBlocker(code),
     )
   }
 
@@ -187,6 +192,7 @@ export class GatewayTelemetryObserver {
   }
 
   snapshot(accountId: string, revision: number, cause: BrowserSnapshotCause): void {
+    this.unavailableShown.forget(accountId)
     recordTelemetry({
       eventName: 'projection_snapshot_applied',
       accountId,
@@ -212,7 +218,10 @@ export class GatewayTelemetryObserver {
     })
   }
 
+  // Once per account and reason until it is available or selected again; the
+  // subscription retries every few seconds while it stays unavailable.
   accountUnavailable(accountId: string, kind: string): void {
+    if (!this.unavailableShown.shouldRecord(accountId, kind)) return
     recordTelemetry({
       eventName: 'account_unavailable_shown',
       accountId,
@@ -231,43 +240,15 @@ export class GatewayTelemetryObserver {
     })
   }
 
+  // Only a terminal lifecycle ends the link: reconciliation_required is a
+  // wait that can still succeed (commandOutcomes.ts).
   terminalCommands(commands: BrowserAccountDelta['commands'], revision: number): void {
     for (const command of commands) {
-      if (command.lifecycle === 'running') continue
       const link = this.commandLinks.get(command.command_id)
       if (link === undefined) continue
-      recordTelemetry({
-        eventName: 'command_terminal_observed',
-        accountId: link.accountId,
-        actionAttemptId: link.actionAttemptId,
-        requestId: link.requestId,
-        commandId: command.command_id,
-        projectionRevision: revision,
-        properties: {
-          action_kind: link.actionKind,
-          command_lifecycle: command.lifecycle,
-          outcome_code: command.lifecycle,
-        },
-      })
-      recordTelemetry({
-        eventName: 'action_outcome_observed',
-        accountId: link.accountId,
-        actionAttemptId: link.actionAttemptId,
-        requestId: link.requestId,
-        commandId: command.command_id,
-        projectionRevision: revision,
-        properties: { action_kind: link.actionKind, outcome_code: command.lifecycle },
-      })
-      if (command.lifecycle === 'failed' || command.lifecycle === 'reconciliation_required') {
-        recordTelemetry({
-          eventName: 'venue_rejection_observed',
-          accountId: link.accountId,
-          actionAttemptId: link.actionAttemptId,
-          requestId: link.requestId,
-          commandId: command.command_id,
-          properties: { action_kind: link.actionKind, outcome_code: command.lifecycle },
-        })
-      }
+      const records = commandOutcomeRecords(link, command, revision)
+      if (records.length === 0) continue
+      for (const record of records) recordTelemetry(record)
       this.commandLinks.delete(command.command_id)
     }
   }
@@ -360,16 +341,6 @@ function commandAction(intent: BrowserCommandIntent | BrowserPreviewIntent): Tel
     case 'rearm_protection':
       return 'rearm_protection'
   }
-}
-
-function readinessBlocker(reason: string | null): TelemetryBlockerCode {
-  const normalized = reason?.toLowerCase() ?? ''
-  if (normalized.includes('not connected')) return 'TRANSPORT_OFFLINE'
-  if (normalized.includes('not hydrated') || normalized.includes('unavailable'))
-    return 'ACCOUNT_NOT_HYDRATED'
-  if (normalized.includes('stale')) return 'PROJECTION_STALE'
-  if (normalized.includes('agent')) return 'AGENT_APPROVAL_REQUIRED'
-  return 'UNCLASSIFIED_BLOCKER'
 }
 
 function rejectionBlocker(code: string): TelemetryBlockerCode {

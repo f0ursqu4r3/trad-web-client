@@ -10,10 +10,22 @@ export type AccountCommandProjectionStatus =
   | null
   | undefined
 
+// Why commands wait, for telemetry (`readinessBlocker`); the reason is the
+// text the client is shown.
+export type AccountReadinessCode =
+  | 'gateway_reconnecting'
+  | 'account_initializing'
+  | 'agent_approval_required'
+  | 'new_risk_paused'
+  | 'account_reconciling'
+
 export interface AccountCommandReadiness {
   ready: boolean
   reason: string | null
+  code: AccountReadinessCode | null
 }
+
+const READY: AccountCommandReadiness = { ready: true, reason: null, code: null }
 
 export const ACCOUNT_ENGINE_INITIALIZING_MESSAGE =
   'Account engine is initializing. Exchange controls will unlock automatically when it is ready.'
@@ -33,15 +45,23 @@ export function accountCommandReadiness(
   exchangeCredentialReady = true,
 ): AccountCommandReadiness {
   if (!gatewayReady) {
-    return { ready: false, reason: GATEWAY_RECONNECTING_MESSAGE }
+    return { ready: false, reason: GATEWAY_RECONNECTING_MESSAGE, code: 'gateway_reconnecting' }
   }
   if (projectionStatus !== 'ready') {
-    return { ready: false, reason: ACCOUNT_ENGINE_INITIALIZING_MESSAGE }
+    return {
+      ready: false,
+      reason: ACCOUNT_ENGINE_INITIALIZING_MESSAGE,
+      code: 'account_initializing',
+    }
   }
   if (!exchangeCredentialReady) {
-    return { ready: false, reason: HYPERLIQUID_AGENT_APPROVAL_REQUIRED_MESSAGE }
+    return {
+      ready: false,
+      reason: HYPERLIQUID_AGENT_APPROVAL_REQUIRED_MESSAGE,
+      code: 'agent_approval_required',
+    }
   }
-  return { ready: true, reason: null }
+  return READY
 }
 
 export type NewRiskCheckpoint = Pick<
@@ -59,17 +79,21 @@ export function newExposureReadiness(
   if (!commandReadiness.ready) return commandReadiness
   const accountReason = checkpoint?.new_risk_blocked_reason?.trim()
   if (accountReason) {
-    return { ready: false, reason: newTradesPaused(accountReason) }
+    return { ready: false, reason: newTradesPaused(accountReason), code: 'new_risk_paused' }
   }
   // A projection stored before the engine gave its reason.
   if (checkpoint?.summary.reconciliation_ready !== true) {
-    return { ready: false, reason: ACCOUNT_RECONCILING_MESSAGE }
+    return { ready: false, reason: ACCOUNT_RECONCILING_MESSAGE, code: 'account_reconciling' }
   }
   const coin = symbol === null ? null : coinBlock(checkpoint.new_risk_blocked_symbols, symbol)
   if (coin !== null) {
-    return { ready: false, reason: newTradesPaused(coin.reason, coin.symbol) }
+    return {
+      ready: false,
+      reason: newTradesPaused(coin.reason, coin.symbol),
+      code: 'new_risk_paused',
+    }
   }
-  return { ready: true, reason: null }
+  return READY
 }
 
 // The engine's coin names are canonical; a typed symbol may differ in case.

@@ -315,7 +315,7 @@ export const useGatewayStore = defineStore('gateway', () => {
       exchangeCredentialReady,
     )
     if (!readiness.ready) {
-      telemetry.readinessBlocked(attempt, readiness.reason)
+      telemetry.readinessBlocked(attempt, readiness.code)
       return Promise.reject(new Error(readiness.reason!))
     }
     if (isNewExposureIntent(intent)) {
@@ -325,7 +325,7 @@ export const useGatewayStore = defineStore('gateway', () => {
         newExposureSymbol(intent),
       )
       if (!newRisk.ready) {
-        telemetry.readinessBlocked(attempt, newRisk.reason)
+        telemetry.readinessBlocked(attempt, newRisk.code)
         return Promise.reject(new Error(newRisk.reason!))
       }
     }

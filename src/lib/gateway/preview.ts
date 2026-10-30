@@ -80,6 +80,8 @@ export type PreviewPlanningRejectionCode =
   | 'missing_market_evidence'
   | 'account_policy_barrier'
   | 'fee_evidence_unavailable'
+  | 'invalid_intent'
+  | 'limit_price_out_of_band'
   | 'unknown'
 
 export interface BrowserPreviewRejection {

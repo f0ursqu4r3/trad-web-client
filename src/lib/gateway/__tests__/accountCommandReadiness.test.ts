@@ -16,6 +16,7 @@ test('account commands require the gateway connection', () => {
   assert.deepEqual(accountCommandReadiness(false, 'ready'), {
     ready: false,
     reason: GATEWAY_RECONNECTING_MESSAGE,
+    code: 'gateway_reconnecting',
   })
 })
 
@@ -24,6 +25,7 @@ test('account commands remain blocked while the owner projection is not ready', 
     assert.deepEqual(accountCommandReadiness(true, status), {
       ready: false,
       reason: ACCOUNT_ENGINE_INITIALIZING_MESSAGE,
+      code: 'account_initializing',
     })
   }
 })
@@ -32,6 +34,7 @@ test('account commands unlock after the authoritative account snapshot arrives',
   assert.deepEqual(accountCommandReadiness(true, 'ready'), {
     ready: true,
     reason: null,
+    code: null,
   })
 })
 
@@ -39,6 +42,7 @@ test('Hyperliquid commands remain blocked until the agent wallet is approved', (
   assert.deepEqual(accountCommandReadiness(true, 'ready', false), {
     ready: false,
     reason: HYPERLIQUID_AGENT_APPROVAL_REQUIRED_MESSAGE,
+    code: 'agent_approval_required',
   })
 })
 
@@ -60,13 +64,19 @@ test('new exposure waits for server reconciliation without blocking exits', () =
   assert.deepEqual(newExposureReadiness(command, checkpoint(false)), {
     ready: false,
     reason: ACCOUNT_RECONCILING_MESSAGE,
+    code: 'account_reconciling',
   })
   assert.deepEqual(newExposureReadiness(command, undefined), {
     ready: false,
     reason: ACCOUNT_RECONCILING_MESSAGE,
+    code: 'account_reconciling',
   })
-  assert.deepEqual(newExposureReadiness(command, checkpoint(true)), { ready: true, reason: null })
-  assert.deepEqual(command, { ready: true, reason: null })
+  assert.deepEqual(newExposureReadiness(command, checkpoint(true)), {
+    ready: true,
+    reason: null,
+    code: null,
+  })
+  assert.deepEqual(command, { ready: true, reason: null, code: null })
 })
 
 test('an account-level block shows the engine reason', () => {
@@ -82,6 +92,7 @@ test('an account-level block shows the engine reason', () => {
       ready: false,
       reason:
         'New trades are paused: the outcome of position mode change 7 is unknown. Closing and canceling remain available.',
+      code: 'new_risk_paused',
     },
   )
 })
@@ -95,9 +106,18 @@ test('a coin-level block refuses new risk on that coin only', () => {
     ready: false,
     reason:
       "New ETH trades are paused: Trad's ETH trades own more than the venue position holds. Closing and canceling remain available.",
+    code: 'new_risk_paused',
   })
-  assert.deepEqual(newExposureReadiness(command, blocked, 'BTC'), { ready: true, reason: null })
-  assert.deepEqual(newExposureReadiness(command, blocked), { ready: true, reason: null })
+  assert.deepEqual(newExposureReadiness(command, blocked, 'BTC'), {
+    ready: true,
+    reason: null,
+    code: null,
+  })
+  assert.deepEqual(newExposureReadiness(command, blocked), {
+    ready: true,
+    reason: null,
+    code: null,
+  })
 })
 
 test('new-risk intents name the coin they open on', () => {
