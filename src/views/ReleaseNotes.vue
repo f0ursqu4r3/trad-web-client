@@ -48,11 +48,11 @@ const displayedReleases = computed(() =>
     : visibleReleases.value,
 )
 const currentRelease = currentProductRelease()
-const currentBuild = computed(
-  () =>
-    import.meta.env.VITE_APP_BUILD?.trim() ||
-    `${currentRelease.version}${currentRelease.status === 'draft' ? '-dev' : ''}`,
-)
+const currentBuild = computed(() => {
+  const release = `${currentRelease.version}${currentRelease.status === 'draft' ? '-dev' : ''}`
+  const commit = import.meta.env.VITE_APP_BUILD?.trim()
+  return commit ? `${release} · ${commit}` : release
+})
 
 useHead(
   computed(() => {

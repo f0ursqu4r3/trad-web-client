@@ -70,8 +70,10 @@ test('the header shows the current release and links to its notes', async ({ pag
   const version = page.locator('.trad-version')
   await expect(version).toHaveText(`v${current.version}${current.status === 'draft' ? '-dev' : ''}`)
   await expect(version).toHaveAttribute('href', `/updates/${current.version}/`)
+  // the release, then the commit the bundle was built from (vite.config.ts)
+  const release = `${current.version}${current.status === 'draft' ? '-dev' : ''}`
   await expect(page.locator('.build-identity code')).toHaveText(
-    `${current.version}${current.status === 'draft' ? '-dev' : ''}`,
+    new RegExp(`^${release.replace(/\./g, '\\.')} · [0-9a-f]{7,64}$`),
   )
 })
 

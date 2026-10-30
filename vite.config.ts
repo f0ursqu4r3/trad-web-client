@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig, loadEnv, type PluginOption } from 'vite'
@@ -22,6 +23,26 @@ function currentReleases(): { development: CurrentRelease; published: CurrentRel
   if (!newest) throw new Error('src/content/releases.json has no release')
   const published = entries.find((release) => release.status === 'published') ?? newest
   return { development: pick(newest), published: pick(published) }
+}
+
+// The commit a bundle is built from: telemetry's client_commit and the
+// Updates page's build. VITE_APP_BUILD wins; otherwise the checkout's short
+// sha. Builds left it unset and every client reported "0000000"
+// (2026-10-29). Release builds come from a clean checkout of the release
+// commit (backend docs/releasing.md).
+function buildCommit(root: string, configured: string | undefined): string | null {
+  const value = configured?.trim()
+  if (value) return value
+  try {
+    const sha = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+    return /^[0-9a-f]{7,64}$/.test(sha) ? sha : null
+  } catch {
+    return null
+  }
 }
 
 function ensureDevtoolsStorage(): void {
@@ -54,6 +75,7 @@ export default defineConfig(async ({ command, mode }) => {
   const env = loadEnv(mode, root, '')
   const apiTarget = env.VITE_API_TARGET || 'http://localhost:8080'
   const wsTarget = env.VITE_WS_TARGET || 'ws://localhost:8081'
+  const commit = buildCommit(root, env.VITE_APP_BUILD)
   const plugins: PluginOption[] = [
     vue({
       template: {
@@ -76,6 +98,7 @@ export default defineConfig(async ({ command, mode }) => {
     plugins,
     define: {
       __TRAD_CURRENT_RELEASES__: JSON.stringify(currentReleases()),
+      ...(commit === null ? {} : { 'import.meta.env.VITE_APP_BUILD': JSON.stringify(commit) }),
     },
     resolve: {
       alias: {
