@@ -1,5 +1,29 @@
 [
   {
+    "version": "0.10.35.4",
+    "status": "draft",
+    "released_at": null,
+    "channel": "Confirming, not reconciling",
+    "summary": "A Chase whose cancel crosses a fill now shows as confirming while Trad checks the outcome with Hyperliquid, instead of flashing a reconciliation warning, and Edit protection right after a partial close waits for the stop to resize instead of refusing.",
+    "major": [],
+    "minor": [],
+    "fixes": [
+      "A Chase or a Chase close no longer shows Reconcile for the moment Trad confirms a cancel that crossed a fill; it shows Confirming and carries on.",
+      "Edit protection right after a partial close no longer refuses with a reconciliation warning; the editor opens as soon as the stop is resized to the new size.",
+      "A close whose last fill landed while the stop was still being resized no longer shows as needing reconciliation."
+    ],
+    "details": [
+      {
+        "category": "fixes",
+        "title": "Confirming a cancel",
+        "items": [
+          "Hyperliquid answers a cancel that crosses a fill with “already canceled or filled”. Trad then asks for the exact outcome, which usually answers within a tenth of a second; that check now shows as Confirming.",
+          "If the exact outcome never comes, the trade still shows Reconcile and its actions stay blocked, as before."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.10.35.2",
     "status": "published",
     "released_at": "2026-10-26",
