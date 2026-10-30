@@ -4,12 +4,12 @@ import { ChevronDown, ChevronRight, Pin, TriangleAlert } from 'lucide-vue-next'
 
 import ProtectionAmendmentModal from '@/components/engine/actions/ProtectionAmendmentModal.vue'
 import { activeProtectionAmendment } from '@/lib/engineCommands/protectionAmendment'
-import { isExactZero } from '@/lib/exactDecimalMath'
 import type { EngineCommandPrefill } from '@/lib/engineCommands/prefill'
 import type { BrowserAccountSnapshot } from '@/lib/gateway'
 import type { ManagedTradeView } from '@/lib/projection/tradeWorkspace'
 import { managedTradeActions } from '@/lib/projection/tradeWorkspaceActions'
 import { managedTradeTrailingEntries } from '@/lib/projection/tradeWorkspaceCharts'
+import { tradeProgressMessage } from '@/lib/projection/tradeProgress'
 import { longPress } from '@/lib/longPress'
 import { useAccountsStore } from '@/stores/accounts'
 import { useProjectionUiStore } from '@/stores/projectionUi'
@@ -69,30 +69,7 @@ const entryChase = computed(() => {
   if (root.kind !== 'chase') return null
   return props.snapshot.chases.find((chase) => chase.chase_id === root.id) ?? null
 })
-const progressMessage = computed(() => {
-  if (props.trade.lifecycle === 'closing' && isExactZero(props.trade.remainingQuantity)) {
-    if (props.trade.protection?.status === 'reconciliation_required') {
-      return 'Position closed · verifying protection cleanup'
-    }
-    if (props.trade.protection && props.trade.protection.status !== 'canceled') {
-      return 'Position closed · canceling protection'
-    }
-  }
-  if (entryChase.value?.market_fill_pending) {
-    const ended =
-      entryChase.value.lifecycle === 'boundary_reached'
-        ? 'Chase reached its boundary'
-        : entryChase.value.lifecycle === 'expired'
-          ? 'Chase timed out'
-          : 'Chase is ending'
-    const reason = entryChase.value.last_reason
-    return `${ended} · sending the unfilled rest at market${reason ? ` · ${reason}` : ''}`
-  }
-  if (props.trade.position?.status === 'awaiting_exchange_confirmation') {
-    return 'Confirming the latest position change with the exchange'
-  }
-  return null
-})
+const progressMessage = computed(() => tradeProgressMessage(props.trade, entryChase.value))
 const createdAtLabel = computed(() => {
   const created = new Date(createdAt.value)
   if (Number.isNaN(created.getTime())) return ''

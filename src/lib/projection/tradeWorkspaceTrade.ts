@@ -16,6 +16,7 @@ import {
   sumExact,
 } from '../exactDecimalMath.ts'
 import { commandNativeProtection } from '../engineCommands/protectionAmendment.ts'
+import { orderNeedsReconciliation, presentedProtectionStatus } from './confirmation.ts'
 import { summarizeProjectionExecutions } from './executionEconomics.ts'
 import { commandKindLabel } from './presentation.ts'
 import { descendantOrderIds, relatedCommandIds } from './tradeWorkspaceRelationships.ts'
@@ -353,18 +354,16 @@ function tradeAttention(
     )
   }
   const blockedOrder = orders.find(
-    (row) => row.reconciliation_required || row.failure_reason !== null,
+    (row) => orderNeedsReconciliation(row) || row.failure_reason !== null,
   )
   if (blockedOrder !== undefined) {
     return (
       blockedOrder.blocking_reason ?? blockedOrder.failure_reason ?? 'Order requires attention.'
     )
   }
-  if (
-    protection?.status === 'failed_unprotected' ||
-    protection?.status === 'reconciliation_required'
-  ) {
-    return protection.failure_reason ?? 'Protection requires attention.'
+  const protectionStatus = protection === null ? null : presentedProtectionStatus(protection)
+  if (protectionStatus === 'failed_unprotected' || protectionStatus === 'reconciliation_required') {
+    return protection?.failure_reason ?? 'Protection requires attention.'
   }
   return null
 }

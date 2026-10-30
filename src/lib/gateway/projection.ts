@@ -290,6 +290,9 @@ export interface ChaseProjection {
   // The Chase ended at its deadline or boundary and still has to send its
   // unfilled rest at market; last_reason says what it waits for.
   market_fill_pending?: boolean
+  // Reconciliation required only while its order's cancel is being
+  // confirmed by the exact cancel-outcome query: shown as confirming.
+  confirming_cancel?: boolean
 }
 
 export interface ChasePriceRiskState {
@@ -417,6 +420,9 @@ export interface CloseWorkflowProjection {
   lifecycle: string
   last_reason: string | null
   created_at: TimestampMillis
+  // Reconciliation required only while its Chase's or order's cancel is
+  // being confirmed: shown as confirming.
+  confirming_cancel?: boolean
 }
 
 export interface FlattenWorkflowProjection {
@@ -560,6 +566,9 @@ export interface OrderProjection {
   generations: Record<string, OrderGenerationProjection>
   failure_reason: string | null
   blocking_reason?: string | null
+  // reconciliation_required only while the exact cancel-outcome query still
+  // asks (a cancel that raced a fill): shown as confirming, not flagged.
+  confirming_cancel?: boolean
 }
 
 export interface PositionQuantityProjection {
@@ -814,6 +823,9 @@ export interface NativeProtectionProjection {
   // Present only while Trad has flagged the trade: whether re-arming its
   // protection would be accepted now, and why not.
   rearm?: ProtectionRearmProjection | null
+  // reconciliation_required only because a fill shrank the trade before a
+  // sibling was resized, with that resize in flight: shown as resizing.
+  resizing_after_fill?: boolean
 }
 
 export interface ProtectionRearmProjection {

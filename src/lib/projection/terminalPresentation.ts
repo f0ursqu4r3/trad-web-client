@@ -7,6 +7,11 @@ import type {
 import { orderGenerationLifecycleName, orderRequestCloses } from '../gateway/index.ts'
 import { isExactZero } from '../exactDecimalMath.ts'
 import {
+  CONFIRMING_CANCEL,
+  orderNeedsReconciliation,
+  presentedProtectionStatus,
+} from './confirmation.ts'
+import {
   commandProtectionScopeId,
   commandTree,
   entityCommandId,
@@ -173,8 +178,8 @@ function protectionNode(protection: NativeProtectionProjection): TerminalTreeNod
     key,
     kind: 'native_protection',
     label: 'Native Protection',
-    status: terminalStatus(protection.status),
-    tone: lifecycleTone(protection.status),
+    status: terminalStatus(presentedProtectionStatus(protection)),
+    tone: lifecycleTone(presentedProtectionStatus(protection)),
     relationship: 'attached protection',
     badges: [badge(`${protection.covered_quantity} / ${protection.target_quantity}`, 'info')],
     entity: {
@@ -188,8 +193,8 @@ function protectionNode(protection: NativeProtectionProjection): TerminalTreeNod
     intent: null,
     throttled: false,
     protection: {
-      text: `Native Protection: ${title(protection.status)}`,
-      className: protectionStatusClass(protection.status),
+      text: `Native Protection: ${title(presentedProtectionStatus(protection))}`,
+      className: protectionStatusClass(presentedProtectionStatus(protection)),
     },
     symbol: protection.symbol,
     market: null,
@@ -334,6 +339,7 @@ function executionKind(value: Record<string, unknown>): string {
 
 function terminalStatus(status: string): string {
   const value = status.toLowerCase()
+  if (value === CONFIRMING_CANCEL) return 'Confirming'
   if (
     value.includes('fail') ||
     value.includes('reject') ||
@@ -370,7 +376,8 @@ function entityBadges(entity: ProjectionEntity): TerminalBadge[] {
     case 'order':
       return compactBadges([
         entity.row.current_request.reduce_only ? badge('Reduce only', 'warning') : null,
-        entity.row.reconciliation_required ? badge('Reconcile', 'error') : null,
+        orderNeedsReconciliation(entity.row) ? badge('Reconcile', 'error') : null,
+        entity.row.confirming_cancel === true ? badge('Confirming cancel', 'info') : null,
       ])
     case 'execution_group':
       return compactBadges([
@@ -449,6 +456,7 @@ function badge(label: string, tone: TerminalBadge['tone']): TerminalBadge {
 
 export function lifecycleTone(status: string): TerminalBadge['tone'] {
   const value = status.toLowerCase()
+  if (value === CONFIRMING_CANCEL) return 'info'
   if (['succeeded', 'filled', 'completed', 'flat'].includes(value)) return 'success'
   if (
     value.includes('fail') ||

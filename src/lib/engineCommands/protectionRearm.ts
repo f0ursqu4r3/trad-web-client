@@ -27,6 +27,8 @@ export function rearmAvailability(
 ): RearmAvailability {
   const rearm = protection?.rearm
   if (rearm === undefined || rearm === null) return { kind: 'hidden' }
+  // flagged only while a resize after a fill lands: nothing to re-arm
+  if (protection?.resizing_after_fill === true) return { kind: 'hidden' }
   if (rearm.available) return { kind: 'available' }
   return {
     kind: 'refused',

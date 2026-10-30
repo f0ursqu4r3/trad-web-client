@@ -6,6 +6,7 @@ import DetailGrid from './DetailGrid.vue'
 import EvidenceDisclosure from './EvidenceDisclosure.vue'
 import type { NativeProtectionProjection, ProtectionProjection } from '@/lib/gateway'
 import { formatExactDecimal } from '@/lib/exactDecimalMath'
+import { presentedProtectionStatus } from '@/lib/projection/confirmation'
 
 const props = defineProps<{
   protection: NativeProtectionProjection
@@ -13,10 +14,8 @@ const props = defineProps<{
 }>()
 
 const coverageTone = computed(() => {
-  if (
-    props.protection.status === 'reconciliation_required' ||
-    props.protection.status === 'failed_unprotected'
-  ) {
+  const status = presentedProtectionStatus(props.protection)
+  if (status === 'reconciliation_required' || status === 'failed_unprotected') {
     return 'error'
   }
   if (props.protection.covered_quantity === props.protection.target_quantity) return 'success'
@@ -26,7 +25,8 @@ const coverageTone = computed(() => {
 function childStatus(childId: string): string {
   const child = props.protection.children[childId]
   if (child?.failure_reason) return 'failed'
-  if (props.protection.status === 'canceled' || props.protection.status === 'flat') return 'canceled'
+  if (props.protection.status === 'canceled' || props.protection.status === 'flat')
+    return 'canceled'
   if (props.protection.status === 'triggered') return 'triggered'
   return 'active'
 }
@@ -47,7 +47,9 @@ async function copyRemoteOrderId(value: string): Promise<void> {
         <h3>Native Protection</h3>
         <p>{{ protection.symbol }} · {{ protection.position_side }}</p>
       </div>
-      <span class="status-pill" :class="`tone-${coverageTone}`">{{ protection.status }}</span>
+      <span class="status-pill" :class="`tone-${coverageTone}`">{{
+        presentedProtectionStatus(protection)
+      }}</span>
     </div>
 
     <slot name="actions" />

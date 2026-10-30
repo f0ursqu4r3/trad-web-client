@@ -11,6 +11,7 @@ import {
   multiplyExact,
   subtractExact,
 } from '@/lib/exactDecimalMath'
+import { presentedProtectionStatus } from '@/lib/projection/confirmation'
 import type { ManagedTradeView } from '@/lib/projection/tradeWorkspace'
 import { tradeFeeSummary, type FeeLeg } from '@/lib/projection/tradeFees'
 import type { NativeProtectionChildProjection } from '@/lib/gateway'
@@ -475,7 +476,7 @@ onBeforeUnmount(() => {
         {{ formatExactDecimal(trade.protection.covered_quantity) }} /
         {{ formatExactDecimal(trade.protection.target_quantity) }} covered
       </span>
-      <span class="protection-state">{{ trade.protection.status }}</span>
+      <span class="protection-state">{{ presentedProtectionStatus(trade.protection) }}</span>
     </template>
     <span v-else>No attached protection is currently projected</span>
   </div>

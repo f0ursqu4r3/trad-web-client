@@ -11,6 +11,7 @@ import type {
   ProjectionGraph,
   TrailingEntryProjection,
 } from '../gateway/index.ts'
+import { presentedLifecycle } from './confirmation.ts'
 import { nodeKey } from './graph.ts'
 
 export type ProjectionEntity =
@@ -133,12 +134,13 @@ export function commandTree(graph: ProjectionGraph, commandId: string): Projecti
 
 export function entityStatus(entity: ProjectionEntity): string {
   switch (entity.kind) {
-    case 'command':
     case 'order':
-    case 'execution_group':
     case 'chase':
-    case 'trailing_entry':
     case 'close_workflow':
+      return presentedLifecycle(entity.row)
+    case 'command':
+    case 'execution_group':
+    case 'trailing_entry':
     case 'flatten_workflow':
     case 'entry_cancellation':
     case 'account_control':
