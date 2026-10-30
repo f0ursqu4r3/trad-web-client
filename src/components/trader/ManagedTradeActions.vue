@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import LifecycleActionModal from '@/components/engine/actions/LifecycleActionModal.vue'
 import ProtectionAmendmentModal from '@/components/engine/actions/ProtectionAmendmentModal.vue'
@@ -9,6 +9,12 @@ import { lifecycleIntent } from '@/lib/engineCommands/lifecycle'
 import { CLOSE_CHASE_PRESET_LABEL } from '@/lib/engineCommands/closeChasePreset'
 import { activeProtectionAmendment } from '@/lib/engineCommands/protectionAmendment'
 import { rearmAvailability } from '@/lib/engineCommands/protectionRearm'
+import {
+  blockerExplanation,
+  closeBlock,
+  protectionBlock,
+  type ActionBlock,
+} from '@/lib/engineCommands/tradeActionBlockers'
 import type { BrowserAccountSnapshot } from '@/lib/gateway'
 import {
   activeCloseWorkflowsForTrade,
@@ -57,29 +63,29 @@ const closeReferenceCopied = ref(false)
 const activeAmendment = computed(() =>
   activeProtectionAmendment(props.trade.protection, props.snapshot.protection_amendments),
 )
-const hasRemainingExposure = computed(() => !isExactZero(props.trade.remainingQuantity))
-const closeBlocker = computed<TelemetryBlockerCode | null>(() => {
-  if (closeAction.value !== null || !hasRemainingExposure.value) return null
-  if (activeCloseWorkflow.value !== null) return 'ACTIVE_CLOSE_EXISTS'
-  if (props.trade.position?.status === 'awaiting_exchange_confirmation') {
-    return 'POSITION_CONFIRMING'
-  }
-  // Only this trade's own state explains a missing close. A flag elsewhere on
-  // the coin never does; the engine decides whether a close goes out.
-  if (props.trade.protection?.status === 'reconciliation_required') {
-    return 'RECONCILIATION_REQUIRED'
-  }
-  return 'POSITION_INCONSISTENT'
-})
-const protectionBlocker = computed<TelemetryBlockerCode | null>(() => {
-  if (!props.trade.protection) return null
-  if (props.trade.protection.status === 'reconciliation_required') {
-    return 'RECONCILIATION_REQUIRED'
-  }
-  if (props.trade.protection.status !== 'tracking') return 'PROTECTION_NOT_TRACKING'
-  if (activeAmendment.value !== null) return 'PROTECTION_AMENDMENT_ACTIVE'
-  return null
-})
+const closeBlockState = computed(() =>
+  closeBlock({
+    closeAvailable: closeAction.value !== null,
+    hasRemainingExposure: !isExactZero(props.trade.remainingQuantity),
+    activeClose: activeCloseWorkflow.value !== null,
+    position: props.trade.position,
+    protection: props.trade.protection,
+  }),
+)
+const protectionBlockState = computed(() =>
+  protectionBlock(props.trade.protection, activeAmendment.value !== null),
+)
+const closeBlocker = computed(() => closeBlockState.value?.blocker ?? null)
+const protectionBlocker = computed(() => protectionBlockState.value?.blocker ?? null)
+// How long an Edit click waits for a settling protection (tradeActionBlockers.ts).
+const PROTECTION_SETTLE_WAIT_MS = 10_000
+const CLOSE_PRESETS = [
+  { label: 'Close all', percent: null },
+  { label: 'Close ½', percent: '50' },
+  { label: 'Close ⅓', percent: '33.33333333' },
+  { label: 'Close ¼', percent: '25' },
+] as const
+let protectionWait: number | null = null
 const activeCloseMessage = computed(() =>
   closeBlocker.value === 'ACTIVE_CLOSE_EXISTS'
     ? 'A close is already active. Trad is waiting for its authoritative outcome before allowing another close.'
@@ -126,17 +132,30 @@ watch(
 )
 
 watch(
-  [closeBlocker, protectionBlocker],
+  [closeBlockState, protectionBlockState],
   ([close, protection], previous) => {
-    if (close !== null && close !== previous?.[0]) {
+    if (close !== null && close.blocker !== previous?.[0]?.blocker) {
       recordUnavailable('partial_close', close, 'managed_trade_close')
     }
-    if (protection !== null && protection !== previous?.[1]) {
+    if (protection !== null && protection.blocker !== previous?.[1]?.blocker) {
       recordUnavailable('edit_protection', protection, 'managed_trade_protection')
     }
   },
   { immediate: true },
 )
+
+watch(protectionBlocker, (blocker) => {
+  if (protectionWait === null || blocker === 'PROTECTION_SETTLING') return
+  endProtectionWait()
+  if (blocker === null) {
+    blockedMessage.value = null
+    editProtectionOpen.value = true
+  } else {
+    blockAction('edit_protection', blocker)
+  }
+})
+
+onBeforeUnmount(endProtectionWait)
 
 function openClose(percent: string | null): void {
   if (shortcutState.value !== 'idle') return
@@ -194,11 +213,30 @@ async function submitChaseShortcut(percent: string | null): Promise<void> {
 }
 
 function openProtection(): void {
-  if (protectionBlocker.value !== null) {
-    blockAction('edit_protection', protectionBlocker.value)
-    return
+  const blocker = protectionBlocker.value
+  if (blocker === null) {
+    editProtectionOpen.value = true
+  } else if (blocker === 'PROTECTION_SETTLING') {
+    awaitProtection()
+  } else {
+    blockAction('edit_protection', blocker)
   }
-  editProtectionOpen.value = true
+}
+
+// Wait for the protection to settle, then open the editor; past the wait it
+// is reported as blocked.
+function awaitProtection(): void {
+  blockedMessage.value = blockerExplanation('PROTECTION_SETTLING', null)
+  if (protectionWait !== null) return
+  protectionWait = window.setTimeout(() => {
+    protectionWait = null
+    if (protectionBlocker.value !== null) blockAction('edit_protection', protectionBlocker.value)
+  }, PROTECTION_SETTLE_WAIT_MS)
+}
+
+function endProtectionWait(): void {
+  if (protectionWait !== null) window.clearTimeout(protectionWait)
+  protectionWait = null
 }
 
 function openRearm(): void {
@@ -208,7 +246,7 @@ function openRearm(): void {
 }
 
 function blockAction(actionKind: TelemetryActionKind, blockerCode: TelemetryBlockerCode): void {
-  blockedMessage.value = blockerExplanation(blockerCode)
+  blockedMessage.value = blockerExplanation(blockerCode, activeCloseMessage.value)
   recordTelemetry({
     eventName: 'action_blocked',
     accountId: accounts.selectedAccountId,
@@ -221,7 +259,7 @@ function blockAction(actionKind: TelemetryActionKind, blockerCode: TelemetryBloc
 
 function recordUnavailable(
   actionKind: TelemetryActionKind,
-  blockerCode: TelemetryBlockerCode,
+  block: ActionBlock,
   controlId: string,
 ): void {
   recordTelemetry({
@@ -229,28 +267,14 @@ function recordUnavailable(
     accountId: accounts.selectedAccountId,
     tradeId: props.trade.primaryCommand.command_id,
     commandId: props.trade.primaryCommand.command_id,
-    properties: { action_kind: actionKind, blocker_code: blockerCode, control_id: controlId },
+    properties: {
+      action_kind: actionKind,
+      blocker_code: block.blocker,
+      reason_code: block.reasonCode,
+      control_id: controlId,
+      source: 'managed_trade',
+    },
   })
-}
-
-function blockerExplanation(blockerCode: TelemetryBlockerCode): string {
-  switch (blockerCode) {
-    case 'POSITION_CONFIRMING':
-      return 'Trad is confirming the latest position change with the exchange. This action will become available automatically.'
-    case 'RECONCILIATION_REQUIRED':
-      return 'This trade needs reconciliation before Trad can safely change its exposure or protection.'
-    case 'ACTIVE_CLOSE_EXISTS':
-      return (
-        activeCloseMessage.value ??
-        'A close is already active for this trade. Wait for its outcome before submitting another.'
-      )
-    case 'PROTECTION_NOT_TRACKING':
-      return 'Protection is not tracking, so it cannot be edited safely.'
-    case 'PROTECTION_AMENDMENT_ACTIVE':
-      return 'A protection edit is already active.'
-    default:
-      return 'Trad cannot prove this action is safe from the current account projection.'
-  }
 }
 
 async function copyActiveCloseReference(): Promise<void> {
@@ -288,46 +312,22 @@ defineExpose({ openClose, openTakeover })
     <span v-if="closeAction && closeExecution === 'chase'" class="shortcut-terms">
       One tap · {{ CLOSE_CHASE_PRESET_LABEL }} · cancel the Chase to stop it
     </span>
-    <button
-      v-if="closeAction || closeBlocker"
-      class="btn btn-sm btn-outline-danger"
-      :class="{ 'action-unavailable': !closeAction }"
-      type="button"
-      :disabled="shortcutState !== 'idle'"
-      @click="openClose(null)"
-    >
-      Close all
-    </button>
-    <button
-      v-if="closeAction || closeBlocker"
-      class="btn btn-sm"
-      :class="{ 'action-unavailable': !closeAction }"
-      type="button"
-      :disabled="shortcutState !== 'idle'"
-      @click="openClose('50')"
-    >
-      Close ½
-    </button>
-    <button
-      v-if="closeAction || closeBlocker"
-      class="btn btn-sm"
-      :class="{ 'action-unavailable': !closeAction }"
-      type="button"
-      :disabled="shortcutState !== 'idle'"
-      @click="openClose('33.33333333')"
-    >
-      Close ⅓
-    </button>
-    <button
-      v-if="closeAction || closeBlocker"
-      class="btn btn-sm"
-      :class="{ 'action-unavailable': !closeAction }"
-      type="button"
-      :disabled="shortcutState !== 'idle'"
-      @click="openClose('25')"
-    >
-      Close ¼
-    </button>
+    <template v-if="closeAction || closeBlocker">
+      <button
+        v-for="preset in CLOSE_PRESETS"
+        :key="preset.label"
+        class="btn btn-sm"
+        :class="{
+          'btn-outline-danger': preset.percent === null,
+          'action-unavailable': !closeAction,
+        }"
+        type="button"
+        :disabled="shortcutState !== 'idle'"
+        @click="openClose(preset.percent)"
+      >
+        {{ preset.label }}
+      </button>
+    </template>
     <p v-if="shortcutMessage" class="action-blocker" role="status">{{ shortcutMessage }}</p>
     <button
       v-if="trade.protection"
