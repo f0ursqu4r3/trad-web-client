@@ -129,6 +129,28 @@ test('an xyz market is found, selected, priced and submitted with Trad symbols',
   ])
 })
 
+test('"xyz first" lists xyz markets first and saves the preference', async ({ page }) => {
+  await openWorkspace(page, { catalogRows, editSnapshot: emptyXyzCollateral })
+  const { ticket, market } = ticketParts(page)
+
+  await market.click()
+  const options = ticket.getByRole('option')
+  await expect(options.first()).toContainText('BTC')
+
+  const saved = page.waitForRequest(
+    (request) => request.method() === 'PUT' && new URL(request.url()).pathname === '/api/me',
+  )
+  await ticket.getByLabel('xyz first').check()
+  await expect(options.first()).toContainText('xyz:GOLD')
+  const body = (await saved).postDataJSON()
+  expect(body.meta.preferences.xyz_markets_first).toBe(true)
+
+  // An exact xyz coin is the first match whatever the order.
+  await ticket.getByLabel('xyz first').uncheck()
+  await market.fill('gold')
+  await expect(options.first()).toContainText('xyz:GOLD')
+})
+
 test('typing the exchange spelling and leaving the field selects the xyz market', async ({
   page,
 }) => {

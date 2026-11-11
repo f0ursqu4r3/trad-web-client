@@ -173,6 +173,9 @@ export const useUserStore = defineStore('user', () => {
       if (typeof preferences?.animate_account_rail === 'boolean') {
         uiStore.animateAccountRail = preferences.animate_account_rail
       }
+      if (typeof preferences?.xyz_markets_first === 'boolean') {
+        uiStore.xyzMarketsFirst = preferences.xyz_markets_first
+      }
       if (
         preferences?.order_quantity_mode === 'base' ||
         preferences?.order_quantity_mode === 'notional' ||

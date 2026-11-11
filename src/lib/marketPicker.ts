@@ -86,25 +86,31 @@ export interface MarketPickerOption {
   note: string | null
 }
 
-// Options matching the typed text, grouped in catalog order (main markets,
-// then each HIP-3 dex), best matches first within a group. "gold" finds
-// xyz:GOLD: the text is matched against the symbol, the exchange spelling
-// and the coin after the dex prefix.
+// Options matching the typed text, best matches first: an exact symbol or
+// coin, then prefixes, then the rest, so "MU" lists xyz:MU before MUBARAK.
+// Within a match quality the groups keep catalog order (main markets, then
+// each HIP-3 dex), with `firstGroup` (the trader's "xyz first" preference)
+// moved to the front. "gold" finds xyz:GOLD: the text is matched against
+// the symbol, the exchange spelling and the coin after the dex prefix.
 export function filterMarketOptions(
   options: readonly MarketPickerOption[],
   text: string,
   limit = 40,
+  firstGroup: string | null = null,
 ): MarketPickerOption[] {
   const query = normalizeMarketSymbol(text)
   const groups: string[] = []
+  if (firstGroup !== null && options.some((option) => option.group === firstGroup)) {
+    groups.push(firstGroup)
+  }
   for (const option of options) if (!groups.includes(option.group)) groups.push(option.group)
   const ranked = options
     .map((option) => ({ option, rank: matchRank(option, query) }))
     .filter((entry) => entry.rank !== null)
     .sort(
       (left, right) =>
-        groups.indexOf(left.option.group) - groups.indexOf(right.option.group) ||
         left.rank! - right.rank! ||
+        groups.indexOf(left.option.group) - groups.indexOf(right.option.group) ||
         left.option.symbol.localeCompare(right.option.symbol),
     )
   return ranked.slice(0, limit).map((entry) => entry.option)

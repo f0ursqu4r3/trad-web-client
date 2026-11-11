@@ -18,6 +18,7 @@ async function save() {
     number_display_mode: ui.numberDisplayMode,
     newest_commands_first: ui.newestCommandsFirst,
     animate_account_rail: ui.animateAccountRail,
+    xyz_markets_first: ui.xyzMarketsFirst,
     order_quantity_mode: ui.orderQuantityMode,
   }
   saved.value = false
@@ -70,6 +71,8 @@ async function save() {
       ><label class="control-check control-field-panel"
         ><input v-model="ui.animateAccountRail" type="checkbox" />Animate account identity
         rail</label
+      ><label class="control-check control-field-panel"
+        ><input v-model="ui.xyzMarketsFirst" type="checkbox" />List xyz markets first</label
       >
     </div>
   </ControlSection>

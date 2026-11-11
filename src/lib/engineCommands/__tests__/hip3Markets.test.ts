@@ -80,6 +80,42 @@ test('the gateway catalog keeps Trad symbols, exchange spellings, groups and ter
   assert.throws(() => parseTradMarketCatalog({ instruments: 'nope' }), /invalid/)
 })
 
+test('an exact xyz coin lists before main-market prefixes, and xyz first moves the group up', () => {
+  const option = (symbol: string, group: string): MarketPickerOption => ({
+    symbol,
+    venueSymbol: group === 'main' ? symbol : symbol.replace(/^XYZ:/, 'xyz:'),
+    group,
+    selectable: true,
+    note: null,
+  })
+  const options = [
+    option('MUBARAK', 'main'),
+    option('MEW', 'main'),
+    option('XYZ:MU', 'xyz'),
+    option('XYZ:NVDA', 'xyz'),
+  ]
+  // "MU" is exact for xyz:MU and only a prefix of MUBARAK.
+  assert.deepEqual(
+    filterMarketOptions(options, 'mu').map(({ symbol }) => symbol),
+    ['XYZ:MU', 'MUBARAK'],
+  )
+  assert.equal(bestOptionIndex(filterMarketOptions(options, 'mu'), 'mu'), 0)
+  // The settled list keeps catalog order unless the trader puts xyz first.
+  assert.deepEqual(
+    filterMarketOptions(options, '').map(({ group }) => group),
+    ['main', 'main', 'xyz', 'xyz'],
+  )
+  assert.deepEqual(
+    filterMarketOptions(options, '', 40, 'xyz').map(({ symbol }) => symbol),
+    ['XYZ:MU', 'XYZ:NVDA', 'MEW', 'MUBARAK'],
+  )
+  // A preferred group the catalog does not have changes nothing.
+  assert.deepEqual(
+    filterMarketOptions(options, '', 40, 'para').map(({ group }) => group),
+    ['main', 'main', 'xyz', 'xyz'],
+  )
+})
+
 test('"gold" finds xyz:GOLD and untradable rows cannot be selected for new trades', () => {
   const catalog = parseTradMarketCatalog(catalogResponse)
   const options: MarketPickerOption[] = catalog.symbols.map((symbol) => {
@@ -97,7 +133,7 @@ test('"gold" finds xyz:GOLD and untradable rows cannot be selected for new trade
     gold.map(({ venueSymbol }) => venueSymbol),
     ['xyz:GOLD'],
   )
-  // Main markets first, then xyz, best matches first within each group.
+  // Main markets first, then xyz, when every option matches equally.
   assert.deepEqual(
     filterMarketOptions(options, '').map(({ group }) => group),
     ['main', 'main', 'xyz', 'xyz', 'xyz'],

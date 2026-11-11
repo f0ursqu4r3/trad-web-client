@@ -16,6 +16,7 @@ import {
   type MarketPickerOption,
 } from '@/lib/marketPicker'
 import type { AccountRecord } from '@/stores/accounts'
+import { useUiStore } from '@/stores/ui'
 
 const props = withDefaults(
   defineProps<{
@@ -32,6 +33,9 @@ const emit = defineEmits<{ validity: [error: string | null]; pending: [pending: 
 // `text`; the model changes when the trader selects a market (see
 // marketPickerCommit). The field shows the exchange's spelling (`xyz:GOLD`).
 const model = defineModel<string>({ required: true })
+
+const ui = useUiStore()
+const XYZ_GROUP = 'xyz'
 
 let nextComboboxId = 0
 const listboxId = `market-symbols-${++nextComboboxId}`
@@ -83,7 +87,15 @@ const refusals = computed(() =>
 )
 const pending = computed(() => marketPickerPending(text.value, model.value))
 // A settled field lists every market; typing filters.
-const filtered = computed(() => filterMarketOptions(options.value, pending.value ? text.value : ''))
+const filtered = computed(() =>
+  filterMarketOptions(
+    options.value,
+    pending.value ? text.value : '',
+    40,
+    ui.xyzMarketsFirst ? XYZ_GROUP : null,
+  ),
+)
+const hasXyz = computed(() => options.value.some((option) => option.group === XYZ_GROUP))
 const grouped = computed(() => new Set(filtered.value.map((option) => option.group)).size > 1)
 const activeOption = computed(() => filtered.value[activeIndex.value] ?? null)
 // Shown while the typed text has something Enter can select.
@@ -286,6 +298,15 @@ function optionId(index: number): string {
     </button>
 
     <span v-if="open" :id="listboxId" class="market-combobox-list" role="listbox">
+      <label v-if="hasXyz" class="market-combobox-pref" role="presentation" @mousedown.prevent>
+        <input
+          type="checkbox"
+          tabindex="-1"
+          :checked="ui.xyzMarketsFirst"
+          @change="ui.setXyzMarketsFirst(($event.target as HTMLInputElement).checked)"
+        />
+        xyz first
+      </label>
       <template v-for="(option, index) in filtered" :key="option.symbol">
         <span v-if="startsGroup(index)" class="market-combobox-group" role="presentation">
           {{ groupLabel(option.group) }}
@@ -418,6 +439,16 @@ function optionId(index: number): string {
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.market-combobox-pref {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  padding: 0.3rem 0.55rem;
+  color: var(--fg-muted);
+  font-size: 10px;
+  cursor: pointer;
 }
 .market-combobox-group {
   padding: 0.4rem 0.55rem 0.2rem;

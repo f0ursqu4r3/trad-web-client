@@ -28,6 +28,8 @@ export const useUiStore = defineStore(
     const numberDisplayMode = ref<NumberDisplayMode>('full')
     const newestCommandsFirst = ref(false)
     const animateAccountRail = ref(true)
+    // The market picker lists xyz (HIP-3 stock) markets before the main ones.
+    const xyzMarketsFirst = ref(false)
     const orderQuantityMode = ref<OrderQuantityMode>('notional')
     const systemPrefersDark = ref<boolean>(
       typeof window !== 'undefined'
@@ -71,6 +73,17 @@ export const useUiStore = defineStore(
       useUserStore().saveProfile()
     }
 
+    function setXyzMarketsFirst(enabled: boolean) {
+      xyzMarketsFirst.value = enabled
+      const user = useUserStore()
+      user.profile.meta ||= {}
+      user.profile.meta.preferences = {
+        ...user.profile.meta.preferences,
+        xyz_markets_first: enabled,
+      }
+      user.saveProfile()
+    }
+
     function setOrderQuantityMode(mode: OrderQuantityMode) {
       orderQuantityMode.value = mode
     }
@@ -101,6 +114,7 @@ export const useUiStore = defineStore(
       numberDisplayMode,
       newestCommandsFirst,
       animateAccountRail,
+      xyzMarketsFirst,
       orderQuantityMode,
       effectiveTheme,
       systemPrefersDark,
@@ -108,6 +122,7 @@ export const useUiStore = defineStore(
       toggleTheme,
       setNumberDisplayMode,
       setNewestCommandsFirst,
+      setXyzMarketsFirst,
       setOrderQuantityMode,
       getVar,
       settingsOpen,
