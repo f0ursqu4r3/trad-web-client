@@ -1,16 +1,21 @@
 [
   {
-    "version": "0.10.35.4",
+    "version": "0.11.0",
     "status": "draft",
     "released_at": null,
     "channel": "Confirming, not reconciling",
-    "summary": "A Chase whose cancel crosses a fill now shows as confirming while Trad checks the outcome with Hyperliquid, instead of flashing a reconciliation warning, and Edit protection right after a partial close waits for the stop to resize instead of refusing.",
+    "summary": "A Chase whose cancel crosses a fill shows as confirming instead of flashing Reconcile, Edit protection right after a partial close waits for the stop to resize, a stop too far away to place is caught before the trade, and xyz markets can be listed first.",
     "major": [],
-    "minor": [],
+    "minor": [
+      "The ticket refuses a stop that Hyperliquid could never place at the trade's size, and says the lowest stop it would accept.",
+      "The market list shows exact matches first (“MU” finds xyz:MU first), and a new “xyz first” box lists the xyz markets at the top. It is saved with your profile.",
+      "New accounts use a 10% bound on stop-loss market fills (3% before), so a stop still closes the whole trade in a fast move."
+    ],
     "fixes": [
       "A Chase or a Chase close no longer shows Reconcile for the moment Trad confirms a cancel that crossed a fill; it shows Confirming and carries on.",
       "Edit protection right after a partial close no longer refuses with a reconciliation warning; the editor opens as soon as the stop is resized to the new size.",
-      "A close whose last fill landed while the stop was still being resized no longer shows as needing reconciliation."
+      "A close whose last fill landed while the stop was still being resized no longer shows as needing reconciliation.",
+      "A trade whose stop could not be placed is no longer closed as leftover dust right after its entry fills."
     ],
     "details": [
       {
@@ -19,6 +24,14 @@
         "items": [
           "Hyperliquid answers a cancel that crosses a fill with “already canceled or filled”. Trad then asks for the exact outcome, which usually answers within a tenth of a second; that check now shows as Confirming.",
           "If the exact outcome never comes, the trade still shows Reconcile and its actions stay blocked, as before."
+        ]
+      },
+      {
+        "category": "minor",
+        "title": "Stops too far to place",
+        "items": [
+          "Hyperliquid refuses any order worth less than $10, a stop included. A stop far below the market on a trade sized by risk can be worth only a few dollars, so it was never placed and the trade ran without one.",
+          "The ticket now refuses such a stop and names the lowest one Hyperliquid would accept. For a trade meant to have no stop, use Fixed size and turn the stop off."
         ]
       }
     ]
@@ -1943,9 +1956,7 @@
     "minor": [
       "Included account selection, command entry, device inspection, charts, and durable execution history."
     ],
-    "fixes": [
-      "Established a tagged frontend baseline for reproducible upgrades and rollback."
-    ],
+    "fixes": ["Established a tagged frontend baseline for reproducible upgrades and rollback."],
     "details": [
       {
         "category": "major",
