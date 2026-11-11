@@ -12,7 +12,8 @@ export function isEditingBarrier(code: PreviewPlanningRejectionCode | undefined)
     code === 'above_maximum_order' ||
     code === 'invalid_price_precision' ||
     code === 'invalid_intent' ||
-    code === 'limit_price_out_of_band'
+    code === 'limit_price_out_of_band' ||
+    code === 'stop_below_minimum_order'
   )
 }
 
@@ -36,6 +37,8 @@ export function editingGuidance(code: PreviewPlanningRejectionCode | undefined):
       return 'Finish entering the order details.'
     case 'limit_price_out_of_band':
       return 'Enter a limit price near the live market price.'
+    case 'stop_below_minimum_order':
+      return 'Move the stop closer to the entry: this far away it is too small for the exchange to place.'
     default:
       return 'Checking order details…'
   }

@@ -18,6 +18,8 @@ test('only incomplete financial geometry is softened while editing', () => {
   // a draft mid-edit, or a price kept from the market the ticket just left
   assert.equal(isEditingBarrier('invalid_intent'), true)
   assert.equal(isEditingBarrier('limit_price_out_of_band'), true)
+  // a stop too far to place at the trade's size (0.01 under a 900 coin)
+  assert.equal(isEditingBarrier('stop_below_minimum_order'), true)
   assert.equal(isEditingBarrier('stale_market_evidence'), false)
   assert.equal(isEditingBarrier('missing_market_evidence'), false)
   assert.equal(isEditingBarrier('account_policy_barrier'), false)
@@ -28,5 +30,6 @@ test('editing guidance is specific and its quiet period is explicit', () => {
   assert.match(editingGuidance('wrong_side_stop'), /stop-loss/)
   assert.match(editingGuidance('wrong_side_take_profit'), /take-profit/)
   assert.match(editingGuidance('limit_price_out_of_band'), /limit price/)
+  assert.match(editingGuidance('stop_below_minimum_order'), /too small for the exchange/)
   assert.equal(PREVIEW_EDITING_SETTLE_MS, 1_200)
 })

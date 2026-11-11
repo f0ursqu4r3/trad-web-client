@@ -82,6 +82,7 @@ export type PreviewPlanningRejectionCode =
   | 'fee_evidence_unavailable'
   | 'invalid_intent'
   | 'limit_price_out_of_band'
+  | 'stop_below_minimum_order'
   | 'unknown'
 
 export interface BrowserPreviewRejection {
